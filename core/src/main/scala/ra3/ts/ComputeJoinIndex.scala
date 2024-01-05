@@ -8,14 +8,57 @@ import com.github.plokhotnyuk.jsoniter_scala.core._
 import cats.effect.IO
 
 case class ComputeJoinIndex(
-    left: Column,
-    right: Column,
+    left: Column[_],
+    right: Column[_],
     how: String,
     outputPath: LogicalPath
 )
 object ComputeJoinIndex {
-  def queue(left: Column, right: Column, how: String, outputPath: LogicalPath)(
-      implicit tsc: TaskSystemComponents
+  private def doit(
+      left: Column[_],
+      right: Column[_],
+      how: String,
+      outputPath: LogicalPath
+  )(implicit tsc: TaskSystemComponents) = {
+    val bufferedLeft = IO
+      .parSequenceN(32)(left.segments.map(_.buffer))
+      .map(_.reduce(_ ++ _))
+    val bufferedRight = IO
+      .parSequenceN(32)(right.segments.map(_.buffer))
+      .map(_.reduce(_ ++ _))
+
+    IO.both(bufferedLeft, bufferedRight).flatMap {
+      case (bufferedLeft, bufferedRight) =>
+        val (takeLeft, takeRight) =
+          bufferedLeft.computeJoinIndexes(bufferedRight, how)
+
+        val takeLeftS: IO[Option[SegmentInt]] =
+          takeLeft
+            .map(
+              _.toSegment(
+                outputPath
+                  .copy(table = outputPath.table + ".left")
+              ).map(_.asInstanceOf[SegmentInt]).map(Some(_))
+            )
+            .getOrElse(IO.pure(None))
+        val takeRightS: IO[Option[SegmentInt]] = takeRight
+          .map(
+            _.toSegment(
+              outputPath
+                .copy(table = outputPath.table + ".right")
+            ).map(_.asInstanceOf[SegmentInt]).map(Some(_))
+          )
+          .getOrElse(IO.pure(None))
+        IO.both(takeLeftS, takeRightS)
+    }
+  }
+  def queue(
+      left: Column[_],
+      right: Column[_],
+      how: String,
+      outputPath: LogicalPath
+  )(implicit
+      tsc: TaskSystemComponents
   ) =
     task(ComputeJoinIndex(left, right, how, outputPath))(
       ResourceRequest(cpu = (1, 1), memory = 1, scratch = 0, gpu = 0)
@@ -29,38 +72,7 @@ object ComputeJoinIndex {
       "ComputeJoinIndex",
       1
     ) { case input =>
-      implicit ce =>
-        val bufferedLeft = IO
-          .parSequenceN(32)(input.left.segments.map(_.buffer))
-          .map(_.reduce(_ ++ _))
-        val bufferedRight = IO
-          .parSequenceN(32)(input.right.segments.map(_.buffer))
-          .map(_.reduce(_ ++ _))
-
-        IO.both(bufferedLeft, bufferedRight).flatMap {
-          case (bufferedLeft, bufferedRight) =>
-            val (takeLeft, takeRight) =
-              bufferedLeft.computeJoinIndexes(bufferedRight, input.how)
-
-            val takeLeftS: IO[Option[SegmentInt]] =
-              takeLeft
-                .map(
-                  _.toSegment(
-                    input.outputPath
-                      .copy(table = input.outputPath.table + ".left")
-                  ).map(_.asInstanceOf[SegmentInt]).map(Some(_))
-                )
-                .getOrElse(IO.pure(None))
-            val takeRightS: IO[Option[SegmentInt]] = takeRight
-              .map(
-                _.toSegment(
-                  input.outputPath
-                    .copy(table = input.outputPath.table + ".right")
-                ).map(_.asInstanceOf[SegmentInt]).map(Some(_))
-              )
-              .getOrElse(IO.pure(None))
-            IO.both(takeLeftS, takeRightS)
-        }
+      implicit ce => doit(input.left, input.right, input.how, input.outputPath)
 
     }
 }

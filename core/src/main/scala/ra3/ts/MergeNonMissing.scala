@@ -7,26 +7,43 @@ import com.github.plokhotnyuk.jsoniter_scala.macros._
 import com.github.plokhotnyuk.jsoniter_scala.core._
 import cats.effect.IO
 
+sealed trait SegmentPair[S <: Segment[_]] {
+  def a: S
+  def b: S
+}
+case class I32Pair(a: SegmentInt, b: SegmentInt) extends SegmentPair[SegmentInt]
+case class F64Pair(a: SegmentDouble, b: SegmentDouble)
+    extends SegmentPair[SegmentDouble]
+
 case class MergeNonMissing(
-    input1: Segment[_],
-    input2: Segment[_],    
+    inputs: SegmentPair[_ <: Segment[_]],
     outputPath: LogicalPath
 )
 object MergeNonMissing {
-  def queue(input1: Segment[_], input2: Segment[_], outputPath: LogicalPath)(
-      implicit tsc: TaskSystemComponents
-  ) =
-    task(MergeNonMissing(input1, input2, outputPath))(
+  def queue[ S <: Segment[_]](
+      input1: S,
+      input2: S,
+      outputPath: LogicalPath
+  )(implicit
+      tsc: TaskSystemComponents
+  ) = {
+    val pair = input1 match {
+      case t: SegmentDouble => F64Pair(t, input2.asInstanceOf[SegmentDouble])
+      case t: SegmentInt    => I32Pair(t, input2.asInstanceOf[SegmentInt])
+    }
+    task(MergeNonMissing(pair, outputPath))(
       ResourceRequest(cpu = (1, 1), memory = 1, scratch = 0, gpu = 0)
     )
+  }
   implicit val codec: JsonValueCodec[MergeNonMissing] = JsonCodecMaker.make
-  val task = Task[MergeNonMissing, Segment[_]]("mergenonmissing", 1) { case input =>
-    implicit ce =>
-      val a: IO[Buffer[_]] = input.input1.buffer
-      val b: IO[Buffer[_]] = input.input2.buffer
-      IO.both(a,b).flatMap { case (a,b) =>
-        a.mergeNonMissing(b).toSegment(input.outputPath)
-      }
+  val task = Task[MergeNonMissing, Segment[_]]("mergenonmissing", 1) {
+    case input =>
+      implicit ce =>
+        val a = input.inputs.a.buffer
+        val b = input.inputs.b.buffer
+        IO.both(a, b).flatMap { case (a, b) =>
+          a.mergeNonMissing(b).toSegment(input.outputPath)
+        }
 
   }
 }

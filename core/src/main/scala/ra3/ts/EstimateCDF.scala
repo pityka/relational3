@@ -13,7 +13,7 @@ case class EstimateCDF(
     outputPath: LogicalPath
 )
 object EstimateCDF {
-  private def doit[T](buffer: Buffer[T], n: Int, outputPath: LogicalPath)(
+  private def doit[T<:DataType](buffer: Buffer[T], n: Int, outputPath: LogicalPath)(
       implicit tsc: TaskSystemComponents
   ) = {
     val t = buffer.cdf(n)

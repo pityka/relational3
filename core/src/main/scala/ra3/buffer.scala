@@ -8,57 +8,92 @@ import tasks.{TaskSystemComponents, SharedFile}
 sealed trait Location
 final case class Slice(start: Int, until: Int) extends Location
 
-sealed trait Buffer[T] {
+sealed trait Buffer[DType <: DataType] { //self: DType#BufferType =>
+  // type SegType = DType#SegmentType
 
-  def cdf(numPoints: Int): (Buffer[T],BufferInt)
+  def toSeq: Seq[DType#Elem]
+
+  def cdf(numPoints: Int): (Buffer[DType], BufferInt)
 
   def groups: Buffer.GroupMap
 
   def length: Int
 
-  def ++(b: Buffer[_]): Buffer[T]
+  def ++(b: DType#BufferType): DType#BufferType
 
   /* negative indices yield NA values */
-  def take(locs: Location): Buffer[T]
+  def take(locs: Location): Buffer[DType]
 
   /** takes element where mask is non missing and > 0, for string mask where non
     * missing and non empty
     */
-  def filter(mask: Buffer[_]): Buffer[T]
+  def filter(mask: Buffer[_]): Buffer[DType]
 
-  /** uses the first element from cutoff*/
-  def filterInEquality(cutoff: Buffer[_], comparisonBuffer: Buffer[_], less: Boolean) : Buffer[T]
+  /** uses the first element from cutoff */
+  def filterInEquality[D2 <: DataType](
+      cutoff: Buffer[D2],
+      comparisonBuffer: Buffer[D2],
+      less: Boolean
+  ): Buffer[DType]
 
   def computeJoinIndexes(
-      other: Buffer[_],
+      other: Buffer[DType],
       how: String
   ): (Option[BufferInt], Option[BufferInt])
 
   def mergeNonMissing(
-      other: Buffer[_]
-  ): Buffer[T]
+      other: Buffer[DType]
+  ): Buffer[DType]
 
   def isMissing(l: Int): Boolean
   def hashOf(l: Int): Int
   def toSegment(name: LogicalPath)(implicit
       tsc: TaskSystemComponents
-  ): IO[Segment[T]]
-  // def toLocalSegment: Resource[IO, Segment[Int]]
-
-  def toSeq: Seq[T]
+  ): IO[Segment[DType]]
 
 }
 
+final class BufferDouble
+    extends Buffer[F64] {
+
+      override def toSeq: Seq[Double] = ???
+
+      override def cdf(numPoints: Int): (Buffer[F64], BufferInt) = ???
+
+      override def groups: Buffer.GroupMap = ???
+
+      override def length: Int = ???
+
+      override def ++(b: BufferDouble): BufferDouble = ???
+
+      override def take(locs: Location): Buffer[F64] = ???
+
+      override def filter(mask: Buffer[_]): Buffer[F64] = ???
+
+      override def filterInEquality[D2 <: DataType](cutoff: Buffer[D2], comparisonBuffer: Buffer[D2], less: Boolean): Buffer[F64] = ???
+
+      override def computeJoinIndexes(other: Buffer[F64], how: String): (Option[BufferInt], Option[BufferInt]) = ???
+
+      override def mergeNonMissing(other: Buffer[F64]): Buffer[F64] = ???
+
+      override def isMissing(l: Int): Boolean = ???
+
+      override def hashOf(l: Int): Int = ???
+
+      override def toSegment(name: LogicalPath)(implicit tsc: TaskSystemComponents): IO[SegmentDouble] = ???
+
+    }
+
 /* Buffer of Int, missing is Int.MinValue */
 final case class BufferInt(private[ra3] val values: Array[Int])
-    extends Buffer[Int]
+    extends Buffer[Int32]
     with Location {
 
-      
 
-      def toSeq = values.toSeq
 
-  def cdf(numPoints: Int): (Buffer[Int],BufferInt) = {
+  def toSeq = values.toSeq
+
+  def cdf(numPoints: Int): (Buffer[Int32], BufferInt) = {
     val percentiles =
       0 until (numPoints - 1) map (i => i * (1d / (numPoints - 1)))
     val idx = (percentiles.map(x => (x * (values.length - 1)).toInt) ++ List(
@@ -66,28 +101,32 @@ final case class BufferInt(private[ra3] val values: Array[Int])
     )).distinct
     val sorted = org.saddle.array.sort[Int](values)
     val cdf = idx.map { idx =>
-      (sorted(idx), idx )
+      (sorted(idx), idx)
     }
     val x = BufferInt(cdf.map(_._1).toArray)
     val y = BufferInt(cdf.map(_._2).toArray)
-    (x,y)
+    (x, y)
   }
 
   def length = values.length
 
   import org.saddle.{Buffer => _, _}
-  def filterInEquality(cutoff: Buffer[_], comparison: Buffer[_], lessThan: Boolean) : Buffer[Int] = {
-        cutoff match {
-          case BufferInt(values) =>  
-            val c = values(0)
-            val idx = 
-            if (lessThan) comparison.asInstanceOf[BufferInt].values.toVec.find(_ <= c)
-            else comparison.asInstanceOf[BufferInt].values.toVec.find(_ >= c)
-            BufferInt(values.toVec.take(idx.toArray).toArray)
-          
-          
-        }
-      }
+  def filterInEquality[D2 <: DataType](
+      cutoff: Buffer[D2],
+      comparison: Buffer[D2],
+      lessThan: Boolean
+  ): Buffer[Int32] = {
+    cutoff match {
+      case BufferInt(values) =>
+        val c = values(0)
+        val idx =
+          if (lessThan)
+            comparison.asInstanceOf[BufferInt].values.toVec.find(_ <= c)
+          else comparison.asInstanceOf[BufferInt].values.toVec.find(_ >= c)
+        BufferInt(values.toVec.take(idx.toArray).toArray)
+
+    }
+  }
 
   def groups = {
     val idx = Index(values)
@@ -107,8 +146,9 @@ final case class BufferInt(private[ra3] val values: Array[Int])
   }
 
   def mergeNonMissing(
-      other: Buffer[_]
+      other: Buffer[Int32]
   ): BufferInt = {
+    
     other match {
       case BufferInt(otherValues) =>
         assert(values.length == otherValues.length)
@@ -128,7 +168,7 @@ final case class BufferInt(private[ra3] val values: Array[Int])
   }
 
   def computeJoinIndexes(
-      other: Buffer[_],
+      other: Buffer[Int32],
       how: String
   ): (Option[BufferInt], Option[BufferInt]) = {
     val idx1 = Index(values)
@@ -148,7 +188,7 @@ final case class BufferInt(private[ra3] val values: Array[Int])
     (reindexer.lTake.map(BufferInt(_)), reindexer.rTake.map(BufferInt(_)))
   }
 
-  def ++(b: Buffer[_]) = BufferInt(
+  def ++(b: BufferInt) = BufferInt(
     values.toVec.concat(b.asInstanceOf[BufferInt].values.toVec).toArray
   )
 
@@ -162,7 +202,7 @@ final case class BufferInt(private[ra3] val values: Array[Int])
       BufferInt(values.toVec.take(mask.toVec.find(_ > 0).toArray).toArray)
   }
 
-  override def take(locs: Location): Buffer[Int] = locs match {
+  override def take(locs: Location): BufferInt = locs match {
     case Slice(start, until) =>
       val r = Array.ofDim[Int](until - start)
       System.arraycopy(values, start, r, 0, until - start)
@@ -180,7 +220,7 @@ final case class BufferInt(private[ra3] val values: Array[Int])
 
   override def toSegment(
       name: LogicalPath
-  )(implicit tsc: TaskSystemComponents): IO[Segment[Int]] = {
+  )(implicit tsc: TaskSystemComponents): IO[SegmentInt] = {
     IO {
       val bb =
         ByteBuffer.allocate(4 * values.length).order(ByteOrder.LITTLE_ENDIAN)
@@ -205,7 +245,7 @@ object Buffer {
     * number of groups Also returns a buffer with number of elements in each
     * group
     */
-  def computeGroups(buffers: Seq[Buffer[_]]): GroupMap = {
+  def computeGroups[D<:DataType](buffers: Seq[Buffer[D]]): GroupMap = {
     assert(buffers.size > 0)
     if (buffers.size == 1) {
       val buffer = buffers.head

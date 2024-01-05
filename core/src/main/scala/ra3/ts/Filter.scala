@@ -13,19 +13,18 @@ case class Filter(
     outputPath: LogicalPath
 )
 object Filter {
-  def queue(input: Segment[_], predicate: Segment[_], outputPath: LogicalPath)(
+  def queue[D<:DataType](input: Segment[D], predicate: Segment[_], outputPath: LogicalPath)(
       implicit tsc: TaskSystemComponents
   ) =
     task(Filter(input, predicate, outputPath))(
       ResourceRequest(cpu = (1, 1), memory = 1, scratch = 0, gpu = 0)
-    )
+    ).map(_ match {
+      case t: Segment[_] => t.asInstanceOf[Segment[D]]
+    })
   implicit val codec: JsonValueCodec[Filter] = JsonCodecMaker.make
   val task = Task[Filter, Segment[_]]("filter", 1) { case input =>
     implicit ce =>
-      val bI = input.predicate match {
-        case s: SegmentInt => s.buffer
-
-      }
+      val bI : IO[Buffer[_]]= input.predicate.buffer
       val bIn: IO[Buffer[_]] = input.input.buffer
       IO.both(bI, bIn).flatMap { case (predicate, in) =>
         in.filter(predicate).toSegment(input.outputPath)

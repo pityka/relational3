@@ -10,12 +10,12 @@ import cats.effect.IO
 case class MakeUniqueId(
     parent: String,
     tag: String,
-    aux: Seq[Column]
+    aux: Seq[Column[_]]
 )
 object MakeUniqueId {
   def queue0(
       tag: String,
-      aux: Seq[Column]
+      aux: Seq[Column[_]]
   )(implicit
       tsc: TaskSystemComponents
   ) =
@@ -31,7 +31,7 @@ object MakeUniqueId {
   def queue(
       parent: Table,
       tag: String,
-      aux: Seq[Column]
+      aux: Seq[Column[_]]
   )(implicit
       tsc: TaskSystemComponents
   ) =
@@ -48,7 +48,7 @@ object MakeUniqueId {
       parent1: Table,
       parent2: Table,
       tag: String,
-      aux: Seq[Column]
+      aux: Seq[Column[_]]
   )(implicit
       tsc: TaskSystemComponents
   ) =

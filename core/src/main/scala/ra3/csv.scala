@@ -14,7 +14,7 @@ import cats.effect.IO
 import tasks.fileservice.SharedFile
 
 object csv {
- 
+
   def writeCSVToSharedFiles(
       table: Table,
       channel: WritableByteChannel,
@@ -27,13 +27,14 @@ object csv {
     def toStringColumns(segmentIdx: Int): IO[Seq[Seq[String]]] = {
       IO.parSequenceN(32)((0 until table.columns.size).toList map { colIdx =>
         val column = table.columns(colIdx)
-        column.tpe match {
-          case IntDataType =>
+        column.dataType match {
+          case t: Int32 =>
             val m =
-              column
-                .segments(segmentIdx)
-                .buffer
-                .map(_.asInstanceOf[BufferInt].toSeq.map(_.toString))
+              (t.cast(
+                column
+                  .segments(segmentIdx)
+              ): Int32.SegmentType).buffer
+                .map(_.toSeq.map(_.toString))
 
             m
 
@@ -57,27 +58,24 @@ object csv {
 
     val segments = table.columns.head.segments.size
 
-    IO.parSequenceN(32)(((0 until segments).toList).map{ segmentIdx =>
-    
-      
-      val data = toStringColumns(segmentIdx).map(_.transpose).flatMap{ rows =>
-        val renderedBatch = rows.map{ row => 
+    IO.parSequenceN(32)(((0 until segments).toList).map { segmentIdx =>
+      val data = toStringColumns(segmentIdx).map(_.transpose).flatMap { rows =>
+        val renderedBatch = rows.map { row =>
           row.map(quote).mkString(columnSeparatorStr) + recordSeparator
-          }.mkString 
+        }.mkString
         val asByte = renderedBatch.getBytes(charset)
-        
-        SharedFile.apply(asByte,s"${table.uniqueId}/csv/$segmentIdx.csv")
+
+        SharedFile.apply(asByte, s"${table.uniqueId}/csv/$segmentIdx.csv")
       }
 
       data
-     
-      
+
     })
 
   }
   def readHeterogeneousFromCSVFile(
       name: String,
-      columnTypes: Seq[(Int, ColumnDataType)],
+      columnTypes: Seq[(Int, DataType)],
       file: File,
       charset: CharsetDecoder = org.saddle.io.csv.makeAsciiSilentCharsetDecoder,
       fieldSeparator: Char = ',',
@@ -110,7 +108,7 @@ object csv {
   }
   def readHeterogeneousFromCSVChannel(
       name: String,
-      columnTypes: Seq[(Int, ColumnDataType)],
+      columnTypes: Seq[(Int, DataType)],
       channel: ReadableByteChannel,
       charset: CharsetDecoder = org.saddle.io.csv.makeAsciiSilentCharsetDecoder,
       fieldSeparator: Char = ',',
@@ -165,12 +163,9 @@ object csv {
             callback.segments.zip(sortedColumnTypes).zipWithIndex map {
               case ((b, (_, tpe)), idx) =>
                 val column = b.toVector
-                // val sten = tpe.copyBufferToSTen(b.asInstanceOf[tpe.Buf])
-                // val ondevice = if (device != CPU) {
-                //   device.to(sten)
-                // } else sten
+
                 val name = colIndex.map(_.apply(idx))
-                (name, Column(column, tpe))
+                (name, Column.cast(tpe)(column))
             }
           Right(
             Table(
@@ -192,7 +187,7 @@ object csv {
       name: String,
       maxLines: Long,
       header: Boolean,
-      columnTypes: Array[(Int, ColumnDataType)],
+      columnTypes: Array[(Int, DataType)],
       maxSegmentLength: Int
   )(implicit tsc: TaskSystemComponents)
       extends Callback {
@@ -212,7 +207,7 @@ object csv {
 
     var bufdata: Array[_] = allocateBuffers()
 
-    val types: Array[ColumnDataType] = columnTypes.map(_._2)
+    val types: Array[DataType] = columnTypes.map(_._2)
 
     val segments: Vector[ArrayBuffer[Segment[_]]] =
       types.map(_ => ArrayBuffer.empty[Segment[_]]).toVector
@@ -220,7 +215,7 @@ object csv {
     private val emptyLoc = locs.length == 0
 
     private final def add(s: Array[Char], from: Int, to: Int, buf: Int) = {
-      val tpe0: ColumnDataType = types(buf)
+      // val tpe0 = types(buf)
       val buf0 = bufdata(buf).asInstanceOf[org.saddle.Buffer[Int]]
 
       buf0.+=(org.saddle.scalar.ScalarTagInt.parse(s, from, to))
@@ -236,31 +231,35 @@ object csv {
       assert(lengths.distinct.size == 1)
       val length = lengths.head
       if (length == maxSegmentLength) {
-        bufdata.zipWithIndex.foreach { case (b, bufferIdx) =>
-          b match {
-            case t: org.saddle.Buffer[_] =>
-              val tpe = columnTypes(bufferIdx)._2
-              import cats.effect.unsafe.implicits.global
+        import cats.effect.unsafe.implicits.global
 
-              tpe match {
-                case IntDataType =>
-                  val b = t.asInstanceOf[org.saddle.Buffer[Int]]
-                  val segment = BufferInt(b.toArray)
-                    .toSegment(
-                      LogicalPath(
-                        table = name,
-                        partition = None,
-                        segment = segments.head.size,
-                        column = bufferIdx
+        IO.parSequenceN(32)(bufdata.zipWithIndex.toList.map {
+          case (b, bufferIdx) =>
+            b match {
+              case t: org.saddle.Buffer[_] =>
+                val tpe = columnTypes(bufferIdx)._2
+
+                tpe match {
+                  case Int32 =>
+                    val b = t.asInstanceOf[org.saddle.Buffer[Int]]
+                    BufferInt(b.toArray)
+                      .toSegment(
+                        LogicalPath(
+                          table = name,
+                          partition = None,
+                          segment = segments.head.size,
+                          column = bufferIdx
+                        )
                       )
-                    )
-                    .unsafeRunSync
-                  segments(bufferIdx).append(segment)
+                      .map(segment => (bufferIdx, segment))
 
-              }
+                }
+            }
+
+        }).unsafeRunSync()
+          .foreach { case (bufferIdx, segment) =>
+            segments(bufferIdx).append(segment)
           }
-
-        }
 
         bufdata = allocateBuffers()
 

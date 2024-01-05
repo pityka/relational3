@@ -13,6 +13,35 @@ case class MergeCDFs(
 )
 object MergeCDFs {
 
+  private def doit(inputs: Seq[(Segment[_],SegmentInt)], outputPath: LogicalPath)(implicit tsc: TaskSystemComponents) = {
+     IO.parSequenceN(32)(inputs.map { case (x: Segment[_], y) =>
+        IO.both(x.buffer, y.buffer)
+      }).flatMap { cdfs =>
+        cdfs.head._1 match {
+          case _: BufferInt =>
+            val (x, y) = Utils
+              .mergeCDFs(
+                cdfs
+                  .asInstanceOf[Seq[(Buffer[Int32], BufferInt)]]
+                  .map(v => (v._1.toSeq zip v._2.toSeq).toVector)
+              )
+              .unzip
+            val xS = BufferInt(x.toArray).toSegment(
+              outputPath.appendToTable(".locations")
+            )
+            val yS =
+              BufferInt(y.toArray).toSegment(
+              outputPath.appendToTable(".values")
+            )
+            IO.both(xS, yS).map(v => CDF(v._1, v._2 match {
+              case x:SegmentInt =>x
+              case _ => ???
+            }))
+
+        }
+      }
+  }
+
   def queue(inputs: Seq[(Segment[_], SegmentInt)], outputPath: LogicalPath)(
       implicit tsc: TaskSystemComponents
   ) =
@@ -24,32 +53,7 @@ object MergeCDFs {
     JsonCodecMaker.make
   val task = Task[MergeCDFs, CDF]("mergecdf", 1) { case input =>
     implicit ce =>
-      IO.parSequenceN(32)(input.inputs.map { case (x: Segment[_], y) =>
-        IO.both(x.buffer, y.buffer)
-      }).flatMap { cdfs =>
-        cdfs.head._1 match {
-          case _: BufferInt =>
-            val (x, y) = Utils
-              .mergeCDFs(
-                cdfs
-                  .asInstanceOf[Seq[(Buffer[Int], Buffer[Int])]]
-                  .map(v => (v._1.toSeq zip v._2.toSeq).toVector)
-              )
-              .unzip
-            val xS = BufferInt(x.toArray).toSegment(
-              input.outputPath.appendToTable(".locations")
-            )
-            val yS =
-              BufferInt(y.toArray).toSegment(
-              input.outputPath.appendToTable(".values")
-            )
-            IO.both(xS, yS).map(v => CDF(v._1, v._2 match {
-              case x:SegmentInt =>x
-              case _ => ???
-            }))
-
-        }
-      }
+     doit(input.inputs,input.outputPath)
 
   }
 }

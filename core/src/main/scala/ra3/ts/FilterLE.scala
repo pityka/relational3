@@ -15,20 +15,21 @@ case class FilterInequality(
     lessThan: Boolean
 )
 object FilterInequality {
-  def queue(
-      comparisonSegment: Segment[_],
-      input: Segment[_],
-      cutoff: Segment[_],
+  def queue[D<:DataType,D2<:DataType](
+      comparisonSegment: Segment[D],
+      input: Segment[D2],
+      cutoff: Segment[D],
       outputPath: LogicalPath,
       lessThan: Boolean
   )(implicit
-      tsc: TaskSystemComponents
+      tsc: TaskSystemComponents,
+      
   ) =
     task(
       FilterInequality(comparisonSegment, input, cutoff, outputPath, lessThan)
     )(
       ResourceRequest(cpu = (1, 1), memory = 1, scratch = 0, gpu = 0)
-    )
+    ).map(_.as[D2])
   implicit val codec: JsonValueCodec[FilterInequality] = JsonCodecMaker.make
   val task = Task[FilterInequality, Segment[_]]("FilterInequality", 1) {
     case input =>

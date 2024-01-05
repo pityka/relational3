@@ -8,14 +8,14 @@ import com.github.plokhotnyuk.jsoniter_scala.core._
 import cats.effect.IO
 
 case class ExtractGroups(
-    input: Segment[_],
+    input: Segment[_<:DataType],
     map: SegmentInt,
     numGroups: Int,
     outputPath: LogicalPath
 )
 object ExtractGroups {
-  def queue(
-      input: Segment[_],
+  def queue[D<:DataType](
+      input: Segment[D],
       map: SegmentInt,
       numGroups: Int,
       outputPath: LogicalPath,
@@ -31,7 +31,9 @@ object ExtractGroups {
       )
     )(
       ResourceRequest(cpu = (1, 1), memory = 1, scratch = 0, gpu = 0)
-    )
+    ).map(_.map(_ match {
+      case t: Segment[_] => t.asInstanceOf[Segment[D]]
+    }))
   implicit val codec: JsonValueCodec[ExtractGroups] = JsonCodecMaker.make
   implicit val codec2: JsonValueCodec[Seq[Segment[_]]] = JsonCodecMaker.make
   val task = Task[ExtractGroups, Seq[Segment[_]]]("ExtractGroups", 1) { case input =>

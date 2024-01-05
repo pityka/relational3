@@ -8,15 +8,51 @@ import com.github.plokhotnyuk.jsoniter_scala.core._
 import cats.effect.IO
 
 case class MakeGroupMap(
-    input: Seq[Column],
+    input: Seq[Column[_]],
     outputPath: LogicalPath
 )
 object MakeGroupMap {
 
+  private def doit(input: Seq[Column[_]], outputPath: LogicalPath)(implicit
+      tsc: TaskSystemComponents
+  ) = {
+    val bufferedColumns = IO.parSequenceN(32)(input.map { column =>
+      IO
+        .parSequenceN(32)(column.segments.map(_.buffer))
+        .map(_.reduce(_ ++ _))
+    })
+
+    bufferedColumns.flatMap { in =>
+      import Buffer.GroupMap
+      val GroupMap(groupMap, numGroups, groupSizes) = Buffer
+        .computeGroups(in)
+
+      IO.both(
+        groupMap.toSegment(outputPath),
+        groupSizes.toSegment(
+          outputPath
+            .copy(table = outputPath.table + ".groupsizes")
+        )
+      ).map { case (a, b) =>
+        (
+          a match {
+            case x: SegmentInt => x
+
+          },
+          numGroups,
+          b match {
+            case x: SegmentInt => x
+
+          }
+        )
+      }
+    }
+  }
+
   /** Returns (group map, num groups, sizes of groups)
     */
   def queue(
-      input: Seq[Column],
+      input: Seq[Column[_]],
       outputPath: LogicalPath
   )(implicit
       tsc: TaskSystemComponents
@@ -34,32 +70,7 @@ object MakeGroupMap {
   val task =
     Task[MakeGroupMap, (SegmentInt, Int, SegmentInt)]("MakeGroupMap", 1) {
       case input =>
-        implicit ce =>
-          val bufferedColumns = IO.parSequenceN(32)(input.input.map { column =>
-            IO
-              .parSequenceN(32)(column.segments.map(_.buffer))
-              .map(_.reduce(_ ++ _))
-          })
-
-          bufferedColumns.flatMap { in =>
-            import Buffer.GroupMap
-            val GroupMap(groupMap, numGroups, groupSizes) = Buffer
-              .computeGroups(in)
-
-            IO.both(
-              groupMap.toSegment(input.outputPath),
-              groupSizes.toSegment(
-                input.outputPath
-                  .copy(table = input.outputPath.table + ".groupsizes")
-              )
-            ).map { case (a, b) => (a match {
-              case x :SegmentInt =>  x
-              
-            }, numGroups, b match {
-              case x: SegmentInt =>  x
-              
-            }) }
-          }
+        implicit ce => doit(input.input, input.outputPath)
 
     }
 }
