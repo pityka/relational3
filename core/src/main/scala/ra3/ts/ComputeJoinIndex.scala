@@ -52,14 +52,14 @@ object ComputeJoinIndex {
         IO.both(takeLeftS, takeRightS)
     }
   }
-  def queue(
-      left: Column[_],
-      right: Column[_],
+  def queue[D<:DataType](
+      left: Column[D],
+      right: Column[D],
       how: String,
       outputPath: LogicalPath
   )(implicit
       tsc: TaskSystemComponents
-  ) =
+  ): IO[(Option[SegmentInt], Option[SegmentInt])] =
     task(ComputeJoinIndex(left, right, how, outputPath))(
       ResourceRequest(cpu = (1, 1), memory = 1, scratch = 0, gpu = 0)
     )

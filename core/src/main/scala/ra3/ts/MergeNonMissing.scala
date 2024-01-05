@@ -7,13 +7,7 @@ import com.github.plokhotnyuk.jsoniter_scala.macros._
 import com.github.plokhotnyuk.jsoniter_scala.core._
 import cats.effect.IO
 
-sealed trait SegmentPair[S <: Segment[_]] {
-  def a: S
-  def b: S
-}
-case class I32Pair(a: SegmentInt, b: SegmentInt) extends SegmentPair[SegmentInt]
-case class F64Pair(a: SegmentDouble, b: SegmentDouble)
-    extends SegmentPair[SegmentDouble]
+
 
 case class MergeNonMissing(
     inputs: SegmentPair[_ <: Segment[_]],

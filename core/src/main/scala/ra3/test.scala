@@ -16,13 +16,15 @@ sealed trait Buffer[DType <: DataType] { // self: DType#BufferType =>
   // type SegType = DType#SegmentType
 
   def toSeq: Seq[DType#Elem]
-  def toSegment: Segment[DType]
+  def toSegment: DType#SegmentType
 }
-sealed trait Segment[DType <: DataType] { // self: DType#SegmentType =>
+sealed trait Segment[DType <: DataType] {  self =>
   // type BufferType = DType#BufferType
   type Elem = DType#Elem
+  type SegmentType = DType#SegmentType
   def buffer: Buffer[DType]
   def statistic: Statistic[Elem]
+  // def pair(other: DType#SegmentType) : Int
   // def cast[D<:DataType] = this.asInstanceOf[Segment[D]]
 }
 sealed trait Column[DType <: DataType] { self =>
@@ -75,12 +77,14 @@ case class SegmentInt(values: Array[Int]) extends Segment[Int32.type] {
 
   override def statistic: Statistic[Elem] = ???
 
+  // def pair(other: this.type) : Int = 0
+
 }
 case class BufferInt(values: Array[Int]) extends Buffer[Int32.type] {
 
   override def toSeq: Seq[Int] = values.toSeq
 
-  override def toSegment: Segment[Int32.type] = ???
+  override def toSegment: SegmentInt = ???
 
 }
 
@@ -95,16 +99,20 @@ case object Int64 extends DataType {
 }
 case class SegmentLong(values: Array[Long]) extends Segment[Int64.type] {
 
+  // override def pair(other: this.type): Int = ???
+
+
   override def buffer = BufferLong(values)
 
   override def statistic: Statistic[Elem] = ???
+
 
 }
 case class BufferLong(values: Array[Long]) extends Buffer[Int64.type] {
 
   override def toSeq = values.toSeq
 
-  override def toSegment: Segment[Int64.type] = ???
+  override def toSegment: SegmentLong = ???
 
 }
 
@@ -123,6 +131,13 @@ object Test {
   // val d = c.z
   implicitly[JsonValueCodec[Segment[_]]]
   implicitly[JsonValueCodec[Column[_]]]
+
+  // def a[D<:DataType](a: D#SegmentType,b: D#SegmentType)(implicit ev: a.type =:=  D#SegmentType) = {
+    
+  //   a.pair()
+  // }
+
+  // a[Int32.type](segment1,segment2)
 
   // val columns: List[Column[_]] = List(c, c)
 

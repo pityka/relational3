@@ -13,12 +13,12 @@ case class BufferColumnAndTakeIndex(
     outputPath: LogicalPath
 )
 object BufferColumnAndTakeIndex {
-  def queue(input: Column[_], idx: Option[SegmentInt], outputPath: LogicalPath)(
+  def queue[D<:DataType](input: Column[D], idx: Option[SegmentInt], outputPath: LogicalPath)(
       implicit tsc: TaskSystemComponents
-  ) =
+  ): IO[D#SegmentType] =
     task(BufferColumnAndTakeIndex(input, idx, outputPath))(
       ResourceRequest(cpu = (1, 1), memory = 1, scratch = 0, gpu = 0)
-    )
+    ).map(s => input.dataType.cast(s))
 
   implicit val codec: JsonValueCodec[BufferColumnAndTakeIndex] =
     JsonCodecMaker.make

@@ -15,12 +15,10 @@ case class Filter(
 object Filter {
   def queue[D<:DataType](input: Segment[D], predicate: Segment[_], outputPath: LogicalPath)(
       implicit tsc: TaskSystemComponents
-  ) =
+  ): IO[Segment[D]] =
     task(Filter(input, predicate, outputPath))(
       ResourceRequest(cpu = (1, 1), memory = 1, scratch = 0, gpu = 0)
-    ).map(_ match {
-      case t: Segment[_] => t.asInstanceOf[Segment[D]]
-    })
+    ).map(_.as[D])
   implicit val codec: JsonValueCodec[Filter] = JsonCodecMaker.make
   val task = Task[Filter, Segment[_]]("filter", 1) { case input =>
     implicit ce =>

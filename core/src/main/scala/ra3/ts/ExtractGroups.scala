@@ -21,7 +21,7 @@ object ExtractGroups {
       outputPath: LogicalPath,
   )(implicit
       tsc: TaskSystemComponents
-  ) =
+  ): IO[Seq[Segment[D]]] =
     task(
       ExtractGroups(
         input = input,
@@ -31,9 +31,7 @@ object ExtractGroups {
       )
     )(
       ResourceRequest(cpu = (1, 1), memory = 1, scratch = 0, gpu = 0)
-    ).map(_.map(_ match {
-      case t: Segment[_] => t.asInstanceOf[Segment[D]]
-    }))
+    ).map(_.map(_.as[D]))
   implicit val codec: JsonValueCodec[ExtractGroups] = JsonCodecMaker.make
   implicit val codec2: JsonValueCodec[Seq[Segment[_]]] = JsonCodecMaker.make
   val task = Task[ExtractGroups, Seq[Segment[_]]]("ExtractGroups", 1) { case input =>

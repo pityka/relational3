@@ -7,41 +7,42 @@ import com.github.plokhotnyuk.jsoniter_scala.macros._
 import com.github.plokhotnyuk.jsoniter_scala.core._
 import cats.effect.IO
 
-case class FilterInequality(
-    comparisonSegment: Segment[_],
+case class FilterInequality(    
+    comparisonSegmentAndCutoff: SegmentPair[_ <: Segment[_]],
     input: Segment[_],
-    cutoff: Segment[_],
     outputPath: LogicalPath,
     lessThan: Boolean
 )
 object FilterInequality {
   def queue[D<:DataType,D2<:DataType](
-      comparisonSegment: Segment[D],
-      input: Segment[D2],
-      cutoff: Segment[D],
+      tpe: D
+  )(
+      comparisonSegment: tpe.SegmentType,
+      input: D2#SegmentType,
+      cutoff: tpe.SegmentType,
       outputPath: LogicalPath,
       lessThan: Boolean
   )(implicit
       tsc: TaskSystemComponents,
-      
+      // ev: comparisonSegment.type =:= cutoff.type
   ) =
-    task(
-      FilterInequality(comparisonSegment, input, cutoff, outputPath, lessThan)
+    {
+
+      val pair = tpe.pair(comparisonSegment,cutoff)
+
+      task(
+      FilterInequality(pair, input, outputPath, lessThan)
     )(
       ResourceRequest(cpu = (1, 1), memory = 1, scratch = 0, gpu = 0)
     ).map(_.as[D2])
+    }
   implicit val codec: JsonValueCodec[FilterInequality] = JsonCodecMaker.make
   val task = Task[FilterInequality, Segment[_]]("FilterInequality", 1) {
     case input =>
       implicit ce =>
         // could be shortcut by storing min/max statistics in the segment
-        val cutoffBuffer = input.cutoff match {
-          case s: SegmentInt => s.buffer
-        }
-        val comparisonBuffer = input.comparisonSegment match {
-          // case SegmentDouble(sf, numElems) =>
-          case t: SegmentInt => t.buffer
-        }
+        val cutoffBuffer = input.comparisonSegmentAndCutoff.b.buffer
+        val comparisonBuffer = input.comparisonSegmentAndCutoff.a.buffer
         val inputBuffer = input.input match {
           // case SegmentDouble(sf, numElems) =>
           case t: SegmentInt => t.buffer

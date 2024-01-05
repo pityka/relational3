@@ -13,21 +13,26 @@ case class EstimateCDF(
     outputPath: LogicalPath
 )
 object EstimateCDF {
-  private def doit[T<:DataType](buffer: Buffer[T], n: Int, outputPath: LogicalPath)(
-      implicit tsc: TaskSystemComponents
-  ) = {
+  private def doit[T <: DataType](
+      buffer: Buffer[T],
+      n: Int,
+      outputPath: LogicalPath
+  )(implicit
+      tsc: TaskSystemComponents
+  ): IO[(Segment[T], SegmentInt)] = {
     val t = buffer.cdf(n)
     IO.both(
       t._1.toSegment(outputPath.appendToTable(".cdfX")),
       t._2
-        .toSegment(outputPath.appendToTable(".cdfXY")).map(_ match {
-          case t: SegmentInt => t
-        })
-        
+        .toSegment(outputPath.appendToTable(".cdfY"))        
     )
   }
-  def queue(input: Segment[_], numberOfPoints: Int, outputPath: LogicalPath)(
-      implicit tsc: TaskSystemComponents
+  def queue[D <: DataType](
+      input: Segment[D],
+      numberOfPoints: Int,
+      outputPath: LogicalPath
+  )(implicit
+      tsc: TaskSystemComponents
   ) =
     task(EstimateCDF(input, numberOfPoints, outputPath))(
       ResourceRequest(cpu = (1, 1), memory = 1, scratch = 0, gpu = 0)
@@ -38,12 +43,9 @@ object EstimateCDF {
   val task = Task[EstimateCDF, (Segment[_], SegmentInt)]("estimatecdf", 1) {
     case input =>
       implicit ce =>
-        val bIn: IO[Buffer[_]] = input.input.buffer
+        val bIn = input.input.buffer
         bIn.flatMap { case bIn =>
-          bIn match {
-            case t: BufferInt =>
-              doit(t, input.numberOfPoints, input.outputPath)
-          }
+          doit(bIn, input.numberOfPoints, input.outputPath)
         }
 
   }
