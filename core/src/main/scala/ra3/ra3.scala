@@ -42,9 +42,9 @@ sealed trait Statistic[T]
 // case object IntDataType extends ColumnDataType
 
 /** This should be short */
-case class CDF(locations: Segment[_<:DataType], values: SegmentInt) {
+case class CDF(locations: Segment, values: SegmentInt) {
   def topK(k: Int, ascending: Boolean)(implicit tsc: TaskSystemComponents) = {
-    val locs: IO[Buffer[_]] = locations.buffer
+    val locs: IO[Buffer] = locations.buffer
     val vals: IO[BufferInt] = values.buffer
     IO.both(locs, vals).map { case (locs, vals) =>
       val indexInLocs =
@@ -63,14 +63,14 @@ case class CDF(locations: Segment[_<:DataType], values: SegmentInt) {
 
 // Segments in the same table are aligned: each column holds the same number of segments of the same size
 case class Table(
-    columns: Vector[Column[_ <: DataType]],
+    columns: Vector[Column],
     colNames: Vector[String],
     uniqueId: String
 ) extends RelationalAlgebra {
   def bufferSegment(
       idx: Int
   )(implicit tsc: TaskSystemComponents): IO[BufferedTable] = {
-    IO.parSequenceN(32)(columns.map(_.segments(idx).buffer: IO[Buffer[_]]))
+    IO.parSequenceN(32)(columns.map(_.segments(idx).buffer: IO[Buffer]))
       .map { buffers =>
         BufferedTable(buffers, colNames)
       }
@@ -80,7 +80,7 @@ case class Table(
   ) = bufferSegment(segment).map(_.toFrame.stringify(nrows, ncols))
 }
 
-case class PartitionedTable(columns: Vector[Column[_ <: DataType]]) {
+case class PartitionedTable(columns: Vector[Column]) {
   def concatenate(other: PartitionedTable) = {
     assert(columns.size == other.columns.size)
     assert(columns.map(_.dataType) == other.columns.map(_.dataType))
@@ -179,7 +179,7 @@ case class GroupedTable(
 }
 
 case class BufferedTable(
-    columns: Vector[Buffer[_]],
+    columns: Vector[Buffer],
     colNames: Vector[String]
 ) {
   def toFrame = {
@@ -203,7 +203,7 @@ trait RelationalAlgebra { self: Table =>
     * @return
     */
   def take(
-      indexes: Column[Int32]
+      indexes: Column.Int32Column
   )(implicit tsc: TaskSystemComponents): IO[Table] = {
     assert(self.columns.head.segments.size == indexes.segments.size)
     ts.MakeUniqueId.queue(self, "take", List(indexes)).flatMap { name =>
@@ -248,7 +248,7 @@ trait RelationalAlgebra { self: Table =>
     * @return
     */
   def rfilter(
-      predicate: Column[_ <: DataType]
+      predicate: Column
   )(implicit tsc: TaskSystemComponents): IO[Table] = {
     assert(self.columns.head.segments.size == predicate.segments.size)
     ts.MakeUniqueId.queue(self, "rfilter", List(predicate)).flatMap { name =>
@@ -279,7 +279,7 @@ trait RelationalAlgebra { self: Table =>
   }
   def rfilterInEquality(
       columnIdx: Int,
-      cutoff: Segment[_],
+      cutoff: Segment,
       lessThan: Boolean
   )(implicit tsc: TaskSystemComponents): IO[Table] = {
     val comparisonColumn = self.columns(columnIdx)
@@ -638,7 +638,7 @@ trait RelationalAlgebra { self: Table =>
   }
 
   /** Concat list of columns */
-  def addColOfSameSegmentation(c: Column[_ <: DataType], colName: String)(
+  def addColOfSameSegmentation(c: Column, colName: String)(
       implicit tsc: TaskSystemComponents
   ): IO[Table] = {
     val name = ts.MakeUniqueId.queue(
@@ -783,13 +783,13 @@ trait RelationalAlgebra { self: Table =>
 }
 
 sealed trait ReductionOp {
-  def reduce[D <: DataType](segment: Segment[D], groupMap: Segment.GroupMap)(
+  def reduce[D <: DataType](segment: D#SegmentType, groupMap: Segment.GroupMap)(
       implicit tsc: TaskSystemComponents
-  ): IO[Segment[D]]
+  ): IO[D#SegmentType]
   def id: String
 }
 
-trait ColumnOps { self: Column[_] =>
+trait ColumnOps { self: Column =>
   // elementwise operations whose output is a new column of the same size
 }
 

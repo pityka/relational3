@@ -1,17 +1,20 @@
 package ra3
-import tasks._ 
+import tasks._
 import cats.effect.IO
 import java.nio.ByteOrder
 import com.github.plokhotnyuk.jsoniter_scala.macros._
-  import com.github.plokhotnyuk.jsoniter_scala.core._
-sealed trait Segment[DType<:DataType] { self  =>
+import com.github.plokhotnyuk.jsoniter_scala.core._
+sealed trait Segment { self =>
   // type BufferType= DType#BufferType
+  type DType <: DataType
+  val dataType: DataType 
   type Elem = DType#Elem
-  def buffer(implicit tsc: TaskSystemComponents): IO[DType#BufferType]
+  type BufferType = DType#BufferType
+  type SegmentType = DType#SegmentType
+  def buffer(implicit tsc: TaskSystemComponents): IO[BufferType]
   def statistics: IO[Option[Statistic[Elem]]]
   def numElems: Int
-  def as[D<:DataType] = this.asInstanceOf[D#SegmentType]
-  def dType : DType 
+  def as[D <: DataType] = this.asInstanceOf[D#SegmentType]
 }
 
 object Segment {
@@ -22,32 +25,32 @@ object Segment {
       groupSizes: SegmentInt
   )
 
-  
-  implicit val codec: JsonValueCodec[Segment[_]] = JsonCodecMaker.make
+  implicit val codec: JsonValueCodec[Segment] = JsonCodecMaker.make
 }
 
-sealed trait SegmentPair[D<:DataType] {
-  val dType: D
-  def a: dType.SegmentType
-  def b: dType.SegmentType
-} 
-case class I32Pair(a: SegmentInt, b: SegmentInt) extends SegmentPair[Int32.type] {
-  val dType = Int32
+sealed trait SegmentPair {
+  type DType <: DataType
+  def a: DType#SegmentType
+  def b: DType#SegmentType
+}
+case class I32Pair(a: SegmentInt, b: SegmentInt)
+    extends SegmentPair {
+  type DType = Int32.type
 }
 case class F64Pair(a: SegmentDouble, b: SegmentDouble)
-    extends SegmentPair[F64.type] {
-      val dType = F64
-    }
+    extends SegmentPair {
+  type DType = F64.type
+}
 
 final case class SegmentDouble(sf: SharedFile, numElems: Int)
-    extends Segment[F64] {
+    extends Segment {
 
-      def dType = F64
+  val dataType = F64
+  type DType = F64.type
 
   // override def pair(other: this.type) = F64Pair(this,other)
 
   override def canEqual(that: Any): Boolean = ???
-
 
   override def buffer(implicit tsc: TaskSystemComponents) =
     ???
@@ -58,9 +61,11 @@ final case class SegmentDouble(sf: SharedFile, numElems: Int)
 
 }
 final case class SegmentInt(sf: SharedFile, numElems: Int)
-    extends Segment[Int32] {
+    extends Segment {
 
-      def dType = Int32
+
+  val dataType = Int32
+  type DType = Int32.type
 
   // override def pair(other: this.type) = I32Pair(this,other)
 

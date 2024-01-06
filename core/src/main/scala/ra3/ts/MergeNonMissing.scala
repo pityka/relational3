@@ -8,12 +8,12 @@ import com.github.plokhotnyuk.jsoniter_scala.core._
 import cats.effect.IO
 
 case class MergeNonMissing(
-    inputs: SegmentPair[_ <: DataType],
+    inputs: SegmentPair,
     outputPath: LogicalPath
 )
 object MergeNonMissing {
   def doit(
-      pair: SegmentPair[_ <: DataType],
+      pair: SegmentPair,
       outputPath: LogicalPath
   )(implicit tsc: TaskSystemComponents) = {
     val a = pair.a.buffer
@@ -36,7 +36,7 @@ object MergeNonMissing {
     ).map(_.as[tpe.type])
   }
   implicit val codec: JsonValueCodec[MergeNonMissing] = JsonCodecMaker.make
-  val task = Task[MergeNonMissing, Segment[_]]("mergenonmissing", 1) {
+  val task = Task[MergeNonMissing, Segment]("mergenonmissing", 1) {
     case input =>
       implicit ce => doit(input.inputs, input.outputPath)
 

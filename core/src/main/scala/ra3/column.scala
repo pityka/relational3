@@ -10,30 +10,35 @@ import com.github.plokhotnyuk.jsoniter_scala.core._
 import tasks._
 
 object Column {
-  case class Int32Column(segments: Vector[SegmentInt]) extends Column[Int32.type] {
+  case class Int32Column(segments: Vector[SegmentInt]) extends Column {
+    type Self = Int32Column
+    type DType = Int32.type
   val dataType = Int32
 }
-case class F64Column(segments: Vector[SegmentDouble]) extends Column[F64.type] {
+case class F64Column(segments: Vector[SegmentDouble]) extends Column {
+  type Self = F64Column
+  type DType = F64.type
   val dataType = F64
 }
-  implicit val codec: JsonValueCodec[Column[_]] = JsonCodecMaker.make
+  implicit val codec: JsonValueCodec[Column] = JsonCodecMaker.make
   
   def apply[D <: DataType](tpe0: D)(segments0: Vector[tpe0.SegmentType]) : D#ColumnType  =
    tpe0.makeColumn(segments0)
 
-  def cast[D <: DataType](tpe: D)(segments: Vector[Segment[_]]): D#ColumnType =
+  def cast[D <: DataType](tpe: D)(segments: Vector[Segment]): D#ColumnType =
     tpe.makeColumn(segments.map(tpe.cast))
 }
 
 
 
-sealed trait Column[DType<:DataType] extends ColumnOps { self => 
-  type Elem = DType#Elem
+sealed trait Column extends ColumnOps { self => 
+  type DType <: DataType
   val dataType : DType
+  type Elem = dataType.Elem
   def segments: Vector[dataType.SegmentType]
   // val z : Segment[DType] = dataType.cast[DType](???)
 
-  def castAndConcatenate(other: Column[_]) = ++(other.asInstanceOf[self.type])
+  def castAndConcatenate(other: Column) = ++(other.asInstanceOf[self.type])
   def ++(other: self.type) = {
   
     val both : Vector[dataType.SegmentType]= segments ++ other.segments

@@ -8,23 +8,24 @@ import com.github.plokhotnyuk.jsoniter_scala.core._
 import cats.effect.IO
 
 case class ComputeJoinIndex(
-    left: Column[_],
-    right: Column[_],
+    left: Column,
+    right: Column,
     how: String,
     outputPath: LogicalPath
 )
 object ComputeJoinIndex {
   private def doit(
-      left: Column[_],
-      right: Column[_],
+      left: Column,
+      right: Column,
       how: String,
       outputPath: LogicalPath
   )(implicit tsc: TaskSystemComponents) = {
+    val rightC = right.asInstanceOf[left.dataType.ColumnType]
     val bufferedLeft = IO
       .parSequenceN(32)(left.segments.map(_.buffer))
       .map(_.reduce(_ ++ _))
     val bufferedRight = IO
-      .parSequenceN(32)(right.segments.map(_.buffer))
+      .parSequenceN(32)(rightC.segments.map(_.buffer))
       .map(_.reduce(_ ++ _))
 
     IO.both(bufferedLeft, bufferedRight).flatMap {
@@ -53,8 +54,8 @@ object ComputeJoinIndex {
     }
   }
   def queue[D<:DataType](
-      left: Column[D],
-      right: Column[D],
+      left: D#ColumnType,
+      right: D#ColumnType,
       how: String,
       outputPath: LogicalPath
   )(implicit

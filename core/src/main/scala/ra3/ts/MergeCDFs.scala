@@ -8,7 +8,7 @@ import com.github.plokhotnyuk.jsoniter_scala.core._
 import cats.effect.IO
 
 case class MergeCDFs(
-    inputs: Seq[(Segment[_ <: DataType], SegmentInt)],
+    inputs: Seq[(Segment, SegmentInt)],
     outputPath: LogicalPath
 )
 object MergeCDFs {
@@ -16,7 +16,7 @@ object MergeCDFs {
   private def doitUntyped(
       input: MergeCDFs
   )(implicit tsc: TaskSystemComponents) = {
-    val dt = input.inputs.head._1.dType
+    val dt = input.inputs.head._1.dataType
     val ord = dt.ordering
     doit(dt)(
       input.inputs.map(pair => (pair._1.as[dt.type], pair._2)),
@@ -38,7 +38,7 @@ object MergeCDFs {
         .mergeCDFs(
           cdfs
             .map(v => (v._1.toSeq zip v._2.toSeq).toVector)
-        )
+        )(ordering)
         .unzip
       val xS = dataType
         .bufferFromSeq(x: _*)
@@ -61,7 +61,7 @@ object MergeCDFs {
   }
 
   def queue(
-      inputs: Seq[(Segment[_ <: DataType], SegmentInt)],
+      inputs: Seq[(Segment, SegmentInt)],
       outputPath: LogicalPath
   )(implicit
       tsc: TaskSystemComponents

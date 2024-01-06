@@ -8,8 +8,8 @@ import com.github.plokhotnyuk.jsoniter_scala.core._
 import cats.effect.IO
 
 case class FilterInequality(
-    comparisonSegmentAndCutoff: SegmentPair[_ <: DataType],
-    input: Segment[_],
+    comparisonSegmentAndCutoff: SegmentPair,
+    input: Segment,
     outputPath: LogicalPath,
     lessThan: Boolean
 )
@@ -36,24 +36,24 @@ object FilterInequality {
   }
 
   private def doit(
-      comparisonSegmentAndCutoff: SegmentPair[_ <: DataType],
-      input: Segment[_],
+      comparisonSegmentAndCutoff: SegmentPair,
+      input: Segment,
       outputPath: LogicalPath,
       lessThan: Boolean
   )(implicit tsc: TaskSystemComponents) = {
     val cutoffBuffer = comparisonSegmentAndCutoff.b.buffer
     val comparisonBuffer = comparisonSegmentAndCutoff.a.buffer
-    val inputBuffer: IO[Buffer[_ <: DataType]] = input.buffer
+    val inputBuffer: IO[Buffer] = input.buffer
     IO.both(IO.both(cutoffBuffer, comparisonBuffer), inputBuffer).flatMap {
       case ((cutoff, comparisonBuffer), inputBuffer) =>
         inputBuffer
-          .filterInEquality(cutoff.dType)(cutoff, comparisonBuffer, lessThan)
+          .filterInEquality(cutoff, comparisonBuffer, lessThan)
           .toSegment(outputPath)
     }
   }
 
   implicit val codec: JsonValueCodec[FilterInequality] = JsonCodecMaker.make
-  val task = Task[FilterInequality, Segment[_]]("FilterInequality", 1) {
+  val task = Task[FilterInequality, Segment]("FilterInequality", 1) {
     case input =>
       implicit ce =>
         // could be shortcut by storing min/max statistics in the segment

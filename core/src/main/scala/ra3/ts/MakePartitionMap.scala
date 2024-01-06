@@ -8,13 +8,13 @@ import com.github.plokhotnyuk.jsoniter_scala.core._
 import cats.effect.IO
 
 case class MakePartitionMap(
-    input: Seq[Segment[_]],
+    input: Seq[Segment],
     outputPath: LogicalPath,
     numPartitions: Int
 )
 object MakePartitionMap {
   def queue(
-      input: Seq[Segment[_]],
+      input: Seq[Segment],
       numPartitions: Int,
       outputPath: LogicalPath
   )(implicit
@@ -27,7 +27,7 @@ object MakePartitionMap {
   val task = Task[MakePartitionMap, SegmentInt]("makepartitionmap", 1) {
     case input =>
       implicit ce =>
-        val b: IO[Seq[Buffer[_]]] = IO.parSequenceN(
+        val b: IO[Seq[Buffer]] = IO.parSequenceN(
           math.min(1, ce.resourceAllocated.cpu)
         )(input.input.map(_.buffer))
         b.flatMap { in =>

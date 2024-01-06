@@ -8,7 +8,7 @@ import com.github.plokhotnyuk.jsoniter_scala.core._
 import cats.effect.IO
 
 case class TakePartition(
-    input: Segment[_],
+    input: Segment,
     partitionMap: SegmentInt,
     pIdx: Int,
     outputPath: LogicalPath
@@ -33,10 +33,10 @@ object TakePartition {
       ResourceRequest(cpu = (1, 1), memory = 1, scratch = 0, gpu = 0)
     ).map(_.as[D])
   implicit val codec: JsonValueCodec[TakePartition] = JsonCodecMaker.make
-  val task = Task[TakePartition, Segment[_]]("takepartition", 1) { case input =>
+  val task = Task[TakePartition, Segment]("takepartition", 1) { case input =>
     implicit ce =>
       val parts = input.partitionMap.buffer
-      val bIn: IO[Buffer[_]] = input.input.buffer
+      val bIn: IO[Buffer] = input.input.buffer
       IO.both(parts, bIn).flatMap { case (partitionMap, in) =>
         in
           .take(partitionMap.where(input.pIdx))

@@ -8,10 +8,12 @@ import tasks.{TaskSystemComponents, SharedFile}
 sealed trait Location
 final case class Slice(start: Int, until: Int) extends Location
 
-sealed trait Buffer[DType <: DataType] { // self: DType#BufferType =>
-  type SegmentType = DType#SegmentType
+sealed trait Buffer {  self =>
+  
+  type DType <: DataType
+  // val dataType : DType
   type BufferType = DType#BufferType
-  def dType : DType
+  type SegmentType = DType#SegmentType
 
   def toSeq: Seq[DType#Elem]
   def findInequalityVsHead(other: BufferType, lessThan: Boolean): BufferInt
@@ -30,12 +32,12 @@ sealed trait Buffer[DType <: DataType] { // self: DType#BufferType =>
   /** takes element where mask is non missing and > 0, for string mask where non
     * missing and non empty
     */
-  def filter(mask: Buffer[_]): BufferType
+  def filter(mask: Buffer): BufferType
 
   /** uses the first element from cutoff */
-  def filterInEquality[D2 <: DataType](d: D2)(
-      cutoff: d.BufferType,
-      comparisonBuffer: d.BufferType,
+  def filterInEquality[D2<:DataType](
+      cutoff: D2#BufferType,
+      comparisonBuffer: D2#BufferType,
       less: Boolean
   ): BufferType
 
@@ -45,7 +47,7 @@ sealed trait Buffer[DType <: DataType] { // self: DType#BufferType =>
   ): (Option[BufferInt], Option[BufferInt])
 
   def mergeNonMissing(
-      other: DType#BufferType
+      other: BufferType
   ): BufferType
 
   def isMissing(l: Int): Boolean
@@ -56,13 +58,15 @@ sealed trait Buffer[DType <: DataType] { // self: DType#BufferType =>
 
 }
 
-final class BufferDouble extends Buffer[F64] {
+final class BufferDouble extends Buffer {
 
-  def dType = F64
 
-  override def filterInEquality[D2 <: DataType](d: D2)(
-      cutoff: d.BufferType,
-      comparisonBuffer: d.BufferType,
+  val dataType = F64
+  type DType = F64.type
+
+  override def filterInEquality[D2<:DataType](
+      cutoff: D2#BufferType,
+      comparisonBuffer: D2#BufferType,
       less: Boolean
   ): BufferType = ???
 
@@ -83,7 +87,7 @@ final class BufferDouble extends Buffer[F64] {
 
   override def take(locs: Location): BufferDouble = ???
 
-  override def filter(mask: Buffer[_]): BufferDouble = ???
+  override def filter(mask: Buffer): BufferDouble = ???
 
   override def computeJoinIndexes(
       other: BufferType,
@@ -104,10 +108,13 @@ final class BufferDouble extends Buffer[F64] {
 
 /* Buffer of Int, missing is Int.MinValue */
 final case class BufferInt(private[ra3] val values: Array[Int])
-    extends Buffer[Int32]
+    extends Buffer
     with Location {
 
-      def dType = Int32
+
+
+
+      type DType = Int32.type
 
   override def findInequalityVsHead(
       other: BufferType,
@@ -143,12 +150,12 @@ final case class BufferInt(private[ra3] val values: Array[Int])
   def length = values.length
 
   import org.saddle.{Buffer => _, _}
-  def filterInEquality[D2 <: DataType](d: D2)(
-      cutoff: d.BufferType,
-      comparison: d.BufferType,
+  def filterInEquality[D2<:DataType](
+      cutoff: D2#BufferType,
+      comparison: D2#BufferType,
       lessThan: Boolean
   ): BufferInt = {
-    val idx = comparison.findInequalityVsHead(cutoff, lessThan)
+    val idx = comparison.findInequalityVsHead(cutoff.asInstanceOf[comparison.DType#BufferType], lessThan)
 
     BufferInt(values.toVec.take(idx.values.toArray).toArray)
 
@@ -223,7 +230,7 @@ final case class BufferInt(private[ra3] val values: Array[Int])
     BufferInt(values.toVec.find(_ == i).toArray)
   }
 
-  def filter(mask: Buffer[_]): BufferInt = mask match {
+  def filter(mask: Buffer): BufferInt = mask match {
     case BufferInt(mask) =>
       BufferInt(values.toVec.take(mask.toVec.find(_ > 0).toArray).toArray)
   }
@@ -273,7 +280,7 @@ object Buffer {
     * number of groups Also returns a buffer with number of elements in each
     * group
     */
-  def computeGroups[D <: DataType](buffers: Seq[Buffer[D]]): GroupMap = {
+  def computeGroups[D <: DataType](buffers: Seq[D#BufferType]): GroupMap = {
     assert(buffers.size > 0)
     if (buffers.size == 1) {
       val buffer = buffers.head
@@ -322,7 +329,7 @@ object Buffer {
   /** Returns an int buffer with the same number of elements. Each element is
     * [0,num), the partition number in which that element belongs
     */
-  def computePartitions(buffers: Seq[Buffer[_]], num: Int): BufferInt = {
+  def computePartitions(buffers: Seq[Buffer], num: Int): BufferInt = {
     assert(buffers.nonEmpty)
     assert(buffers.map(_.length).distinct.size == 1)
     if (buffers.size == 1) {

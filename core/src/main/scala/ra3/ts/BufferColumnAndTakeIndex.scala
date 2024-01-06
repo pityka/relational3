@@ -8,12 +8,12 @@ import com.github.plokhotnyuk.jsoniter_scala.core._
 import cats.effect.IO
 
 case class BufferColumnAndTakeIndex(
-    input: Column[_],
+    input: Column,
     idx: Option[SegmentInt],
     outputPath: LogicalPath
 )
 object BufferColumnAndTakeIndex {
-  def queue(input: Column[_<:DataType], idx: Option[SegmentInt], outputPath: LogicalPath)(
+  def queue(input: Column, idx: Option[SegmentInt], outputPath: LogicalPath)(
       implicit tsc: TaskSystemComponents
   ): IO[input.dataType.SegmentType] =
     task(BufferColumnAndTakeIndex(input, idx, outputPath))(
@@ -23,14 +23,22 @@ object BufferColumnAndTakeIndex {
   implicit val codec: JsonValueCodec[BufferColumnAndTakeIndex] =
     JsonCodecMaker.make
 
-  private def doit(input: Column[_], idx: Option[SegmentInt], outputPath: LogicalPath)(
+  private def doit(input: Column, idx: Option[SegmentInt], outputPath: LogicalPath)(
       implicit tsc: TaskSystemComponents
   ) = {
+
+    IO
+      .parSequenceN(32)(
+        input.segments.map(_.buffer)
+      )
+      .map(_.reduce(_ ++ _))
+
     val bufferedColumn = IO
       .parSequenceN(32)(
         input.segments.map(_.buffer)
       )
       .map(_.reduce(_ ++ _))
+
     val bufferedIdx =
       idx.map(_.buffer.map(Some(_))).getOrElse(IO.pure(None))
 
@@ -44,7 +52,7 @@ object BufferColumnAndTakeIndex {
   }
 
   val task =
-    Task[BufferColumnAndTakeIndex, Segment[_]]("BufferColumnAndTakeIndex", 1) {
+    Task[BufferColumnAndTakeIndex, Segment]("BufferColumnAndTakeIndex", 1) {
       case input =>
         implicit ce => doit(input.input, input.idx, input.outputPath)
 

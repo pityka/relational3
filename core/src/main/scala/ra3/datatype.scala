@@ -1,16 +1,27 @@
 package ra3
 
-sealed trait DataType { self =>
+sealed trait DataType { self : DataType =>
   type Elem 
-  type SegmentType <: Segment[self.type]
-  type BufferType <: Buffer[self.type]
-  type ColumnType <: Column[self.type]
-  def cast(s: Segment[_]) = s.asInstanceOf[SegmentType]
-  def pair(a: SegmentType, b: SegmentType) : SegmentPair[self.type]
+  type SegmentType <: Segment {
+    type DType = self.type
+  }
+  type BufferType <: Buffer{
+    type DType = self.type
+  }
+  type ColumnType <: Column{
+    type DType = self.type
+  }
+  def cast(s: Segment) = s.asInstanceOf[SegmentType]
+  def pair(a: SegmentType, b: SegmentType) : SegmentPair{
+    type DType = self.type
+  }
 
   def makeColumn(s: Vector[SegmentType]): ColumnType
   def bufferFromSeq(es: Elem*) : BufferType
   def ordering: Ordering[Elem]
+
+
+  
 
 
 }

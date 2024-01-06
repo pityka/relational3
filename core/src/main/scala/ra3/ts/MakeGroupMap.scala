@@ -8,19 +8,28 @@ import com.github.plokhotnyuk.jsoniter_scala.core._
 import cats.effect.IO
 
 case class MakeGroupMap(
-    input: Seq[Column[_]],
+    input: Seq[Column],
     outputPath: LogicalPath
 )
 object MakeGroupMap {
 
-  private def doit(input: Seq[Column[_]], outputPath: LogicalPath)(implicit
+  private def singleColumn(column:Column)(implicit tsc: TaskSystemComponents) = {
+    val z = column.segments.map(_.buffer)
+    val t = IO.parSequenceN(32)(z).map(_.reduce(_ ++ _))
+    t
+  }
+
+  private def doit(input: Seq[Column], outputPath: LogicalPath)(implicit
       tsc: TaskSystemComponents
   ) = {
     val bufferedColumns = IO.parSequenceN(32)(input.map { column =>
-      IO
-        .parSequenceN(32)(column.segments.map(_.buffer))
-        .map(_.reduce(_ ++ _))
+     singleColumn(column)
     })
+    // val bufferedColumns = IO.parSequenceN(32)(input.map { column =>
+    //   IO
+    //     .parSequenceN(32)(column.segments.map(_.buffer))
+    //     .map(_.reduce(_ ++ _))
+    // })
 
     bufferedColumns.flatMap { in =>
       import Buffer.GroupMap
@@ -47,12 +56,13 @@ object MakeGroupMap {
         )
       }
     }
+    ???
   }
 
   /** Returns (group map, num groups, sizes of groups)
     */
   def queue(
-      input: Seq[Column[_]],
+      input: Seq[Column],
       outputPath: LogicalPath
   )(implicit
       tsc: TaskSystemComponents

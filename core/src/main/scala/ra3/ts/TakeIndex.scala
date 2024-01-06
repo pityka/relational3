@@ -8,7 +8,7 @@ import com.github.plokhotnyuk.jsoniter_scala.core._
 import cats.effect.IO
 
 case class TakeIndex(
-    input: Segment[_],
+    input: Segment,
     idx: SegmentInt,
     outputPath: LogicalPath
 )
@@ -24,10 +24,10 @@ object TakeIndex {
       ResourceRequest(cpu = (1, 1), memory = 1, scratch = 0, gpu = 0)
     ).map(_.as[D])
   implicit val codec: JsonValueCodec[TakeIndex] = JsonCodecMaker.make
-  val task = Task[TakeIndex, Segment[_]]("take", 1) { case input =>
+  val task = Task[TakeIndex, Segment]("take", 1) { case input =>
     implicit ce =>
       val bI = input.idx.buffer
-      val bIn: IO[Buffer[_]] = input.input.buffer
+      val bIn: IO[Buffer] = input.input.buffer
       IO.both(bI, bIn).flatMap { case (idx, in) =>
         in.take(idx).toSegment(input.outputPath)
       }

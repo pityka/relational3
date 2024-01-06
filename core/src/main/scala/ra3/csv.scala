@@ -209,8 +209,8 @@ object csv {
 
     val types: Array[DataType] = columnTypes.map(_._2)
 
-    val segments: Vector[ArrayBuffer[Segment[_]]] =
-      types.map(_ => ArrayBuffer.empty[Segment[_]]).toVector
+    val segments: Vector[ArrayBuffer[Segment]] =
+      types.map(_ => ArrayBuffer.empty[Segment]).toVector
 
     private val emptyLoc = locs.length == 0
 
