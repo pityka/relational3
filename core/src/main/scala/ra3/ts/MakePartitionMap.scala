@@ -19,12 +19,12 @@ object MakePartitionMap {
       outputPath: LogicalPath
   )(implicit
       tsc: TaskSystemComponents
-  ) =
+  ): IO[SegmentInt] =
     task(MakePartitionMap(input, outputPath, numPartitions))(
       ResourceRequest(cpu = (1, 1), memory = 1, scratch = 0, gpu = 0)
-    ).map(_.asInstanceOf[SegmentInt])
+    )
   implicit val codec: JsonValueCodec[MakePartitionMap] = JsonCodecMaker.make
-  val task = Task[MakePartitionMap, Segment[_]]("makepartitionmap", 1) {
+  val task = Task[MakePartitionMap, SegmentInt]("makepartitionmap", 1) {
     case input =>
       implicit ce =>
         val b: IO[Seq[Buffer[_]]] = IO.parSequenceN(

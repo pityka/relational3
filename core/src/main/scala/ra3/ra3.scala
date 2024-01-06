@@ -42,7 +42,7 @@ sealed trait Statistic[T]
 // case object IntDataType extends ColumnDataType
 
 /** This should be short */
-case class CDF(locations: Segment[_], values: SegmentInt) {
+case class CDF(locations: Segment[_<:DataType], values: SegmentInt) {
   def topK(k: Int, ascending: Boolean)(implicit tsc: TaskSystemComponents) = {
     val locs: IO[Buffer[_]] = locations.buffer
     val vals: IO[BufferInt] = values.buffer
@@ -203,12 +203,12 @@ trait RelationalAlgebra { self: Table =>
     * @return
     */
   def take(
-      indexes: Column[_ <: DataType]
+      indexes: Column[Int32]
   )(implicit tsc: TaskSystemComponents): IO[Table] = {
     assert(self.columns.head.segments.size == indexes.segments.size)
     ts.MakeUniqueId.queue(self, "take", List(indexes)).flatMap { name =>
       IO.parTraverseN(math.min(32, indexes.segments.size))(
-        indexes.segments.map(_.asInstanceOf[SegmentInt]).zipWithIndex
+        indexes.segments.zipWithIndex
       ) { case (segment, segmentIdx) =>
         IO.parTraverseN(math.min(32, self.columns.size))(
           self.columns.zipWithIndex
@@ -253,7 +253,7 @@ trait RelationalAlgebra { self: Table =>
     assert(self.columns.head.segments.size == predicate.segments.size)
     ts.MakeUniqueId.queue(self, "rfilter", List(predicate)).flatMap { name =>
       IO.parTraverseN(math.min(32, predicate.segments.size))(
-        predicate.segments.map(_.asInstanceOf[SegmentInt]).zipWithIndex
+        predicate.segments.zipWithIndex
       ) { case (segment, segmentIdx) =>
         IO.parTraverseN(math.min(32, self.columns.size))(
           self.columns.zipWithIndex
@@ -532,7 +532,7 @@ trait RelationalAlgebra { self: Table =>
                                   assert(tpeA == tpeB)
 
                                   ts.MergeNonMissing
-                                    .queue(
+                                    .queue(tpeA)(
                                       tpeA.cast(a),
                                       tpeA.cast(b),
                                       LogicalPath(

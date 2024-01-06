@@ -15,13 +15,13 @@ case class ExtractGroups(
 )
 object ExtractGroups {
   def queue[D<:DataType](
-      input: Segment[D],
+      input: D#SegmentType,
       map: SegmentInt,
       numGroups: Int,
       outputPath: LogicalPath,
   )(implicit
       tsc: TaskSystemComponents
-  ): IO[Seq[Segment[D]]] =
+  ): IO[Seq[D#SegmentType]] =
     task(
       ExtractGroups(
         input = input,

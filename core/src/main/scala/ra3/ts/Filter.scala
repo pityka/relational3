@@ -13,9 +13,9 @@ case class Filter(
     outputPath: LogicalPath
 )
 object Filter {
-  def queue[D<:DataType](input: Segment[D], predicate: Segment[_], outputPath: LogicalPath)(
+  def queue[D<:DataType](input: D#SegmentType, predicate: Segment[_], outputPath: LogicalPath)(
       implicit tsc: TaskSystemComponents
-  ): IO[Segment[D]] =
+  ): IO[D#SegmentType] =
     task(Filter(input, predicate, outputPath))(
       ResourceRequest(cpu = (1, 1), memory = 1, scratch = 0, gpu = 0)
     ).map(_.as[D])

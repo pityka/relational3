@@ -13,12 +13,16 @@ case class TakeIndex(
     outputPath: LogicalPath
 )
 object TakeIndex {
-  def queue(input: Segment[_], idx: SegmentInt, outputPath: LogicalPath)(
-      implicit tsc: TaskSystemComponents
-  ) =
+  def queue[D <: DataType](
+      input: D#SegmentType,
+      idx: SegmentInt,
+      outputPath: LogicalPath
+  )(implicit
+      tsc: TaskSystemComponents
+  ): IO[D#SegmentType] =
     task(TakeIndex(input, idx, outputPath))(
       ResourceRequest(cpu = (1, 1), memory = 1, scratch = 0, gpu = 0)
-    )
+    ).map(_.as[D])
   implicit val codec: JsonValueCodec[TakeIndex] = JsonCodecMaker.make
   val task = Task[TakeIndex, Segment[_]]("take", 1) { case input =>
     implicit ce =>

@@ -8,18 +8,18 @@ import com.github.plokhotnyuk.jsoniter_scala.core._
 import cats.effect.IO
 
 case class EstimateCDF(
-    input: Segment[_],
+    input: Segment[_<:DataType],
     numberOfPoints: Int,
     outputPath: LogicalPath
 )
 object EstimateCDF {
-  private def doit[T <: DataType](
-      buffer: Buffer[T],
+  private def doit[D <: DataType](
+      buffer: D#BufferType,
       n: Int,
       outputPath: LogicalPath
   )(implicit
       tsc: TaskSystemComponents
-  ): IO[(Segment[T], SegmentInt)] = {
+  ) = {
     val t = buffer.cdf(n)
     IO.both(
       t._1.toSegment(outputPath.appendToTable(".cdfX")),
@@ -28,15 +28,15 @@ object EstimateCDF {
     )
   }
   def queue[D <: DataType](
-      input: Segment[D],
+      input: D#SegmentType,
       numberOfPoints: Int,
       outputPath: LogicalPath
   )(implicit
       tsc: TaskSystemComponents
-  ) =
+  ): IO[(D#SegmentType, SegmentInt)] =
     task(EstimateCDF(input, numberOfPoints, outputPath))(
       ResourceRequest(cpu = (1, 1), memory = 1, scratch = 0, gpu = 0)
-    )
+    ).map(pair => (pair._1.as[D],pair._2))
   implicit val codec: JsonValueCodec[EstimateCDF] = JsonCodecMaker.make
   implicit val code2: JsonValueCodec[(Segment[_], SegmentInt)] =
     JsonCodecMaker.make

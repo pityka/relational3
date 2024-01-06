@@ -2,14 +2,16 @@ package ra3
 import tasks._ 
 import cats.effect.IO
 import java.nio.ByteOrder
-
+import com.github.plokhotnyuk.jsoniter_scala.macros._
+  import com.github.plokhotnyuk.jsoniter_scala.core._
 sealed trait Segment[DType<:DataType] { self  =>
   // type BufferType= DType#BufferType
   type Elem = DType#Elem
   def buffer(implicit tsc: TaskSystemComponents): IO[DType#BufferType]
   def statistics: IO[Option[Statistic[Elem]]]
   def numElems: Int
-  def as[D<:DataType] = this.asInstanceOf[Segment[D]]
+  def as[D<:DataType] = this.asInstanceOf[D#SegmentType]
+  def dType : DType 
 }
 
 object Segment {
@@ -20,21 +22,27 @@ object Segment {
       groupSizes: SegmentInt
   )
 
-  import com.github.plokhotnyuk.jsoniter_scala.macros._
-  import com.github.plokhotnyuk.jsoniter_scala.core._
+  
   implicit val codec: JsonValueCodec[Segment[_]] = JsonCodecMaker.make
 }
 
-sealed trait SegmentPair[S <: Segment[_]] {
-  def a: S
-  def b: S
+sealed trait SegmentPair[D<:DataType] {
+  val dType: D
+  def a: dType.SegmentType
+  def b: dType.SegmentType
+} 
+case class I32Pair(a: SegmentInt, b: SegmentInt) extends SegmentPair[Int32.type] {
+  val dType = Int32
 }
-case class I32Pair(a: SegmentInt, b: SegmentInt) extends SegmentPair[SegmentInt]
 case class F64Pair(a: SegmentDouble, b: SegmentDouble)
-    extends SegmentPair[SegmentDouble]
+    extends SegmentPair[F64.type] {
+      val dType = F64
+    }
 
 final case class SegmentDouble(sf: SharedFile, numElems: Int)
     extends Segment[F64] {
+
+      def dType = F64
 
   // override def pair(other: this.type) = F64Pair(this,other)
 
@@ -51,6 +59,8 @@ final case class SegmentDouble(sf: SharedFile, numElems: Int)
 }
 final case class SegmentInt(sf: SharedFile, numElems: Int)
     extends Segment[Int32] {
+
+      def dType = Int32
 
   // override def pair(other: this.type) = I32Pair(this,other)
 
@@ -71,4 +81,7 @@ final case class SegmentInt(sf: SharedFile, numElems: Int)
 
   def statistics: IO[Option[Statistic[Int]]] = IO.pure(None)
 
+}
+object SegmentInt {
+  implicit val codec: JsonValueCodec[SegmentInt] = JsonCodecMaker.make
 }

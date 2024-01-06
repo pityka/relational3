@@ -3,26 +3,32 @@ import com.github.plokhotnyuk.jsoniter_scala.macros._
 import com.github.plokhotnyuk.jsoniter_scala.core._
 sealed trait DataType { self: DataType =>
   type Elem
-  type SegmentType <: Segment[self.type]
-  type BufferType <: Buffer[self.type]
+  type SegmentType <: Segment {
+    type DType = self.type
+  }
+  type BufferType <: Buffer{
+    type DType = self.type
+  }
   type ColumnType <: Column[self.type]
-  def cast(s: Segment[_]) = s.asInstanceOf[SegmentType]
+  def cast(s: Segment) = s.asInstanceOf[SegmentType]
   def makeColumn(s: Vector[SegmentType]): ColumnType
   // def cast(s:Buffer[_]) : BufferType
 
 }
 sealed trait Statistic[T]
-sealed trait Buffer[DType <: DataType] { // self: DType#BufferType =>
-  // type SegType = DType#SegmentType
+sealed trait Buffer { // self: DType#BufferType =>
+  type DType <: DataType
 
   def toSeq: Seq[DType#Elem]
   def toSegment: DType#SegmentType
 }
-sealed trait Segment[DType <: DataType] {  self =>
+sealed trait Segment {  self =>
   // type BufferType = DType#BufferType
+  type DType <: DataType
   type Elem = DType#Elem
   type SegmentType = DType#SegmentType
-  def buffer: Buffer[DType]
+  type BufferType = DType#BufferType
+  def buffer: Buffer
   def statistic: Statistic[Elem]
   // def pair(other: DType#SegmentType) : Int
   // def cast[D<:DataType] = this.asInstanceOf[Segment[D]]
@@ -66,13 +72,13 @@ object Column {
   ): D#ColumnType =
     tpe0.makeColumn(segments0)
 
-  def cast[D <: DataType](tpe: D)(segments: Vector[Segment[_]]): D#ColumnType =
+  def cast[D <: DataType](tpe: D)(segments: Vector[Segment]): D#ColumnType =
     tpe.makeColumn(segments.map(tpe.cast))
 
 }
 
-case class SegmentInt(values: Array[Int]) extends Segment[Int32.type] {
-
+case class SegmentInt(values: Array[Int]) extends Segment {
+  type DType = Int32.type
   override def buffer = BufferInt(values)
 
   override def statistic: Statistic[Elem] = ???
@@ -80,8 +86,8 @@ case class SegmentInt(values: Array[Int]) extends Segment[Int32.type] {
   // def pair(other: this.type) : Int = 0
 
 }
-case class BufferInt(values: Array[Int]) extends Buffer[Int32.type] {
-
+case class BufferInt(values: Array[Int]) extends Buffer {
+  type DType = Int32.type
   override def toSeq: Seq[Int] = values.toSeq
 
   override def toSegment: SegmentInt = ???
@@ -89,7 +95,7 @@ case class BufferInt(values: Array[Int]) extends Buffer[Int32.type] {
 }
 
 case object Int64 extends DataType {
-
+  
   type Elem = Long
   type BufferType = BufferLong
   type SegmentType = SegmentLong
@@ -97,10 +103,10 @@ case object Int64 extends DataType {
   def makeColumn(s: Vector[SegmentType]): ColumnType = Int64Column(s)
 
 }
-case class SegmentLong(values: Array[Long]) extends Segment[Int64.type] {
+case class SegmentLong(values: Array[Long]) extends Segment {
 
   // override def pair(other: this.type): Int = ???
-
+  type DType = Int64.type
 
   override def buffer = BufferLong(values)
 
@@ -108,7 +114,9 @@ case class SegmentLong(values: Array[Long]) extends Segment[Int64.type] {
 
 
 }
-case class BufferLong(values: Array[Long]) extends Buffer[Int64.type] {
+case class BufferLong(values: Array[Long]) extends Buffer {
+
+  type DType = Int64.type
 
   override def toSeq = values.toSeq
 
@@ -117,7 +125,7 @@ case class BufferLong(values: Array[Long]) extends Buffer[Int64.type] {
 }
 
 object Segment {
-  implicit val codec: JsonValueCodec[Segment[_]] = JsonCodecMaker.make
+  implicit val codec: JsonValueCodec[Segment] = JsonCodecMaker.make
 
 }
 
@@ -129,7 +137,7 @@ object Test {
   val tpe = Int32
   // val c = Column.make(tpe)(Vector(segment1, segment2))
   // val d = c.z
-  implicitly[JsonValueCodec[Segment[_]]]
+  implicitly[JsonValueCodec[Segment]]
   implicitly[JsonValueCodec[Column[_]]]
 
   // def a[D<:DataType](a: D#SegmentType,b: D#SegmentType)(implicit ev: a.type =:=  D#SegmentType) = {
@@ -152,10 +160,10 @@ object Test {
   //   cs
   // }
 
-  def m1[D <: DataType, S <: Segment[D]](
+  def m1[D <: DataType, S <: Segment](
       input: S
   ): S = ???
   def m2[D <: DataType](
-      input: Segment[D]
-  ): Segment[D] = ???
+      input: Segment
+  ): Segment = ???
 }

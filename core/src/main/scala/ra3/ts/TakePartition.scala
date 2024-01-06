@@ -14,14 +14,14 @@ case class TakePartition(
     outputPath: LogicalPath
 )
 object TakePartition {
-  def queue(
-      input: Segment[_],
+  def queue[D <: DataType](
+      input: D#SegmentType,
       partitionMap: SegmentInt,
       outputPath: LogicalPath,
       pIdx: Int
   )(implicit
       tsc: TaskSystemComponents
-  ) =
+  ): IO[D#SegmentType] =
     task(
       TakePartition(
         input = input,
@@ -31,7 +31,7 @@ object TakePartition {
       )
     )(
       ResourceRequest(cpu = (1, 1), memory = 1, scratch = 0, gpu = 0)
-    )
+    ).map(_.as[D])
   implicit val codec: JsonValueCodec[TakePartition] = JsonCodecMaker.make
   val task = Task[TakePartition, Segment[_]]("takepartition", 1) { case input =>
     implicit ce =>

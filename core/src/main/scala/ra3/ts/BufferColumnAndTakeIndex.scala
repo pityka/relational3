@@ -13,9 +13,9 @@ case class BufferColumnAndTakeIndex(
     outputPath: LogicalPath
 )
 object BufferColumnAndTakeIndex {
-  def queue[D<:DataType](input: Column[D], idx: Option[SegmentInt], outputPath: LogicalPath)(
+  def queue(input: Column[_<:DataType], idx: Option[SegmentInt], outputPath: LogicalPath)(
       implicit tsc: TaskSystemComponents
-  ): IO[D#SegmentType] =
+  ): IO[input.dataType.SegmentType] =
     task(BufferColumnAndTakeIndex(input, idx, outputPath))(
       ResourceRequest(cpu = (1, 1), memory = 1, scratch = 0, gpu = 0)
     ).map(s => input.dataType.cast(s))

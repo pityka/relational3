@@ -7,14 +7,14 @@ import com.github.plokhotnyuk.jsoniter_scala.macros._
 import com.github.plokhotnyuk.jsoniter_scala.core._
 import cats.effect.IO
 
-case class FilterInequality(    
-    comparisonSegmentAndCutoff: SegmentPair[_ <: Segment[_]],
+case class FilterInequality(
+    comparisonSegmentAndCutoff: SegmentPair[_ <: DataType],
     input: Segment[_],
     outputPath: LogicalPath,
     lessThan: Boolean
 )
 object FilterInequality {
-  def queue[D<:DataType,D2<:DataType](
+  def queue[D <: DataType, D2 <: DataType](
       tpe: D
   )(
       comparisonSegment: tpe.SegmentType,
@@ -23,36 +23,46 @@ object FilterInequality {
       outputPath: LogicalPath,
       lessThan: Boolean
   )(implicit
-      tsc: TaskSystemComponents,
-      // ev: comparisonSegment.type =:= cutoff.type
-  ) =
-    {
+      tsc: TaskSystemComponents
+  ) = {
 
-      val pair = tpe.pair(comparisonSegment,cutoff)
+    val pair = tpe.pair(comparisonSegment, cutoff)
 
-      task(
+    task(
       FilterInequality(pair, input, outputPath, lessThan)
     )(
       ResourceRequest(cpu = (1, 1), memory = 1, scratch = 0, gpu = 0)
     ).map(_.as[D2])
+  }
+
+  private def doit(
+      comparisonSegmentAndCutoff: SegmentPair[_ <: DataType],
+      input: Segment[_],
+      outputPath: LogicalPath,
+      lessThan: Boolean
+  )(implicit tsc: TaskSystemComponents) = {
+    val cutoffBuffer = comparisonSegmentAndCutoff.b.buffer
+    val comparisonBuffer = comparisonSegmentAndCutoff.a.buffer
+    val inputBuffer: IO[Buffer[_ <: DataType]] = input.buffer
+    IO.both(IO.both(cutoffBuffer, comparisonBuffer), inputBuffer).flatMap {
+      case ((cutoff, comparisonBuffer), inputBuffer) =>
+        inputBuffer
+          .filterInEquality(cutoff.dType)(cutoff, comparisonBuffer, lessThan)
+          .toSegment(outputPath)
     }
+  }
+
   implicit val codec: JsonValueCodec[FilterInequality] = JsonCodecMaker.make
   val task = Task[FilterInequality, Segment[_]]("FilterInequality", 1) {
     case input =>
       implicit ce =>
         // could be shortcut by storing min/max statistics in the segment
-        val cutoffBuffer = input.comparisonSegmentAndCutoff.b.buffer
-        val comparisonBuffer = input.comparisonSegmentAndCutoff.a.buffer
-        val inputBuffer = input.input match {
-          // case SegmentDouble(sf, numElems) =>
-          case t: SegmentInt => t.buffer
-        }
-        IO.both(IO.both(cutoffBuffer, comparisonBuffer), inputBuffer).flatMap {
-          case ((cutoff, comparisonBuffer), inputBuffer) =>
-            inputBuffer
-              .filterInEquality(cutoff, comparisonBuffer, input.lessThan)
-              .toSegment(input.outputPath)
-        }
+        doit(
+          input.comparisonSegmentAndCutoff,
+          input.input,
+          input.outputPath,
+          input.lessThan
+        )
 
   }
 }
