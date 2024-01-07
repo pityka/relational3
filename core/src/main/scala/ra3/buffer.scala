@@ -8,28 +8,28 @@ import tasks.{TaskSystemComponents, SharedFile}
 sealed trait Location
 final case class Slice(start: Int, until: Int) extends Location
 
-sealed trait Buffer {  self =>
-  
-  type Elem 
+sealed trait Buffer { self =>
+
+  type Elem
   type BufferType >: this.type <: Buffer
   type SegmentType <: Segment {
-    type BufferType = self.BufferType 
+    type BufferType = self.BufferType
     type SegmentType = self.SegmentType
     type Elem = self.Elem
   }
   type ColumnType <: Column {
     type Elem = self.Elem
-    type BufferType = self.BufferType 
+    type BufferType = self.BufferType
     type SegmentType = self.SegmentType
   }
 
-  def as(b:Buffer) = this.asInstanceOf[b.BufferType]
+  def as(b: Buffer) = this.asInstanceOf[b.BufferType]
 
   /* given the bounds on BufferType this should never fail  */
   def asBufferType = this.asInstanceOf[BufferType]
 
   def toSeq: Seq[Elem]
-  def findInequalityVsHead[B<:Buffer{type BufferType = self.BufferType; type Elem = self.Elem}](other: B, lessThan: Boolean): BufferInt
+  def findInequalityVsHead(other: BufferType, lessThan: Boolean): BufferInt
 
   def cdf(numPoints: Int): (BufferType, BufferInt)
 
@@ -48,20 +48,22 @@ sealed trait Buffer {  self =>
   def filter(mask: Buffer): BufferType
 
   /** uses the first element from cutoff */
-  def filterInEquality[E,B0<:Buffer, B<:Buffer{type BufferType =  B0; type Elem = E}](
+  def filterInEquality[
+      B0 <: Buffer,
+      B <: Buffer { type BufferType = B0}
+  ](
       comparison: B,
       cutoff: B,
       less: Boolean
-  ) : BufferType
-  
+  ): BufferType
 
-  def computeJoinIndexes[B<:Buffer{type BufferType = self.BufferType}](
-      other: B,
+  def computeJoinIndexes(
+      other: BufferType,
       how: String
   ): (Option[BufferInt], Option[BufferInt])
 
-  def mergeNonMissing[B<:Buffer{type BufferType = self.BufferType}](
-      other: B
+  def mergeNonMissing(
+      other: BufferType
   ): BufferType
 
   def isMissing(l: Int): Boolean
@@ -74,21 +76,24 @@ sealed trait Buffer {  self =>
 
 final class BufferDouble extends Buffer { self =>
 
- override def findInequalityVsHead[B <: Buffer{type BufferType = ra3.BufferDouble; type Elem = Double}](other: B, lessThan: Boolean): BufferInt = ???
+  override def findInequalityVsHead(
+      other: BufferType,
+      lessThan: Boolean
+  ): BufferInt = ???
 
-
- type Elem = Double
-  type BufferType = BufferDouble 
+  type Elem = Double
+  type BufferType = BufferDouble
   type SegmentType = SegmentDouble
   type ColumnType = Column.F64Column
 
-   def filterInEquality[E,B0<:Buffer, B<:Buffer{type BufferType =  B0; type Elem = E}](
+  def filterInEquality[
+      B0 <: Buffer,
+      B <: Buffer { type BufferType = B0 }
+  ](
       comparison: B,
       cutoff: B,
       less: Boolean
-  ) : BufferType = ???
-
-
+  ): BufferType = ???
 
   override def toSeq: Seq[Double] = ???
 
@@ -104,13 +109,13 @@ final class BufferDouble extends Buffer { self =>
 
   override def filter(mask: Buffer): BufferDouble = ???
 
-  override def computeJoinIndexes[B<:Buffer{type BufferType = self.BufferType}](
-      other: B,
+  override def computeJoinIndexes(
+      other: BufferType,
       how: String
   ): (Option[BufferInt], Option[BufferInt]) = ???
 
-  def mergeNonMissing[B<:Buffer{type BufferType = self.BufferType}](
-      other: B
+  def mergeNonMissing(
+      other: BufferType
   ): BufferType = ???
 
   override def isMissing(l: Int): Boolean = ???
@@ -128,21 +133,17 @@ final case class BufferInt(private[ra3] val values: Array[Int])
     extends Buffer
     with Location { self =>
 
-
-
-
- type Elem = Int 
-  type BufferType = BufferInt 
-  type SegmentType = SegmentInt 
+  type Elem = Int
+  type BufferType = BufferInt
+  type SegmentType = SegmentInt
   type ColumnType = Column.Int32Column
 
-
-  override def findInequalityVsHead[B<:Buffer{type BufferType = self.BufferType; type Elem = self.Elem}](
-      other: B,
+  override def findInequalityVsHead(
+      other: BufferType,
       lessThan: Boolean
   ): BufferInt = {
     import org.saddle._
-    val c = other.toSeq(0)
+    val c = other.values(0)
     val idx =
       if (lessThan)
         values.toVec.find(_ <= c)
@@ -171,16 +172,12 @@ final case class BufferInt(private[ra3] val values: Array[Int])
   def length = values.length
 
   import org.saddle.{Buffer => _, _}
-  // def filterInEquality[D2<:DataType](
-  //     cutoff: D2#BufferType,
-  //     comparison: D2#BufferType,
-  //     lessThan: Boolean
-  // ): BufferInt = {
-  
 
-  // }
-   override def filterInEquality[E,B0 <: Buffer, B <: Buffer{type BufferType = B0; type Elem = E}](comparison: B, cutoff: B, less: Boolean): BufferInt  = {
-  val idx = comparison.findInequalityVsHead(cutoff, less)
+  override def filterInEquality[
+      B0 <: Buffer,
+      B <: Buffer { type BufferType = B0 }
+  ](comparison: B, cutoff: B, less: Boolean): BufferInt = {
+    val idx = comparison.findInequalityVsHead(cutoff.asBufferType, less)
 
     BufferInt(values.toVec.take(idx.values.toArray).toArray)
   }
@@ -202,8 +199,8 @@ final case class BufferInt(private[ra3] val values: Array[Int])
     )
   }
 
-  def mergeNonMissing[B<:Buffer{type BufferType = self.BufferType}](
-      other: B
+  def mergeNonMissing(
+      other: BufferType
   ): BufferType = {
 
     other match {
@@ -224,8 +221,8 @@ final case class BufferInt(private[ra3] val values: Array[Int])
     }
   }
 
-  def computeJoinIndexes[B<:Buffer{type BufferType = self.BufferType}](
-      other: B,
+  def computeJoinIndexes(
+      other: BufferType,
       how: String
   ): (Option[BufferInt], Option[BufferInt]) = {
     val idx1 = Index(values)
@@ -289,7 +286,6 @@ final case class BufferInt(private[ra3] val values: Array[Int])
   }
 
 }
-
 
 object Buffer {
 

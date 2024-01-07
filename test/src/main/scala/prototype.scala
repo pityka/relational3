@@ -1,23 +1,7 @@
 package test
 import com.github.plokhotnyuk.jsoniter_scala.macros._
 import com.github.plokhotnyuk.jsoniter_scala.core._
-// sealed trait DataType { self: DataType =>
 
-//   type Elem
-//   type SegmentType <: Segment {
-//     type D = self.type
-//   }
-//   type BufferType <: Buffer {
-//     type D = self.type
-//   }
-//   type ColumnType <: Column {
-//     type D = self.type
-//   }
-//   def cast(s: Segment) = s.asInstanceOf[SegmentType]
-//   def makeColumn(s: Vector[SegmentType]): ColumnType
-//   // def cast(s:Buffer[_]) : BufferType
-
-// }
 sealed trait Buffer {  self =>
   type Elem 
   type BufferType >: this.type <: Buffer
@@ -31,11 +15,12 @@ sealed trait Buffer {  self =>
     type BufferType = self.BufferType 
     type SegmentType = self.SegmentType
   }
+  def refine = this.asInstanceOf[BufferType]
   // val dataType: DataType
   def toSeq: Seq[Elem]
   def toSegment: SegmentType
-  // def both[B<:Buffer](other: B)(implicit ev: B =:= BufferType): BufferType
-    def both[B<:Buffer{type BufferType = self.BufferType}](other: B): BufferType 
+  def both(other: BufferType): BufferType
+    // def both[B<:Buffer{type BufferType = self.BufferType}](other: B): BufferType 
 
 }
 sealed trait Segment { self =>
@@ -152,7 +137,7 @@ case class BufferInt(values: Array[Int]) extends Buffer { self =>
   type SegmentType = SegmentInt 
   type ColumnType = Int32Column
 
-  def both[B<:Buffer{type BufferType = self.BufferType}](other: B): BufferType = ???
+  def both(other: BufferType): BufferType = ???
 
   override def toSeq: Seq[Int] = values.toSeq
 
@@ -162,7 +147,7 @@ case class BufferInt(values: Array[Int]) extends Buffer { self =>
       comparison:B,
       cutoff: B
   ): Unit = {
-    val idx = comparison.both(cutoff)
+    val idx = comparison.both(cutoff.refine)
 
     println(idx)
 

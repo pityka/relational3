@@ -1,17 +1,10 @@
 package ra3
 
 import cats.effect.IO
-import fs2.Stream
 import java.nio.ByteBuffer
 import java.nio.channels.WritableByteChannel
-import java.nio.ByteOrder
 import java.nio.channels.ReadableByteChannel
-import tasks.{TaskSystemComponents, SharedFile}
-import cats.effect.kernel.Par
-import scala.collection.immutable
-import ra3.ts.EstimateCDF
-import ra3.ts.MakeUniqueId
-import ra3.ts.MergeCDFs
+import tasks.{TaskSystemComponents}
 
 case class PartitionPath(
     partitionedOnColumns: Seq[Int],
@@ -169,7 +162,7 @@ case class GroupedTable(
                 reduction.reduce(inputSegment, groupMap)
 
             }
-          ).map(segments =>  column.tag.makeColumn(segments) )
+          ).map(segments => column.tag.makeColumn(segments))
         }
       ).map { columns =>
         Table(columns, this.table.colNames, name)
@@ -208,19 +201,17 @@ trait RelationalAlgebra { self: Table =>
     assert(self.columns.head.segments.size == indexes.segments.size)
     ts.MakeUniqueId.queue(self, "take", List(indexes)).flatMap { name =>
       IO.parTraverseN(math.min(32, self.columns.size))(
-          self.columns.zipWithIndex
-        ) { case (column, columnIdx) =>
-
-      IO.parTraverseN(math.min(32, indexes.segments.size))(
-        indexes.segments.zipWithIndex
-      ) { case (segment, segmentIdx) =>
-        
+        self.columns.zipWithIndex
+      ) { case (column, columnIdx) =>
+        IO.parTraverseN(math.min(32, indexes.segments.size))(
+          indexes.segments.zipWithIndex
+        ) { case (segment, segmentIdx) =>
           ts.TakeIndex.queue(
             input = column.segments(segmentIdx),
             idx = segment,
             outputPath = LogicalPath(name, None, segmentIdx, columnIdx)
           )
-        }.map{ segments => column.tag.makeColumn(segments)}
+        }.map { segments => column.tag.makeColumn(segments) }
 
       }.map(columns =>
         Table(
@@ -252,19 +243,17 @@ trait RelationalAlgebra { self: Table =>
     assert(self.columns.head.segments.size == predicate.segments.size)
     ts.MakeUniqueId.queue(self, "rfilter", List(predicate)).flatMap { name =>
       IO.parTraverseN(math.min(32, self.columns.size))(
-          self.columns.zipWithIndex
-        ) { case (column, columnIdx) =>
-
-      IO.parTraverseN(math.min(32, predicate.segments.size))(
-        predicate.segments.zipWithIndex
-      ) { case (segment, segmentIdx) =>
-        
+        self.columns.zipWithIndex
+      ) { case (column, columnIdx) =>
+        IO.parTraverseN(math.min(32, predicate.segments.size))(
+          predicate.segments.zipWithIndex
+        ) { case (segment, segmentIdx) =>
           ts.Filter.queue(
             input = column.segments(segmentIdx),
             predicate = segment,
             outputPath = LogicalPath(name, None, segmentIdx, columnIdx)
           )
-        }.map( segments => column.tag.makeColumn(segments))
+        }.map(segments => column.tag.makeColumn(segments))
 
       }.map(columns =>
         Table(
@@ -281,7 +270,7 @@ trait RelationalAlgebra { self: Table =>
       lessThan: Boolean
   )(implicit tsc: TaskSystemComponents): IO[Table] = {
     val comparisonColumn = self.columns(columnIdx)
-    val castedCutoff = cutoff.as(comparisonColumn) 
+    val castedCutoff = cutoff.as(comparisonColumn)
 
     ts.MakeUniqueId
       .queue(
@@ -291,13 +280,15 @@ trait RelationalAlgebra { self: Table =>
       )
       .flatMap { name =>
         IO.parTraverseN(math.min(32, self.columns.size))(
-            self.columns.zipWithIndex
-          ) { case (column, columnIdx) =>
-        IO.parTraverseN(math.min(32, comparisonColumn.segments.size))(
-          comparisonColumn.segments.zipWithIndex
-        ) { case (comparisonSegment, segmentIdx) =>
-          
-            ts.FilterInequality.queue(
+          self.columns.zipWithIndex
+        ) { case (column, columnIdx) =>
+          IO.parTraverseN(math.min(32, comparisonColumn.segments.size))(
+            comparisonColumn.segments.zipWithIndex
+          ) { case (comparisonSegment, segmentIdx) =>
+            ts.FilterInequality.queue[
+              comparisonColumn.SegmentType,
+              comparisonColumn.SegmentType
+            ](
               comparison = comparisonSegment,
               input = column.segments(segmentIdx),
               cutoff = castedCutoff,
@@ -417,8 +408,7 @@ trait RelationalAlgebra { self: Table =>
                 .asInstanceOf[pColumnSelf.ColumnType]
 
               val joinIndex = ts.ComputeJoinIndex.queue(
-                left =
-                  pColumnSelf.asInstanceOf[pColumnSelf.ColumnType],
+                left = pColumnSelf.asInstanceOf[pColumnSelf.ColumnType],
                 right = pColumnOther,
                 how = how,
                 outputPath = LogicalPath(
@@ -635,8 +625,8 @@ trait RelationalAlgebra { self: Table =>
   }
 
   /** Concat list of columns */
-  def addColOfSameSegmentation(c: Column, colName: String)(
-      implicit tsc: TaskSystemComponents
+  def addColOfSameSegmentation(c: Column, colName: String)(implicit
+      tsc: TaskSystemComponents
   ): IO[Table] = {
     val name = ts.MakeUniqueId.queue(
       self,
@@ -780,8 +770,8 @@ trait RelationalAlgebra { self: Table =>
 }
 
 sealed trait ReductionOp {
-  def reduce(segment: Segment, groupMap: Segment.GroupMap)(
-      implicit tsc: TaskSystemComponents
+  def reduce(segment: Segment, groupMap: Segment.GroupMap)(implicit
+      tsc: TaskSystemComponents
   ): IO[segment.SegmentType]
   def id: String
 }

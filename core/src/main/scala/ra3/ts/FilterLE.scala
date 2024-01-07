@@ -15,15 +15,15 @@ case class FilterInequality(
     lessThan: Boolean
 )
 object FilterInequality {
-  def queue(
-      comparison: Segment,
+  def queue[S0,S<:Segment{type SegmentType = S0}](
+      comparison: S,
       input: Segment,
-      cutoff: Segment,
+      cutoff: S,
       outputPath: LogicalPath,
       lessThan: Boolean
   )(implicit
       tsc: TaskSystemComponents
-  ) = {
+  ) : IO[input.SegmentType] = {
 
     task(
       FilterInequality(comparison, cutoff, input, outputPath, lessThan)
@@ -45,7 +45,6 @@ object FilterInequality {
       case ((cutoff, comparisonBuffer), inputBuffer) =>
         inputBuffer
           .filterInEquality[
-            comparison.Elem,
             comparison.BufferType,
             comparison.BufferType
           ](comparisonBuffer, cutoff.as(comparisonBuffer), lessThan)
