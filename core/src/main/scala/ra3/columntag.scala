@@ -34,6 +34,7 @@ sealed trait ColumnTag  { self =>
 }
 object ColumnTag {
 object I32 extends ColumnTag {
+  override def toString="I32"
   type Elem = Int
   type BufferType = BufferInt
   type ColumnTagType = I32.type 
@@ -47,6 +48,7 @@ object I32 extends ColumnTag {
   def pair(a: SegmentType, b: SegmentType) : SegmentPairType = I32Pair(a,b)
 }
 object F64 extends ColumnTag {
+  override def toString="F64"
   type Elem = Double
   type BufferType = BufferDouble
   type ColumnTagType = F64.type 

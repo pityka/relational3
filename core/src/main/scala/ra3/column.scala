@@ -61,6 +61,8 @@ sealed trait Column extends ColumnOps { self =>
   def tag : ColumnTagType
   def segments: Vector[SegmentType]
   def ++(other: ColumnType)  : ColumnType
+
+  override def toString = s"$tag\tN_segments=${segments.size}\tN_elem=${segments.map(_.numElems).sum}"
   
   def as(c:Column) = this.asInstanceOf[c.ColumnType]
   def castAndConcatenate(other: Column) = ++(other.asInstanceOf[ColumnType])

@@ -24,6 +24,7 @@ sealed trait Buffer { self =>
   }
 
   def as(b: Buffer) = this.asInstanceOf[b.BufferType]
+  def as(b: ColumnTag) = this.asInstanceOf[b.BufferType]
 
   /* given the bounds on BufferType this should never fail  */
   def asBufferType = this.asInstanceOf[BufferType]
@@ -132,6 +133,9 @@ final class BufferDouble extends Buffer { self =>
 final case class BufferInt(private[ra3] val values: Array[Int])
     extends Buffer
     with Location { self =>
+
+
+  override def toString = s"BufferInt(n=${values.length}: ${values.take(5).mkString(", ")} ..})"
 
   type Elem = Int
   type BufferType = BufferInt

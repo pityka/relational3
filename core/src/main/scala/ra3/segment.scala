@@ -115,7 +115,7 @@ final case class SegmentInt(sf: SharedFile, numElems: Int)
     sf.bytes.map { byteVector =>
       val bb =
         byteVector.toByteBuffer.order(ByteOrder.LITTLE_ENDIAN).asIntBuffer()
-      val ar = Array.ofDim[Int](bb.remaining / 4)
+      val ar = Array.ofDim[Int](bb.remaining )
       bb.get(ar)
       BufferInt(ar)
     }

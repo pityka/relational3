@@ -6,28 +6,7 @@ import java.nio.channels.WritableByteChannel
 import java.nio.channels.ReadableByteChannel
 import tasks.{TaskSystemComponents}
 
-case class PartitionPath(
-    partitionedOnColumns: Seq[Int],
-    numPartitions: Int,
-    partitionId: Int
-)
 
-case class LogicalPath(
-    table: String,
-    partition: Option[PartitionPath],
-    segment: Int,
-    column: Int
-) {
-  def appendToTable(suffix: String) = copy(table = table + suffix)
-  override def toString = {
-    val part = partition.map {
-      case PartitionPath(by, pnum, pidx) if by.nonEmpty =>
-        s"/partitions/${by.mkString("-")}/$pnum/$pidx"
-      case PartitionPath(_, pnum, pidx) => s"/partitions//$pnum/$pidx"
-    }
-    s"$table$part/segments/$segment/columns/$column"
-  }
-}
 
 sealed trait Statistic[T]
 
@@ -60,6 +39,9 @@ case class Table(
     colNames: Vector[String],
     uniqueId: String
 ) extends RelationalAlgebra {
+  override def toString = s"Table($uniqueId:\n${colNames.zip(columns).map{
+    case (name,col) => s"'$name'\t$col"
+  }.mkString("\n")}\n)"
   def bufferSegment(
       idx: Int
   )(implicit tsc: TaskSystemComponents): IO[BufferedTable] = {
@@ -68,9 +50,9 @@ case class Table(
         BufferedTable(buffers, colNames)
       }
   }
-  def stringify(nrows: Int, ncols: Int, segment: Int)(implicit
+  def stringify(segmentIdx: Int = 0,nrows: Int = 10, ncols: Int = 10)(implicit
       tsc: TaskSystemComponents
-  ) = bufferSegment(segment).map(_.toFrame.stringify(nrows, ncols))
+  ) = bufferSegment(segmentIdx).map(_.toFrame.stringify(nrows, ncols))
 }
 
 case class PartitionedTable(columns: Vector[Column]) {
@@ -171,16 +153,7 @@ case class GroupedTable(
   }
 }
 
-case class BufferedTable(
-    columns: Vector[Buffer],
-    colNames: Vector[String]
-) {
-  def toFrame = {
-    import org.saddle._
-    Frame(columns.map(_.toSeq.map(_.toString).toVec): _*)
-      .setColIndex(colNames.toIndex)
-  }
-}
+
 
 trait RelationalAlgebra { self: Table =>
 

@@ -157,14 +157,15 @@ object csv {
                 .mkString("[", ", ", "]")}"
           )
         } else {
-          callback.uploadAndResetBufData()
           val columns =
             callback.segments.zip(sortedColumnTypes).zipWithIndex map {
               case ((b, (_, tpe)), idx) =>
                 val segments = b.toVector
                 val column = tpe match {
-                  case tpe:ColumnTag.I32.type => Column.Int32Column(tpe.cast(segments))
-                  case tpe:ColumnTag.F64.type => Column.F64Column(tpe.cast(segments))
+                  case tpe: ColumnTag.I32.type =>
+                    Column.Int32Column(tpe.cast(segments))
+                  case tpe: ColumnTag.F64.type =>
+                    Column.F64Column(tpe.cast(segments))
                 }
 
                 val name = colIndex.map(_.apply(idx))
@@ -204,7 +205,7 @@ object csv {
     var headerAllFields = 0
     var headerLocFields = 0
 
-    def allocateBuffers() = columnTypes.map { case (_, tpe) =>
+    def allocateBuffers() = columnTypes.map { case _ =>
       org.saddle.Buffer.empty[Int]
     }
 
@@ -225,7 +226,7 @@ object csv {
 
     }
 
-    def uploadAndResetBufData() = {
+    def uploadAndResetBufData(force: Boolean) = {
       // upload
       val lengths = bufdata.map(_ match {
         case t: org.saddle.Buffer[_] => t.length
@@ -233,7 +234,7 @@ object csv {
 
       assert(lengths.distinct.size == 1)
       val length = lengths.head
-      if (length == maxSegmentLength) {
+      if ((force && length > 0) || length == maxSegmentLength) {
         import cats.effect.unsafe.implicits.global
 
         IO.parSequenceN(32)(bufdata.zipWithIndex.toList.map {
@@ -245,7 +246,8 @@ object csv {
                 tpe match {
                   case tpe: ColumnTag.I32.type =>
                     val b = t.asInstanceOf[org.saddle.Buffer[Int]]
-                    tpe.makeBuffer(b.toArray)
+                    tpe
+                      .makeBuffer(b.toArray)
                       .toSegment(
                         LogicalPath(
                           table = name,
@@ -261,7 +263,9 @@ object csv {
 
         }).unsafeRunSync()
           .foreach { case (bufferIdx, segment) =>
-            segments(bufferIdx).append(segment)
+            synchronized {
+              segments(bufferIdx).append(segment)
+            }
           }
 
         bufdata = allocateBuffers()
@@ -328,12 +332,16 @@ object csv {
               s"Too short line ${line + 1} (1-based). Expected $headerAllFields fields, got ${loc + 1}."
           }
 
-          uploadAndResetBufData()
+          uploadAndResetBufData(false)
 
           loc = 0
           line += 1
         } else loc += 1
         i += 1
+      }
+
+      if (!error) {
+        uploadAndResetBufData(true)
       }
 
       if (error) org.saddle.io.csv.Error(errorString)
