@@ -25,6 +25,9 @@ sealed trait Buffer {  self =>
 
   def as(b:Buffer) = this.asInstanceOf[b.BufferType]
 
+  /* given the bounds on BufferType this should never fail  */
+  def asBufferType = this.asInstanceOf[BufferType]
+
   def toSeq: Seq[Elem]
   def findInequalityVsHead[B<:Buffer{type BufferType = self.BufferType; type Elem = self.Elem}](other: B, lessThan: Boolean): BufferInt
 
@@ -226,7 +229,7 @@ final case class BufferInt(private[ra3] val values: Array[Int])
       how: String
   ): (Option[BufferInt], Option[BufferInt]) = {
     val idx1 = Index(values)
-    val idx2 = Index(other.as(this).values)
+    val idx2 = Index(other.asBufferType.values)
     val reindexer = idx1.join(
       idx2,
       how = how match {
