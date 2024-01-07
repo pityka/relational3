@@ -11,7 +11,7 @@ inThisBuild(
         "bartha.pityu@gmail.com",
         url("https://github.com/pityka/???")
       )
-    ),
+    )
   )
 )
 
@@ -88,6 +88,15 @@ lazy val commonSettings = Seq(
   Global / cancelable := true
 )
 
+
+lazy val akkaVersion = "2.6.19"
+
+lazy val akkaProvided = List(
+  "com.typesafe.akka" %% "akka-actor" % akkaVersion % Provided,
+  "com.typesafe.akka" %% "akka-slf4j" % akkaVersion % Provided,
+  "com.typesafe.akka" %% "akka-remote" % akkaVersion % Provided
+)
+
 lazy val root = project
   .in(file("."))
   .settings(commonSettings: _*)
@@ -97,24 +106,22 @@ lazy val root = project
   )
   .aggregate(core)
 
-
 lazy val core = project
   .in(file("core"))
   .settings(commonSettings: _*)
   .settings(
     name := "ra3-core",
     libraryDependencies ++= List(
-      // "com.spotify.sparkey" % "sparkey" % "3.2.4",
+      "org.scalameta" %% "munit" % "1.0.0-M10" % Test,
+      "com.typesafe.akka" %% "akka-testkit" % akkaVersion % Test,
       "io.github.pityka" %% "saddle-core" % "4.0.0-M7",
       // "co.fs2" %% "fs2-scodec" % "3.9.3",
-      "io.github.pityka" %% "tasks-core" % "3.0.0-M5" ,
-        "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % "2.13.31" % "compile-internal"
-
-      
-    )
+      "io.github.pityka" %% "tasks-core" % "3.0.0-M5",
+      "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % "2.13.31" % "compile-internal"
+    ) ++ akkaProvided
   )
-lazy val test = project
-  .in(file("test"))
+lazy val prototype = project
+  .in(file("prototype"))
   .settings(commonSettings: _*)
   .settings(
     name := "ra3-core",
@@ -122,9 +129,7 @@ lazy val test = project
       // "com.spotify.sparkey" % "sparkey" % "3.2.4",
       "io.github.pityka" %% "saddle-core" % "4.0.0-M7",
       // "co.fs2" %% "fs2-scodec" % "3.9.3",
-      "io.github.pityka" %% "tasks-core" % "3.0.0-M5" ,
-        "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % "2.13.31" % "compile-internal"
-
-      
+      "io.github.pityka" %% "tasks-core" % "3.0.0-M5",
+      "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % "2.13.31" % "compile-internal"
     )
   )
