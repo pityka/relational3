@@ -52,19 +52,19 @@ class MySuite extends munit.FunSuite {
       .get
   }
 
-  // test("to and from csv 1 segment") {
-  //   withTaskSystem(testConfig) { implicit ts =>
-  //     val numCols = 3
-  //     val numRows = 10
-  //     val (tableFrame,tableCsv) = generateTable(numRows,numCols)
-  //     val ra3Table = csvStringToTable("test1",tableCsv,numCols, 1000)
-  //     val segment0 = ra3Table.bufferSegment(0).unsafeRunSync()
-  //     val f1 = segment0.toHomogeneousFrame(ColumnTag.I32)
+  test("to and from csv 1 segment") {
+    withTaskSystem(testConfig) { implicit ts =>
+      val numCols = 3
+      val numRows = 10
+      val (tableFrame,tableCsv) = generateTable(numRows,numCols)
+      val ra3Table = csvStringToTable("test1",tableCsv,numCols, 1000)
+      val segment0 = ra3Table.bufferSegment(0).unsafeRunSync()
+      val f1 = segment0.toHomogeneousFrame(ColumnTag.I32)
 
-  //     assertEquals(f1.filterIx(_.nonEmpty), tableFrame)
-  //   }
+      assertEquals(f1.filterIx(_.nonEmpty), tableFrame)
+    }
 
-  // }
+  }
   test("to and from csv more segments") {
     withTaskSystem(testConfig) { implicit ts =>
       val numCols = 3
