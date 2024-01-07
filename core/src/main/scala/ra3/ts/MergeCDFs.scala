@@ -36,7 +36,7 @@ object MergeCDFs {
     IO.parSequenceN(32)(inputs.map { case (x, y) =>
       IO.both(x.buffer, y.buffer)
     }).flatMap { cdfs =>
-      val (x, y) = Utils
+      val (x, y) = CDF
         .mergeCDFs(
           cdfs
             .map(v => (v._1.toSeq zip v._2.toSeq).toVector)

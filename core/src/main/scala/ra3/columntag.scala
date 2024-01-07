@@ -1,3 +1,4 @@
+import ra3.{Buffer, BufferInt, BufferDouble}
 package ra3
 
 sealed trait ColumnTag  { self =>

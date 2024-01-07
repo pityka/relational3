@@ -11,7 +11,7 @@ import org.saddle.io.csv.Callback
 import tasks.TaskSystemComponents
 import scala.collection.mutable.ArrayBuffer
 import cats.effect.IO
-import tasks.fileservice.SharedFile
+import tasks.SharedFile
 
 object csv {
 
