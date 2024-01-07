@@ -20,6 +20,7 @@ object Filter {
       ResourceRequest(cpu = (1, 1), memory = 1, scratch = 0, gpu = 0)
     ).map(_.as(input))
   implicit val codec: JsonValueCodec[Filter] = JsonCodecMaker.make
+  implicit val codecOut: JsonValueCodec[Segment] = JsonCodecMaker.make
   val task = Task[Filter, Segment]("filter", 1) { case input =>
     implicit ce =>
       val bI : IO[Buffer]= input.predicate.buffer

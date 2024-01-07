@@ -36,6 +36,7 @@ object MergeNonMissing {
     ).map(_.as(tpe))
   }
   implicit val codec: JsonValueCodec[MergeNonMissing] = JsonCodecMaker.make
+  implicit val codecOut: JsonValueCodec[Segment] = JsonCodecMaker.make
   val task = Task[MergeNonMissing, Segment]("mergenonmissing", 1) {
     case input =>
       implicit ce => doit(input.inputs, input.outputPath)

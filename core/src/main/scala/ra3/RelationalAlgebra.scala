@@ -3,10 +3,6 @@ package ra3
 import cats.effect.IO
 import tasks.{TaskSystemComponents}
 
-
-
-
-
 trait RelationalAlgebra { self: Table =>
 
   /**   - For each aligned index segment, buffer it
@@ -432,27 +428,65 @@ trait RelationalAlgebra { self: Table =>
 
   }
 
+  /** This is almost noop, select columns
+    *
+    * @param others
+    * @return
+    */
+  def selectColumns(
+      columnIndexes: Int*
+  )(implicit tsc: TaskSystemComponents): IO[Table] = {
+    val name = ts.MakeUniqueId.queue(
+      self,
+      s"select-columns-${columnIndexes.mkString("_")}",
+      Nil
+    )
+    name.map { name =>
+      val cols = columnIndexes map { cIdx =>
+        this.columns(cIdx)
+      } toVector
+
+      Table(cols, colNames, name)
+    }
+  }
+
+  def filterColumnNames(nameSuffix: String)(p: String => Boolean) = {
+
+    val keep = columns.zip(colNames).filter(v => p(v._2))
+    Table(keep.map(_._1), keep.map(_._2), uniqueId + nameSuffix)
+  }
+
   /** This is almost noop, concat the list of segments
     *
     * @param others
     * @return
     */
-  def concatenate(name: String)(others: Table*): Table = {
-    val all = Seq(self) ++ others
-    assert(all.map(_.colNames).distinct.size == 1)
-    assert(all.map(_.columns.map(_.tag)).distinct.size == 1)
-    val columns = all.head.columns.size
-    val cols = 0 until columns map { cIdx =>
-      all.map(_.columns(cIdx)).reduce(_ castAndConcatenate _)
-    } toVector
+  def concatenate(
+      others: Table*
+  )(implicit tsc: TaskSystemComponents): IO[Table] = {
+    val name = ts.MakeUniqueId.queue(
+      self,
+      s"concat",
+      this.columns ++ others.flatMap(_.columns)
+    )
+    name.map { name =>
+      val all = Seq(self) ++ others
+      assert(all.map(_.colNames).distinct.size == 1)
+      assert(all.map(_.columns.map(_.tag)).distinct.size == 1)
+      val columns = all.head.columns.size
+      val cols = 0 until columns map { cIdx =>
+        all.map(_.columns(cIdx)).reduce(_ castAndConcatenate _)
+      } toVector
 
-    Table(cols, all.head.colNames, name)
+      Table(cols, all.head.colNames, name)
+    }
   }
 
   /** Concat list of columns */
   def addColOfSameSegmentation(c: Column, colName: String)(implicit
       tsc: TaskSystemComponents
   ): IO[Table] = {
+    assert(c.segments.map(_.numElems) == this.segmentation)
     val name = ts.MakeUniqueId.queue(
       self,
       s"addcol-$colName",
@@ -604,4 +638,3 @@ sealed trait ReductionOp {
 trait ColumnOps { self: Column =>
   // elementwise operations whose output is a new column of the same size
 }
-

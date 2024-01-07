@@ -33,6 +33,7 @@ object TakePartition {
       ResourceRequest(cpu = (1, 1), memory = 1, scratch = 0, gpu = 0)
     ).map(_.as(input))
   implicit val codec: JsonValueCodec[TakePartition] = JsonCodecMaker.make
+  implicit val codecOut: JsonValueCodec[Segment] = JsonCodecMaker.make
   val task = Task[TakePartition, Segment]("takepartition", 1) { case input =>
     implicit ce =>
       val parts = input.partitionMap.buffer

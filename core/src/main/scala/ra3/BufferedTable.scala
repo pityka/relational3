@@ -14,4 +14,5 @@ case class BufferedTable(
     Frame(columns.map(_.as(tag).toSeq.toVec): _*)
       .setColIndex(colNames.toIndex)
   }
+  
 }

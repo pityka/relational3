@@ -2,8 +2,6 @@ package ra3
 import tasks._
 import cats.effect.IO
 import java.nio.ByteOrder
-import com.github.plokhotnyuk.jsoniter_scala.macros._
-import com.github.plokhotnyuk.jsoniter_scala.core._
 sealed trait Segment { self =>
   type SegmentType >: this.type <: Segment
   type Elem 
@@ -41,7 +39,6 @@ object Segment {
       groupSizes: SegmentInt
   )
 
-  implicit val codec: JsonValueCodec[Segment] = JsonCodecMaker.make
 }
 
 sealed trait SegmentPair { self =>
@@ -125,6 +122,4 @@ final case class SegmentInt(sf: SharedFile, numElems: Int)
   def statistics: IO[Option[Statistic[Int]]] = IO.pure(None)
 
 }
-object SegmentInt {
-  implicit val codec: JsonValueCodec[SegmentInt] = JsonCodecMaker.make
-}
+

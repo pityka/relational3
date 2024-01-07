@@ -51,7 +51,7 @@ sealed trait Buffer { self =>
   /** uses the first element from cutoff */
   def filterInEquality[
       B0 <: Buffer,
-      B <: Buffer { type BufferType = B0}
+      B <: Buffer { type BufferType = B0 }
   ](
       comparison: B,
       cutoff: B,
@@ -134,14 +134,17 @@ final case class BufferInt(private[ra3] val values: Array[Int])
     extends Buffer
     with Location { self =>
 
-
-  override def toString = s"BufferInt(n=${values.length}: ${values.take(5).mkString(", ")} ..})"
+  override def toString =
+    s"BufferInt(n=${values.length}: ${values.take(5).mkString(", ")} ..})"
 
   type Elem = Int
   type BufferType = BufferInt
   type SegmentType = SegmentInt
   type ColumnType = Column.Int32Column
 
+  /** Find locations at which _ <= other[0] or _ >= other[0] holds returns
+    * indexes
+    */
   override def findInequalityVsHead(
       other: BufferType,
       lessThan: Boolean
@@ -357,7 +360,7 @@ object Buffer {
       var i = 0
       val b = buffers.head
       while (i < r.length) {
-        val hash = b.hashOf(i)
+        val hash = math.abs(b.hashOf(i))
         r(i) = hash % num
         i += 1
       }
@@ -368,7 +371,7 @@ object Buffer {
       val hashing = scala.util.hashing.MurmurHash3.arrayHashing[Int]
       while (i < r.length) {
         val hashes = buffers.map(_.hashOf(i)).toArray
-        val hash = hashing.hash(hashes)
+        val hash = math.abs(hashing.hash(hashes))
         r(i) = hash % num
         i += 1
       }

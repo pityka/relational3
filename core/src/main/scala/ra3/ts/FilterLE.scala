@@ -15,7 +15,7 @@ case class FilterInequality(
     lessThan: Boolean
 )
 object FilterInequality {
-  def queue[S0,S<:Segment{type SegmentType = S0}](
+  def queue[S0, S <: Segment { type SegmentType = S0 }](
       comparison: S,
       input: Segment,
       cutoff: S,
@@ -23,7 +23,7 @@ object FilterInequality {
       lessThan: Boolean
   )(implicit
       tsc: TaskSystemComponents
-  ) : IO[input.SegmentType] = {
+  ): IO[input.SegmentType] = {
 
     task(
       FilterInequality(comparison, cutoff, input, outputPath, lessThan)
@@ -53,6 +53,7 @@ object FilterInequality {
   }
 
   implicit val codec: JsonValueCodec[FilterInequality] = JsonCodecMaker.make
+  implicit val codecOut: JsonValueCodec[Segment] = JsonCodecMaker.make
   val task = Task[FilterInequality, Segment]("FilterInequality", 1) {
     case input =>
       implicit ce =>

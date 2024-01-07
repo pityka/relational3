@@ -23,8 +23,14 @@ object BufferColumnAndTakeIndex {
   implicit val codec: JsonValueCodec[BufferColumnAndTakeIndex] =
     JsonCodecMaker.make
 
-  private def doit(input: Column, idx: Option[SegmentInt], outputPath: LogicalPath)(
-      implicit tsc: TaskSystemComponents
+  implicit val codecOut: JsonValueCodec[Segment] = JsonCodecMaker.make
+
+  private def doit(
+      input: Column,
+      idx: Option[SegmentInt],
+      outputPath: LogicalPath
+  )(implicit
+      tsc: TaskSystemComponents
   ) = {
 
     IO
