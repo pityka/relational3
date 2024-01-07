@@ -8,46 +8,47 @@ import com.github.plokhotnyuk.jsoniter_scala.core._
 import cats.effect.IO
 
 case class FilterInequality(
-    comparisonSegmentAndCutoff: SegmentPair,
+    comparison: Segment,
+    cutoff: Segment,
     input: Segment,
     outputPath: LogicalPath,
     lessThan: Boolean
 )
 object FilterInequality {
-  def queue[D <: DataType, D2 <: DataType](
-      tpe: D
-  )(
-      comparisonSegment: tpe.SegmentType,
-      input: D2#SegmentType,
-      cutoff: tpe.SegmentType,
+  def queue(
+      comparison: Segment,
+      input: Segment,
+      cutoff: Segment,
       outputPath: LogicalPath,
       lessThan: Boolean
   )(implicit
       tsc: TaskSystemComponents
   ) = {
 
-    val pair = tpe.pair(comparisonSegment, cutoff)
-
     task(
-      FilterInequality(pair, input, outputPath, lessThan)
+      FilterInequality(comparison, cutoff, input, outputPath, lessThan)
     )(
       ResourceRequest(cpu = (1, 1), memory = 1, scratch = 0, gpu = 0)
-    ).map(_.as[D2])
+    ).map(_.as(input))
   }
 
   private def doit(
-      comparisonSegmentAndCutoff: SegmentPair,
+      comparison: Segment,
+      cutoff: Segment,
       input: Segment,
       outputPath: LogicalPath,
       lessThan: Boolean
   )(implicit tsc: TaskSystemComponents) = {
-    val cutoffBuffer = comparisonSegmentAndCutoff.b.buffer
-    val comparisonBuffer = comparisonSegmentAndCutoff.a.buffer
+
     val inputBuffer: IO[Buffer] = input.buffer
-    IO.both(IO.both(cutoffBuffer, comparisonBuffer), inputBuffer).flatMap {
+    IO.both(IO.both(cutoff.buffer, comparison.buffer), inputBuffer).flatMap {
       case ((cutoff, comparisonBuffer), inputBuffer) =>
         inputBuffer
-          .filterInEquality(cutoff, comparisonBuffer, lessThan)
+          .filterInEquality[
+            comparison.Elem,
+            comparison.BufferType,
+            comparison.BufferType
+          ](comparisonBuffer, cutoff.as(comparisonBuffer), lessThan)
           .toSegment(outputPath)
     }
   }
@@ -58,7 +59,8 @@ object FilterInequality {
       implicit ce =>
         // could be shortcut by storing min/max statistics in the segment
         doit(
-          input.comparisonSegmentAndCutoff,
+          input.comparison,
+          input.cutoff,
           input.input,
           input.outputPath,
           input.lessThan

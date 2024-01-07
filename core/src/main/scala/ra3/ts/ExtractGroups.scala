@@ -14,14 +14,14 @@ case class ExtractGroups(
     outputPath: LogicalPath
 )
 object ExtractGroups {
-  def queue[D <: DataType](
-      input: D#SegmentType,
+  def queue(
+      input: Segment,
       map: SegmentInt,
       numGroups: Int,
       outputPath: LogicalPath
   )(implicit
       tsc: TaskSystemComponents
-  ): IO[Seq[D#SegmentType]] =
+  ): IO[Seq[input.SegmentType]] =
     task(
       ExtractGroups(
         input = input,
@@ -31,7 +31,7 @@ object ExtractGroups {
       )
     )(
       ResourceRequest(cpu = (1, 1), memory = 1, scratch = 0, gpu = 0)
-    ).map(_.map(_.as[D]))
+    ).map(_.map(_.as(input)))
 
   private def doit(
       input: Segment,

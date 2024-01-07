@@ -16,20 +16,22 @@ object MergeCDFs {
   private def doitUntyped(
       input: MergeCDFs
   )(implicit tsc: TaskSystemComponents) = {
-    val dt = input.inputs.head._1.dataType
-    val ord = dt.ordering
-    doit(dt)(
-      input.inputs.map(pair => (pair._1.as[dt.type], pair._2)),
+    val tag = input.inputs.head._1.tag
+    val xs= input.inputs.map(_._1).map(_.as(tag))
+    val ys = input.inputs.map(_._2)
+    doit(tag)(
+      xs zip ys,
       input.outputPath
-    )(tsc, ord)
+    )(tsc,tag.ordering)
   }
 
-  private def doit[D <: DataType](dataType: D)(
-      inputs: Seq[(dataType.SegmentType, SegmentInt)],
+  private def doit(
+       tag: ColumnTag)(
+      inputs: Seq[(tag.SegmentType, SegmentInt)],
       outputPath: LogicalPath
   )(implicit
       tsc: TaskSystemComponents,
-      ordering: Ordering[dataType.Elem]
+      ordering: Ordering[tag.Elem],
   ): IO[CDF] = {
     IO.parSequenceN(32)(inputs.map { case (x, y) =>
       IO.both(x.buffer, y.buffer)
@@ -40,8 +42,7 @@ object MergeCDFs {
             .map(v => (v._1.toSeq zip v._2.toSeq).toVector)
         )(ordering)
         .unzip
-      val xS = dataType
-        .bufferFromSeq(x: _*)
+      val xS = tag.makeBufferFromSeq(x:_*)
         .toSegment(
           outputPath.appendToTable(".locations")
         )

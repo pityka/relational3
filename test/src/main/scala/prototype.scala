@@ -35,7 +35,8 @@ sealed trait Buffer {  self =>
   def toSeq: Seq[Elem]
   def toSegment: SegmentType
   // def both[B<:Buffer](other: B)(implicit ev: B =:= BufferType): BufferType
-  def both(other: BufferType): BufferType
+    def both[B<:Buffer{type BufferType = self.BufferType}](other: B): BufferType 
+
 }
 sealed trait Segment { self =>
   // val dataType: DataType
@@ -59,6 +60,7 @@ sealed trait Segment { self =>
 }
 sealed trait Column { self =>
   // type SegType = DType#SegmentType
+  
   type ColumnType >: this.type <: Column 
   type Elem 
   type BufferType <: Buffer {
@@ -71,6 +73,9 @@ sealed trait Column { self =>
     type BufferType = self.BufferType
     type SegmentType = self.SegmentType
   }
+  type ColumnTagType <: ColumnTag {
+    type ColumnType = self.ColumnType
+  }
   
   
   def segments: Vector[SegmentType]
@@ -79,6 +84,12 @@ sealed trait Column { self =>
   
   def ++(other: ColumnType)  : ColumnType 
   
+}
+sealed trait ColumnTag  { self =>
+  type ColumnTagType >: this.type <: ColumnTag 
+  type ColumnType <: Column {
+    type ColumnTagType = self.ColumnTagType
+  }
 }
 
 sealed trait Statistic[T]
@@ -107,6 +118,8 @@ case class Int32Column(segments: Vector[SegmentInt]) extends Column {
 
 }
 
+
+
 object Column {
   implicit val codec: JsonValueCodec[Column] = JsonCodecMaker.make
   // def apply(
@@ -132,24 +145,24 @@ case class SegmentInt(values: Array[Int]) extends Segment {
   // def pair(other: this.type) : Int = 0
 
 }
-case class BufferInt(values: Array[Int]) extends Buffer {
+case class BufferInt(values: Array[Int]) extends Buffer { self =>
 
    type Elem = Int 
   type BufferType = BufferInt 
   type SegmentType = SegmentInt 
   type ColumnType = Int32Column
 
-  def both(other: BufferType): BufferType = ???
+  def both[B<:Buffer{type BufferType = self.BufferType}](other: B): BufferType = ???
 
   override def toSeq: Seq[Int] = values.toSeq
 
   override def toSegment: SegmentInt = ???
 
-  def filterInEquality[A<:Buffer,B<:Buffer](
-      comparison: A)(
+  def filterInEquality[B0<:Buffer, B<:Buffer{type BufferType =  B0}](
+      comparison:B,
       cutoff: B
-  )(implicit ev: B =:= comparison.BufferType): Unit = {
-    val idx = comparison.both(ev(cutoff))
+  ): Unit = {
+    val idx = comparison.both(cutoff)
 
     println(idx)
 
@@ -215,7 +228,7 @@ object Test {
     r
   })
 
-  segment1.buffer.filterInEquality(segment1.buffer)(segment2.buffer)
+  segment1.buffer.filterInEquality[segment1.BufferType,segment1.BufferType](segment1.buffer,segment2.buffer)
   // List(segment1,segment2)
 
   // def a[D<:DataType](a: D#SegmentType,b: D#SegmentType)(implicit ev: a.type =:=  D#SegmentType) = {

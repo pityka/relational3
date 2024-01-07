@@ -20,18 +20,18 @@ object ComputeJoinIndex {
       how: String,
       outputPath: LogicalPath
   )(implicit tsc: TaskSystemComponents) = {
-    val rightC = right.asInstanceOf[left.dataType.ColumnType]
+    // val rightC = right.as
     val bufferedLeft = IO
       .parSequenceN(32)(left.segments.map(_.buffer))
       .map(_.reduce(_ ++ _))
     val bufferedRight = IO
-      .parSequenceN(32)(rightC.segments.map(_.buffer))
+      .parSequenceN(32)(right.segments.map(_.buffer))
       .map(_.reduce(_ ++ _))
 
     IO.both(bufferedLeft, bufferedRight).flatMap {
       case (bufferedLeft, bufferedRight) =>
         val (takeLeft, takeRight) =
-          bufferedLeft.computeJoinIndexes(bufferedRight, how)
+          bufferedLeft.computeJoinIndexes(bufferedRight.as(bufferedLeft), how)
 
         val takeLeftS: IO[Option[SegmentInt]] =
           takeLeft
@@ -53,9 +53,9 @@ object ComputeJoinIndex {
         IO.both(takeLeftS, takeRightS)
     }
   }
-  def queue[D<:DataType](
-      left: D#ColumnType,
-      right: D#ColumnType,
+  def queue[C<:Column](
+      left: C,
+      right: C,
       how: String,
       outputPath: LogicalPath
   )(implicit

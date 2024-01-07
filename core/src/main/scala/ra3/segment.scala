@@ -5,16 +5,32 @@ import java.nio.ByteOrder
 import com.github.plokhotnyuk.jsoniter_scala.macros._
 import com.github.plokhotnyuk.jsoniter_scala.core._
 sealed trait Segment { self =>
-  // type BufferType= DType#BufferType
-  type DType <: DataType
-  val dataType: DataType 
-  type Elem = DType#Elem
-  type BufferType = DType#BufferType
-  type SegmentType = DType#SegmentType
+  type SegmentType >: this.type <: Segment
+  type Elem 
+  type BufferType <: Buffer {
+    type Elem = self.Elem 
+    type SegmentType = self.SegmentType
+    type BufferType = self.BufferType
+  }
+  type ColumnType <: Column {
+    type Elem = self.Elem
+    type BufferType = self.BufferType 
+    type SegmentType = self.SegmentType
+    type ColumnTagType = self.ColumnTagType
+  }
+   type ColumnTagType <: ColumnTag {
+    type ColumnType = self.ColumnType
+    type SegmentType = self.SegmentType
+    type BufferType = self.BufferType
+    type Elem = self.Elem
+  }
+  def tag : ColumnTagType
   def buffer(implicit tsc: TaskSystemComponents): IO[BufferType]
   def statistics: IO[Option[Statistic[Elem]]]
   def numElems: Int
-  def as[D <: DataType] = this.asInstanceOf[D#SegmentType]
+  def as(c:Column) = this.asInstanceOf[c.SegmentType]
+  def as(c:Segment) = this.asInstanceOf[c.SegmentType]
+  def as(c:ColumnTag) = this.asInstanceOf[c.SegmentType]
 }
 
 object Segment {
@@ -28,29 +44,48 @@ object Segment {
   implicit val codec: JsonValueCodec[Segment] = JsonCodecMaker.make
 }
 
-sealed trait SegmentPair {
-  type DType <: DataType
-  def a: DType#SegmentType
-  def b: DType#SegmentType
+sealed trait SegmentPair { self =>
+  type SegmentPairType >: this.type <: SegmentPair
+  type Elem 
+  type BufferType <: Buffer {
+    type Elem = self.Elem 
+    type SegmentType = self.SegmentType
+    type BufferType = self.BufferType
+  }
+  type SegmentType <: Segment {
+    type BufferType = self.BufferType 
+    type SegmentType = self.SegmentType
+    type Elem = self.Elem
+  }
+  def a: SegmentType
+  def b: SegmentType
 }
 case class I32Pair(a: SegmentInt, b: SegmentInt)
     extends SegmentPair {
-  type DType = Int32.type
+       type Elem = Int
+  type BufferType = BufferInt
+  type SegmentType = SegmentInt
+  type ColumnType = Column.Int32Column
 }
 case class F64Pair(a: SegmentDouble, b: SegmentDouble)
     extends SegmentPair {
-  type DType = F64.type
+   type Elem = Double
+  type BufferType = BufferDouble
+  type SegmentType = SegmentDouble
+  type ColumnType = Column.F64Column
 }
 
 final case class SegmentDouble(sf: SharedFile, numElems: Int)
     extends Segment {
-
-  val dataType = F64
-  type DType = F64.type
+ type Elem = Double
+  type BufferType = BufferDouble
+  type SegmentType = SegmentDouble
+  type ColumnType = Column.F64Column
+  type ColumnTagType = ColumnTag.F64.type 
+  val tag = ColumnTag.F64
 
   // override def pair(other: this.type) = F64Pair(this,other)
 
-  override def canEqual(that: Any): Boolean = ???
 
   override def buffer(implicit tsc: TaskSystemComponents) =
     ???
@@ -63,10 +98,13 @@ final case class SegmentDouble(sf: SharedFile, numElems: Int)
 final case class SegmentInt(sf: SharedFile, numElems: Int)
     extends Segment {
 
-
-  val dataType = Int32
-  type DType = Int32.type
-
+ type Elem = Int 
+  type BufferType = BufferInt 
+  type SegmentType = SegmentInt 
+  type ColumnType = Column.Int32Column
+  type ColumnTagType = ColumnTag.I32.type 
+  val tag = ColumnTag.I32
+  
   // override def pair(other: this.type) = I32Pair(this,other)
 
   override def buffer(implicit tsc: TaskSystemComponents): IO[BufferInt] = {

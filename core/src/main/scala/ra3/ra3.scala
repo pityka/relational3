@@ -83,7 +83,7 @@ case class Table(
 case class PartitionedTable(columns: Vector[Column]) {
   def concatenate(other: PartitionedTable) = {
     assert(columns.size == other.columns.size)
-    assert(columns.map(_.dataType) == other.columns.map(_.dataType))
+    assert(columns.map(_.tag) == other.columns.map(_.tag))
     PartitionedTable(
       columns.zip(other.columns).map { case (a, b) => a castAndConcatenate b }
     )
@@ -100,7 +100,7 @@ case class GroupedTable(
     val name = ts.MakeUniqueId.queue(
       this.table,
       s"extractgroups",
-      List(Column(Int32)(this.groups.map(_.map).toVector))
+      List(ColumnTag.I32.makeColumn(this.groups.map(_.map).toVector))
     )
 
     name.flatMap { name =>
@@ -131,7 +131,7 @@ case class GroupedTable(
               // groups x segment
               val t = segments.transpose
               t.map { segments =>
-                Column.cast(column.dataType)(segments)
+                column.tag.makeColumn(segments)
 
               }
           }
@@ -156,7 +156,7 @@ case class GroupedTable(
     val name = ts.MakeUniqueId.queue(
       this.table,
       s"reduce-${reductions.map(_.id).mkString("-")}",
-      List(Column(Int32)(this.groups.map(_.map).toVector))
+      List(ColumnTag.I32.makeColumn(this.groups.map(_.map).toVector))
     )
     name.flatMap { name =>
       IO.parSequenceN(math.min(32, this.table.columns.size))(
@@ -169,7 +169,7 @@ case class GroupedTable(
                 reduction.reduce(inputSegment, groupMap)
 
             }
-          ).map(segments => Column.cast(column.dataType)(segments))
+          ).map(segments =>  column.tag.makeColumn(segments) )
         }
       ).map { columns =>
         Table(columns, this.table.colNames, name)
@@ -207,25 +207,24 @@ trait RelationalAlgebra { self: Table =>
   )(implicit tsc: TaskSystemComponents): IO[Table] = {
     assert(self.columns.head.segments.size == indexes.segments.size)
     ts.MakeUniqueId.queue(self, "take", List(indexes)).flatMap { name =>
+      IO.parTraverseN(math.min(32, self.columns.size))(
+          self.columns.zipWithIndex
+        ) { case (column, columnIdx) =>
+
       IO.parTraverseN(math.min(32, indexes.segments.size))(
         indexes.segments.zipWithIndex
       ) { case (segment, segmentIdx) =>
-        IO.parTraverseN(math.min(32, self.columns.size))(
-          self.columns.zipWithIndex
-        ) { case (column, columnIdx) =>
+        
           ts.TakeIndex.queue(
             input = column.segments(segmentIdx),
             idx = segment,
             outputPath = LogicalPath(name, None, segmentIdx, columnIdx)
           )
-        }
+        }.map{ segments => column.tag.makeColumn(segments)}
 
-      }.map(vs =>
+      }.map(columns =>
         Table(
-          vs.transpose.zip(self.columns.map(_.dataType)).map {
-            case (segments, tpe) =>
-              Column.cast(tpe)(segments)
-          },
+          columns,
           self.colNames,
           name
         )
@@ -252,25 +251,24 @@ trait RelationalAlgebra { self: Table =>
   )(implicit tsc: TaskSystemComponents): IO[Table] = {
     assert(self.columns.head.segments.size == predicate.segments.size)
     ts.MakeUniqueId.queue(self, "rfilter", List(predicate)).flatMap { name =>
+      IO.parTraverseN(math.min(32, self.columns.size))(
+          self.columns.zipWithIndex
+        ) { case (column, columnIdx) =>
+
       IO.parTraverseN(math.min(32, predicate.segments.size))(
         predicate.segments.zipWithIndex
       ) { case (segment, segmentIdx) =>
-        IO.parTraverseN(math.min(32, self.columns.size))(
-          self.columns.zipWithIndex
-        ) { case (column, columnIdx) =>
+        
           ts.Filter.queue(
             input = column.segments(segmentIdx),
             predicate = segment,
             outputPath = LogicalPath(name, None, segmentIdx, columnIdx)
           )
-        }
+        }.map( segments => column.tag.makeColumn(segments))
 
-      }.map(vs =>
+      }.map(columns =>
         Table(
-          vs.transpose.zip(self.columns.map(_.dataType)).map {
-            case (segments, tpe) =>
-              Column.cast(tpe)(segments)
-          },
+          columns,
           self.colNames,
           name
         )
@@ -283,36 +281,34 @@ trait RelationalAlgebra { self: Table =>
       lessThan: Boolean
   )(implicit tsc: TaskSystemComponents): IO[Table] = {
     val comparisonColumn = self.columns(columnIdx)
-    val castedCutoff = comparisonColumn.dataType.cast(cutoff)
+    val castedCutoff = cutoff.as(comparisonColumn) 
 
     ts.MakeUniqueId
       .queue(
         self,
         "rfilterinequality",
-        List(Column(comparisonColumn.dataType)(Vector(castedCutoff)))
+        List(comparisonColumn.tag.makeColumn(Vector(castedCutoff)))
       )
       .flatMap { name =>
+        IO.parTraverseN(math.min(32, self.columns.size))(
+            self.columns.zipWithIndex
+          ) { case (column, columnIdx) =>
         IO.parTraverseN(math.min(32, comparisonColumn.segments.size))(
           comparisonColumn.segments.zipWithIndex
         ) { case (comparisonSegment, segmentIdx) =>
-          IO.parTraverseN(math.min(32, self.columns.size))(
-            self.columns.zipWithIndex
-          ) { case (column, columnIdx) =>
-            ts.FilterInequality.queue(comparisonColumn.dataType)(
-              comparisonSegment = comparisonSegment,
+          
+            ts.FilterInequality.queue(
+              comparison = comparisonSegment,
               input = column.segments(segmentIdx),
               cutoff = castedCutoff,
               outputPath = LogicalPath(name, None, segmentIdx, columnIdx),
               lessThan = lessThan
             )
-          }
+          }.map(segments => column.tag.makeColumn(segments))
 
-        }.map(vs =>
+        }.map(sx =>
           Table(
-            vs.transpose.zip(self.columns.map(_.dataType)).map {
-              case (segments, tpe) =>
-                Column.cast(tpe)(segments)
-            },
+            sx,
             self.colNames,
             name
           )
@@ -370,7 +366,8 @@ trait RelationalAlgebra { self: Table =>
         transposed.map { columns =>
           PartitionedTable(
             columns.zipWithIndex.map { case (segments, columnIdx) =>
-              Column.cast(self.columns(columnIdx).dataType)(segments)
+              val column = self.columns(columnIdx)
+              column.tag.makeColumn(segments.map(_.as(column)))
             }
           )
         }
@@ -395,9 +392,9 @@ trait RelationalAlgebra { self: Table =>
       numPartitions: Int
   )(implicit tsc: TaskSystemComponents) = {
     assert(
-      self.columns(joinColumnSelf).dataType == other
+      self.columns(joinColumnSelf).tag == other
         .columns(joinColumnOther)
-        .dataType
+        .tag
     )
     val name = ts.MakeUniqueId.queue2(
       self,
@@ -417,11 +414,11 @@ trait RelationalAlgebra { self: Table =>
               val pColumnSelf = pSelf.columns(joinColumnSelf)
               val pColumnOther = pOther
                 .columns(joinColumnSelf)
-                .asInstanceOf[pColumnSelf.dataType.ColumnType]
+                .asInstanceOf[pColumnSelf.ColumnType]
 
               val joinIndex = ts.ComputeJoinIndex.queue(
                 left =
-                  pColumnSelf.asInstanceOf[pColumnSelf.dataType.ColumnType],
+                  pColumnSelf.asInstanceOf[pColumnSelf.ColumnType],
                 right = pColumnOther,
                 how = how,
                 outputPath = LogicalPath(
@@ -454,7 +451,7 @@ trait RelationalAlgebra { self: Table =>
                               (
                                 _,
                                 (
-                                  columnInPartition.dataType,
+                                  columnInPartition.tag,
                                   self.colNames(cIdx)
                                 )
                               )
@@ -480,7 +477,7 @@ trait RelationalAlgebra { self: Table =>
                               (
                                 _,
                                 (
-                                  columnInPartition.dataType,
+                                  columnInPartition.tag,
                                   other.colNames(cIdx)
                                 )
                               )
@@ -519,7 +516,7 @@ trait RelationalAlgebra { self: Table =>
                                       ._1
                                   )
                                 case "outer" =>
-                                  val (a, (tpeA: DataType, nameA)) =
+                                  val (a, (tpeA: ColumnTag, nameA)) =
                                     takenSelf.zipWithIndex
                                       .find(_._2 == joinColumnSelf)
                                       .get
@@ -533,8 +530,8 @@ trait RelationalAlgebra { self: Table =>
 
                                   ts.MergeNonMissing
                                     .queue(tpeA)(
-                                      tpeA.cast(a),
-                                      tpeA.cast(b),
+                                      a.as(tpeA),
+                                      b.as(tpeA),
                                       LogicalPath(
                                         table = name + ".mergejoincolumn",
                                         partition = None,
@@ -557,7 +554,7 @@ trait RelationalAlgebra { self: Table =>
                 (
                   PartitionedTable(
                     columnsAsSingleSegment.map { case (segment, (tpe, _)) =>
-                      Column.cast(tpe)(Vector(segment))
+                      tpe.makeColumn(Vector(segment.as(tpe)))
                     }.toVector
                   ),
                   columnsAsSingleSegment.map(_._2._2)
@@ -628,7 +625,7 @@ trait RelationalAlgebra { self: Table =>
   def concatenate(name: String)(others: Table*): Table = {
     val all = Seq(self) ++ others
     assert(all.map(_.colNames).distinct.size == 1)
-    assert(all.map(_.columns.map(_.dataType)).distinct.size == 1)
+    assert(all.map(_.columns.map(_.tag)).distinct.size == 1)
     val columns = all.head.columns.size
     val cols = 0 until columns map { cIdx =>
       all.map(_.columns(cIdx)).reduce(_ castAndConcatenate _)
@@ -783,9 +780,9 @@ trait RelationalAlgebra { self: Table =>
 }
 
 sealed trait ReductionOp {
-  def reduce[D <: DataType](segment: D#SegmentType, groupMap: Segment.GroupMap)(
+  def reduce(segment: Segment, groupMap: Segment.GroupMap)(
       implicit tsc: TaskSystemComponents
-  ): IO[D#SegmentType]
+  ): IO[segment.SegmentType]
   def id: String
 }
 

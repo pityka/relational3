@@ -1,3 +1,1 @@
-package object ra3 extends DataTypes{
-  // type Col = Column[_<:DataType]
-}
+package object ra3 extends ColumnTags

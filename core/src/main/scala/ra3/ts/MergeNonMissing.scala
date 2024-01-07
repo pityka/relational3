@@ -22,7 +22,7 @@ object MergeNonMissing {
       a.mergeNonMissing(b).toSegment(outputPath)
     }
   }
-  def queue[D <: DataType](tpe: D)(
+  def queue[D <: ColumnTag](tpe: D)(
       input1: tpe.SegmentType,
       input2: tpe.SegmentType,
       outputPath: LogicalPath
@@ -33,7 +33,7 @@ object MergeNonMissing {
 
     task(MergeNonMissing(pair, outputPath))(
       ResourceRequest(cpu = (1, 1), memory = 1, scratch = 0, gpu = 0)
-    ).map(_.as[tpe.type])
+    ).map(_.as(tpe))
   }
   implicit val codec: JsonValueCodec[MergeNonMissing] = JsonCodecMaker.make
   val task = Task[MergeNonMissing, Segment]("mergenonmissing", 1) {

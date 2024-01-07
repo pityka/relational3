@@ -15,10 +15,10 @@ case class BufferColumnAndTakeIndex(
 object BufferColumnAndTakeIndex {
   def queue(input: Column, idx: Option[SegmentInt], outputPath: LogicalPath)(
       implicit tsc: TaskSystemComponents
-  ): IO[input.dataType.SegmentType] =
+  ): IO[input.SegmentType] =
     task(BufferColumnAndTakeIndex(input, idx, outputPath))(
       ResourceRequest(cpu = (1, 1), memory = 1, scratch = 0, gpu = 0)
-    ).map(s => input.dataType.cast(s))
+    ).map(_.as(input))
 
   implicit val codec: JsonValueCodec[BufferColumnAndTakeIndex] =
     JsonCodecMaker.make

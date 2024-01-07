@@ -13,7 +13,7 @@ case class EstimateCDF(
     outputPath: LogicalPath
 )
 object EstimateCDF {
-  private def doit[D <: DataType](
+  private def doit(
       input: Segment,
       n: Int,
       outputPath: LogicalPath
@@ -30,16 +30,16 @@ object EstimateCDF {
       )
     }
   }
-  def queue[D <: DataType](
-      input: D#SegmentType,
+  def queue(
+      input: Segment,
       numberOfPoints: Int,
       outputPath: LogicalPath
   )(implicit
       tsc: TaskSystemComponents
-  ): IO[(D#SegmentType, SegmentInt)] =
+  ): IO[(input.SegmentType, SegmentInt)] =
     task(EstimateCDF(input, numberOfPoints, outputPath))(
       ResourceRequest(cpu = (1, 1), memory = 1, scratch = 0, gpu = 0)
-    ).map(pair => (pair._1.as[D], pair._2))
+    ).map(pair => (pair._1.as(input), pair._2))
   implicit val codec: JsonValueCodec[EstimateCDF] = JsonCodecMaker.make
   implicit val code2: JsonValueCodec[(Segment, SegmentInt)] =
     JsonCodecMaker.make

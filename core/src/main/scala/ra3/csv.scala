@@ -27,13 +27,12 @@ object csv {
     def toStringColumns(segmentIdx: Int): IO[Seq[Seq[String]]] = {
       IO.parSequenceN(32)((0 until table.columns.size).toList map { colIdx =>
         val column = table.columns(colIdx)
-        column.dataType match {
-          case t: Int32 =>
+        column match {
+          case c: Column.Int32Column =>
             val m =
-              (t.cast(
-                column
-                  .segments(segmentIdx)
-              ): Int32.SegmentType).buffer
+              c
+                .segments(segmentIdx)
+                .buffer
                 .map(_.toSeq.map(_.toString))
 
             m
@@ -75,7 +74,7 @@ object csv {
   }
   def readHeterogeneousFromCSVFile(
       name: String,
-      columnTypes: Seq[(Int, DataType)],
+      columnTypes: Seq[(Int, ColumnTag)],
       file: File,
       charset: CharsetDecoder = org.saddle.io.csv.makeAsciiSilentCharsetDecoder,
       fieldSeparator: Char = ',',
@@ -108,7 +107,7 @@ object csv {
   }
   def readHeterogeneousFromCSVChannel(
       name: String,
-      columnTypes: Seq[(Int, DataType)],
+      columnTypes: Seq[(Int, ColumnTag)],
       channel: ReadableByteChannel,
       charset: CharsetDecoder = org.saddle.io.csv.makeAsciiSilentCharsetDecoder,
       fieldSeparator: Char = ',',
@@ -162,10 +161,14 @@ object csv {
           val columns =
             callback.segments.zip(sortedColumnTypes).zipWithIndex map {
               case ((b, (_, tpe)), idx) =>
-                val column = b.toVector
+                val segments = b.toVector
+                val column = tpe match {
+                  case tpe:ColumnTag.I32.type => Column.Int32Column(tpe.cast(segments))
+                  case tpe:ColumnTag.F64.type => Column.F64Column(tpe.cast(segments))
+                }
 
                 val name = colIndex.map(_.apply(idx))
-                (name, Column.cast(tpe)(column))
+                (name, column)
             }
           Right(
             Table(
@@ -187,7 +190,7 @@ object csv {
       name: String,
       maxLines: Long,
       header: Boolean,
-      columnTypes: Array[(Int, DataType)],
+      columnTypes: Array[(Int, ColumnTag)],
       maxSegmentLength: Int
   )(implicit tsc: TaskSystemComponents)
       extends Callback {
@@ -207,7 +210,7 @@ object csv {
 
     var bufdata: Array[_] = allocateBuffers()
 
-    val types: Array[DataType] = columnTypes.map(_._2)
+    val types: Array[ColumnTag] = columnTypes.map(_._2)
 
     val segments: Vector[ArrayBuffer[Segment]] =
       types.map(_ => ArrayBuffer.empty[Segment]).toVector
@@ -240,9 +243,9 @@ object csv {
                 val tpe = columnTypes(bufferIdx)._2
 
                 tpe match {
-                  case Int32 =>
+                  case tpe: ColumnTag.I32.type =>
                     val b = t.asInstanceOf[org.saddle.Buffer[Int]]
-                    BufferInt(b.toArray)
+                    tpe.makeBuffer(b.toArray)
                       .toSegment(
                         LogicalPath(
                           table = name,

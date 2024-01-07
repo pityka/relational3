@@ -11,39 +11,59 @@ import tasks._
 
 object Column {
   case class Int32Column(segments: Vector[SegmentInt]) extends Column {
-    type Self = Int32Column
-    type DType = Int32.type
-  val dataType = Int32
+      override def ++(other: Int32Column): Int32Column = Int32Column(segments ++ other.segments)
+
+
+  type Elem = Int 
+  type BufferType = BufferInt 
+  type SegmentType = SegmentInt 
+  type ColumnType = Int32Column
+  type ColumnTagType = ColumnTag.I32.type
+  def tag = ColumnTag.I32
 }
 case class F64Column(segments: Vector[SegmentDouble]) extends Column {
-  type Self = F64Column
-  type DType = F64.type
-  val dataType = F64
+    override def ++(other: F64Column): F64Column = F64Column(segments ++ other.segments)
+
+
+  type Elem = Double
+  type BufferType = BufferDouble
+  type SegmentType = SegmentDouble
+  type ColumnType = F64Column
+  type ColumnTagType = ColumnTag.F64.type
+  def tag = ColumnTag.F64
 }
   implicit val codec: JsonValueCodec[Column] = JsonCodecMaker.make
   
-  def apply[D <: DataType](tpe0: D)(segments0: Vector[tpe0.SegmentType]) : D#ColumnType  =
-   tpe0.makeColumn(segments0)
-
-  def cast[D <: DataType](tpe: D)(segments: Vector[Segment]): D#ColumnType =
-    tpe.makeColumn(segments.map(tpe.cast))
+  
 }
 
 
 
 sealed trait Column extends ColumnOps { self => 
-  type DType <: DataType
-  val dataType : DType
-  type Elem = dataType.Elem
-  def segments: Vector[dataType.SegmentType]
-  // val z : Segment[DType] = dataType.cast[DType](???)
-
-  def castAndConcatenate(other: Column) = ++(other.asInstanceOf[self.type])
-  def ++(other: self.type) = {
-  
-    val both : Vector[dataType.SegmentType]= segments ++ other.segments
-    Column(dataType)(both)
+   type ColumnType >: this.type <: Column 
+  type Elem 
+  type BufferType <: Buffer {
+    type Elem = self.Elem     
+    type BufferType = self.BufferType
+    type SegmentType = self.SegmentType
   }
+  type SegmentType <: Segment {
+    type Elem = self.Elem     
+    type BufferType = self.BufferType
+    type SegmentType = self.SegmentType
+  }
+   type ColumnTagType <: ColumnTag {
+    type ColumnType = self.ColumnType
+    type SegmentType = self.SegmentType
+    type BufferType = self.BufferType
+    type Elem = self.Elem
+  }
+  def tag : ColumnTagType
+  def segments: Vector[SegmentType]
+  def ++(other: ColumnType)  : ColumnType
+  
+  def as(c:Column) = this.asInstanceOf[c.ColumnType]
+  def castAndConcatenate(other: Column) = ++(other.asInstanceOf[ColumnType])
 
   def estimateCDF(coverage: Double, numPointsPerSegment: Int)(implicit
       tsc: TaskSystemComponents
