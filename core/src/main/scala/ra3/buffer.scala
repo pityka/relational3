@@ -73,9 +73,13 @@ sealed trait Buffer { self =>
       tsc: TaskSystemComponents
   ): IO[SegmentType]
 
+  def sumGroups(partitionMap: BufferInt, numGroups: Int): BufferType
+
 }
 
 final class BufferDouble extends Buffer { self =>
+
+  def sumGroups(partitionMap: BufferInt, numGroups: Int): BufferType = ???
 
   override def findInequalityVsHead(
       other: BufferType,
@@ -141,6 +145,19 @@ final case class BufferInt(private[ra3] val values: Array[Int])
   type BufferType = BufferInt
   type SegmentType = SegmentInt
   type ColumnType = Column.Int32Column
+
+  /* Returns a buffer of numGroups. It may overflow. */
+  def sumGroups(partitionMap: BufferInt, numGroups: Int): BufferType = {
+    val ar = Array.ofDim[Int](numGroups)
+    var i = 0
+    val n = partitionMap.values.length
+    while (i < n) {
+      ar(partitionMap.values(i)) += values(i)
+      i += 1
+    }
+    BufferInt(ar)
+
+  }
 
   /** Find locations at which _ <= other[0] or _ >= other[0] holds returns
     * indexes
@@ -295,23 +312,30 @@ final case class BufferInt(private[ra3] val values: Array[Int])
 }
 
 object Buffer {
-
   case class GroupMap(map: BufferInt, numGroups: Int, groupSizes: BufferInt)
 
   /** Returns an int buffer with the same number of elements. Each element is
     * [0,num), the group number in which that element belongs Also returns
     * number of groups Also returns a buffer with number of elements in each
     * group
+    *
+    * @param columns
+    *   seq of columns, each column sequence of buffres
     */
-  def computeGroups(buffers: Seq[Buffer]): GroupMap = {
-    assert(buffers.size > 0)
-    if (buffers.size == 1) {
-      val buffer = buffers.head
-      buffer.groups
+  def computeGroups[B2 <: Buffer { type BufferType = B2 }](
+      columns: Seq[Seq[B2]]
+  ): GroupMap = {
+
+    assert(columns.size > 0)
+    if (columns.size == 1) {
+      val buffers = columns.head.map(_.asBufferType)
+      val concat = buffers.reduce(_ ++ _)
+      concat.groups
     } else {
       import org.saddle._
       import org.saddle.order._
-      assert(buffers.map(_.length).distinct == 1)
+      assert(columns.map(_.map(_.length.toLong).sum).distinct == 1)
+      val buffers = columns.map(_.reduce(_ ++ _))
       val factorizedEachBuffer = buffers.map(_.groups.map.values).toVector
       // from here this is very inefficient because allocates too much
       // lamp has a more efficient implementation for this if I am willing to pull in lamp

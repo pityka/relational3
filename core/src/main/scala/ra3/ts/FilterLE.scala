@@ -15,7 +15,7 @@ case class FilterInequality(
     lessThan: Boolean
 )
 object FilterInequality {
-  def queue[S0, S <: Segment { type SegmentType = S0 }](
+  def queue[S <: Segment { type SegmentType = S }](
       comparison: S,
       input: Segment,
       cutoff: S,

@@ -14,11 +14,15 @@ case class LogicalPath(
 ) {
   def appendToTable(suffix: String) = copy(table = table + suffix)
   override def toString = {
-    val part = partition.map {
-      case PartitionPath(by, pnum, pidx) if by.nonEmpty =>
-        s"/partitions/${by.mkString("-")}/$pnum/$pidx"
-      case PartitionPath(_, pnum, pidx) => s"/partitions//$pnum/$pidx"
-    }.getOrElse("")
-    s"$table$part/segments/$segment/columns/$column"
+    val now = java.time.Instant.now().toEpochMilli()
+    val rand = scala.util.Random.alphanumeric.take(8).mkString
+    val part = partition
+      .map {
+        case PartitionPath(by, pnum, pidx) if by.nonEmpty =>
+          s"/partitions/${by.mkString("-")}/$pnum/$pidx"
+        case PartitionPath(_, pnum, pidx) => s"/partitions/$pnum/$pidx"
+      }
+      .getOrElse("")
+    s"$table$part/segments/$segment/columns/$column.$now.$rand"
   }
 }

@@ -7,23 +7,30 @@ import com.github.plokhotnyuk.jsoniter_scala.macros._
 import com.github.plokhotnyuk.jsoniter_scala.core._
 import cats.effect.IO
 
-case class ExtractGroups(
+case class ReductionSum(
     input: Seq[Segment],
     map: SegmentInt,
     numGroups: Int,
     outputPath: LogicalPath
 )
-object ExtractGroups {
-  def queue[S <: Segment { type SegmentType = S }](
+object ReductionSum  extends ReductionOp {
+
+  override def reduce[S <: Segment{type SegmentType = S}](segment: Seq[Segment], groupMap: Segment.GroupMap, path: LogicalPath)(implicit tsc: TaskSystemComponents): IO[S] = {
+    queue(segment,groupMap.map,groupMap.numGroups,path)
+  }
+
+  override def id: String = "sum"
+
+  def queue[S<:Segment{type SegmentType = S}](
       input: Seq[Segment],
       map: SegmentInt,
       numGroups: Int,
       outputPath: LogicalPath
   )(implicit
       tsc: TaskSystemComponents
-  ): IO[Seq[S]] =
+  ): IO[S] =
     task(
-      ExtractGroups(
+      ReductionSum(
         input = input,
         map = map,
         numGroups = numGroups,
@@ -31,7 +38,7 @@ object ExtractGroups {
       )
     )(
       ResourceRequest(cpu = (1, 1), memory = 1, scratch = 0, gpu = 0)
-    ).map(_.map(_.as[S]))
+    ).map(_.as[S])
 
   private def doit(
       input: Seq[Segment],
@@ -41,22 +48,14 @@ object ExtractGroups {
   )(implicit tsc: TaskSystemComponents) = {
     val parts = map.buffer
     val tag = input.head.tag
-    val bIn = IO
-      .parSequenceN(32)(input.map(_.as(tag).buffer.map(_.asBufferType)))
-      .map(_.reduce(_ ++ _))
+    val bIn = IO.parSequenceN(32)(input.map(_.as(tag).buffer.map(_.asBufferType))).map(_.reduce(_ ++ _))
     IO.both(parts, bIn).flatMap { case (partitionMap, in) =>
-      IO.parSequenceN(32)((0 until numGroups).toList.map { gIdx =>
-        in
-          .take(partitionMap.where(gIdx))
-          .toSegment(
-            outputPath.copy(table = outputPath.table + "-g" + gIdx)
-          )
-      })
+      in.sumGroups(partitionMap,numGroups).toSegment(outputPath)
     }
   }
-  implicit val codec: JsonValueCodec[ExtractGroups] = JsonCodecMaker.make
-  implicit val codec2: JsonValueCodec[Seq[Segment]] = JsonCodecMaker.make
-  val task = Task[ExtractGroups, Seq[Segment]]("ExtractGroups", 1) {
+  implicit val codec: JsonValueCodec[ReductionSum] = JsonCodecMaker.make
+  implicit val codec2: JsonValueCodec[Segment] = JsonCodecMaker.make
+  val task = Task[ReductionSum, Segment]("ReductionSum", 1) {
     case input =>
       implicit ce =>
         doit(input.input, input.map, input.numGroups, input.outputPath)

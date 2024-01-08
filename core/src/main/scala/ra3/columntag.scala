@@ -28,8 +28,7 @@ sealed trait ColumnTag { self =>
     type BufferType = self.BufferType
     type Elem = self.Elem
   }
-  def cast(s: Vector[Segment]): Vector[SegmentType] =
-    s.asInstanceOf[Vector[SegmentType]]
+
   def makeBuffer(elems: Array[Elem]): BufferType
   def makeBufferFromSeq(elems: Elem*): BufferType // BufferDouble(elems)
   def makeColumn(segments: Vector[SegmentType]): ColumnType

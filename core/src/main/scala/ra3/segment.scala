@@ -4,31 +4,32 @@ import cats.effect.IO
 import java.nio.ByteOrder
 sealed trait Segment { self =>
   type SegmentType >: this.type <: Segment
-  type Elem 
+  type Elem
   type BufferType <: Buffer {
-    type Elem = self.Elem 
+    type Elem = self.Elem
     type SegmentType = self.SegmentType
     type BufferType = self.BufferType
   }
   type ColumnType <: Column {
     type Elem = self.Elem
-    type BufferType = self.BufferType 
+    type BufferType = self.BufferType
     type SegmentType = self.SegmentType
     type ColumnTagType = self.ColumnTagType
   }
-   type ColumnTagType <: ColumnTag {
+  type ColumnTagType <: ColumnTag {
     type ColumnType = self.ColumnType
     type SegmentType = self.SegmentType
     type BufferType = self.BufferType
     type Elem = self.Elem
   }
-  def tag : ColumnTagType
+  def tag: ColumnTagType
   def buffer(implicit tsc: TaskSystemComponents): IO[BufferType]
   def statistics: IO[Option[Statistic[Elem]]]
   def numElems: Int
-  def as(c:Column) = this.asInstanceOf[c.SegmentType]
-  def as(c:Segment) = this.asInstanceOf[c.SegmentType]
-  def as(c:ColumnTag) = this.asInstanceOf[c.SegmentType]
+  def as(c: Column) = this.asInstanceOf[c.SegmentType]
+  def as(c: Segment) = this.asInstanceOf[c.SegmentType]
+  def as[S <: Segment { type SegmentType = S }] = this.asInstanceOf[S]
+  def as(c: ColumnTag) = this.asInstanceOf[c.SegmentType]
 }
 
 object Segment {
@@ -43,46 +44,42 @@ object Segment {
 
 sealed trait SegmentPair { self =>
   type SegmentPairType >: this.type <: SegmentPair
-  type Elem 
+  type Elem
   type BufferType <: Buffer {
-    type Elem = self.Elem 
+    type Elem = self.Elem
     type SegmentType = self.SegmentType
     type BufferType = self.BufferType
   }
   type SegmentType <: Segment {
-    type BufferType = self.BufferType 
+    type BufferType = self.BufferType
     type SegmentType = self.SegmentType
     type Elem = self.Elem
   }
   def a: SegmentType
   def b: SegmentType
 }
-case class I32Pair(a: SegmentInt, b: SegmentInt)
-    extends SegmentPair {
-       type Elem = Int
+case class I32Pair(a: SegmentInt, b: SegmentInt) extends SegmentPair {
+  type Elem = Int
   type BufferType = BufferInt
   type SegmentType = SegmentInt
   type ColumnType = Column.Int32Column
 }
-case class F64Pair(a: SegmentDouble, b: SegmentDouble)
-    extends SegmentPair {
-   type Elem = Double
+case class F64Pair(a: SegmentDouble, b: SegmentDouble) extends SegmentPair {
+  type Elem = Double
   type BufferType = BufferDouble
   type SegmentType = SegmentDouble
   type ColumnType = Column.F64Column
 }
 
-final case class SegmentDouble(sf: SharedFile, numElems: Int)
-    extends Segment {
- type Elem = Double
+final case class SegmentDouble(sf: SharedFile, numElems: Int) extends Segment {
+  type Elem = Double
   type BufferType = BufferDouble
   type SegmentType = SegmentDouble
   type ColumnType = Column.F64Column
-  type ColumnTagType = ColumnTag.F64.type 
+  type ColumnTagType = ColumnTag.F64.type
   val tag = ColumnTag.F64
 
   // override def pair(other: this.type) = F64Pair(this,other)
-
 
   override def buffer(implicit tsc: TaskSystemComponents) =
     ???
@@ -92,16 +89,15 @@ final case class SegmentDouble(sf: SharedFile, numElems: Int)
   // def pair(other: SegmentDouble) = F64Pair(this,other)
 
 }
-final case class SegmentInt(sf: SharedFile, numElems: Int)
-    extends Segment {
+final case class SegmentInt(sf: SharedFile, numElems: Int) extends Segment {
 
- type Elem = Int 
-  type BufferType = BufferInt 
-  type SegmentType = SegmentInt 
+  type Elem = Int
+  type BufferType = BufferInt
+  type SegmentType = SegmentInt
   type ColumnType = Column.Int32Column
-  type ColumnTagType = ColumnTag.I32.type 
+  type ColumnTagType = ColumnTag.I32.type
   val tag = ColumnTag.I32
-  
+
   // override def pair(other: this.type) = I32Pair(this,other)
 
   override def buffer(implicit tsc: TaskSystemComponents): IO[BufferInt] = {
@@ -112,7 +108,7 @@ final case class SegmentInt(sf: SharedFile, numElems: Int)
     sf.bytes.map { byteVector =>
       val bb =
         byteVector.toByteBuffer.order(ByteOrder.LITTLE_ENDIAN).asIntBuffer()
-      val ar = Array.ofDim[Int](bb.remaining )
+      val ar = Array.ofDim[Int](bb.remaining)
       bb.get(ar)
       BufferInt(ar)
     }
@@ -122,4 +118,3 @@ final case class SegmentInt(sf: SharedFile, numElems: Int)
   def statistics: IO[Option[Statistic[Int]]] = IO.pure(None)
 
 }
-

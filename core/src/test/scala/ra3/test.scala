@@ -572,4 +572,49 @@ class MySuite extends munit.FunSuite {
   //   }
 
   // }
+  test("group by") {
+    withTempTaskSystem { implicit ts =>
+      val numCols = 3
+      val numRows = 10
+      val (tableFrame, tableCsv) = generateTable(numRows, numCols)
+      val colA = Seq(Seq(0, 0, 1), Seq(0, 2, 3), Seq(4, 5, 0), Seq(9))
+
+      val tF = {
+        val tmp = tableFrame.addCol(
+          Series(colA.flatten.toVec),
+          "V4",
+          org.saddle.index.InnerJoin
+        )
+        tmp.setRowIndex(Index(tmp.firstCol("V4").toVec.toArray))
+      }
+
+      // println(tF)
+      // println(tF2)
+
+      val saddleResult = tF.groupBy.groups.map { case (group, idx) =>
+        (group, tF.rowAt(idx))
+      }.toList
+
+      val tableA = csvStringToTable("table", tableCsv, numCols, 3)
+        .addColumnFromSeq(I32, "V4")(colA.flatten)
+        .unsafeRunSync()
+
+      assertEquals(toFrame(tableA), tF.resetRowIndex)
+
+      val result = tableA
+        .groupBy(List(3), 3)
+        .unsafeRunSync()
+        .extractGroups
+        .unsafeRunSync()
+        .map { group =>
+          toFrame(group)
+        }
+
+      
+
+      assertEquals(saddleResult.map(_._2.resetRowIndex).toSet,result.toSet)
+
+    }
+
+  }
 }

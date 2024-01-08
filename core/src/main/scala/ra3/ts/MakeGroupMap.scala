@@ -13,23 +13,22 @@ case class MakeGroupMap(
 )
 object MakeGroupMap {
 
-  private def singleColumn(column:Column)(implicit tsc: TaskSystemComponents) = {
+  private def singleColumn(
+      column: Column
+  )(implicit tsc: TaskSystemComponents) = {
     val z = column.segments.map(_.buffer)
-    val t = IO.parSequenceN(32)(z).map(_.reduce(_ ++ _))
+    val t = IO.parSequenceN(32)(z)
     t
   }
 
   private def doit(input: Seq[Column], outputPath: LogicalPath)(implicit
       tsc: TaskSystemComponents
   ) = {
+    assert(input.map(_.tag).distinct.size == 1)
+    val tag = input.head.tag
     val bufferedColumns = IO.parSequenceN(32)(input.map { column =>
-     singleColumn(column)
+      singleColumn(column).map(_.map(_.as(tag)))
     })
-    // val bufferedColumns = IO.parSequenceN(32)(input.map { column =>
-    //   IO
-    //     .parSequenceN(32)(column.segments.map(_.buffer))
-    //     .map(_.reduce(_ ++ _))
-    // })
 
     bufferedColumns.flatMap { in =>
       import Buffer.GroupMap
@@ -44,19 +43,13 @@ object MakeGroupMap {
         )
       ).map { case (a, b) =>
         (
-          a match {
-            case x: SegmentInt => x
-
-          },
+          a,
           numGroups,
-          b match {
-            case x: SegmentInt => x
-
-          }
+          b
         )
       }
     }
-    ???
+
   }
 
   /** Returns (group map, num groups, sizes of groups)
@@ -69,8 +62,8 @@ object MakeGroupMap {
   ) =
     task(MakeGroupMap(input, outputPath))(
       ResourceRequest(cpu = (1, 1), memory = 1, scratch = 0, gpu = 0)
-    ).map { case (segment, numberOfGroups, sizes) =>
-      (segment, numberOfGroups, sizes)
+    ).map { case (map, numberOfGroups, sizes) =>
+      (map, numberOfGroups, sizes)
     }
 
   implicit val codec: JsonValueCodec[MakeGroupMap] = JsonCodecMaker.make

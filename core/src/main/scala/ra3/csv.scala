@@ -161,12 +161,7 @@ object csv {
             callback.segments.zip(sortedColumnTypes).zipWithIndex map {
               case ((b, (_, tpe)), idx) =>
                 val segments = b.toVector
-                val column = tpe match {
-                  case tpe: ColumnTag.I32.type =>
-                    Column.Int32Column(tpe.cast(segments))
-                  case tpe: ColumnTag.F64.type =>
-                    Column.F64Column(tpe.cast(segments))
-                }
+                val column = tpe.makeColumn(segments.map(_.as(tpe)))
 
                 val name = colIndex.map(_.apply(idx))
                 (name, column)

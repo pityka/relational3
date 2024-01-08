@@ -106,10 +106,7 @@ trait RelationalAlgebra { self: Table =>
           IO.parTraverseN(math.min(32, comparisonColumn.segments.size))(
             comparisonColumn.segments.zipWithIndex
           ) { case (comparisonSegment, segmentIdx) =>
-            ts.FilterInequality.queue[
-              comparisonColumn.SegmentType,
-              comparisonColumn.SegmentType
-            ](
+            ts.FilterInequality.queue(
               comparison = comparisonSegment,
               input = column.segments(segmentIdx),
               cutoff = castedCutoff,
@@ -402,29 +399,38 @@ trait RelationalAlgebra { self: Table =>
       cols.nonEmpty
     )
 
-    self
-      .partition(cols, numPartitions)
-      .flatMap { case partitions =>
-        val groupedPartitions =
-          IO.parSequenceN(32)(partitions.zipWithIndex.map {
-            case (partition, pIdx) =>
-              val columnsOfGroupBy = cols.map(partition.columns.apply)
-              val groupMap = ts.MakeGroupMap.queue(
-                columnsOfGroupBy,
-                outputPath = LogicalPath(
-                  table = self.uniqueId + ".groupmap",
-                  partition = Some(PartitionPath(cols, numPartitions, pIdx)),
-                  0,
-                  0
+    val name = ts.MakeUniqueId.queue(
+      self,
+      s"groupby-${cols.mkString("_")}-$numPartitions",
+      Nil
+    )
+    name.flatMap { name =>
+      self
+        .partition(cols, numPartitions)
+        .flatMap { case partitions =>
+          val groupedPartitions =
+            IO.parSequenceN(32)(partitions.zipWithIndex.map {
+              case (partition, pIdx) =>
+                val columnsOfGroupBy = cols.map(partition.columns.apply)
+                val groupMap = ts.MakeGroupMap.queue(
+                  columnsOfGroupBy,
+                  outputPath = LogicalPath(
+                    table = self.uniqueId + ".groupmap",
+                    partition = Some(PartitionPath(cols, numPartitions, pIdx)),
+                    0,
+                    0
+                  )
                 )
-              )
 
-              groupMap.map { case (a, b, c) => Segment.GroupMap(a, b, c) }
+                groupMap.map { case (a, b, c) =>
+                  (partition, Segment.GroupMap(a, b, c))
+                }
 
-          })
-        groupedPartitions
-      }
-      .map(GroupedTable(self, _))
+            })
+          groupedPartitions
+        }
+        .map(GroupedTable(_, this.colNames, name))
+    }
 
   }
 
@@ -628,10 +634,14 @@ trait RelationalAlgebra { self: Table =>
 
 }
 
-sealed trait ReductionOp {
-  def reduce(segment: Segment, groupMap: Segment.GroupMap)(implicit
+trait ReductionOp {
+  def reduce[S <: Segment { type SegmentType = S }](
+      segment: Seq[Segment],
+      groupMap: Segment.GroupMap,
+      path: LogicalPath
+  )(implicit
       tsc: TaskSystemComponents
-  ): IO[segment.SegmentType]
+  ): IO[S]
   def id: String
 }
 

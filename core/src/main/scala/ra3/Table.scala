@@ -16,7 +16,7 @@ case class Table(
   def segmentation =
     columns.map(_.segments.map(_.numElems)).headOption.getOrElse(Nil)
   def mapColIndex(f: String => String) = copy(colNames = colNames.map(f))
- 
+
   override def toString =
     s"Table($uniqueId: $numRows x $numCols . segments: ${segmentation.size} (${segmentation.min}/${segmentation.max})\n${colNames
         .zip(columns)

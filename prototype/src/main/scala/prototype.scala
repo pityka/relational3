@@ -107,13 +107,7 @@ case class Int32Column(segments: Vector[SegmentInt]) extends Column {
 
 object Column {
   implicit val codec: JsonValueCodec[Column] = JsonCodecMaker.make
-  // def apply(
-  //     segments: Vector[tpe.SegmentType]
-  // ) =
-  //   tpe.makeColumn(segments)
-
-  // def cast[S <: Segment](segments: Vector[S]): D#ColumnType =
-  //   tpe.makeColumn(segments.map(tpe.cast))
+ 
 
 }
 
@@ -143,13 +137,12 @@ case class BufferInt(values: Array[Int]) extends Buffer { self =>
 
   override def toSegment: SegmentInt = ???
 
-  def filterInEquality[B0<:Buffer, B<:Buffer{type BufferType =  B0}](
+  def filterInEquality[B<:Buffer{type BufferType =  B}](
       comparison:B,
       cutoff: B
   ): Unit = {
     val idx = comparison.both(cutoff.refine)
 
-    println(idx)
 
   }
 
@@ -213,7 +206,7 @@ object Test {
     r
   })
 
-  segment1.buffer.filterInEquality[segment1.BufferType,segment1.BufferType](segment1.buffer,segment2.buffer)
+  segment1.buffer.filterInEquality[segment1.BufferType](segment1.buffer,segment2.buffer)
   // List(segment1,segment2)
 
   // def a[D<:DataType](a: D#SegmentType,b: D#SegmentType)(implicit ev: a.type =:=  D#SegmentType) = {
