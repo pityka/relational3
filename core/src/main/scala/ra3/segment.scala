@@ -79,14 +79,19 @@ final case class SegmentDouble(sf: SharedFile, numElems: Int) extends Segment {
   type ColumnTagType = ColumnTag.F64.type
   val tag = ColumnTag.F64
 
-  // override def pair(other: this.type) = F64Pair(this,other)
 
   override def buffer(implicit tsc: TaskSystemComponents) =
-    ???
+    sf.bytes.map { byteVector =>
+      val bb =
+        byteVector.toByteBuffer.order(ByteOrder.LITTLE_ENDIAN).asDoubleBuffer()
+      val ar = Array.ofDim[Double](bb.remaining)
+      bb.get(ar)
+      BufferDouble(ar)
+    }
+
 
   override def statistics = ???
 
-  // def pair(other: SegmentDouble) = F64Pair(this,other)
 
 }
 final case class SegmentInt(sf: SharedFile, numElems: Int) extends Segment {

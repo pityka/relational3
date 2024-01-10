@@ -526,6 +526,7 @@ trait RelationalAlgebra { self: Table =>
     val cdf = self
       .columns(sortColumn)
       .estimateCDF(cdfCoverage, cdfNumberOfSamplesPerSegment)
+
     val name = ts.MakeUniqueId.queue(
       self,
       s"topk-$sortColumn-$ascending-$k",
@@ -533,7 +534,9 @@ trait RelationalAlgebra { self: Table =>
     )
     val value = cdf.flatMap { cdf =>
       name.flatMap { name =>
-        cdf.topK(k, ascending).flatMap {
+        val perc =  k / numRows.toDouble 
+         
+        cdf.topK(perc, ascending).flatMap {
           case Some(value) =>
             value
               .toSegment(

@@ -32,7 +32,7 @@ sealed trait Buffer { self =>
   def toSeq: Seq[Elem]
   def findInequalityVsHead(other: BufferType, lessThan: Boolean): BufferInt
 
-  def cdf(numPoints: Int): (BufferType, BufferInt)
+  def cdf(numPoints: Int): (BufferType, BufferDouble)
 
   def groups: Buffer.GroupMap
 
@@ -77,7 +77,7 @@ sealed trait Buffer { self =>
 
 }
 
-final class BufferDouble extends Buffer { self =>
+final case class BufferDouble(values: Array[Double]) extends Buffer { self =>
 
   def sumGroups(partitionMap: BufferInt, numGroups: Int): BufferType = ???
 
@@ -100,15 +100,15 @@ final class BufferDouble extends Buffer { self =>
       less: Boolean
   ): BufferType = ???
 
-  override def toSeq: Seq[Double] = ???
+  override def toSeq: Seq[Double] = values.toSeq
 
-  override def cdf(numPoints: Int): (BufferDouble, BufferInt) = ???
+  override def cdf(numPoints: Int): (BufferDouble, BufferDouble) = ???
 
   override def groups: Buffer.GroupMap = ???
 
-  override def length: Int = ???
+  override def length: Int = values.length
 
-  override def ++(b: BufferDouble): BufferDouble = ???
+  override def ++(b: BufferDouble): BufferDouble = BufferDouble(values ++ b.values)
 
   override def take(locs: Location): BufferDouble = ???
 
@@ -123,13 +123,22 @@ final class BufferDouble extends Buffer { self =>
       other: BufferType
   ): BufferType = ???
 
-  override def isMissing(l: Int): Boolean = ???
+  override def isMissing(l: Int): Boolean = values(l).isNaN
 
   override def hashOf(l: Int): Int = ???
 
   override def toSegment(name: LogicalPath)(implicit
       tsc: TaskSystemComponents
-  ): IO[SegmentDouble] = ???
+  ): IO[SegmentDouble] =   IO {
+      val bb =
+        ByteBuffer.allocate(8 * values.length).order(ByteOrder.LITTLE_ENDIAN)
+      bb.asDoubleBuffer().put(values)
+      fs2.Stream.chunk(fs2.Chunk.byteBuffer(bb))
+    }.flatMap { stream =>
+      SharedFile
+        .apply(stream, name.toString)
+        .map(sf => SegmentDouble(sf, values.length))
+    }
 
 }
 
@@ -178,18 +187,17 @@ final case class BufferInt(private[ra3] val values: Array[Int])
 
   def toSeq = values.toSeq
 
-  def cdf(numPoints: Int): (BufferInt, BufferInt) = {
+  def cdf(numPoints: Int): (BufferInt, BufferDouble) = {
     val percentiles =
-      0 until (numPoints - 1) map (i => i * (1d / (numPoints - 1)))
-    val idx = (percentiles.map(x => (x * (values.length - 1)).toInt) ++ List(
-      values.length - 1
-    )).distinct
+      ((0 until (numPoints - 1)).map(i => i * (1d / (numPoints - 1))) ++ List(1d)).distinct
     val sorted = org.saddle.array.sort[Int](values)
-    val cdf = idx.map { idx =>
-      (sorted(idx), idx)
-    }
+    val cdf = percentiles.map { p =>
+      val idx = (p * (values.length - 1)).toInt
+      (sorted(idx), p)
+    }//.groupBy(_._1).toSeq.map(v => (v._1,v._2.map(_._2).min)).sortBy(_._1)
+    
     val x = BufferInt(cdf.map(_._1).toArray)
-    val y = BufferInt(cdf.map(_._2).toArray)
+    val y = BufferDouble(cdf.map(_._2).toArray)
     (x, y)
   }
 

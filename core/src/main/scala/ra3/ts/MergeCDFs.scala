@@ -8,7 +8,7 @@ import com.github.plokhotnyuk.jsoniter_scala.core._
 import cats.effect.IO
 
 case class MergeCDFs(
-    inputs: Seq[(Segment, SegmentInt)],
+    inputs: Seq[(Segment, SegmentDouble)],
     outputPath: LogicalPath
 )
 object MergeCDFs {
@@ -27,7 +27,7 @@ object MergeCDFs {
 
   private def doit(
        tag: ColumnTag)(
-      inputs: Seq[(tag.SegmentType, SegmentInt)],
+      inputs: Seq[(tag.SegmentType, SegmentDouble)],
       outputPath: LogicalPath
   )(implicit
       tsc: TaskSystemComponents,
@@ -47,7 +47,7 @@ object MergeCDFs {
           outputPath.appendToTable(".locations")
         )
       val yS =
-        BufferInt(y.toArray).toSegment(
+        BufferDouble(y.toArray).toSegment(
           outputPath.appendToTable(".values")
         )
       IO.both(xS, yS)
@@ -62,7 +62,7 @@ object MergeCDFs {
   }
 
   def queue(
-      inputs: Seq[(Segment, SegmentInt)],
+      inputs: Seq[(Segment, SegmentDouble)],
       outputPath: LogicalPath
   )(implicit
       tsc: TaskSystemComponents

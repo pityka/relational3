@@ -36,14 +36,14 @@ object EstimateCDF {
       outputPath: LogicalPath
   )(implicit
       tsc: TaskSystemComponents
-  ): IO[(input.SegmentType, SegmentInt)] =
+  ): IO[(input.SegmentType, SegmentDouble)] =
     task(EstimateCDF(input, numberOfPoints, outputPath))(
       ResourceRequest(cpu = (1, 1), memory = 1, scratch = 0, gpu = 0)
     ).map(pair => (pair._1.as(input), pair._2))
   implicit val codec: JsonValueCodec[EstimateCDF] = JsonCodecMaker.make
-  implicit val code2: JsonValueCodec[(Segment, SegmentInt)] =
+  implicit val code2: JsonValueCodec[(Segment, SegmentDouble)] =
     JsonCodecMaker.make
-  val task = Task[EstimateCDF, (Segment, SegmentInt)]("estimatecdf", 1) {
+  val task = Task[EstimateCDF, (Segment, SegmentDouble)]("estimatecdf", 1) {
     case input =>
       implicit ce => doit(input.input, input.numberOfPoints, input.outputPath)
 

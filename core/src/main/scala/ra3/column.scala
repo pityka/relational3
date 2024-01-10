@@ -73,7 +73,7 @@ sealed trait Column extends ColumnOps { self =>
     assert(coverage > 0d)
     assert(coverage <= 1d)
     val total = segments.map(_.numElems.toLong).sum
-    val numPick = math.min(1, (coverage * total).toLong)
+    val numPick = math.max(1, (coverage * total).toLong)
     val shuffleSegments = scala.util.Random.shuffle(segments.zipWithIndex)
     val cumulative = shuffleSegments
       .map(v => (v, v._1.numElems))
