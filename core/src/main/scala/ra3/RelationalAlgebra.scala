@@ -38,7 +38,8 @@ trait RelationalAlgebra { self: Table =>
         Table(
           columns,
           self.colNames,
-          name
+          name,
+          self.partitions
         )
       )
     }
@@ -80,7 +81,8 @@ trait RelationalAlgebra { self: Table =>
         Table(
           columns,
           self.colNames,
-          name
+          name,
+          self.partitions
         )
       )
     }
@@ -119,70 +121,103 @@ trait RelationalAlgebra { self: Table =>
           Table(
             sx,
             self.colNames,
-            name
+            name,
+            self.partitions
           )
         )
       }
+  }
+
+  def prePartition(
+      columnIdx: Seq[Int],
+      partitionBase: Int,
+      partitionLimit: Int
+  )(implicit tsc: TaskSystemComponents) = {
+    partition(
+      columnIdx = columnIdx,
+      partitionBase = partitionBase,
+      numPartitionsIsImportant = true,
+      partitionLimit = partitionLimit
+    ).map { parts =>
+      val pz = parts.zipWithIndex
+      val partitionMapOverSegments =
+        pz.flatMap(v => v._1.segmentation.map(_ => v._2))
+      val cat = parts.reduce(_ concatenate _)
+
+      Table(
+        cat.columns,
+        self.colNames,
+        self.uniqueId,
+        if (parts.size == 1) None
+        else
+          Some(
+            PartitionData(
+              columns = columnIdx,
+              partitionBase = partitionBase,
+              partitionMapOverSegments = partitionMapOverSegments.toVector
+            )
+          )
+      )
+
+    }
+
   }
 
   def partition(
       columnIdx: Seq[Int],
-      numPartitions: Int
-  )(implicit tsc: TaskSystemComponents): IO[Vector[PartitionedTable]] = {
-    assert(columnIdx.nonEmpty)
-    val partitionColumns = columnIdx.map(columns.apply)
-    val numSegments = partitionColumns.head.segments.size
-    val segmentIdxs = (0 until numSegments).toVector
-    IO.parTraverseN(math.min(32, numSegments))(segmentIdxs) { segmentIdx =>
-      val segmentsOfP = partitionColumns.map(_.segments(segmentIdx))
-      val partitionMap = ts.MakePartitionMap.queue(
-        segmentsOfP,
-        numPartitions,
-        LogicalPath(
-          table = self.uniqueId + "-partitionmap",
-          partition = Some(PartitionPath(columnIdx, numPartitions, 0)),
-          segment = segmentIdx,
-          column = 0
-        )
-      )
-      partitionMap.flatMap { partitionMap =>
-        IO.parTraverseN(math.min(32, columns.size))(columns.zipWithIndex) {
-          case (column, currentColumnIdx) =>
-            IO.parSequenceN(numPartitions)((0 until numPartitions).toList map {
-              pIdx =>
-                ts.TakePartition.queue(
-                  input = column.segments(segmentIdx),
-                  partitionMap = partitionMap,
-                  pIdx = pIdx,
-                  outputPath = LogicalPath(
-                    table = self.uniqueId,
-                    partition =
-                      Some(PartitionPath(columnIdx, numPartitions, pIdx)),
-                    segment = segmentIdx,
-                    column = currentColumnIdx
-                  )
-                )
-            })
-
+      partitionBase: Int,
+      numPartitionsIsImportant: Boolean,
+      partitionLimit: Int
+  )(implicit tsc: TaskSystemComponents): IO[Vector[PartitionedTable]] =
+    if (self.numRows <= partitionLimit.toLong)
+      IO.pure(Vector(PartitionedTable(self.columns, PartitionMeta(Nil, 1))))
+    else if (
+      self.partitions.isDefined && self.partitions.get.columns == columnIdx && (self.partitions.get.partitionBase == partitionBase || !numPartitionsIsImportant)
+    )
+      IO {
+        (0 until self.partitions.get.numPartitions).toVector.map { pIdx =>
+          val segmentIdx =
+            self.partitions.get.partitionMapOverSegments.zipWithIndex
+              .filter(_._1 == pIdx)
+              .map(_._2)
+          val columns = self.columns.map { col =>
+            col.tag.makeColumn(segmentIdx.map(col.segments))
+          }
+          PartitionedTable(columns, PartitionMeta(columnIdx, partitionBase))
         }
       }
-    }.map {
-      // segment x column x partition
-      segments =>
-        // partition x column x segment
-        val transposed = segments.transpose.map(_.transpose).transpose
-
-        transposed.map { columns =>
-          PartitionedTable(
-            columns.zipWithIndex.map { case (segments, columnIdx) =>
-              val column = self.columns(columnIdx)
-              column.tag.makeColumn(segments.map(_.as(column)))
-            }
-          )
+    else if (
+      self.partitions.isDefined && self.partitions.get.columns.startsWith(
+        columnIdx
+      ) && (self.partitions.get.partitionBase == partitionBase)
+    ) IO {
+      val pmeta = PartitionMeta(self.partitions.get.columns, partitionBase)
+      val pmetaPrefix = pmeta.prefix(columnIdx)
+      val num = pmetaPrefix.numPartitions
+      val partitionMap = pmeta.partitionIdxOfPrefix(
+        columnIdx,
+        self.partitions.get.partitionMapOverSegments
+      )
+      (0 until num).toVector.map { pIdx =>
+        val segmentIdx =
+          partitionMap.zipWithIndex
+            .filter(_._1 == pIdx)
+            .map(_._2)
+        val columns = self.columns.map { col =>
+          col.tag.makeColumn(segmentIdx.map(col.segments))
         }
-
+        PartitionedTable(columns, pmetaPrefix)
+      }
     }
-  }
+    else {
+
+      PartitionedTable.partitionColumns(
+        columnIdx = columnIdx,
+        inputColumns = self.columns,
+        partitionBase = partitionBase,
+        uniqueId = self.uniqueId
+      )
+    }
 
   /**   - Partition both tables by join column
     *   - For each partition of both input tables
@@ -198,8 +233,10 @@ trait RelationalAlgebra { self: Table =>
       joinColumnSelf: Int,
       joinColumnOther: Int,
       how: String,
-      numPartitions: Int
+      partitionBase: Int,
+      partitionLimit: Int
   )(implicit tsc: TaskSystemComponents) = {
+
     assert(
       self.columns(joinColumnSelf).tag == other
         .columns(joinColumnOther)
@@ -208,16 +245,33 @@ trait RelationalAlgebra { self: Table =>
     val name = ts.MakeUniqueId.queue2(
       self,
       other,
-      s"join-$how-$numPartitions-$joinColumnSelf-$joinColumnOther",
+      s"join-$how-$partitionBase-$joinColumnSelf-$joinColumnOther",
       Nil
     )
-    val pSelf = self.partition(List(joinColumnSelf), numPartitions)
-    val pOther = other.partition(List(joinColumnOther), numPartitions)
+    val pSelf =
+      self.partition(
+        columnIdx = List(joinColumnSelf),
+        partitionBase = partitionBase,
+        numPartitionsIsImportant = true,
+        partitionLimit = partitionLimit
+      )
+
+    val pOther =
+      other.partition(
+        columnIdx = List(joinColumnOther),
+        partitionBase = partitionBase,
+        numPartitionsIsImportant = true,
+        partitionLimit = partitionLimit
+      )
     IO.both(name, IO.both(pSelf, pOther))
       .flatMap { case (name, (pSelf, pOther)) =>
-        assert(pSelf.size == pOther.size)
+        assert(pSelf.size == pOther.size || pSelf.size == 1 || pOther.size == 1)
+        val zippedPartitions =
+          if (pSelf.size > 1 && pOther.size > 1) (pSelf zip pOther)
+          else if (pSelf.size == 1) pOther.map(o => (pSelf.head, o))
+          else pSelf.map(s => (s, pOther.head))
         val joinedColumnsAndPartitions =
-          IO.parSequenceN(32)((pSelf zip pOther).zipWithIndex.map {
+          IO.parSequenceN(32)(zippedPartitions.zipWithIndex.map {
             case ((pSelf, pOther), pIdx) =>
               assert(pSelf.columns.size == pOther.columns.size)
               val pColumnSelf = pSelf.columns(joinColumnSelf)
@@ -231,7 +285,8 @@ trait RelationalAlgebra { self: Table =>
                 how = how,
                 outputPath = LogicalPath(
                   table = name + ".joinindex",
-                  partition = Some(PartitionPath(Nil, numPartitions, pIdx)),
+                  partition =
+                    Some(PartitionPath(Nil, zippedPartitions.size, pIdx)),
                   0,
                   0
                 )
@@ -360,7 +415,7 @@ trait RelationalAlgebra { self: Table =>
                   }
               joinedPartition.map { columnsAsSingleSegment =>
                 (
-                  PartitionedTable(
+                  TableHelper(
                     columnsAsSingleSegment.map { case (segment, (tpe, _)) =>
                       tpe.makeColumn(Vector(segment.as(tpe)))
                     }.toVector
@@ -379,7 +434,8 @@ trait RelationalAlgebra { self: Table =>
           joinedPartitions.headOption
             .map(_._2.toVector)
             .getOrElse(Vector.empty),
-          name
+          name,
+          None
         )
       }
   }
@@ -391,7 +447,8 @@ trait RelationalAlgebra { self: Table =>
     */
   def groupBy(
       cols: Seq[Int],
-      numPartitions: Int
+      partitionBase: Int,
+      partitionLimit: Int
   )(implicit
       tsc: TaskSystemComponents
   ): IO[GroupedTable] = {
@@ -401,12 +458,17 @@ trait RelationalAlgebra { self: Table =>
 
     val name = ts.MakeUniqueId.queue(
       self,
-      s"groupby-${cols.mkString("_")}-$numPartitions",
+      s"groupby-${cols.mkString("_")}-$partitionBase",
       Nil
     )
     name.flatMap { name =>
       self
-        .partition(cols, numPartitions)
+        .partition(
+          columnIdx = cols,
+          partitionBase = partitionBase,
+          numPartitionsIsImportant = false,
+          partitionLimit = partitionLimit
+        )
         .flatMap { case partitions =>
           val groupedPartitions =
             IO.parSequenceN(32)(partitions.zipWithIndex.map {
@@ -416,7 +478,8 @@ trait RelationalAlgebra { self: Table =>
                   columnsOfGroupBy,
                   outputPath = LogicalPath(
                     table = self.uniqueId + ".groupmap",
-                    partition = Some(PartitionPath(cols, numPartitions, pIdx)),
+                    partition =
+                      Some(PartitionPath(cols, partitions.size, pIdx)),
                     0,
                     0
                   )
@@ -452,14 +515,24 @@ trait RelationalAlgebra { self: Table =>
         this.columns(cIdx)
       } toVector
 
-      Table(cols, colNames, name)
+      Table(
+        cols,
+        colNames,
+        name,
+        None // could keep it, but the column index would shift away. Need stable column identifier
+      )
     }
   }
 
   def filterColumnNames(nameSuffix: String)(p: String => Boolean) = {
 
     val keep = columns.zip(colNames).filter(v => p(v._2))
-    Table(keep.map(_._1), keep.map(_._2), uniqueId + nameSuffix)
+    Table(
+      keep.map(_._1),
+      keep.map(_._2),
+      uniqueId + nameSuffix,
+      None // see comment in previous method
+    )
   }
 
   /** This is almost noop, concat the list of segments
@@ -484,7 +557,7 @@ trait RelationalAlgebra { self: Table =>
         all.map(_.columns(cIdx)).reduce(_ castAndConcatenate _)
       } toVector
 
-      Table(cols, all.head.colNames, name)
+      Table(cols, all.head.colNames, name, None)
     }
   }
 
@@ -534,8 +607,8 @@ trait RelationalAlgebra { self: Table =>
     )
     val value = cdf.flatMap { cdf =>
       name.flatMap { name =>
-        val perc =  k / numRows.toDouble 
-         
+        val perc = k / numRows.toDouble
+
         cdf.topK(perc, ascending).flatMap {
           case Some(value) =>
             value

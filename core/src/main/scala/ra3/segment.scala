@@ -3,8 +3,12 @@ import tasks._
 import cats.effect.IO
 import java.nio.ByteOrder
 sealed trait Segment { self =>
-  type SegmentType >: this.type <: Segment
   type Elem
+  type SegmentType >: this.type <: Segment  {
+    type Elem = self.Elem
+    type BufferType = self.BufferType
+  }
+  def asSegmentType = this.asInstanceOf[SegmentType]
   type BufferType <: Buffer {
     type Elem = self.Elem
     type SegmentType = self.SegmentType
@@ -24,8 +28,11 @@ sealed trait Segment { self =>
   }
   def tag: ColumnTagType
   def buffer(implicit tsc: TaskSystemComponents): IO[BufferType]
-  def statistics: IO[Option[Statistic[Elem]]]
+  // def statistics: IO[Option[Statistic[Elem]]]
   def numElems: Int
+  def minMax: Option[(Elem,Elem)] 
+
+  
   def as(c: Column) = this.asInstanceOf[c.SegmentType]
   def as(c: Segment) = this.asInstanceOf[c.SegmentType]
   def as[S <: Segment { type SegmentType = S }] = this.asInstanceOf[S]
@@ -71,7 +78,7 @@ case class F64Pair(a: SegmentDouble, b: SegmentDouble) extends SegmentPair {
   type ColumnType = Column.F64Column
 }
 
-final case class SegmentDouble(sf: SharedFile, numElems: Int) extends Segment {
+final case class SegmentDouble(sf: Option[SharedFile], numElems: Int, minMax: Option[(Double,Double)] ) extends Segment {
   type Elem = Double
   type BufferType = BufferDouble
   type SegmentType = SegmentDouble
@@ -81,20 +88,24 @@ final case class SegmentDouble(sf: SharedFile, numElems: Int) extends Segment {
 
 
   override def buffer(implicit tsc: TaskSystemComponents) =
-    sf.bytes.map { byteVector =>
+    sf match {
+      case None => IO.pure(BufferDouble(Array.empty[Double]))
+      case Some(sf) =>  
+          sf.bytes.map { byteVector =>
       val bb =
         byteVector.toByteBuffer.order(ByteOrder.LITTLE_ENDIAN).asDoubleBuffer()
       val ar = Array.ofDim[Double](bb.remaining)
       bb.get(ar)
       BufferDouble(ar)
     }
+    }
 
 
-  override def statistics = ???
+  
 
 
 }
-final case class SegmentInt(sf: SharedFile, numElems: Int) extends Segment {
+final case class SegmentInt(sf: Option[SharedFile], numElems: Int, minMax: Option[(Int,Int)] ) extends Segment {
 
   type Elem = Int
   type BufferType = BufferInt
@@ -106,17 +117,19 @@ final case class SegmentInt(sf: SharedFile, numElems: Int) extends Segment {
   // override def pair(other: this.type) = I32Pair(this,other)
 
   override def buffer(implicit tsc: TaskSystemComponents): IO[BufferInt] = {
-    // import fs2.interop.scodec.StreamDecoder
-    // import scodec.codecs._
-    // sf.stream.through(StreamDecoder.many(scodec.codecs.int32L).toPipeByte).chunkAll.compile.last.map{_.get.toArray}
-
-    sf.bytes.map { byteVector =>
+    sf match {
+      case None =>  IO.pure(BufferInt(Array.emptyIntArray))
+      case Some(value) =>
+           value.bytes.map { byteVector =>
       val bb =
         byteVector.toByteBuffer.order(ByteOrder.LITTLE_ENDIAN).asIntBuffer()
       val ar = Array.ofDim[Int](bb.remaining)
       bb.get(ar)
       BufferInt(ar)
     }
+    }
+
+   
 
   }
 

@@ -20,40 +20,58 @@ object ComputeJoinIndex {
       how: String,
       outputPath: LogicalPath
   )(implicit tsc: TaskSystemComponents) = {
-    // val rightC = right.as
-    val bufferedLeft = IO
-      .parSequenceN(32)(left.segments.map(_.buffer))
-      .map(_.reduce(_ ++ _))
-    val bufferedRight = IO
-      .parSequenceN(32)(right.segments.map(_.buffer))
-      .map(_.reduce(_ ++ _))
+    def emptyOverlap() = {
+      val rightC = right.as(left)
+      val rMM = rightC.minMax
+      val lMM = left.minMax
+      if (rMM.isDefined && lMM.isDefined) {
+        val rMin = rMM.get._1
+        val rMax = rMM.get._2
+        val lMin = lMM.get._1
+        val lMax = lMM.get._2
+        left.tag.ordering.lt(rMax, lMin) || left.tag.ordering.lt(lMax, rMin)
+      } else false
+    }
+    if (how == "inner" && emptyOverlap())
+      IO.pure(
+        (Some(ColumnTag.I32.emptySegment), Some(ColumnTag.I32.emptySegment))
+      )
+    else {
 
-    IO.both(bufferedLeft, bufferedRight).flatMap {
-      case (bufferedLeft, bufferedRight) =>
-        val (takeLeft, takeRight) =
-          bufferedLeft.computeJoinIndexes(bufferedRight.as(bufferedLeft), how)
+      val bufferedLeft = IO
+        .parSequenceN(32)(left.segments.map(_.buffer))
+        .map(_.reduce(_ ++ _))
+      val bufferedRight = IO
+        .parSequenceN(32)(right.segments.map(_.buffer))
+        .map(_.reduce(_ ++ _))
 
-        val takeLeftS: IO[Option[SegmentInt]] =
-          takeLeft
+      IO.both(bufferedLeft, bufferedRight).flatMap {
+        case (bufferedLeft, bufferedRight) =>
+          val (takeLeft, takeRight) =
+            bufferedLeft.computeJoinIndexes(bufferedRight.as(bufferedLeft), how)
+
+          val takeLeftS: IO[Option[SegmentInt]] =
+            takeLeft
+              .map(
+                _.toSegment(
+                  outputPath
+                    .copy(table = outputPath.table + ".left")
+                ).map(_.asInstanceOf[SegmentInt]).map(Some(_))
+              )
+              .getOrElse(IO.pure(None))
+          val takeRightS: IO[Option[SegmentInt]] = takeRight
             .map(
               _.toSegment(
                 outputPath
-                  .copy(table = outputPath.table + ".left")
+                  .copy(table = outputPath.table + ".right")
               ).map(_.asInstanceOf[SegmentInt]).map(Some(_))
             )
             .getOrElse(IO.pure(None))
-        val takeRightS: IO[Option[SegmentInt]] = takeRight
-          .map(
-            _.toSegment(
-              outputPath
-                .copy(table = outputPath.table + ".right")
-            ).map(_.asInstanceOf[SegmentInt]).map(Some(_))
-          )
-          .getOrElse(IO.pure(None))
-        IO.both(takeLeftS, takeRightS)
+          IO.both(takeLeftS, takeRightS)
+      }
     }
   }
-  def queue[C<:Column](
+  def queue[C <: Column](
       left: C,
       right: C,
       how: String,

@@ -3,6 +3,18 @@ import java.nio.ByteBuffer
 import java.nio.channels.WritableByteChannel
 import java.nio.channels.ReadableByteChannel
 
+private[ra3] case class TableHelper(
+      columns: Vector[Column]
+    ) {
+        def concatenate(other: TableHelper) = {
+    assert(columns.size == other.columns.size)
+    assert(columns.map(_.tag) == other.columns.map(_.tag))
+    TableHelper(
+      columns.zip(other.columns).map { case (a, b) => a castAndConcatenate b },
+    )
+  }
+    }
+
 private[ra3] object Utils {
   def writeFully(bb: ByteBuffer, channel: WritableByteChannel) = {
     bb.rewind

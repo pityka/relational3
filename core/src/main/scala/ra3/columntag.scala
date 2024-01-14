@@ -37,6 +37,7 @@ sealed trait ColumnTag { self =>
   )(implicit tsc: TaskSystemComponents): IO[ColumnType]
   def ordering: Ordering[Elem]
   def pair(a: SegmentType, b: SegmentType): SegmentPairType
+  def emptySegment: SegmentType
 }
 object ColumnTag {
   object I32 extends ColumnTag {
@@ -64,6 +65,7 @@ object ColumnTag {
 
     val ordering = implicitly[Ordering[Elem]]
     def pair(a: SegmentType, b: SegmentType): SegmentPairType = I32Pair(a, b)
+    val emptySegment: SegmentType = SegmentInt(None,0,None)
 
   }
   object F64 extends ColumnTag {
@@ -84,6 +86,8 @@ object ColumnTag {
     def makeColumnFromSeq(name: String, colIdx: Int)(
         elems: Seq[Seq[Elem]]
     )(implicit tsc: TaskSystemComponents): IO[ColumnType] = ???
+
+    val emptySegment: SegmentType = SegmentDouble(None,0,None)
   }
 }
 

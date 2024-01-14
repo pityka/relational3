@@ -174,7 +174,8 @@ object csv {
                 .zipWithIndex
                 .map { case (maybe, idx) => maybe.getOrElse(s"V$idx") }
                 .toVector,
-              name
+              name,
+              None
             )
           )
 

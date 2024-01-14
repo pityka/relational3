@@ -58,7 +58,7 @@ case class GroupedTable(
           ).map {
             // columns x groups
             columns =>
-              columns.transpose.map(columns => PartitionedTable(columns))
+              columns.transpose.map(columns => TableHelper(columns))
           }
 
         }
@@ -66,7 +66,7 @@ case class GroupedTable(
         .map { groups =>
           // groups x columns
           groups.zipWithIndex.map { case (partitionedTable, gIdx) =>
-            Table(partitionedTable.columns, this.colNames, name + "-g" + gIdx)
+            Table(partitionedTable.columns, this.colNames, name + "-g" + gIdx,None)
           }
         }
     }
@@ -118,12 +118,12 @@ case class GroupedTable(
             ).map {
               // columns
               columns =>
-                PartitionedTable(columns)
+                TableHelper(columns)
             }
 
         }
       ).map { partitions =>
-        Table(partitions.reduce(_ concatenate _).columns, this.colNames, name)
+        Table(partitions.reduce(_ concatenate _).columns, this.colNames, name,None)
       }
     }
 

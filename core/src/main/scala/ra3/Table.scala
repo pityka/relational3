@@ -3,11 +3,29 @@ package ra3
 import tasks.TaskSystemComponents
 import cats.effect.IO
 
+case class PartitionData(
+  columns: Seq[Int],
+  partitionBase: Int,
+  partitionMapOverSegments: Vector[Int]
+) {
+  override def toString = s"Partitioned over $columns with base $partitionBase ($partitionMapOverSegments)"
+  def numPartitions = (1 to columns.size).foldLeft(1)((acc,_) => acc *partitionBase)
+  def partitionIdxOfPrefix(prefix: Seq[Int]) : Vector[Int] = {
+    assert(columns.startsWith(prefix))
+    val div = (1 to (columns.size - prefix.size)).foldLeft(1)((acc,_) => acc * partitionBase)
+    partitionMapOverSegments.map{ p1 =>
+        p1 / div
+    }
+  }
+  def isPrefixOf(other: PartitionData) = other.partitionBase == this.partitionBase && other.columns.startsWith(columns)
+}
+
 // Segments in the same table are aligned: each column holds the same number of segments of the same size
 case class Table(
     columns: Vector[Column],
     colNames: Vector[String],
-    uniqueId: String
+    uniqueId: String,
+    partitions: Option[PartitionData]
 ) extends RelationalAlgebra {
   assert(columns.map(_.segments.map(_.numElems)).distinct.size == 1)
   def numCols = columns.size
@@ -18,7 +36,7 @@ case class Table(
   def mapColIndex(f: String => String) = copy(colNames = colNames.map(f))
 
   override def toString =
-    s"Table($uniqueId: $numRows x $numCols . segments: ${segmentation.size} (${segmentation.min}/${segmentation.max})\n${colNames
+    s"Table($uniqueId: $numRows x $numCols . segments: ${segmentation.size} (seg_n:${segmentation.min}/${segmentation.max})\nPartitioning: $partitions\n${colNames
         .zip(columns)
         .map { case (name, col) =>
           s"'$name'\t${col.tag}"

@@ -11,6 +11,11 @@ import tasks._
 
 object Column {
   case class Int32Column(segments: Vector[SegmentInt]) extends Column {
+    def minMax: Option[(Int, Int)] = {
+      val s = segments.flatMap(_.minMax.toSeq)
+      if (s.isEmpty) None
+      else Some((s.map(_._1).min, s.map(_._2).max))
+    }
     override def ++(other: Int32Column): Int32Column = Int32Column(
       segments ++ other.segments
     )
@@ -23,6 +28,11 @@ object Column {
     def tag = ColumnTag.I32
   }
   case class F64Column(segments: Vector[SegmentDouble]) extends Column {
+    def minMax: Option[(Double, Double)] = {
+      val s = segments.flatMap(_.minMax.toSeq)
+      if (s.isEmpty) None
+      else Some((s.map(_._1).min, s.map(_._2).max))
+    }
     override def ++(other: F64Column): F64Column = F64Column(
       segments ++ other.segments
     )
@@ -39,7 +49,9 @@ object Column {
 }
 
 sealed trait Column extends ColumnOps { self =>
-  type ColumnType >: this.type <: Column
+  type ColumnType >: this.type <: Column {
+    type Elem = self.Elem
+  }
   type Elem
   type BufferType <: Buffer {
     type Elem = self.Elem
@@ -60,6 +72,7 @@ sealed trait Column extends ColumnOps { self =>
   def tag: ColumnTagType
   def segments: Vector[SegmentType]
   def ++(other: ColumnType): ColumnType
+  def minMax: Option[(Elem, Elem)]
 
   override def toString =
     s"$tag\tN_segments=${segments.size}\tN_elem=${segments.map(_.numElems).sum}"

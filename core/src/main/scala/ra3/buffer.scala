@@ -50,8 +50,7 @@ sealed trait Buffer { self =>
 
   /** uses the first element from cutoff */
   def filterInEquality[
-      B0 <: Buffer,
-      B <: Buffer { type BufferType = B0 }
+      B <: Buffer { type BufferType = B }
   ](
       comparison: B,
       cutoff: B,
@@ -68,7 +67,7 @@ sealed trait Buffer { self =>
   ): BufferType
 
   def isMissing(l: Int): Boolean
-  def hashOf(l: Int): Int
+  def hashOf(l: Int): Long
   def toSegment(name: LogicalPath)(implicit
       tsc: TaskSystemComponents
   ): IO[SegmentType]
@@ -92,53 +91,138 @@ final case class BufferDouble(values: Array[Double]) extends Buffer { self =>
   type ColumnType = Column.F64Column
 
   def filterInEquality[
-      B0 <: Buffer,
-      B <: Buffer { type BufferType = B0 }
+      B <: Buffer { type BufferType = B }
   ](
       comparison: B,
       cutoff: B,
       less: Boolean
-  ): BufferType = ???
+  ): BufferType = {
+    import org.saddle._
+    val idx = comparison.findInequalityVsHead(cutoff.asBufferType, less)
+
+    BufferDouble(values.toVec.take(idx.values.toArray).toArray)
+  }
 
   override def toSeq: Seq[Double] = values.toSeq
 
-  override def cdf(numPoints: Int): (BufferDouble, BufferDouble) = ???
+  override def cdf(numPoints: Int): (BufferDouble, BufferDouble) = {
+    val percentiles =
+      ((0 until (numPoints - 1)).map(i => i * (1d / (numPoints - 1))) ++ List(
+        1d
+      )).distinct
+    val sorted = org.saddle.array.sort[Double](values)
+    val cdf = percentiles.map { p =>
+      val idx = (p * (values.length - 1)).toInt
+      (sorted(idx), p)
+    }
 
-  override def groups: Buffer.GroupMap = ???
+    val x = BufferDouble(cdf.map(_._1).toArray)
+    val y = BufferDouble(cdf.map(_._2).toArray)
+    (x, y)
+  }
+
+  override def groups: Buffer.GroupMap = {
+    import org.saddle._
+    val idx = Index(values)
+    val uniques = idx.uniques
+    val counts = idx.counts
+    val map = Array.ofDim[Int](values.length)
+    var i = 0
+    while (i < values.length) {
+      map(i) = uniques.getFirst(values(i))
+      i += 1
+    }
+    ra3.Buffer.GroupMap(
+      map = BufferInt(map),
+      numGroups = uniques.length,
+      groupSizes = BufferInt(counts)
+    )
+  }
 
   override def length: Int = values.length
 
-  override def ++(b: BufferDouble): BufferDouble = BufferDouble(values ++ b.values)
+  override def ++(b: BufferDouble): BufferDouble = BufferDouble(
+    values ++ b.values
+  )
 
-  override def take(locs: Location): BufferDouble = ???
+  override def take(locs: Location): BufferDouble = locs match {
+    case Slice(start, until) =>
+      val r = Array.ofDim[Double](until - start)
+      System.arraycopy(values, start, r, 0, until - start)
+      BufferDouble(r)
+    case BufferInt(idx) =>
+      import org.saddle._
+      BufferDouble(values.toVec.take(idx).toArray)
+  }
 
-  override def filter(mask: Buffer): BufferDouble = ???
+  override def filter(mask: Buffer): BufferDouble = mask match {
+    case BufferInt(mask) =>
+      import org.saddle._
+      BufferDouble(values.toVec.take(mask.toVec.find(_ > 0).toArray).toArray)
+  }
 
   override def computeJoinIndexes(
       other: BufferType,
       how: String
-  ): (Option[BufferInt], Option[BufferInt]) = ???
+  ): (Option[BufferInt], Option[BufferInt]) = {
+    import org.saddle._
+    val idx1 = Index(values)
+    val idx2 = Index(other.asBufferType.values)
+    val reindexer = idx1.join(
+      idx2,
+      how = how match {
+        case "inner" => org.saddle.index.InnerJoin
+        case "left"  => org.saddle.index.LeftJoin
+        case "right" => org.saddle.index.RightJoin
+        case "outer" => org.saddle.index.OuterJoin
+      }
+    )
+    (reindexer.lTake.map(BufferInt(_)), reindexer.rTake.map(BufferInt(_)))
+  }
 
   def mergeNonMissing(
       other: BufferType
-  ): BufferType = ???
+  ): BufferType = {
+    val otherValues = other.values
+    assert(values.length == otherValues.length)
+    var i = 0
+    val r = Array.ofDim[Double](values.length)
+    while (i < values.length) {
+      r(i) = values(i)
+      if (isMissing(i)) {
+        r(i) = otherValues(i)
+      }
+      i += 1
+    }
+    BufferDouble(r)
+  }
 
   override def isMissing(l: Int): Boolean = values(l).isNaN
 
-  override def hashOf(l: Int): Int = ???
+  override def hashOf(l: Int): Long = {
+    java.lang.Double.doubleToLongBits(values(l))
+  }
 
   override def toSegment(name: LogicalPath)(implicit
       tsc: TaskSystemComponents
-  ): IO[SegmentDouble] =   IO {
-      val bb =
-        ByteBuffer.allocate(8 * values.length).order(ByteOrder.LITTLE_ENDIAN)
-      bb.asDoubleBuffer().put(values)
-      fs2.Stream.chunk(fs2.Chunk.byteBuffer(bb))
-    }.flatMap { stream =>
-      SharedFile
-        .apply(stream, name.toString)
-        .map(sf => SegmentDouble(sf, values.length))
-    }
+  ): IO[SegmentDouble] =
+    if (values.length == 0) IO.pure(SegmentDouble(None, 0, None))
+    else
+      IO {
+
+        val bb =
+          ByteBuffer.allocate(8 * values.length).order(ByteOrder.LITTLE_ENDIAN)
+        bb.asDoubleBuffer().put(values)
+        fs2.Stream.chunk(fs2.Chunk.byteBuffer(bb))
+      }.flatMap { stream =>
+        import org.saddle._
+        val minmax = values.toVec.min.toOption.flatMap(a =>
+          values.toVec.max.toOption.map((a, _))
+        )
+        SharedFile
+          .apply(stream, name.toString)
+          .map(sf => SegmentDouble(Some(sf), values.length, minmax))
+      }
 
 }
 
@@ -189,13 +273,15 @@ final case class BufferInt(private[ra3] val values: Array[Int])
 
   def cdf(numPoints: Int): (BufferInt, BufferDouble) = {
     val percentiles =
-      ((0 until (numPoints - 1)).map(i => i * (1d / (numPoints - 1))) ++ List(1d)).distinct
+      ((0 until (numPoints - 1)).map(i => i * (1d / (numPoints - 1))) ++ List(
+        1d
+      )).distinct
     val sorted = org.saddle.array.sort[Int](values)
     val cdf = percentiles.map { p =>
       val idx = (p * (values.length - 1)).toInt
       (sorted(idx), p)
-    }//.groupBy(_._1).toSeq.map(v => (v._1,v._2.map(_._2).min)).sortBy(_._1)
-    
+    }
+
     val x = BufferInt(cdf.map(_._1).toArray)
     val y = BufferDouble(cdf.map(_._2).toArray)
     (x, y)
@@ -206,8 +292,7 @@ final case class BufferInt(private[ra3] val values: Array[Int])
   import org.saddle.{Buffer => _, _}
 
   override def filterInEquality[
-      B0 <: Buffer,
-      B <: Buffer { type BufferType = B0 }
+      B <: Buffer { type BufferType = B }
   ](comparison: B, cutoff: B, less: Boolean): BufferInt = {
     val idx = comparison.findInequalityVsHead(cutoff.asBufferType, less)
 
@@ -234,23 +319,19 @@ final case class BufferInt(private[ra3] val values: Array[Int])
   def mergeNonMissing(
       other: BufferType
   ): BufferType = {
-
-    other match {
-      case BufferInt(otherValues) =>
-        assert(values.length == otherValues.length)
-        var i = 0
-        val r = Array.ofDim[Int](values.length)
-        while (i < values.length) {
-          r(i) = values(i)
-          if (isMissing(i)) {
-            r(i) = otherValues(i)
-          }
-          i += 1
-        }
-        BufferInt(r)
-      case _ => ???
-
+    val otherValues = other.values
+    assert(values.length == otherValues.length)
+    var i = 0
+    val r = Array.ofDim[Int](values.length)
+    while (i < values.length) {
+      r(i) = values(i)
+      if (isMissing(i)) {
+        r(i) = otherValues(i)
+      }
+      i += 1
     }
+    BufferInt(r)
+
   }
 
   def computeJoinIndexes(
@@ -297,23 +378,28 @@ final case class BufferInt(private[ra3] val values: Array[Int])
   override def isMissing(l: Int): Boolean = {
     values(l) == Int.MinValue
   }
-  override def hashOf(l: Int): Int = {
-    values(l)
+  override def hashOf(l: Int): Long = {
+    values(l).toLong
   }
 
   override def toSegment(
       name: LogicalPath
   )(implicit tsc: TaskSystemComponents): IO[SegmentInt] = {
-    IO {
-      val bb =
-        ByteBuffer.allocate(4 * values.length).order(ByteOrder.LITTLE_ENDIAN)
-      bb.asIntBuffer().put(values)
-      fs2.Stream.chunk(fs2.Chunk.byteBuffer(bb))
-    }.flatMap { stream =>
-      SharedFile
-        .apply(stream, name.toString)
-        .map(sf => SegmentInt(sf, values.length))
-    }
+    if (values.length == 0) IO.pure(SegmentInt(None, 0, None))
+    else
+      IO {
+        val bb =
+          ByteBuffer.allocate(4 * values.length).order(ByteOrder.LITTLE_ENDIAN)
+        bb.asIntBuffer().put(values)
+        fs2.Stream.chunk(fs2.Chunk.byteBuffer(bb))
+      }.flatMap { stream =>
+        val minmax = values.toVec.min.toOption.flatMap(a =>
+          values.toVec.max.toOption.map((a, _))
+        )
+        SharedFile
+          .apply(stream, name.toString)
+          .map(sf => SegmentInt(Some(sf), values.length, minmax))
+      }
 
   }
 
@@ -384,7 +470,7 @@ object Buffer {
   /** Returns an int buffer with the same number of elements. Each element is
     * [0,num), the partition number in which that element belongs
     */
-  def computePartitions(buffers: Seq[Buffer], num: Int): BufferInt = {
+  def computePartitions(buffers: Vector[Buffer], num: Int): BufferInt = {
     assert(buffers.nonEmpty)
     assert(buffers.map(_.length).distinct.size == 1)
     if (buffers.size == 1) {
@@ -393,18 +479,23 @@ object Buffer {
       val b = buffers.head
       while (i < r.length) {
         val hash = math.abs(b.hashOf(i))
-        r(i) = hash % num
+        r(i) = (hash % num.toLong).toInt
         i += 1
       }
       BufferInt(r)
     } else {
       val r = Array.ofDim[Int](buffers.head.length)
       var i = 0
-      val hashing = scala.util.hashing.MurmurHash3.arrayHashing[Int]
+      val n = buffers.length
       while (i < r.length) {
-        val hashes = buffers.map(_.hashOf(i)).toArray
-        val hash = math.abs(hashing.hash(hashes))
-        r(i) = hash % num
+        var j = 0 
+        var h = 0
+        while (j < n) {
+          h *= num
+          h += ( math.abs(buffers(j).hashOf(i)) % num.toLong).toInt
+          j+=1
+        }
+        r(i) = h
         i += 1
       }
       BufferInt(r)

@@ -33,28 +33,24 @@ object BufferColumnAndTakeIndex {
       tsc: TaskSystemComponents
   ) = {
 
-    IO
-      .parSequenceN(32)(
-        input.segments.map(_.buffer)
-      )
-      .map(_.reduce(_ ++ _))
+    if (idx.isDefined && idx.get.numElems == 0) IO.pure(input.tag.emptySegment)
+    else {
+      val bufferedColumn = IO
+        .parSequenceN(32)(
+          input.segments.map(_.buffer)
+        )
+        .map(_.reduce(_ ++ _))
 
-    val bufferedColumn = IO
-      .parSequenceN(32)(
-        input.segments.map(_.buffer)
-      )
-      .map(_.reduce(_ ++ _))
-
-    val bufferedIdx =
-      idx.map(_.buffer.map(Some(_))).getOrElse(IO.pure(None))
-
-    IO.both(bufferedColumn, bufferedIdx)
-      .flatMap { case (part, idx) =>
-        idx
-          .map(t => part.take(t))
-          .getOrElse(part)
-          .toSegment(outputPath)
-      }
+      val bufferedIdx =
+        idx.map(_.buffer.map(Some(_))).getOrElse(IO.pure(None))
+      IO.both(bufferedColumn, bufferedIdx)
+        .flatMap { case (part, idx) =>
+          idx
+            .map(t => part.take(t))
+            .getOrElse(part)
+            .toSegment(outputPath)
+        }
+    }
   }
 
   val task =

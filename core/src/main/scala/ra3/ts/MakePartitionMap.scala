@@ -8,22 +8,22 @@ import com.github.plokhotnyuk.jsoniter_scala.core._
 import cats.effect.IO
 
 case class MakePartitionMap(
-    input: Seq[Segment],
+    input: Vector[Segment],
     outputPath: LogicalPath,
-    numPartitions: Int
+    partitionBase: Int
 )
 object MakePartitionMap {
   // wrapper is needed so that we avoid having Codec[SegmentInt] in this scope
   // for some reason jsoniter would use that for the codec of MakePartitionMap 
   case class Output(segment: SegmentInt)
   def queue(
-      input: Seq[Segment],
-      numPartitions: Int,
+      input: Vector[Segment],
+      partitionBase: Int,
       outputPath: LogicalPath
   )(implicit
       tsc: TaskSystemComponents
   ): IO[SegmentInt] =
-    task(MakePartitionMap(input, outputPath, numPartitions))(
+    task(MakePartitionMap(input, outputPath, partitionBase))(
       ResourceRequest(cpu = (1, 1), memory = 1, scratch = 0, gpu = 0)
     ).map(_.segment)
   implicit val codec: JsonValueCodec[MakePartitionMap] = JsonCodecMaker.make
@@ -31,12 +31,12 @@ object MakePartitionMap {
   val task = Task[MakePartitionMap, Output]("makepartitionmap", 1) {
     case input =>
       implicit ce =>
-        val b: IO[Seq[Buffer]] = IO.parSequenceN(
+        val b: IO[Vector[Buffer]] = IO.parSequenceN(
           math.min(1, ce.resourceAllocated.cpu)
         )(input.input.map(_.buffer))
         b.flatMap { in =>
           Buffer
-            .computePartitions(in, input.numPartitions)
+            .computePartitions(buffers = in, num = input.partitionBase)
             .toSegment(input.outputPath).map(Output(_))
         }
 
