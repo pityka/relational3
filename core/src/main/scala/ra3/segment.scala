@@ -4,7 +4,7 @@ import cats.effect.IO
 import java.nio.ByteOrder
 sealed trait Segment { self =>
   type Elem
-  type SegmentType >: this.type <: Segment  {
+  type SegmentType >: this.type <: Segment {
     type Elem = self.Elem
     type BufferType = self.BufferType
   }
@@ -30,9 +30,8 @@ sealed trait Segment { self =>
   def buffer(implicit tsc: TaskSystemComponents): IO[BufferType]
   // def statistics: IO[Option[Statistic[Elem]]]
   def numElems: Int
-  def minMax: Option[(Elem,Elem)] 
+  def minMax: Option[(Elem, Elem)]
 
-  
   def as(c: Column) = this.asInstanceOf[c.SegmentType]
   def as(c: Segment) = this.asInstanceOf[c.SegmentType]
   def as[S <: Segment { type SegmentType = S }] = this.asInstanceOf[S]
@@ -77,8 +76,31 @@ case class F64Pair(a: SegmentDouble, b: SegmentDouble) extends SegmentPair {
   type SegmentType = SegmentDouble
   type ColumnType = Column.F64Column
 }
+case class I64Pair(a: SegmentLong, b: SegmentLong) extends SegmentPair {
+  type Elem = Long
+  type BufferType = BufferLong
+  type SegmentType = SegmentLong
+  type ColumnType = Column.I64Column
+}
+case class InstantPair(a: SegmentInstant, b: SegmentInstant)
+    extends SegmentPair {
+  type Elem = Long
+  type BufferType = BufferInstant
+  type SegmentType = SegmentInstant
+  type ColumnType = Column.InstantColumn
+}
+case class StringPair(a: SegmentString, b: SegmentString) extends SegmentPair {
+  type Elem = CharSequence
+  type BufferType = BufferString
+  type SegmentType = SegmentString
+  type ColumnType = Column.StringColumn
+}
 
-final case class SegmentDouble(sf: Option[SharedFile], numElems: Int, minMax: Option[(Double,Double)] ) extends Segment {
+final case class SegmentDouble(
+    sf: Option[SharedFile],
+    numElems: Int,
+    minMax: Option[(Double, Double)]
+) extends Segment {
   type Elem = Double
   type BufferType = BufferDouble
   type SegmentType = SegmentDouble
@@ -86,26 +108,27 @@ final case class SegmentDouble(sf: Option[SharedFile], numElems: Int, minMax: Op
   type ColumnTagType = ColumnTag.F64.type
   val tag = ColumnTag.F64
 
-
   override def buffer(implicit tsc: TaskSystemComponents) =
     sf match {
       case None => IO.pure(BufferDouble(Array.empty[Double]))
-      case Some(sf) =>  
-          sf.bytes.map { byteVector =>
-      val bb =
-        byteVector.toByteBuffer.order(ByteOrder.LITTLE_ENDIAN).asDoubleBuffer()
-      val ar = Array.ofDim[Double](bb.remaining)
-      bb.get(ar)
-      BufferDouble(ar)
+      case Some(sf) =>
+        sf.bytes.map { byteVector =>
+          val bb =
+            byteVector.toByteBuffer
+              .order(ByteOrder.LITTLE_ENDIAN)
+              .asDoubleBuffer()
+          val ar = Array.ofDim[Double](bb.remaining)
+          bb.get(ar)
+          BufferDouble(ar)
+        }
     }
-    }
-
-
-  
-
 
 }
-final case class SegmentInt(sf: Option[SharedFile], numElems: Int, minMax: Option[(Int,Int)] ) extends Segment {
+final case class SegmentInt(
+    sf: Option[SharedFile],
+    numElems: Int,
+    minMax: Option[(Int, Int)]
+) extends Segment {
 
   type Elem = Int
   type BufferType = BufferInt
@@ -118,21 +141,123 @@ final case class SegmentInt(sf: Option[SharedFile], numElems: Int, minMax: Optio
 
   override def buffer(implicit tsc: TaskSystemComponents): IO[BufferInt] = {
     sf match {
-      case None =>  IO.pure(BufferInt(Array.emptyIntArray))
-      case Some(value) =>
-           value.bytes.map { byteVector =>
-      val bb =
-        byteVector.toByteBuffer.order(ByteOrder.LITTLE_ENDIAN).asIntBuffer()
-      val ar = Array.ofDim[Int](bb.remaining)
-      bb.get(ar)
-      BufferInt(ar)
-    }
-    }
+      case None if minMax.isDefined =>
+        assert(minMax.get._1 == minMax.get._2)
+        IO.pure(BufferInt.constant(value = minMax.get._1, length = numElems))
 
-   
+      case None =>
+        assert(numElems == 0)
+        IO.pure(BufferInt.empty)
+      case Some(value) =>
+        value.bytes.map { byteVector =>
+          val bb =
+            byteVector.toByteBuffer.order(ByteOrder.LITTLE_ENDIAN).asIntBuffer()
+          val ar = Array.ofDim[Int](bb.remaining)
+          bb.get(ar)
+          BufferInt(ar)
+        }
+    }
 
   }
 
-  def statistics: IO[Option[Statistic[Int]]] = IO.pure(None)
+}
+final case class SegmentLong(
+    sf: Option[SharedFile],
+    numElems: Int,
+    minMax: Option[(Long, Long)]
+) extends Segment {
+
+  type Elem = Long
+  type BufferType = BufferLong
+  type SegmentType = SegmentLong
+  type ColumnType = Column.I64Column
+  type ColumnTagType = ColumnTag.I64.type
+  val tag = ColumnTag.I64
+
+  override def buffer(implicit tsc: TaskSystemComponents): IO[BufferLong] = {
+    sf match {
+      case None => IO.pure(BufferLong(Array.emptyLongArray))
+      case Some(value) =>
+        value.bytes.map { byteVector =>
+          val bb =
+            byteVector.toByteBuffer
+              .order(ByteOrder.LITTLE_ENDIAN)
+              .asLongBuffer()
+          val ar = Array.ofDim[Long](bb.remaining)
+          bb.get(ar)
+          BufferLong(ar)
+        }
+    }
+
+  }
+
+}
+final case class SegmentInstant(
+    sf: Option[SharedFile],
+    numElems: Int,
+    minMax: Option[(Long, Long)]
+) extends Segment {
+
+  type Elem = Long
+  type BufferType = BufferInstant
+  type SegmentType = SegmentInstant
+  type ColumnType = Column.InstantColumn
+  type ColumnTagType = ColumnTag.Instant.type
+  val tag = ColumnTag.Instant
+
+  override def buffer(implicit tsc: TaskSystemComponents): IO[BufferType] = {
+    sf match {
+      case None => IO.pure(BufferInstant(Array.emptyLongArray))
+      case Some(value) =>
+        value.bytes.map { byteVector =>
+          val bb =
+            byteVector.toByteBuffer
+              .order(ByteOrder.LITTLE_ENDIAN)
+              .asLongBuffer()
+          val ar = Array.ofDim[Long](bb.remaining)
+          bb.get(ar)
+          BufferInstant(ar)
+        }
+    }
+
+  }
+
+}
+final case class SegmentString(
+    sf: Option[SharedFile],
+    numElems: Int,
+    minMax: Option[(String, String)]
+) extends Segment {
+
+  type Elem = CharSequence
+  type BufferType = BufferString
+  type SegmentType = SegmentString
+  type ColumnType = Column.StringColumn
+  type ColumnTagType = ColumnTag.StringTag.type
+  val tag = ColumnTag.StringTag
+
+  override def buffer(implicit tsc: TaskSystemComponents): IO[BufferType] = {
+    sf match {
+      case None => IO.pure(BufferString(Array.empty[CharSequence]))
+      case Some(value) =>
+        value.bytes.map { byteVector =>
+          val bb =
+            byteVector.toByteBuffer
+              .order(ByteOrder.BIG_ENDIAN) // char data is laid out big endian
+          val ar = Array.ofDim[CharSequence](numElems)
+          var i = 0
+          while (i < numElems) {
+            val len = bb.getInt()
+            val char = bb.slice(bb.position(), len * 2).asCharBuffer()
+            ar(i) = char
+            bb.position(bb.position() + len * 2)
+            i += 1
+          }
+
+          BufferString(ar)
+        }
+    }
+
+  }
 
 }

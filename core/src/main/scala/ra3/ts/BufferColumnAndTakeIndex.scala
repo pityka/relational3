@@ -39,7 +39,7 @@ object BufferColumnAndTakeIndex {
         .parSequenceN(32)(
           input.segments.map(_.buffer)
         )
-        .map(_.reduce(_ ++ _))
+        .map(b => input.tag.cat(b:_*))
 
       val bufferedIdx =
         idx.map(_.buffer.map(Some(_))).getOrElse(IO.pure(None))

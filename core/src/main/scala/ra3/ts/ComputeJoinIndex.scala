@@ -40,10 +40,10 @@ object ComputeJoinIndex {
 
       val bufferedLeft = IO
         .parSequenceN(32)(left.segments.map(_.buffer))
-        .map(_.reduce(_ ++ _))
+        .map(b => left.tag.cat(b:_*))
       val bufferedRight = IO
         .parSequenceN(32)(right.segments.map(_.buffer))
-        .map(_.reduce(_ ++ _))
+        .map(b => right.tag.cat(b:_*))
 
       IO.both(bufferedLeft, bufferedRight).flatMap {
         case (bufferedLeft, bufferedRight) =>

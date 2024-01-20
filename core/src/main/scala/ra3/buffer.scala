@@ -1,9 +1,13 @@
 package ra3
 
 import cats.effect.IO
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
-import tasks.{TaskSystemComponents, SharedFile}
+import tasks.{TaskSystemComponents}
+import bufferimpl.BufferDoubleImpl
+import bufferimpl.BufferInstantImpl
+import bufferimpl.BufferIntConstantImpl
+import bufferimpl.BufferIntImpl
+import bufferimpl.BufferLongImpl
+import bufferimpl.BufferStringImpl
 
 sealed trait Location
 final case class Slice(start: Int, until: Int) extends Location
@@ -23,30 +27,52 @@ sealed trait Buffer { self =>
     type SegmentType = self.SegmentType
   }
 
+  type ColumnTagType <: ColumnTag {
+    type ColumnType = self.ColumnType
+    type SegmentType = self.SegmentType
+    type BufferType = self.BufferType
+    type Elem = self.Elem
+  }
+  def tag: ColumnTagType
+
   def as(b: Buffer) = this.asInstanceOf[b.BufferType]
   def as(b: ColumnTag) = this.asInstanceOf[b.BufferType]
 
-  /* given the bounds on BufferType this should never fail  */
+  /** given the bounds on BufferType this should never fail */
   def asBufferType = this.asInstanceOf[BufferType]
 
   def toSeq: Seq[Elem]
-  def findInequalityVsHead(other: BufferType, lessThan: Boolean): BufferInt
 
+  /** Returns locations at which this is <= or >= than the first element of
+    * other
+    */
+  def findInequalityVsHead(
+      other: BufferType,
+      lessThan: Boolean
+  ): BufferInt
+
+  /** Returns CDF of this buffer at numPoints evenly spaced points always
+    * including the min and the max
+    */
   def cdf(numPoints: Int): (BufferType, BufferDouble)
 
+  /** Returns a map of unique items */
   def groups: Buffer.GroupMap
 
   def length: Int
 
-  def ++(b: BufferType): BufferType
-
-  /* negative indices yield NA values */
+  /** negative indices yield NA values */
   def take(locs: Location): BufferType
+
+  /** returns indexes where value is positive (or positive length) */
+  def positiveLocations: BufferInt
 
   /** takes element where mask is non missing and > 0, for string mask where non
     * missing and non empty
     */
-  def filter(mask: Buffer): BufferType
+  def filter(mask: Buffer): BufferType = {
+    this.take(mask.positiveLocations)
+  }
 
   /** uses the first element from cutoff */
   def filterInEquality[
@@ -55,357 +81,196 @@ sealed trait Buffer { self =>
       comparison: B,
       cutoff: B,
       less: Boolean
-  ): BufferType
+  ): BufferType = {
+    val idx = comparison.findInequalityVsHead(cutoff.asBufferType, less)
 
+    this.take(idx)
+  }
+
+  /** Computes inner, full outer, left outer or right outer joins Returns two
+    * index buffers with the locations which have to be taken from the original
+    * buffers (this and other) to join them. If the return is None, then take
+    * the complete buffer.
+    *
+    * Missing values match other missing values (which is not correct)
+    *
+    * @param other
+    * @param how
+    *   one of inner outer left right
+    * @return
+    */
   def computeJoinIndexes(
       other: BufferType,
       how: String
   ): (Option[BufferInt], Option[BufferInt])
 
+  /** Takes an other buffer of the same size and returns a buffer of the same
+    * size with elements from this buffer, except if it is missing then from the
+    * other buffer, else missing value
+    */
   def mergeNonMissing(
       other: BufferType
   ): BufferType
 
+  /** Returns true if item at position l is missing. Throws if out of bounds */
   def isMissing(l: Int): Boolean
+
+  /** Returns hash of item at location l. Missing values get the same hash.
+    * Throws if out of bounds
+    */
   def hashOf(l: Int): Long
   def toSegment(name: LogicalPath)(implicit
       tsc: TaskSystemComponents
   ): IO[SegmentType]
 
+  /** Reduce the groups defined by the map with summation
+    */
   def sumGroups(partitionMap: BufferInt, numGroups: Int): BufferType
+
+  
 
 }
 
-final case class BufferDouble(values: Array[Double]) extends Buffer { self =>
+object BufferDouble {
+  def apply(s: Double*): BufferDouble = BufferDouble(s.toArray)
+}
 
-  def sumGroups(partitionMap: BufferInt, numGroups: Int): BufferType = ???
-
-  override def findInequalityVsHead(
-      other: BufferType,
-      lessThan: Boolean
-  ): BufferInt = ???
+final case class BufferDouble(values: Array[Double])
+    extends Buffer
+    with BufferDoubleImpl { self =>
 
   type Elem = Double
   type BufferType = BufferDouble
   type SegmentType = SegmentDouble
   type ColumnType = Column.F64Column
 
-  def filterInEquality[
-      B <: Buffer { type BufferType = B }
-  ](
-      comparison: B,
-      cutoff: B,
-      less: Boolean
-  ): BufferType = {
-    import org.saddle._
-    val idx = comparison.findInequalityVsHead(cutoff.asBufferType, less)
-
-    BufferDouble(values.toVec.take(idx.values.toArray).toArray)
-  }
-
-  override def toSeq: Seq[Double] = values.toSeq
-
-  override def cdf(numPoints: Int): (BufferDouble, BufferDouble) = {
-    val percentiles =
-      ((0 until (numPoints - 1)).map(i => i * (1d / (numPoints - 1))) ++ List(
-        1d
-      )).distinct
-    val sorted = org.saddle.array.sort[Double](values)
-    val cdf = percentiles.map { p =>
-      val idx = (p * (values.length - 1)).toInt
-      (sorted(idx), p)
-    }
-
-    val x = BufferDouble(cdf.map(_._1).toArray)
-    val y = BufferDouble(cdf.map(_._2).toArray)
-    (x, y)
-  }
-
-  override def groups: Buffer.GroupMap = {
-    import org.saddle._
-    val idx = Index(values)
-    val uniques = idx.uniques
-    val counts = idx.counts
-    val map = Array.ofDim[Int](values.length)
-    var i = 0
-    while (i < values.length) {
-      map(i) = uniques.getFirst(values(i))
-      i += 1
-    }
-    ra3.Buffer.GroupMap(
-      map = BufferInt(map),
-      numGroups = uniques.length,
-      groupSizes = BufferInt(counts)
-    )
-  }
-
-  override def length: Int = values.length
-
-  override def ++(b: BufferDouble): BufferDouble = BufferDouble(
-    values ++ b.values
-  )
-
-  override def take(locs: Location): BufferDouble = locs match {
-    case Slice(start, until) =>
-      val r = Array.ofDim[Double](until - start)
-      System.arraycopy(values, start, r, 0, until - start)
-      BufferDouble(r)
-    case BufferInt(idx) =>
-      import org.saddle._
-      BufferDouble(values.toVec.take(idx).toArray)
-  }
-
-  override def filter(mask: Buffer): BufferDouble = mask match {
-    case BufferInt(mask) =>
-      import org.saddle._
-      BufferDouble(values.toVec.take(mask.toVec.find(_ > 0).toArray).toArray)
-  }
-
-  override def computeJoinIndexes(
-      other: BufferType,
-      how: String
-  ): (Option[BufferInt], Option[BufferInt]) = {
-    import org.saddle._
-    val idx1 = Index(values)
-    val idx2 = Index(other.asBufferType.values)
-    val reindexer = idx1.join(
-      idx2,
-      how = how match {
-        case "inner" => org.saddle.index.InnerJoin
-        case "left"  => org.saddle.index.LeftJoin
-        case "right" => org.saddle.index.RightJoin
-        case "outer" => org.saddle.index.OuterJoin
-      }
-    )
-    (reindexer.lTake.map(BufferInt(_)), reindexer.rTake.map(BufferInt(_)))
-  }
-
-  def mergeNonMissing(
-      other: BufferType
-  ): BufferType = {
-    val otherValues = other.values
-    assert(values.length == otherValues.length)
-    var i = 0
-    val r = Array.ofDim[Double](values.length)
-    while (i < values.length) {
-      r(i) = values(i)
-      if (isMissing(i)) {
-        r(i) = otherValues(i)
-      }
-      i += 1
-    }
-    BufferDouble(r)
-  }
-
-  override def isMissing(l: Int): Boolean = values(l).isNaN
-
-  override def hashOf(l: Int): Long = {
-    java.lang.Double.doubleToLongBits(values(l))
-  }
-
-  override def toSegment(name: LogicalPath)(implicit
-      tsc: TaskSystemComponents
-  ): IO[SegmentDouble] =
-    if (values.length == 0) IO.pure(SegmentDouble(None, 0, None))
-    else
-      IO {
-
-        val bb =
-          ByteBuffer.allocate(8 * values.length).order(ByteOrder.LITTLE_ENDIAN)
-        bb.asDoubleBuffer().put(values)
-        fs2.Stream.chunk(fs2.Chunk.byteBuffer(bb))
-      }.flatMap { stream =>
-        import org.saddle._
-        val minmax = values.toVec.min.toOption.flatMap(a =>
-          values.toVec.max.toOption.map((a, _))
-        )
-        SharedFile
-          .apply(stream, name.toString)
-          .map(sf => SegmentDouble(Some(sf), values.length, minmax))
-      }
+  type ColumnTagType = ColumnTag.F64.type
+  def tag: ColumnTagType = ColumnTag.F64  
 
 }
 
-/* Buffer of Int, missing is Int.MinValue */
-final case class BufferInt(private[ra3] val values: Array[Int])
-    extends Buffer
-    with Location { self =>
+object BufferInt {
+  def apply(e: Int*): BufferInt = apply(e.toArray)
+  def apply(e: Array[Int]): BufferInt = {
 
-  override def toString =
-    s"BufferInt(n=${values.length}: ${values.take(5).mkString(", ")} ..})"
+    def isConstant = {
+      var i = 1 
+      val x = e(0)
+      var stop = false
+      while (i < e.length && !stop) {
+        if (x != e(i)) {
+          stop = true
+        }
+        i+=1
+      }
+      !stop
+    }
 
+    if (e.isEmpty) empty 
+    else if (e.length == 1) single(e(0))
+    else if (isConstant) constant(e(0),e.length)
+    else
+    BufferIntInArray(e)
+  }
+  def empty : BufferIntConstant = BufferIntConstant(Int.MinValue,0)
+  def single(value:Int) : BufferIntConstant = BufferIntConstant(value,1)
+  def constant(value:Int, length:Int ) : BufferIntConstant = BufferIntConstant(value,length)
+}
+
+sealed trait BufferInt extends Buffer with Location {
   type Elem = Int
   type BufferType = BufferInt
   type SegmentType = SegmentInt
   type ColumnType = Column.Int32Column
 
-  /* Returns a buffer of numGroups. It may overflow. */
-  def sumGroups(partitionMap: BufferInt, numGroups: Int): BufferType = {
-    val ar = Array.ofDim[Int](numGroups)
-    var i = 0
-    val n = partitionMap.values.length
-    while (i < n) {
-      ar(partitionMap.values(i)) += values(i)
-      i += 1
-    }
-    BufferInt(ar)
+  type ColumnTagType = ColumnTag.I32.type
+  def tag: ColumnTagType = ColumnTag.I32
+  def raw(i: Int): Int
+  def where(i: Int): BufferInt
+  private[ra3] def values: Array[Int]
 
-  }
+  
+}
 
-  /** Find locations at which _ <= other[0] or _ >= other[0] holds returns
-    * indexes
-    */
-  override def findInequalityVsHead(
-      other: BufferType,
-      lessThan: Boolean
-  ): BufferInt = {
-    import org.saddle._
-    val c = other.values(0)
-    val idx =
-      if (lessThan)
-        values.toVec.find(_ <= c)
-      else values.toVec.find(_ >= c)
+final case class BufferIntConstant(value: Int, length: Int) extends BufferInt with BufferIntConstantImpl {
 
-    BufferInt(idx.toArray)
-  }
+  private[ra3] def values = Array.fill[Int](length)(value)
+  def raw(i: Int): Int =
+    if (i < 0 || i >= length) throw new IndexOutOfBoundsException else value
+}
 
-  def toSeq = values.toSeq
+/* Buffer of Int, missing is Int.MinValue */
+final case class BufferIntInArray(private val values0: Array[Int])
+    extends BufferInt
+    with BufferIntImpl { self =>
 
-  def cdf(numPoints: Int): (BufferInt, BufferDouble) = {
-    val percentiles =
-      ((0 until (numPoints - 1)).map(i => i * (1d / (numPoints - 1))) ++ List(
-        1d
-      )).distinct
-    val sorted = org.saddle.array.sort[Int](values)
-    val cdf = percentiles.map { p =>
-      val idx = (p * (values.length - 1)).toInt
-      (sorted(idx), p)
-    }
+  private[ra3] def values = values0
+  def raw(i: Int): Int = values0(i)
 
-    val x = BufferInt(cdf.map(_._1).toArray)
-    val y = BufferDouble(cdf.map(_._2).toArray)
-    (x, y)
-  }
+}
+object BufferLong {
+  def apply(s: Long*): BufferLong = BufferLong(s.toArray)
+}
+/* Buffer of Lng, missing is Long.MinValue */
+final case class BufferLong(private[ra3] val values: Array[Long])
+    extends Buffer
+    with BufferLongImpl { self =>
+  type Elem = Long
+  type BufferType = BufferLong
+  type SegmentType = SegmentLong
+  type ColumnType = Column.I64Column
 
-  def length = values.length
+  type ColumnTagType = ColumnTag.I64.type
+  def tag: ColumnTagType = ColumnTag.I64
 
-  import org.saddle.{Buffer => _, _}
+}
+object BufferInstant {
+  def apply(s: Long*): BufferInstant = BufferInstant(s.toArray)
+}
+/* Buffer of Lng, missing is Long.MinValue */
+final case class BufferInstant(private[ra3] val values: Array[Long])
+    extends Buffer
+    with BufferInstantImpl { self =>
+  type Elem = Long
+  type BufferType = BufferInstant
+  type SegmentType = SegmentInstant
+  type ColumnType = Column.InstantColumn
 
-  override def filterInEquality[
-      B <: Buffer { type BufferType = B }
-  ](comparison: B, cutoff: B, less: Boolean): BufferInt = {
-    val idx = comparison.findInequalityVsHead(cutoff.asBufferType, less)
+  type ColumnTagType = ColumnTag.Instant.type
+  def tag: ColumnTagType = ColumnTag.Instant
 
-    BufferInt(values.toVec.take(idx.values.toArray).toArray)
-  }
+}
+object BufferString {
+  def apply(s: String*): BufferString = BufferString(s.toArray[CharSequence])
+  val missing: CharSequence = s"${Char.MinValue}"
+}
+/* Buffer of CharSequence, missing is null */
+final case class BufferString(private[ra3] val values: Array[CharSequence])
+    extends Buffer
+    with BufferStringImpl { self =>
+  type Elem = CharSequence
+  type BufferType = BufferString
+  type SegmentType = SegmentString
+  type ColumnType = Column.StringColumn
 
-  def groups = {
-    val idx = Index(values)
-    val uniques = idx.uniques
-    val counts = idx.counts
-    val map = Array.ofDim[Int](values.length)
-    var i = 0
-    while (i < values.length) {
-      map(i) = uniques.getFirst(values(i))
-      i += 1
-    }
-    Buffer.GroupMap(
-      map = BufferInt(map),
-      numGroups = uniques.length,
-      groupSizes = BufferInt(counts)
-    )
-  }
-
-  def mergeNonMissing(
-      other: BufferType
-  ): BufferType = {
-    val otherValues = other.values
-    assert(values.length == otherValues.length)
-    var i = 0
-    val r = Array.ofDim[Int](values.length)
-    while (i < values.length) {
-      r(i) = values(i)
-      if (isMissing(i)) {
-        r(i) = otherValues(i)
-      }
-      i += 1
-    }
-    BufferInt(r)
-
-  }
-
-  def computeJoinIndexes(
-      other: BufferType,
-      how: String
-  ): (Option[BufferInt], Option[BufferInt]) = {
-    val idx1 = Index(values)
-    val idx2 = Index(other.asBufferType.values)
-    val reindexer = idx1.join(
-      idx2,
-      how = how match {
-        case "inner" => org.saddle.index.InnerJoin
-        case "left"  => org.saddle.index.LeftJoin
-        case "right" => org.saddle.index.RightJoin
-        case "outer" => org.saddle.index.OuterJoin
-      }
-    )
-    (reindexer.lTake.map(BufferInt(_)), reindexer.rTake.map(BufferInt(_)))
-  }
-
-  def ++(b: BufferInt) = BufferInt(
-    values.toVec.concat(b.values.toVec).toArray
-  )
-
-  /** Returns an array of indices */
-  def where(i: Int): BufferInt = {
-    BufferInt(values.toVec.find(_ == i).toArray)
-  }
-
-  def filter(mask: Buffer): BufferInt = mask match {
-    case BufferInt(mask) =>
-      BufferInt(values.toVec.take(mask.toVec.find(_ > 0).toArray).toArray)
-  }
-
-  override def take(locs: Location): BufferInt = locs match {
-    case Slice(start, until) =>
-      val r = Array.ofDim[Int](until - start)
-      System.arraycopy(values, start, r, 0, until - start)
-      BufferInt(r)
-    case BufferInt(idx) =>
-      BufferInt(values.toVec.take(idx).toArray)
-  }
-
-  override def isMissing(l: Int): Boolean = {
-    values(l) == Int.MinValue
-  }
-  override def hashOf(l: Int): Long = {
-    values(l).toLong
-  }
-
-  override def toSegment(
-      name: LogicalPath
-  )(implicit tsc: TaskSystemComponents): IO[SegmentInt] = {
-    if (values.length == 0) IO.pure(SegmentInt(None, 0, None))
-    else
-      IO {
-        val bb =
-          ByteBuffer.allocate(4 * values.length).order(ByteOrder.LITTLE_ENDIAN)
-        bb.asIntBuffer().put(values)
-        fs2.Stream.chunk(fs2.Chunk.byteBuffer(bb))
-      }.flatMap { stream =>
-        val minmax = values.toVec.min.toOption.flatMap(a =>
-          values.toVec.max.toOption.map((a, _))
-        )
-        SharedFile
-          .apply(stream, name.toString)
-          .map(sf => SegmentInt(Some(sf), values.length, minmax))
-      }
-
-  }
+  type ColumnTagType = ColumnTag.StringTag.type
+  def tag: ColumnTagType = ColumnTag.StringTag
 
 }
 
 object Buffer {
+
+  /** Map of unique items
+    *
+    * @param map
+    *   An int buffer of the same length as the original buffer, each value is
+    *   an integer in [0,n) where n is the number of unique items. All items in
+    *   the original buffer share the same value in map
+    * @param numGroups
+    *   number of unique items
+    * @param groupSizes
+    *   number of repeats per unique items, the values of map indexes groupSizes
+    */
   case class GroupMap(map: BufferInt, numGroups: Int, groupSizes: BufferInt)
 
   /** Returns an int buffer with the same number of elements. Each element is
@@ -423,14 +288,14 @@ object Buffer {
     assert(columns.size > 0)
     if (columns.size == 1) {
       val buffers = columns.head.map(_.asBufferType)
-      val concat = buffers.reduce(_ ++ _)
+      val concat = columns.head.head.tag.cat(buffers: _*)
       concat.groups
     } else {
       import org.saddle._
       import org.saddle.order._
       assert(columns.map(_.map(_.length.toLong).sum).distinct == 1)
-      val buffers = columns.map(_.reduce(_ ++ _))
-      val factorizedEachBuffer = buffers.map(_.groups.map.values).toVector
+      val buffers = columns.map(buffers => buffers.head.tag.cat(buffers: _*))
+      val factorizedEachBuffer = buffers.map(_.groups.map.toSeq).toVector
       // from here this is very inefficient because allocates too much
       // lamp has a more efficient implementation for this if I am willing to pull in lamp
       // (it delegates to pytorch uniques)
@@ -488,12 +353,12 @@ object Buffer {
       var i = 0
       val n = buffers.length
       while (i < r.length) {
-        var j = 0 
+        var j = 0
         var h = 0
         while (j < n) {
           h *= num
-          h += ( math.abs(buffers(j).hashOf(i)) % num.toLong).toInt
-          j+=1
+          h += (math.abs(buffers(j).hashOf(i)) % num.toLong).toInt
+          j += 1
         }
         r(i) = h
         i += 1

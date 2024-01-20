@@ -9,7 +9,7 @@ case class PartitionMeta(
 ) {
   def prefix(p: Seq[Int]) = {
     assert(columns.startsWith(p))
-    PartitionMeta(p,partitionBase)
+    PartitionMeta(p, partitionBase)
   }
   def numPartitions =
     (1 to columns.size).foldLeft(1)((acc, _) => acc * partitionBase)
@@ -84,7 +84,7 @@ object PartitionedTable {
       inputColumns: Vector[Column],
       partitionBase: Int,
       uniqueId: String
-  )(implicit tsc: TaskSystemComponents) = {
+  )(implicit tsc: TaskSystemComponents): IO[Vector[PartitionedTable]] = {
     assert(columnIdx.nonEmpty)
     val partitionColumns = columnIdx.map(inputColumns.apply)
     val numSegments = partitionColumns.head.segments.size

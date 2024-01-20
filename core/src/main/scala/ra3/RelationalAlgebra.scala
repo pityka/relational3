@@ -517,7 +517,7 @@ trait RelationalAlgebra { self: Table =>
 
       Table(
         cols,
-        colNames,
+        columnIndexes.map(colNames).toVector,
         name,
         None // could keep it, but the column index would shift away. Need stable column identifier
       )

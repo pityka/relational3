@@ -8,9 +8,10 @@ import ra3.ts.MergeCDFs
 import com.github.plokhotnyuk.jsoniter_scala.macros._
 import com.github.plokhotnyuk.jsoniter_scala.core._
 import tasks._
+import bufferimpl.CharSequenceOrdering
 
 object Column {
-  case class Int32Column(segments: Vector[SegmentInt]) extends Column {
+  case class Int32Column(segments: Vector[SegmentInt]) extends Column with Int32ColumnImpl {
     def minMax: Option[(Int, Int)] = {
       val s = segments.flatMap(_.minMax.toSeq)
       if (s.isEmpty) None
@@ -26,6 +27,57 @@ object Column {
     type ColumnType = Int32Column
     type ColumnTagType = ColumnTag.I32.type
     def tag = ColumnTag.I32
+  }
+  case class I64Column(segments: Vector[SegmentLong]) extends Column {
+    def minMax: Option[(Long, Long)] = {
+      val s = segments.flatMap(_.minMax.toSeq)
+      if (s.isEmpty) None
+      else Some((s.map(_._1).min, s.map(_._2).max))
+    }
+    override def ++(other: I64Column): I64Column = I64Column(
+      segments ++ other.segments
+    )
+
+    type Elem = Long
+    type BufferType = BufferLong
+    type SegmentType = SegmentLong
+    type ColumnType = I64Column
+    type ColumnTagType = ColumnTag.I64.type
+    def tag = ColumnTag.I64
+  }
+  case class InstantColumn(segments: Vector[SegmentInstant]) extends Column {
+    def minMax: Option[(Long, Long)] = {
+      val s = segments.flatMap(_.minMax.toSeq)
+      if (s.isEmpty) None
+      else Some((s.map(_._1).min, s.map(_._2).max))
+    }
+    override def ++(other: InstantColumn): InstantColumn = InstantColumn(
+      segments ++ other.segments
+    )
+
+    type Elem = Long
+    type BufferType = BufferInstant
+    type SegmentType = SegmentInstant
+    type ColumnType = InstantColumn
+    type ColumnTagType = ColumnTag.Instant.type
+    def tag = ColumnTag.Instant
+  }
+  case class StringColumn(segments: Vector[SegmentString]) extends Column {
+    def minMax: Option[(String, String)] = {
+      val s = segments.flatMap(_.minMax.toSeq)
+      if (s.isEmpty) None
+      else Some((s.map(_._1).min(CharSequenceOrdering), s.map(_._2).max(CharSequenceOrdering)))
+    }
+    override def ++(other: StringColumn): StringColumn = StringColumn(
+      segments ++ other.segments
+    )
+
+    type Elem = CharSequence
+    type BufferType = BufferString
+    type SegmentType = SegmentString
+    type ColumnType = StringColumn
+    type ColumnTagType = ColumnTag.StringTag.type
+    def tag = ColumnTag.StringTag
   }
   case class F64Column(segments: Vector[SegmentDouble]) extends Column {
     def minMax: Option[(Double, Double)] = {

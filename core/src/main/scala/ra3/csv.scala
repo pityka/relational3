@@ -12,6 +12,24 @@ import tasks.TaskSystemComponents
 import scala.collection.mutable.ArrayBuffer
 import cats.effect.IO
 import tasks.SharedFile
+import ra3.ColumnTag.I32
+import ra3.ColumnTag.Instant
+import ra3.ColumnTag.F64
+import ra3.ColumnTag.I64
+import ra3.ColumnTag.StringTag
+
+trait InstantParser {
+  def read(buff: Array[Char], start: Int, until: Int): Long
+}
+object InstantParser {
+  val ISO = new InstantParser {
+    def read(buff: Array[Char], start: Int, to: Int): Long = {
+      val cs = new CharArraySubSeq(buff, start, to)
+      java.time.Instant.parse(cs).toEpochMilli()
+    }
+  }
+
+}
 
 object csv {
 
@@ -27,17 +45,12 @@ object csv {
     def toStringColumns(segmentIdx: Int): IO[Seq[Seq[String]]] = {
       IO.parSequenceN(32)((0 until table.columns.size).toList map { colIdx =>
         val column = table.columns(colIdx)
-        column match {
-          case c: Column.Int32Column =>
-            val m =
-              c
-                .segments(segmentIdx)
-                .buffer
-                .map(_.toSeq.map(_.toString))
 
-            m
+        column
+          .segments(segmentIdx)
+          .buffer
+          .map(_.toSeq.map(_.toString))
 
-        }
       })
     }
 
@@ -74,7 +87,7 @@ object csv {
   }
   def readHeterogeneousFromCSVFile(
       name: String,
-      columnTypes: Seq[(Int, ColumnTag)],
+      columnTypes: Seq[(Int, ColumnTag, Option[InstantParser])],
       file: File,
       charset: CharsetDecoder = org.saddle.io.csv.makeAsciiSilentCharsetDecoder,
       fieldSeparator: Char = ',',
@@ -107,7 +120,7 @@ object csv {
   }
   def readHeterogeneousFromCSVChannel(
       name: String,
-      columnTypes: Seq[(Int, ColumnTag)],
+      columnTypes: Seq[(Int, ColumnTag, Option[InstantParser])],
       channel: ReadableByteChannel,
       charset: CharsetDecoder = org.saddle.io.csv.makeAsciiSilentCharsetDecoder,
       fieldSeparator: Char = ',',
@@ -148,6 +161,7 @@ object csv {
     error match {
       case Some(error) => Left(error)
       case None =>
+        callback.uploadAndResetBufData(true)
         val colIndex = if (header) Some(callback.headerFields) else None
 
         if (locs.length > 0 && callback.headerLocFields != locs.length) {
@@ -159,7 +173,7 @@ object csv {
         } else {
           val columns =
             callback.segments.zip(sortedColumnTypes).zipWithIndex map {
-              case ((b, (_, tpe)), idx) =>
+              case ((b, (_, tpe, _)), idx) =>
                 val segments = b.toVector
                 val column = tpe.makeColumn(segments.map(_.as(tpe)))
 
@@ -187,7 +201,7 @@ object csv {
       name: String,
       maxLines: Long,
       header: Boolean,
-      columnTypes: Array[(Int, ColumnTag)],
+      columnTypes: Array[(Int, ColumnTag, Option[InstantParser])],
       maxSegmentLength: Int
   )(implicit tsc: TaskSystemComponents)
       extends Callback {
@@ -201,13 +215,21 @@ object csv {
     var headerAllFields = 0
     var headerLocFields = 0
 
-    def allocateBuffers() = columnTypes.map { case _ =>
-      org.saddle.Buffer.empty[Int]
+    def allocateBuffers() = columnTypes.map { ct =>
+      ct._2 match {
+        case I32       => org.saddle.Buffer.empty[Int]
+        case StringTag => org.saddle.Buffer.empty[String]
+        case Instant   => org.saddle.Buffer.empty[Long]
+        case I64       => org.saddle.Buffer.empty[Long]
+        case F64       => org.saddle.Buffer.empty[Double]
+      }
+
     }
 
     var bufdata: Array[_] = allocateBuffers()
 
     val types: Array[ColumnTag] = columnTypes.map(_._2)
+    val parsers: Array[Option[InstantParser]] = columnTypes.map(_._3)
 
     val segments: Vector[ArrayBuffer[Segment]] =
       types.map(_ => ArrayBuffer.empty[Segment]).toVector
@@ -215,10 +237,29 @@ object csv {
     private val emptyLoc = locs.length == 0
 
     private final def add(s: Array[Char], from: Int, to: Int, buf: Int) = {
-      // val tpe0 = types(buf)
-      val buf0 = bufdata(buf).asInstanceOf[org.saddle.Buffer[Int]]
-
-      buf0.+=(org.saddle.scalar.ScalarTagInt.parse(s, from, to))
+      val tpe0 = types(buf)
+      tpe0 match {
+        case I32 =>
+          bufdata(buf)
+            .asInstanceOf[org.saddle.Buffer[Int]]
+            .+=(org.saddle.scalar.ScalarTagInt.parse(s, from, to))
+        case Instant =>
+          bufdata(buf)
+            .asInstanceOf[org.saddle.Buffer[Long]]
+            .+=(parsers(buf).getOrElse(InstantParser.ISO).read(s, from, to))
+        case F64 =>
+          bufdata(buf)
+            .asInstanceOf[org.saddle.Buffer[Double]]
+            .+=(org.saddle.scalar.ScalarTagDouble.parse(s, from, to))
+        case I64 =>
+          bufdata(buf)
+            .asInstanceOf[org.saddle.Buffer[Long]]
+            .+=(org.saddle.scalar.ScalarTagLong.parse(s, from, to))
+        case StringTag =>
+          bufdata(buf)
+            .asInstanceOf[org.saddle.Buffer[String]]
+            .+=(String.valueOf(s, from, to - from))
+      }
 
     }
 
@@ -228,7 +269,7 @@ object csv {
         case t: org.saddle.Buffer[_] => t.length
       })
 
-      assert(lengths.distinct.size == 1)
+      assert(lengths.distinct.size == 1, lengths.toList)
       val length = lengths.head
       if ((force && length > 0) || length == maxSegmentLength) {
         import cats.effect.unsafe.implicits.global
@@ -239,22 +280,20 @@ object csv {
               case t: org.saddle.Buffer[_] =>
                 val tpe = columnTypes(bufferIdx)._2
 
-                tpe match {
-                  case tpe: ColumnTag.I32.type =>
-                    val b = t.asInstanceOf[org.saddle.Buffer[Int]]
-                    tpe
-                      .makeBuffer(b.toArray)
-                      .toSegment(
-                        LogicalPath(
-                          table = name,
-                          partition = None,
-                          segment = segments.head.size,
-                          column = bufferIdx
-                        )
-                      )
-                      .map(segment => (bufferIdx, segment))
+                tpe
+                  .makeBuffer(
+                    t.asInstanceOf[org.saddle.Buffer[tpe.Elem]].toArray
+                  )
+                  .toSegment(
+                    LogicalPath(
+                      table = name,
+                      partition = None,
+                      segment = segments.head.size,
+                      column = bufferIdx
+                    )
+                  )
+                  .map(segment => (bufferIdx, segment))
 
-                }
             }
 
         }).unsafeRunSync()
@@ -328,16 +367,14 @@ object csv {
               s"Too short line ${line + 1} (1-based). Expected $headerAllFields fields, got ${loc + 1}."
           }
 
-          uploadAndResetBufData(false)
+          if (!error) {
+            uploadAndResetBufData(false)
+          }
 
           loc = 0
           line += 1
         } else loc += 1
         i += 1
-      }
-
-      if (!error) {
-        uploadAndResetBufData(true)
       }
 
       if (error) org.saddle.io.csv.Error(errorString)

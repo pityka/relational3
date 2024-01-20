@@ -48,7 +48,7 @@ object ReductionSum  extends ReductionOp {
   )(implicit tsc: TaskSystemComponents) = {
     val parts = map.buffer
     val tag = input.head.tag
-    val bIn = IO.parSequenceN(32)(input.map(_.as(tag).buffer.map(_.asBufferType))).map(_.reduce(_ ++ _))
+    val bIn = IO.parSequenceN(32)(input.map(_.as(tag).buffer.map(_.asBufferType))).map(b => tag.cat(b:_*))
     IO.both(parts, bIn).flatMap { case (partitionMap, in) =>
       in.sumGroups(partitionMap,numGroups).toSegment(outputPath)
     }

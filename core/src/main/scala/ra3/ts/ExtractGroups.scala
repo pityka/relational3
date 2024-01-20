@@ -43,7 +43,7 @@ object ExtractGroups {
     val tag = input.head.tag
     val bIn = IO
       .parSequenceN(32)(input.map(_.as(tag).buffer.map(_.asBufferType)))
-      .map(_.reduce(_ ++ _))
+      .map( b=> tag.cat(b:_*))
     IO.both(parts, bIn).flatMap { case (partitionMap, in) =>
       IO.parSequenceN(32)((0 until numGroups).toList.map { gIdx =>
         in
