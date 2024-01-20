@@ -4,22 +4,21 @@ import tasks.TaskSystemComponents
 import cats.effect.IO
 trait F64ColumnImpl { self: Column.F64Column =>
 
-  // def elementwise[OP<:ts.BinaryOpTag{ type SegmentTypeA = SegmentDouble ; type SegmentTypeB = SegmentDouble}](
-  //     other: Column.F64Column,
-  //     opTag: OP
-  // )(implicit tsc: TaskSystemComponents): IO[opTag.ColumnTypeC] = {
-  //   assert(self.segments.size == other.segments.size)
-  //   IO.parSequenceN(math.min(32, self.segments.size))(
-  //     self.segments.zip(other.segments).zipWithIndex.map {
-  //       case ((a, b), segmentIdx) =>
-  //         assert(a.numElems == b.numElems)
-  //         ts.ElementwiseBinaryOperation
-  //           .queue(opTag.op(a, b), LogicalPath(???, None, segmentIdx, 0))
-  //     }
-  //   ).map(segments => opTag.tagC.makeColumn(segments))
-  // }
-
   def *(other: Column.F64Column)(implicit tsc: TaskSystemComponents) : IO[Column.F64Column] = 
-      elementwise(other,ra3.ts.BinaryOpTag.ddd_*)
+      self.elementwise(other,ra3.ops.BinaryOpTag.dd_multiply)
+  def +(other: Column.F64Column)(implicit tsc: TaskSystemComponents) : IO[Column.F64Column] = 
+      self.elementwise(other,ra3.ops.BinaryOpTag.dd_add)
+  def ===(other: Column.F64Column)(implicit tsc: TaskSystemComponents) : IO[Column.Int32Column] = 
+      self.elementwise(other,ra3.ops.BinaryOpTag.dd_eq)
+  def !==(other: Column.F64Column)(implicit tsc: TaskSystemComponents) : IO[Column.Int32Column] = 
+      self.elementwise(other,ra3.ops.BinaryOpTag.dd_neq)
+  def >(other: Column.F64Column)(implicit tsc: TaskSystemComponents) : IO[Column.Int32Column] = 
+      self.elementwise(other,ra3.ops.BinaryOpTag.dd_gt)
+  def >=(other: Column.F64Column)(implicit tsc: TaskSystemComponents) : IO[Column.Int32Column] = 
+      self.elementwise(other,ra3.ops.BinaryOpTag.dd_gteq)
+  def <(other: Column.F64Column)(implicit tsc: TaskSystemComponents) : IO[Column.Int32Column] = 
+      self.elementwise(other,ra3.ops.BinaryOpTag.dd_lt)
+  def <=(other: Column.F64Column)(implicit tsc: TaskSystemComponents) : IO[Column.Int32Column] = 
+      self.elementwise(other,ra3.ops.BinaryOpTag.dd_lteq)
 
 }

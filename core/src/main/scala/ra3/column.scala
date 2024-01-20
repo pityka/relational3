@@ -187,21 +187,23 @@ sealed trait Column extends ColumnOps { self =>
 
   def elementwise[
       C2 <: Column { type ColumnType = C2 },
-      OP <: ra3.ts.BinaryOpTag {
+      OP <: ra3.ops.BinaryOpTag {
         type SegmentTypeA = SegmentType; type SegmentTypeB = C2#SegmentType
       }
   ](
       other: C2,
       opTag: OP
-  )(implicit tsc: TaskSystemComponents) = {
+  )(implicit tsc: TaskSystemComponents): IO[opTag.ColumnTypeC] = {
     assert(self.segments.size == other.segments.size)
-    IO.parSequenceN(math.min(32, self.segments.size))(
-      self.segments.zip(other.segments).zipWithIndex.map {
-        case ((a, b), segmentIdx) =>
-          assert(a.numElems == b.numElems)
-          ra3.ts.ElementwiseBinaryOperation
-            .queue(opTag.op(a, b), LogicalPath(???, None, segmentIdx, 0))
-      }
-    ).map(segments => opTag.tagC.makeColumn(segments))
+    ra3.ts.MakeUniqueId.queue0("elementwise-"+opTag, List(self, other)).flatMap { name =>
+      IO.parSequenceN(math.min(32, self.segments.size))(
+        self.segments.zip(other.segments).zipWithIndex.map {
+          case ((a, b), segmentIdx) =>
+            assert(a.numElems == b.numElems)
+            ra3.ts.ElementwiseBinaryOperation
+              .queue(opTag.op(a, b), LogicalPath(name, None, segmentIdx, 0))
+        }
+      ).map(segments => opTag.tagC.makeColumn(segments))
+    }
   }
 }
