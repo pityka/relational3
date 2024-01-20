@@ -9,9 +9,12 @@ import com.github.plokhotnyuk.jsoniter_scala.macros._
 import com.github.plokhotnyuk.jsoniter_scala.core._
 import tasks._
 import bufferimpl.CharSequenceOrdering
+import columnimpl._
 
 object Column {
-  case class Int32Column(segments: Vector[SegmentInt]) extends Column with Int32ColumnImpl {
+  case class Int32Column(segments: Vector[SegmentInt])
+      extends Column
+      with I32ColumnImpl {
     def minMax: Option[(Int, Int)] = {
       val s = segments.flatMap(_.minMax.toSeq)
       if (s.isEmpty) None
@@ -66,7 +69,13 @@ object Column {
     def minMax: Option[(String, String)] = {
       val s = segments.flatMap(_.minMax.toSeq)
       if (s.isEmpty) None
-      else Some((s.map(_._1).min(CharSequenceOrdering), s.map(_._2).max(CharSequenceOrdering)))
+      else
+        Some(
+          (
+            s.map(_._1).min(CharSequenceOrdering),
+            s.map(_._2).max(CharSequenceOrdering)
+          )
+        )
     }
     override def ++(other: StringColumn): StringColumn = StringColumn(
       segments ++ other.segments
@@ -79,7 +88,9 @@ object Column {
     type ColumnTagType = ColumnTag.StringTag.type
     def tag = ColumnTag.StringTag
   }
-  case class F64Column(segments: Vector[SegmentDouble]) extends Column {
+  case class F64Column(segments: Vector[SegmentDouble])
+      extends Column
+      with F64ColumnImpl {
     def minMax: Option[(Double, Double)] = {
       val s = segments.flatMap(_.minMax.toSeq)
       if (s.isEmpty) None
@@ -172,5 +183,25 @@ sealed trait Column extends ColumnOps { self =>
         )
       }
     }
+  }
+
+  def elementwise[
+      C2 <: Column { type ColumnType = C2 },
+      OP <: ra3.ts.BinaryOpTag {
+        type SegmentTypeA = SegmentType; type SegmentTypeB = C2#SegmentType
+      }
+  ](
+      other: C2,
+      opTag: OP
+  )(implicit tsc: TaskSystemComponents) = {
+    assert(self.segments.size == other.segments.size)
+    IO.parSequenceN(math.min(32, self.segments.size))(
+      self.segments.zip(other.segments).zipWithIndex.map {
+        case ((a, b), segmentIdx) =>
+          assert(a.numElems == b.numElems)
+          ra3.ts.ElementwiseBinaryOperation
+            .queue(opTag.op(a, b), LogicalPath(???, None, segmentIdx, 0))
+      }
+    ).map(segments => opTag.tagC.makeColumn(segments))
   }
 }

@@ -168,7 +168,15 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
       i+=1
     }
   }
-  def elementwise_+(other: BufferType): BufferType = ???
+  def elementwise_+=(other: BufferType): Unit = {
+    assert(other.length == self.length)
+    var i = 0 
+    val n = self.length
+    while (i < n) {
+      self.values(i) = self.values(i) + other.values(i)
+      i+=1
+    }
+  }
   def elementwise_eq(other: BufferType): BufferInt = ???
   def elementwise_gt(other: BufferType): BufferInt = ???
   def elementwise_gteq(other: BufferType): BufferInt = ???
