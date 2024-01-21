@@ -32,6 +32,7 @@ sealed trait ColumnTag { self =>
 
   def makeBuffer(elems: Array[Elem]): BufferType
   def makeBufferFromSeq(elems: Elem*): BufferType // BufferDouble(elems)
+  def broadcastBuffer(elem: Elem, size: Int): BufferType
   def makeColumn(segments: Vector[SegmentType]): ColumnType
   def makeColumnFromSeq(name: String, colIdx: Int)(
       elems: Seq[Seq[Elem]]
@@ -39,13 +40,13 @@ sealed trait ColumnTag { self =>
   def ordering: Ordering[Elem]
   def pair(a: SegmentType, b: SegmentType): SegmentPairType
   def emptySegment: SegmentType
-  def cat(buffs: BufferType*) : BufferType
+  def cat(buffs: BufferType*): BufferType
 }
 object ColumnTag {
   object I32 extends ColumnTag {
     override def toString = "I32"
 
-    def cat(buffs: BufferType*) : BufferType = {
+    def cat(buffs: BufferType*): BufferType = {
       BufferInt(org.saddle.array.flatten(buffs.map(_.values)))
     }
     type Elem = Int
@@ -56,6 +57,10 @@ object ColumnTag {
     type SegmentPairType = I32Pair
     def makeBuffer(elems: Array[Int]): BufferType = BufferInt(elems)
     def makeBufferFromSeq(elems: Elem*): BufferType = BufferInt(elems.toArray)
+
+    def broadcastBuffer(elem: Elem, size: Int): BufferType =
+      BufferInt.constant(elem, size)
+
     def makeColumn(segments: Vector[SegmentType]): ColumnType =
       Column.Int32Column(segments)
 
@@ -77,10 +82,12 @@ object ColumnTag {
   object I64 extends ColumnTag {
     override def toString = "I64"
 
-     def cat(buffs: BufferType*) : BufferType = {
+    def cat(buffs: BufferType*): BufferType = {
       BufferLong(org.saddle.array.flatten(buffs.map(_.values)))
     }
-    
+    def broadcastBuffer(elem: Elem, size: Int): BufferType = BufferLong(
+      Array.fill[Long](size)(elem)
+    )
     type Elem = Long
     type BufferType = BufferLong
     type ColumnTagType = I64.type
@@ -110,7 +117,11 @@ object ColumnTag {
   object Instant extends ColumnTag {
     override def toString = "Instant"
 
-     def cat(buffs: BufferType*) : BufferType = {
+    def broadcastBuffer(elem: Elem, size: Int): BufferType = BufferInstant(
+      Array.fill[Long](size)(elem)
+    )
+
+    def cat(buffs: BufferType*): BufferType = {
       BufferInstant(org.saddle.array.flatten(buffs.map(_.values)))
     }
     type Elem = Long
@@ -120,7 +131,9 @@ object ColumnTag {
     type SegmentType = SegmentInstant
     type SegmentPairType = InstantPair
     def makeBuffer(elems: Array[Long]): BufferType = BufferInstant(elems)
-    def makeBufferFromSeq(elems: Elem*): BufferType = BufferInstant(elems.toArray)
+    def makeBufferFromSeq(elems: Elem*): BufferType = BufferInstant(
+      elems.toArray
+    )
     def makeColumn(segments: Vector[SegmentType]): ColumnType =
       Column.InstantColumn(segments)
 
@@ -135,13 +148,18 @@ object ColumnTag {
         .map(this.makeColumn)
 
     val ordering = implicitly[Ordering[Elem]]
-    def pair(a: SegmentType, b: SegmentType): SegmentPairType = InstantPair(a, b)
+    def pair(a: SegmentType, b: SegmentType): SegmentPairType =
+      InstantPair(a, b)
     val emptySegment: SegmentType = SegmentInstant(None, 0, None)
 
   }
   object StringTag extends ColumnTag {
 
-     def cat(buffs: BufferType*) : BufferType = {
+    def broadcastBuffer(elem: Elem, size: Int): BufferType = BufferString(
+      Array.fill[CharSequence](size)(elem)
+    )
+
+    def cat(buffs: BufferType*): BufferType = {
       BufferString(org.saddle.array.flatten(buffs.map(_.values)))
     }
     override def toString = "StringTag"
@@ -152,7 +170,9 @@ object ColumnTag {
     type SegmentType = SegmentString
     type SegmentPairType = StringPair
     def makeBuffer(elems: Array[CharSequence]): BufferType = BufferString(elems)
-    def makeBufferFromSeq(elems: Elem*): BufferType = BufferString(elems.toArray)
+    def makeBufferFromSeq(elems: Elem*): BufferType = BufferString(
+      elems.toArray
+    )
     def makeColumn(segments: Vector[SegmentType]): ColumnType =
       Column.StringColumn(segments)
 
@@ -170,13 +190,13 @@ object ColumnTag {
     def pair(a: SegmentType, b: SegmentType): SegmentPairType = StringPair(a, b)
     val emptySegment: SegmentType = SegmentString(None, 0, None)
 
-    
-
   }
   object F64 extends ColumnTag {
     override def toString = "F64"
-
-     def cat(buffs: BufferType*) : BufferType = {
+    def broadcastBuffer(elem: Elem, size: Int): BufferType = BufferDouble(
+      Array.fill[Double](size)(elem)
+    )
+    def cat(buffs: BufferType*): BufferType = {
       BufferDouble(org.saddle.array.flatten(buffs.map(_.values)))
     }
     type Elem = Double

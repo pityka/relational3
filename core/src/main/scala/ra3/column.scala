@@ -201,7 +201,28 @@ sealed trait Column extends ColumnOps { self =>
           case ((a, b), segmentIdx) =>
             assert(a.numElems == b.numElems)
             ra3.ts.ElementwiseBinaryOperation
-              .queue(opTag.op(a, b), LogicalPath(name, None, segmentIdx, 0))
+              .queue(opTag.op(a, Left(b)), LogicalPath(name, None, segmentIdx, 0))
+        }
+      ).map(segments => opTag.tagC.makeColumn(segments))
+    }
+  }
+ 
+  def elementwiseConstant[
+      El,
+      OP <: ra3.ops.BinaryOpTag {
+        type SegmentTypeA = SegmentType; 
+        type ElemB = El;
+      }
+  ](
+      other: El,
+      opTag: OP
+  )(implicit tsc: TaskSystemComponents): IO[opTag.ColumnTypeC] = {
+    ra3.ts.MakeUniqueId.queue0("elementwiseConstant-"+opTag, List(self)).flatMap { name =>
+      IO.parSequenceN(math.min(32, self.segments.size))(
+        self.segments.zipWithIndex.map {
+          case (a, segmentIdx) =>
+            ra3.ts.ElementwiseBinaryOperation
+              .queue(opTag.op(a, Right(other)), LogicalPath(name, None, segmentIdx, 0))
         }
       ).map(segments => opTag.tagC.makeColumn(segments))
     }

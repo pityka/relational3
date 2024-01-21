@@ -9,8 +9,11 @@ private[ra3]  sealed trait BinaryOpTag { self =>
     type SegmentType = self.SegmentTypeA
   }
 
+  type ElemB 
+
   type SegmentTypeB <: Segment {
     type SegmentType = self.SegmentTypeB
+    type Elem = self.ElemB
   }
   type ColumnTypeC <: Column {
     type ColumnType = self.ColumnTypeC
@@ -29,12 +32,13 @@ private[ra3]  sealed trait BinaryOpTag { self =>
     type SegmentTypeB = self.SegmentTypeB
     type SegmentTypeC = self.SegmentTypeC
   }
-  def op(a: SegmentTypeA, b: SegmentTypeB): BinaryOpType
+  def op(a: SegmentTypeA, b: Either[SegmentTypeB,ElemB]): BinaryOpType
   def tagC: ColumnTagC
 }
 private[ra3]  sealed trait BinaryOpTagDDD extends BinaryOpTag {
   type SegmentTypeA = SegmentDouble
   type SegmentTypeB = SegmentDouble
+  type ElemB = Double
   type SegmentTypeC = SegmentDouble
   type ColumnTypeC = Column.F64Column
   type ColumnTagC = ColumnTag.F64.type
@@ -43,6 +47,7 @@ private[ra3]  sealed trait BinaryOpTagDDD extends BinaryOpTag {
 private[ra3]  sealed trait BinaryOpTagDDI extends BinaryOpTag {
   type SegmentTypeA = SegmentDouble
   type SegmentTypeB = SegmentDouble
+  type ElemB = Double
   type SegmentTypeC = SegmentInt
   type ColumnTypeC = Column.Int32Column
   type ColumnTagC = ColumnTag.I32.type
@@ -55,7 +60,7 @@ private[ra3]  object BinaryOpTag {
      def name = "op_ddd_multiple"
 
     type BinaryOpType = Op_ddd_multiply
-    def op(a: SegmentTypeA, b: SegmentTypeB) = Op_ddd_multiply(a, b)
+    def op(a: SegmentTypeA, b: Either[SegmentTypeB,ElemB]) = Op_ddd_multiply(a, b)
 
   }
   val dd_add = new BinaryOpTagDDD {
@@ -63,7 +68,7 @@ private[ra3]  object BinaryOpTag {
      def name = "op_ddd_add"
 
     type BinaryOpType = Op_ddd_add
-    def op(a: SegmentTypeA, b: SegmentTypeB) = Op_ddd_add(a, b)
+    def op(a: SegmentTypeA, b: Either[SegmentTypeB,ElemB]) = Op_ddd_add(a, b)
 
   }
   val dd_eq = new BinaryOpTagDDI{
@@ -71,7 +76,7 @@ private[ra3]  object BinaryOpTag {
      def name = "op_ddd_eq"
 
     type BinaryOpType = Op_ddi_eq
-    def op(a: SegmentTypeA, b: SegmentTypeB) = Op_ddi_eq(a, b)
+    def op(a: SegmentTypeA, b: Either[SegmentTypeB,ElemB]) = Op_ddi_eq(a, b)
 
   }
   val dd_neq = new BinaryOpTagDDI{
@@ -79,7 +84,7 @@ private[ra3]  object BinaryOpTag {
      def name = "op_ddd_neq"
 
     type BinaryOpType = Op_ddi_neq
-    def op(a: SegmentTypeA, b: SegmentTypeB) = Op_ddi_neq(a, b)
+    def op(a: SegmentTypeA, b: Either[SegmentTypeB,ElemB]) = Op_ddi_neq(a, b)
 
   }
   val dd_gt = new BinaryOpTagDDI{
@@ -87,7 +92,7 @@ private[ra3]  object BinaryOpTag {
      def name = "op_ddd_gt"
 
     type BinaryOpType = Op_ddi_gt
-    def op(a: SegmentTypeA, b: SegmentTypeB) = Op_ddi_gt(a, b)
+    def op(a: SegmentTypeA, b: Either[SegmentTypeB,ElemB]) = Op_ddi_gt(a, b)
 
   }
   val dd_gteq = new BinaryOpTagDDI{
@@ -95,7 +100,7 @@ private[ra3]  object BinaryOpTag {
      def name = "op_ddd_gteq"
 
     type BinaryOpType = Op_ddi_gteq
-    def op(a: SegmentTypeA, b: SegmentTypeB) = Op_ddi_gteq(a, b)
+    def op(a: SegmentTypeA, b: Either[SegmentTypeB,ElemB]) = Op_ddi_gteq(a, b)
 
   }
   val dd_lt = new BinaryOpTagDDI{
@@ -103,7 +108,7 @@ private[ra3]  object BinaryOpTag {
      def name = "op_ddd_lt"
 
     type BinaryOpType = Op_ddi_lt
-    def op(a: SegmentTypeA, b: SegmentTypeB) = Op_ddi_lt(a, b)
+    def op(a: SegmentTypeA, b: Either[SegmentTypeB,ElemB]) = Op_ddi_lt(a, b)
 
   }
   val dd_lteq = new BinaryOpTagDDI{
@@ -111,7 +116,7 @@ private[ra3]  object BinaryOpTag {
      def name = "op_ddd_lteq"
 
     type BinaryOpType = Op_ddi_lteq
-    def op(a: SegmentTypeA, b: SegmentTypeB) = Op_ddi_lteq(a, b)
+    def op(a: SegmentTypeA, b: Either[SegmentTypeB,ElemB]) = Op_ddi_lteq(a, b)
 
   }
 

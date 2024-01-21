@@ -22,7 +22,10 @@ object ElementwiseBinaryOperation {
       outputPath: LogicalPath
   )(implicit tsc: TaskSystemComponents): IO[input.SegmentTypeC] = {
     val a = input.a.buffer
-    val b = input.b.buffer
+    val b = input.b match {
+      case Left(segment) =>  segment.buffer
+      case Right(elem) => IO.pure(input.tagB.broadcastBuffer(elem,input.a.numElems))
+    }
     IO.both(a, b).flatMap { case (a, b) =>
       input.op(a, b).toSegment(outputPath)
     }
