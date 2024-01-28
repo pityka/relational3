@@ -47,6 +47,7 @@ case class Table(
       .getOrElse(throw new NoSuchElementException(s"column $s not found"))
       ._2
   )
+  def apply(i: Int) = columns(i)
 
   override def toString =
     s"Table($uniqueId: $numRows x $numCols . segments: ${segmentation.size} (seg_n:${segmentation.min}/${segmentation.max})\nPartitioning: $partitions\n${colNames
