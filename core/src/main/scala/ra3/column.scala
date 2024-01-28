@@ -65,7 +65,7 @@ object Column {
     type ColumnTagType = ColumnTag.Instant.type
     def tag = ColumnTag.Instant
   }
-  case class StringColumn(segments: Vector[SegmentString]) extends Column {
+  case class StringColumn(segments: Vector[SegmentString]) extends Column with StringColumnImpl {
     def minMax: Option[(String, String)] = {
       val s = segments.flatMap(_.minMax.toSeq)
       if (s.isEmpty) None
@@ -111,7 +111,7 @@ object Column {
 
 }
 
-sealed trait Column extends ColumnOps { self =>
+sealed trait Column  { self =>
   type ColumnType >: this.type <: Column {
     type Elem = self.Elem
   }
@@ -141,6 +141,7 @@ sealed trait Column extends ColumnOps { self =>
     s"$tag\tN_segments=${segments.size}\tN_elem=${segments.map(_.numElems).sum}"
 
   def as(c: Column) = this.asInstanceOf[c.ColumnType]
+  def as(c: ColumnTag) = this.asInstanceOf[c.ColumnType]
   def castAndConcatenate(other: Column) = ++(other.asInstanceOf[ColumnType])
 
   def estimateCDF(coverage: Double, numPointsPerSegment: Int)(implicit

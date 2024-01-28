@@ -8,6 +8,7 @@ import bufferimpl.BufferIntConstantImpl
 import bufferimpl.BufferIntImpl
 import bufferimpl.BufferLongImpl
 import bufferimpl.BufferStringImpl
+import bufferimpl.BufferIntArrayImpl
 
 sealed trait Location
 final case class Slice(start: Int, until: Int) extends Location
@@ -175,9 +176,11 @@ object BufferInt {
   def empty : BufferIntConstant = BufferIntConstant(Int.MinValue,0)
   def single(value:Int) : BufferIntConstant = BufferIntConstant(value,1)
   def constant(value:Int, length:Int ) : BufferIntConstant = BufferIntConstant(value,length)
+  
+  
 }
 
-sealed trait BufferInt extends Buffer with Location {
+sealed trait BufferInt extends Buffer with Location with BufferIntImpl {
   type Elem = Int
   type BufferType = BufferInt
   type SegmentType = SegmentInt
@@ -188,6 +191,8 @@ sealed trait BufferInt extends Buffer with Location {
   def raw(i: Int): Int
   def where(i: Int): BufferInt
   private[ra3] def values: Array[Int]
+
+ 
 
   
 }
@@ -202,7 +207,7 @@ final case class BufferIntConstant(value: Int, length: Int) extends BufferInt wi
 /* Buffer of Int, missing is Int.MinValue */
 final case class BufferIntInArray(private val values0: Array[Int])
     extends BufferInt
-    with BufferIntImpl { self =>
+    with BufferIntArrayImpl { self =>
 
   private[ra3] def values = values0
   def raw(i: Int): Int = values0(i)

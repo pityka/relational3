@@ -14,7 +14,7 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
   }
 
   override def toString =
-    s"BufferIntConstant(n=${length}: $value ..})"
+    s"BufferIntConstant(n=${length}: ${self.value} ..})"
 
   /* Returns a buffer of numGroups. It may overflow. */
   def sumGroups(partitionMap: BufferInt, numGroups: Int): BufferType = {
@@ -66,7 +66,6 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
     (x, y)
   }
 
-
   import org.saddle.{Buffer => _, _}
 
   def groups = {
@@ -81,8 +80,8 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
       other: BufferType
   ): BufferType = {
     assert(self.length == other.length)
-    if (length == 0) self 
-    else if (isMissing(0)) other 
+    if (length == 0) self
+    else if (isMissing(0)) other
     else self
 
   }
@@ -107,14 +106,14 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
 
   /** Returns an array of indices */
   def where(i: Int): BufferInt = {
-    if (i == value) BufferInt(array.range(0,length))
-    else BufferInt.empty 
+    if (i == value) BufferInt(array.range(0, length))
+    else BufferInt.empty
   }
 
   override def take(locs: Location): BufferInt = locs match {
     case Slice(start, until) =>
-      BufferInt.constant(value,until - start)      
-    case idx:BufferInt =>
+      BufferInt.constant(value, until - start)
+    case idx: BufferInt =>
       BufferInt(values.toVec.take(idx.values).toArray)
 
   }
@@ -132,7 +131,7 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
     if (values.length == 0) IO.pure(SegmentInt(None, 0, None))
     else
       IO.pure {
-        
+
         val minmax =
           if (length == 0) None
           else {
@@ -145,16 +144,136 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
 
   }
 
-  def elementwise_*(other: BufferType) : BufferType = ???
-  def elementwise_+(other: BufferType) : BufferType = ???
-  def elementwise_eq(other: BufferType) : BufferInt = ???
-  def elementwise_gt(other: BufferType) : BufferInt = ???
-  def elementwise_gteq(other: BufferType) : BufferInt = ???
-  def elementwise_lt(other: BufferType) : BufferInt = ???
-  def elementwise_lteq(other: BufferType) : BufferInt = ???
-  def elementwise_neq(other: BufferType) : BufferInt = ???
+  // Elementwise operations
 
-  def elementwise_toDouble : BufferDouble = ???
-  def elementwise_toLong : BufferDouble = ???
+  def elementwise_*=(other: BufferType): Unit =  {
+    ???
+  }
+  def elementwise_*(other: BufferDouble): BufferDouble = {
+    assert(other.length == self.length)
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Double](n)
+    while (i < n) {
+      r(i) = self.value.toDouble * other.values(i)
+      i += 1
+    }
+    BufferDouble(r)
+  }
+  def elementwise_+=(other: BufferType): Unit = {
+    ???
+  }
+  def elementwise_+(other: ra3.BufferDouble): ra3.BufferDouble = {
+    assert(other.length == self.length)
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Double](n)
+    while (i < n) {
+      r(i) = self.value + other.values(i)
+      i += 1
+    }
+    BufferDouble(r)
+  }
+
+  def elementwise_&&(other: BufferType): BufferInt = {
+    assert(other.length == self.length)
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+    while (i < n) {
+      r(i) = if (self.value > 0 && other.values(i) > 0) 1 else 0
+      i += 1
+    }
+    BufferInt(r)
+  }
+  def elementwise_||(other: BufferType): BufferInt = {
+    assert(other.length == self.length)
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+    while (i < n) {
+      r(i) = if (self.value > 0 || other.values(i) > 0) 1 else 0
+      i += 1
+    }
+    BufferInt(r)
+  }
+
+  
+  def elementwise_eq(other: BufferType): BufferInt = {
+    assert(other.length == self.length)
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+    while (i < n) {
+      r(i) = if (self.value == other.values(i)) 1 else 0
+      i += 1
+    }
+    BufferInt(r)
+  }
+  def elementwise_gt(other: BufferType): BufferInt = {
+    assert(other.length == self.length)
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+    while (i < n) {
+      r(i) = if (self.value > other.values(i)) 1 else 0
+      i += 1
+    }
+    BufferInt(r)
+  }
+  def elementwise_gteq(other: BufferType): BufferInt = {
+    assert(other.length == self.length)
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+    while (i < n) {
+      r(i) = if (self.value >= other.values(i)) 1 else 0
+      i += 1
+    }
+    BufferInt(r)
+  }
+  def elementwise_lt(other: BufferType): BufferInt = {
+    assert(other.length == self.length)
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+    while (i < n) {
+      r(i) = if (self.value < other.values(i)) 1 else 0
+      i += 1
+    }
+    BufferInt(r)
+  }
+  def elementwise_lteq(other: BufferType): BufferInt = {
+    assert(other.length == self.length)
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+    while (i < n) {
+      r(i) = if (self.value <= other.values(i)) 1 else 0
+      i += 1
+    }
+    BufferInt(r)
+  }
+  def elementwise_neq(other: BufferType): BufferInt = {
+    assert(other.length == self.length)
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+    while (i < n) {
+      r(i) = if (self.value != other.values(i)) 1 else 0
+      i += 1
+    }
+    BufferInt(r)
+  }
+
+  def elementwise_eq(other: BufferDouble): BufferInt = ???
+  def elementwise_gt(other: BufferDouble): BufferInt = ???
+  def elementwise_gteq(other: BufferDouble): BufferInt = ???
+  def elementwise_lt(other: BufferDouble): BufferInt = ???
+  def elementwise_lteq(other: BufferDouble): BufferInt = ???
+  def elementwise_neq(other: BufferDouble): BufferInt = ???
+
+  def elementwise_toDouble: BufferDouble = ???
+  def elementwise_toLong: BufferLong = ???
 
 }

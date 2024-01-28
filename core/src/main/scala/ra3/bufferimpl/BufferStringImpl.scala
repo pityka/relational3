@@ -191,14 +191,108 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
 
   }
 
-  def elementwise_+(other: BufferType) : BufferType = ???
-  def elementwise_eq(other: BufferType) : BufferInt= ???
-  def elementwise_gt(other: BufferType) : BufferInt = ???
-  def elementwise_gteq(other: BufferType) : BufferInt = ???
-  def elementwise_lt(other: BufferType) : BufferInt = ???
-  def elementwise_lteq(other: BufferType) : BufferInt = ???
-  def elementwise_neq(other: BufferType) : BufferInt = ???
-  def elementwise_length : BufferInt  = ???
-  def elementwise_nonempty: BufferInt  = ???
+  def elementwise_+(other: BufferType) : BufferType = {
+    assert(other.length == self.length)
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[CharSequence](n)
+    while (i < n) {
+      r(i) = self.values(i).toString + other.values(i).toString()
+      i += 1
+    }
+    BufferString(r)
+  }
+  def elementwise_eq(other: BufferType): BufferInt = {
+      assert(other.length == self.length)
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+
+    while (i < n) {
+      r(i) = if (self.values(i) == other.values(i)) 1 else 0
+      i += 1
+    }
+    BufferInt(r)
+  }
+  def elementwise_gt(other: BufferType): BufferInt = {
+      assert(other.length == self.length)
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+
+    while (i < n) {
+      r(i) = if (CharSequenceOrdering.gt(self.values(i) , other.values(i))) 1 else 0
+      i += 1
+    }
+    BufferInt(r)
+  }
+  def elementwise_gteq(other: BufferType): BufferInt = {
+      assert(other.length == self.length)
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+
+    while (i < n) {
+      r(i) = if (CharSequenceOrdering.gteq(self.values(i) , other.values(i))) 1 else 0
+      i += 1
+    }
+    BufferInt(r)
+  }
+  def elementwise_lt(other: BufferType): BufferInt = {
+      assert(other.length == self.length)
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+
+    while (i < n) {
+      r(i) = if (CharSequenceOrdering.lt(self.values(i) , other.values(i))) 1 else 0
+      i += 1
+    }
+    BufferInt(r)
+  }
+  def elementwise_lteq(other: BufferType): BufferInt = {
+      assert(other.length == self.length)
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+
+    while (i < n) {
+      r(i) = if (CharSequenceOrdering.lteq(self.values(i) , other.values(i))) 1 else 0
+      i += 1
+    }
+    BufferInt(r)
+  }
+  def elementwise_neq(other: BufferType): BufferInt = {
+      assert(other.length == self.length)
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+
+    while (i < n) {
+      r(i) = if (self.values(i) != other.values(i)) 1 else 0
+      i += 1
+    }
+    BufferInt(r)
+  }
+  def elementwise_length: BufferInt  = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+    while (i < n) {
+      r(i) = self.values(i).length() 
+      i += 1
+    }
+    BufferInt(r)
+  }
+  def elementwise_nonempty: BufferInt  = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+    while (i < n) {
+      r(i) = if (self.values(i).length() > 0) 1 else 0
+      i += 1
+    }
+    BufferInt(r)
+  }
 
 }

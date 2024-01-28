@@ -721,6 +721,4 @@ trait ReductionOp {
   def id: String
 }
 
-trait ColumnOps { self: Column =>
-  // elementwise operations whose output is a new column of the same size
-}
+

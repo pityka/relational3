@@ -57,28 +57,15 @@ trait WithTempTaskSystem {
       .reduce(_ concat _)
       .resetRowIndex
   }
-}
-
-class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
-
-  def toFrame(t: Table)(implicit tsc: TaskSystemComponents) = {
-    t.bufferStream.compile.toList
-      .unsafeRunSync()
-      .map(_.toHomogeneousFrame(I32))
-      .reduce(_ concat _)
-      .resetRowIndex
-  }
-  
-
-
-
-  def generateTable(numRows: Int, numCols: Int) = {
+   def generateTable(numRows: Int, numCols: Int) = {
     val frame = mat.randI(numRows, numCols).toFrame.mapColIndex(i => s"V$i")
     val csv = new String(
       org.saddle.csv.CsvWriter.writeFrameToArray(frame, withRowIx = false)
     )
     (frame, csv)
   }
+
+
 
   def csvStringToTable(
       name: String,
@@ -104,6 +91,22 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       .toOption
       .get
   }
+}
+
+class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
+
+  def toFrame(t: Table)(implicit tsc: TaskSystemComponents) = {
+    t.bufferStream.compile.toList
+      .unsafeRunSync()
+      .map(_.toHomogeneousFrame(I32))
+      .reduce(_ concat _)
+      .resetRowIndex
+  }
+  
+
+
+
+ 
  
 
   test("to and from csv 1 segment") {
