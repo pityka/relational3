@@ -151,14 +151,6 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
 
   }
 
-  def elementwise_+(other: BufferLong) : BufferType = ???
-  def elementwise_eq(other: BufferType) : BufferInt = ???
-  def elementwise_gt(other: BufferType) : BufferInt = ???
-  def elementwise_gteq(other: BufferType) : BufferInt = ???
-  def elementwise_lt(other: BufferType) : BufferInt = ???
-  def elementwise_lteq(other: BufferType) : BufferInt = ???
-  def elementwise_neq(other: BufferType) : BufferInt = ???
-
-  def elementwise_toLongMillis : BufferDouble = ???
+ 
 
 }

@@ -4,20 +4,27 @@ import tasks.TaskSystemComponents
 import cats.effect.IO
 
 case class PartitionData(
-  columns: Seq[Int],
-  partitionBase: Int,
-  partitionMapOverSegments: Vector[Int]
+    columns: Seq[Int],
+    partitionBase: Int,
+    partitionMapOverSegments: Vector[Int]
 ) {
-  override def toString = s"Partitioned over $columns with base $partitionBase ($partitionMapOverSegments)"
-  def numPartitions = (1 to columns.size).foldLeft(1)((acc,_) => acc *partitionBase)
-  def partitionIdxOfPrefix(prefix: Seq[Int]) : Vector[Int] = {
+  override def toString =
+    s"Partitioned over $columns with base $partitionBase ($partitionMapOverSegments)"
+  def numPartitions =
+    (1 to columns.size).foldLeft(1)((acc, _) => acc * partitionBase)
+  def partitionIdxOfPrefix(prefix: Seq[Int]): Vector[Int] = {
     assert(columns.startsWith(prefix))
-    val div = (1 to (columns.size - prefix.size)).foldLeft(1)((acc,_) => acc * partitionBase)
-    partitionMapOverSegments.map{ p1 =>
-        p1 / div
+    val div = (1 to (columns.size - prefix.size)).foldLeft(1)((acc, _) =>
+      acc * partitionBase
+    )
+    partitionMapOverSegments.map { p1 =>
+      p1 / div
     }
   }
-  def isPrefixOf(other: PartitionData) = other.partitionBase == this.partitionBase && other.columns.startsWith(columns)
+  def isPrefixOf(other: PartitionData) =
+    other.partitionBase == this.partitionBase && other.columns.startsWith(
+      columns
+    )
 }
 
 // Segments in the same table are aligned: each column holds the same number of segments of the same size
@@ -34,6 +41,12 @@ case class Table(
   def segmentation =
     columns.map(_.segments.map(_.numElems)).headOption.getOrElse(Nil)
   def mapColIndex(f: String => String) = copy(colNames = colNames.map(f))
+  def apply(s: String) = columns(
+    colNames.zipWithIndex
+      .find(_._1 == s)
+      .getOrElse(throw new NoSuchElementException(s"column $s not found"))
+      ._2
+  )
 
   override def toString =
     s"Table($uniqueId: $numRows x $numCols . segments: ${segmentation.size} (seg_n:${segmentation.min}/${segmentation.max})\nPartitioning: $partitions\n${colNames

@@ -14,7 +14,7 @@ private[ra3] class CharArraySubSeq(buff: Array[Char], start: Int, to: Int)
     else buff(rel)
   }
 
-  override def subSequence(start: Int, end: Int): CharSequence = ???
+  override def subSequence(start: Int, end: Int): CharSequence = throw new NotImplementedError
 
 }
 

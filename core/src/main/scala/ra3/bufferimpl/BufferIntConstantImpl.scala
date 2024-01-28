@@ -266,14 +266,83 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
     BufferInt(r)
   }
 
-  def elementwise_eq(other: BufferDouble): BufferInt = ???
-  def elementwise_gt(other: BufferDouble): BufferInt = ???
-  def elementwise_gteq(other: BufferDouble): BufferInt = ???
-  def elementwise_lt(other: BufferDouble): BufferInt = ???
-  def elementwise_lteq(other: BufferDouble): BufferInt = ???
-  def elementwise_neq(other: BufferDouble): BufferInt = ???
+  def elementwise_eq(other: BufferDouble): BufferInt = {
+    assert(other.length == self.length)
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+    while (i < n) {
+      r(i) = if (self.value == other.values(i)) 1 else 0
+      i += 1
+    }
+    BufferInt(r)
+  }
+  def elementwise_gt(other: BufferDouble): BufferInt = {
+    assert(other.length == self.length)
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+    while (i < n) {
+      r(i) = if (self.value > other.values(i)) 1 else 0
+      i += 1
+    }
+    BufferInt(r)
+  }
+  def elementwise_gteq(other: BufferDouble): BufferInt = {
+    assert(other.length == self.length)
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+    while (i < n) {
+      r(i) = if (self.value >= other.values(i)) 1 else 0
+      i += 1
+    }
+    BufferInt(r)
+  }
+  def elementwise_lt(other: BufferDouble): BufferInt = {
+    assert(other.length == self.length)
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+    while (i < n) {
+      r(i) = if (self.value < other.values(i)) 1 else 0
+      i += 1
+    }
+    BufferInt(r)
+  }
+  def elementwise_lteq(other: BufferDouble): BufferInt = {
+    assert(other.length == self.length)
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+    while (i < n) {
+      r(i) = if (self.value <= other.values(i)) 1 else 0
+      i += 1
+    }
+    BufferInt(r)
+  }
+  def elementwise_neq(other: BufferDouble): BufferInt = {
+    assert(other.length == self.length)
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+    while (i < n) {
+      r(i) = if (self.value != other.values(i)) 1 else 0
+      i += 1
+    }
+    BufferInt(r)
+  }
 
-  def elementwise_toDouble: BufferDouble = ???
-  def elementwise_toLong: BufferLong = ???
+
+  def elementwise_toDouble: BufferDouble =  {
+    val r = Array.fill[Double](self.length)(self.value.toDouble)
+    
+    BufferDouble(r)
+  }
+  def elementwise_toLong: BufferLong = {
+    val r = Array.fill[Long](self.length)(self.value.toLong)
+    
+    BufferLong(r)
+  }
 
 }

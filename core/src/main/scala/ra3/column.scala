@@ -141,6 +141,7 @@ sealed trait Column  { self =>
     s"$tag\tN_segments=${segments.size}\tN_elem=${segments.map(_.numElems).sum}"
 
   def as(c: Column) = this.asInstanceOf[c.ColumnType]
+  def as[C<:Column] = this.asInstanceOf[C]
   def as(c: ColumnTag) = this.asInstanceOf[c.ColumnType]
   def castAndConcatenate(other: Column) = ++(other.asInstanceOf[ColumnType])
 
