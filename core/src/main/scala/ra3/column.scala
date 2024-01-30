@@ -134,6 +134,7 @@ sealed trait Column  { self =>
   }
   def tag: ColumnTagType
   def segments: Vector[SegmentType]
+  def numElems = segments.map(_.numElems).sum
   def ++(other: ColumnType): ColumnType
   def minMax: Option[(Elem, Elem)]
 

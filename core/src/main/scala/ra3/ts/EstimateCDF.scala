@@ -38,7 +38,7 @@ object EstimateCDF {
       tsc: TaskSystemComponents
   ): IO[(input.SegmentType, SegmentDouble)] =
     task(EstimateCDF(input, numberOfPoints, outputPath))(
-      ResourceRequest(cpu = (1, 1), memory = 1, scratch = 0, gpu = 0)
+      ResourceRequest(cpu = (1, 1), memory = ra3.Utils.guessMemoryUsageInMB(input), scratch = 0, gpu = 0)
     ).map(pair => (pair._1.as(input), pair._2))
   implicit val codec: JsonValueCodec[EstimateCDF] = JsonCodecMaker.make
   implicit val code2: JsonValueCodec[(Segment, SegmentDouble)] =

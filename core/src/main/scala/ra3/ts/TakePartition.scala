@@ -30,7 +30,13 @@ object TakePartition {
         outputPath = outputPath
       )
     )(
-      ResourceRequest(cpu = (1, 1), memory = 1, scratch = 0, gpu = 0)
+      ResourceRequest(
+        cpu = (1, 1),
+        memory = ra3.Utils.guessMemoryUsageInMB(input) + ra3.Utils
+          .guessMemoryUsageInMB(partitionMap),
+        scratch = 0,
+        gpu = 0
+      )
     ).map(_.as(input))
   implicit val codec: JsonValueCodec[TakePartition] = JsonCodecMaker.make
   implicit val codecOut: JsonValueCodec[Segment] = JsonCodecMaker.make

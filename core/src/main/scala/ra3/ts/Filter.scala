@@ -17,7 +17,7 @@ object Filter {
       implicit tsc: TaskSystemComponents
   ): IO[input.SegmentType] =
     task(Filter(input, predicate, outputPath))(
-      ResourceRequest(cpu = (1, 1), memory = 1, scratch = 0, gpu = 0)
+      ResourceRequest(cpu = (1, 1), memory = ra3.Utils.guessMemoryUsageInMB(input), scratch = 0, gpu = 0)
     ).map(_.as(input))
   implicit val codec: JsonValueCodec[Filter] = JsonCodecMaker.make
   implicit val codecOut: JsonValueCodec[Segment] = JsonCodecMaker.make

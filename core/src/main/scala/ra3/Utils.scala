@@ -31,6 +31,8 @@ private[ra3] case class TableHelper(
 }
 
 private[ra3] object Utils {
+  def guessMemoryUsageInMB(s:Segment) = math.max(5,s.numElems * 32 / 1024 / 1024)
+  def guessMemoryUsageInMB(s:Column) = math.max(5,s.numElems * 32 / 1024 / 1024)
   def writeFully(bb: ByteBuffer, channel: WritableByteChannel) = {
     bb.rewind
     while (bb.hasRemaining) {

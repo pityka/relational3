@@ -80,7 +80,7 @@ object ComputeJoinIndex {
       tsc: TaskSystemComponents
   ): IO[(Option[SegmentInt], Option[SegmentInt])] =
     task(ComputeJoinIndex(left, right, how, outputPath))(
-      ResourceRequest(cpu = (1, 1), memory = 1, scratch = 0, gpu = 0)
+      ResourceRequest(cpu = (1, 1), memory = ra3.Utils.guessMemoryUsageInMB(left)+ra3.Utils.guessMemoryUsageInMB(right), scratch = 0, gpu = 0)
     )
   implicit val codec: JsonValueCodec[ComputeJoinIndex] = JsonCodecMaker.make
   implicit val codec2

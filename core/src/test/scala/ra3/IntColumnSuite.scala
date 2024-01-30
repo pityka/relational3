@@ -10,7 +10,7 @@ class IntColumnSuite extends munit.FunSuite with WithTempTaskSystem {
       val numRows = 1000
       val (tableFrame, tableCsv) = generateTable(numRows, numCols)
       println(tableFrame)
-      val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
+      val ra3Table = csvStringToTable("table", tableCsv, numCols, 3000)
       val filtered = (for {
         p0 <- ra3Table.columns(0).as(I32).>=(0)
         p1 <- ra3Table.columns(1).as(I32).>=(-1000)

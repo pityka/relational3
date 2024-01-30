@@ -35,7 +35,7 @@ object ElementwiseBinaryOperation {
   ): IO[inputs.SegmentTypeC] = {
 
     task(ElementwiseBinaryOperation(inputs, outputPath))(
-      ResourceRequest(cpu = (1, 1), memory = 1, scratch = 0, gpu = 0)
+      ResourceRequest(cpu = (1, 1), memory = ra3.Utils.guessMemoryUsageInMB(inputs.a)*2, scratch = 0, gpu = 0)
     ).map(_.as[inputs.SegmentTypeC])
   }
   @scala.annotation.nowarn

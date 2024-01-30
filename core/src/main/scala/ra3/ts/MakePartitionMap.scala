@@ -14,7 +14,7 @@ case class MakePartitionMap(
 )
 object MakePartitionMap {
   // wrapper is needed so that we avoid having Codec[SegmentInt] in this scope
-  // for some reason jsoniter would use that for the codec of MakePartitionMap 
+  // for some reason jsoniter would use that for the codec of MakePartitionMap
   case class Output(segment: SegmentInt)
   def queue(
       input: Vector[Segment],
@@ -24,7 +24,12 @@ object MakePartitionMap {
       tsc: TaskSystemComponents
   ): IO[SegmentInt] =
     task(MakePartitionMap(input, outputPath, partitionBase))(
-      ResourceRequest(cpu = (1, 1), memory = 1, scratch = 0, gpu = 0)
+      ResourceRequest(
+        cpu = (1, 1),
+        memory = input.map(ra3.Utils.guessMemoryUsageInMB).sum,
+        scratch = 0,
+        gpu = 0
+      )
     ).map(_.segment)
   implicit val codec: JsonValueCodec[MakePartitionMap] = JsonCodecMaker.make
   implicit val c2: JsonValueCodec[Output] = JsonCodecMaker.make
@@ -37,7 +42,8 @@ object MakePartitionMap {
         b.flatMap { in =>
           Buffer
             .computePartitions(buffers = in, num = input.partitionBase)
-            .toSegment(input.outputPath).map(Output(_))
+            .toSegment(input.outputPath)
+            .map(Output(_))
         }
 
   }

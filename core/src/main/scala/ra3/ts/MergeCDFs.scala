@@ -68,7 +68,7 @@ object MergeCDFs {
       tsc: TaskSystemComponents
   ) =
     task(MergeCDFs(inputs, outputPath))(
-      ResourceRequest(cpu = (1, 1), memory = 1, scratch = 0, gpu = 0)
+      ResourceRequest(cpu = (1, 1), memory = inputs.map(v => ra3.Utils.guessMemoryUsageInMB(v._1)*2).sum, scratch = 0, gpu = 0)
     )
   implicit val codec: JsonValueCodec[MergeCDFs] = JsonCodecMaker.make
   implicit val code2: JsonValueCodec[CDF] =

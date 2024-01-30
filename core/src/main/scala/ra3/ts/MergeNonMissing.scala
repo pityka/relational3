@@ -32,7 +32,7 @@ object MergeNonMissing {
     val pair = tpe.pair(input1, input2)
 
     task(MergeNonMissing(pair, outputPath))(
-      ResourceRequest(cpu = (1, 1), memory = 1, scratch = 0, gpu = 0)
+      ResourceRequest(cpu = (1, 1), memory = ra3.Utils.guessMemoryUsageInMB(input1)+ra3.Utils.guessMemoryUsageInMB(input2), scratch = 0, gpu = 0)
     ).map(_.as(tpe))
   }
   implicit val codec: JsonValueCodec[MergeNonMissing] = JsonCodecMaker.make
