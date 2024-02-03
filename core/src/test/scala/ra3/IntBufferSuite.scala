@@ -111,5 +111,8 @@ class IntBufferSuite extends munit.FunSuite with WithTempTaskSystem {
       Seq(3, 3)
     )
   }
+  test("broadcast") {
+    assertEquals(BufferIntInArray(Array(1)).broadcast(3),BufferIntConstant(1,3))
+  }
 
 }

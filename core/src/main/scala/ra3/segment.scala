@@ -7,6 +7,8 @@ sealed trait Segment { self =>
   type SegmentType >: this.type <: Segment {
     type Elem = self.Elem
     type BufferType = self.BufferType
+    type SegmentType = self.SegmentType
+    type ColumnTagType = self.ColumnTagType
   }
   def asSegmentType = this.asInstanceOf[SegmentType]
   type BufferType <: Buffer {
@@ -110,6 +112,9 @@ final case class SegmentDouble(
 
   override def buffer(implicit tsc: TaskSystemComponents) =
     sf match {
+      case None if minMax.isDefined =>
+        assert(minMax.get._1 == minMax.get._2)
+        IO.pure(BufferDouble.constant(value = minMax.get._1, length = numElems))
       case None => IO.pure(BufferDouble(Array.empty[Double]))
       case Some(sf) =>
         sf.bytes.map { byteVector =>
@@ -174,8 +179,12 @@ final case class SegmentLong(
   type ColumnTagType = ColumnTag.I64.type
   val tag = ColumnTag.I64
 
+
   override def buffer(implicit tsc: TaskSystemComponents): IO[BufferLong] = {
     sf match {
+      case None if minMax.isDefined =>
+        assert(minMax.get._1 == minMax.get._2)
+        IO.pure(BufferLong.constant(value = minMax.get._1, length = numElems))
       case None => IO.pure(BufferLong(Array.emptyLongArray))
       case Some(value) =>
         value.bytes.map { byteVector =>
@@ -205,8 +214,12 @@ final case class SegmentInstant(
   type ColumnTagType = ColumnTag.Instant.type
   val tag = ColumnTag.Instant
 
+
   override def buffer(implicit tsc: TaskSystemComponents): IO[BufferType] = {
     sf match {
+      case None if minMax.isDefined =>
+        assert(minMax.get._1 == minMax.get._2)
+        IO.pure(BufferInstant.constant(value = minMax.get._1, length = numElems))
       case None => IO.pure(BufferInstant(Array.emptyLongArray))
       case Some(value) =>
         value.bytes.map { byteVector =>
@@ -236,8 +249,12 @@ final case class SegmentString(
   type ColumnTagType = ColumnTag.StringTag.type
   val tag = ColumnTag.StringTag
 
+
   override def buffer(implicit tsc: TaskSystemComponents): IO[BufferType] = {
     sf match {
+      case None if minMax.isDefined =>
+        assert(minMax.get._1 == minMax.get._2)
+        IO.pure(BufferString.constant(value = minMax.get._1, length = numElems))
       case None => IO.pure(BufferString(Array.empty[CharSequence]))
       case Some(value) =>
         value.bytes.map { byteVector =>

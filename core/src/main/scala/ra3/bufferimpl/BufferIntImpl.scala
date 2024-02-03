@@ -1,6 +1,8 @@
 package ra3.bufferimpl
 import ra3._
 private[ra3] trait BufferIntImpl { self: BufferInt =>
+  def elementwise_abs : BufferInt
+
   def elementwise_*=(other: BufferType): Unit
   def elementwise_*(other: BufferDouble): BufferDouble
   def elementwise_+=(other: BufferType): Unit

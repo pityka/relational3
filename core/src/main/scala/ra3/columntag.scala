@@ -41,6 +41,7 @@ sealed trait ColumnTag { self =>
   def pair(a: SegmentType, b: SegmentType): SegmentPairType
   def emptySegment: SegmentType
   def cat(buffs: BufferType*): BufferType
+  def as[C <: ColumnTag] = this.asInstanceOf[C]
 }
 object ColumnTag {
   object I32 extends ColumnTag {
@@ -228,8 +229,9 @@ object ColumnTag {
 }
 
 trait ColumnTags {
-  implicit val i32: ColumnTag.I32.type = ColumnTag.I32
-  implicit val i64: ColumnTag.I64.type = ColumnTag.I64
-  implicit val f64: ColumnTag.F64.type = ColumnTag.F64
-  implicit val instant: ColumnTag.Instant.type = ColumnTag.Instant
+  type i32 =  ColumnTag.I32.type
+  type i64 =  ColumnTag.I64.type
+  type f64 =  ColumnTag.F64.type
+  type instant =  ColumnTag.Instant.type
+  type string =  ColumnTag.StringTag.type
 }

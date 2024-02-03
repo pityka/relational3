@@ -6,6 +6,14 @@ import java.nio.ByteOrder
 import tasks.{TaskSystemComponents, SharedFile}
 
 private[ra3] trait BufferInstantImpl { self: BufferInstant =>
+  
+  def broadcast(n: Int) = self.length match {
+    case x if x == n => this 
+    case 1 => 
+    BufferInstant(Array.fill[Long](n)(values(0)))
+    case _ => throw new RuntimeException("broadcast called on buffer with wrong size")
+  }
+
   def positiveLocations: BufferInt = {
     import org.saddle._
     BufferInt(
@@ -17,6 +25,19 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
     s"BufferInstant(n=${values.length}: ${values.take(5).mkString(", ")} ..})"
 
   def sumGroups(partitionMap: BufferInt, numGroups: Int): BufferType = ???
+
+   def firstInGroup(partitionMap: BufferInt, numGroups: Int): BufferType = {
+    assert(partitionMap.length == length)
+    val ar = Array.fill(numGroups)(Long.MinValue)
+    var i = 0
+    val n = partitionMap.length
+    while (i < n) {
+      if (!isMissing(i)) { ar(partitionMap.raw(i)) = values(i) }
+      i += 1
+    }
+    tag.makeBuffer(ar)
+
+  }
 
   /** Find locations at which _ <= other[0] or _ >= other[0] holds returns
     * indexes
@@ -126,7 +147,12 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
   override def hashOf(l: Int): Long = {
     values(l)
   }
-
+def minMax = if (values.length == 0) None else {
+          Some(
+            (values.min,
+            values.max)
+          )
+        } 
   override def toSegment(
       name: LogicalPath
   )(implicit tsc: TaskSystemComponents): IO[SegmentInstant] = {
@@ -138,12 +164,7 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
         bb.asLongBuffer().put(values)
         fs2.Stream.chunk(fs2.Chunk.byteBuffer(bb))
       }.flatMap { stream =>
-        val minmax = if (values.length == 0) None else {
-          Some(
-            (values.min,
-            values.max)
-          )
-        } 
+        val minmax = minMax
         SharedFile
           .apply(stream, name.toString)
           .map(sf => SegmentInstant(Some(sf), values.length, minmax))

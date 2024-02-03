@@ -37,6 +37,8 @@ case class PartitionedTable(
 ) {
   assert(columns.map(_.segments.map(_.numElems)).distinct.size == 1)
 
+  
+
   def numCols = columns.size
   def numRows =
     columns.map(_.segments.map(_.numElems.toLong).sum).headOption.getOrElse(0L)

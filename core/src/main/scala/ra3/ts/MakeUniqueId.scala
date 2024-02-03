@@ -61,6 +61,22 @@ object MakeUniqueId {
     )(
       ResourceRequest(cpu = (1, 1), memory = 1, scratch = 0, gpu = 0)
     )
+  def queueM(
+      parents: Seq[Table],
+      tag: String,
+      aux: Seq[Column]
+  )(implicit
+      tsc: TaskSystemComponents
+  ) =
+    task(
+      MakeUniqueId(
+        parent = parents.map(_.uniqueId).mkString("-"),
+        tag = tag,
+        aux = aux
+      )
+    )(
+      ResourceRequest(cpu = (1, 1), memory = 1, scratch = 0, gpu = 0)
+    )
   implicit val codec: JsonValueCodec[MakeUniqueId] = JsonCodecMaker.make
   val task = Task[MakeUniqueId, String]("MakeUniqueId", 1) { case _ =>
     _ => IO.delay(java.util.UUID.randomUUID().toString)

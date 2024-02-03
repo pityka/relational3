@@ -1,4 +1,5 @@
 package ra3
+// import ra3._
 import org.saddle._
 import java.nio.channels.Channels
 import java.io.ByteArrayInputStream
@@ -7,10 +8,8 @@ import com.typesafe.config.ConfigFactory
 import tasks._
 import cats.effect.unsafe.implicits.global
 import ColumnTag.I32
-import ra3.ts.ReductionSum
-
 trait WithTempTaskSystem {
-    def withTempTaskSystem[T](f: TaskSystemComponents => T) = {
+  def withTempTaskSystem[T](f: TaskSystemComponents => T) = {
     val tmp = tasks.util.TempFile.createTempFile(".temp")
     tmp.delete
     val config = ConfigFactory.parseString(
@@ -25,10 +24,10 @@ trait WithTempTaskSystem {
     r
   }
 
-   def csvStringToHeterogeneousTable(
+  def csvStringToHeterogeneousTable(
       name: String,
       csv: String,
-      cols: List[(Int,ColumnTag,Option[InstantParser])],
+      cols: List[(Int, ColumnTag, Option[InstantParser])],
       segmentLength: Int
   )(implicit
       tsc: TaskSystemComponents
@@ -36,36 +35,36 @@ trait WithTempTaskSystem {
     val channel =
       Channels.newChannel(new ByteArrayInputStream(csv.getBytes()))
 
-    val x= ra3.csv
+    val x = ra3.csv
       .readHeterogeneousFromCSVChannel(
         name,
         cols,
         channel = channel,
         header = true,
         maxSegmentLength = segmentLength,
-        recordSeparator = "\n",
+        recordSeparator = "\n"
       )
 
-      x.toOption
-      .get
+    x.toOption.get
   }
 
-  def toFrame2(t: Table, tag: ColumnTag)(implicit tsc: TaskSystemComponents, st: ST[tag.Elem]) = {
+  def toFrame2(t: Table, tag: ColumnTag)(implicit
+      tsc: TaskSystemComponents,
+      st: ST[tag.Elem]
+  ) = {
     t.bufferStream.compile.toList
       .unsafeRunSync()
       .map(_.toHomogeneousFrame(tag))
       .reduce(_ concat _)
       .resetRowIndex
   }
-   def generateTable(numRows: Int, numCols: Int) = {
+  def generateTable(numRows: Int, numCols: Int) = {
     val frame = mat.randI(numRows, numCols).toFrame.mapColIndex(i => s"V$i")
     val csv = new String(
       org.saddle.csv.CsvWriter.writeFrameToArray(frame, withRowIx = false)
     )
     (frame, csv)
   }
-
-
 
   def csvStringToTable(
       name: String,
@@ -102,12 +101,6 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       .reduce(_ concat _)
       .resetRowIndex
   }
-  
-
-
-
- 
- 
 
   test("to and from csv 1 segment") {
     withTempTaskSystem { implicit ts =>
@@ -244,6 +237,68 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
     }
 
   }
+  test("simple projection does not copy segments") {
+    withTempTaskSystem { implicit ts =>
+      val numCols = 3
+      val numRows = 10
+      val (tableFrame, tableCsv) = generateTable(numRows, numCols)
+      println(tableFrame)
+      val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
+
+
+      val result = ra3Table
+        .query { _ =>
+          ra3.lang.select(ra3.lang.star)
+        }
+        .unsafeRunSync()
+      assertEquals(ra3Table.columns.head.segments,result.columns.head.segments)
+      val takenF = (0 until 4)
+        .map(i => result.bufferSegment(i).unsafeRunSync().toHomogeneousFrame(I32))
+        .reduce(_ concat _)
+        .resetRowIndex
+        .filterIx(_.nonEmpty)
+      val expect =
+        tableFrame
+          .resetRowIndex
+
+      assertEquals(takenF, expect)
+    }
+
+  }
+  test("simple query") {
+    withTempTaskSystem { implicit ts =>
+      val numCols = 3
+      val numRows = 10
+      val (tableFrame, tableCsv) = generateTable(numRows, numCols)
+      println(tableFrame)
+      val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
+
+      val less = ra3Table
+        .query { t =>
+          t.use[i32](0,1) { (col0,col1) =>
+              ra3.lang
+                .select(col1 as "b", col1, ra3.lang.star)
+                .where(col0.tap("col0") <= 0)
+          }
+        }
+        .unsafeRunSync()
+      println(less)
+      val takenF = (0 until 4)
+        .map(i => less.bufferSegment(i).unsafeRunSync().toHomogeneousFrame(I32))
+        .reduce(_ concat _)
+        .resetRowIndex
+        .filterIx(_.nonEmpty)
+      val expect =
+        tableFrame
+          .rowAt(tableFrame.colAt(0).toVec.find(_ <= 0).toArray)
+          .resetRowIndex
+          .colAt(Array(1, 1, 0, 1, 2))
+          .setColIndex(Index("b", "V1", "V0", "V1", "V2"))
+
+      assertEquals(takenF, expect)
+    }
+
+  }
   test("partition") {
     withTempTaskSystem { implicit ts =>
       val numCols = 3
@@ -251,7 +306,7 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       val (tableFrame, tableCsv) = generateTable(numRows, numCols)
       val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
 
-      val partitions = ra3Table.partition(List(0), 3,true,0).unsafeRunSync()
+      val partitions = ra3Table.partition(List(0), 3, true, 0).unsafeRunSync()
 
       assert(partitions.size == 3)
 
@@ -292,7 +347,7 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       val (tableFrame, tableCsv) = generateTable(numRows, numCols)
       val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
 
-      val partitions = ra3Table.partition(List(0), 3,true,0).unsafeRunSync()
+      val partitions = ra3Table.partition(List(0), 3, true, 0).unsafeRunSync()
 
       assert(partitions.size == 3)
 
@@ -384,9 +439,12 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       assertEquals(toFrame(tableB), tF2.resetRowIndex)
 
       val result = tableA
-        .equijoin(tableB, 3, 3, "outer", 3,0)
+        .equijoin(tableB, 3, 3, "outer", 3, 0)((_, _) =>
+          ra3.lang.select(ra3.lang.star)
+        )
         .unsafeRunSync()
         .filterColumnNames("joined-filtered")(_ != "V4")
+        .filterColumnNames("joined-filtered")(_ != "V4_2")
         .bufferStream
         .compile
         .toList
@@ -460,9 +518,193 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       assertEquals(toFrame(tableB), tF2.resetRowIndex)
 
       val result = tableA
-        .equijoin(tableB, 3, 3, "inner", 3,0)
+        .equijoin(tableB, 3, 3, "inner", 3, 0)((_, _) =>
+          ra3.lang.select(ra3.lang.star)
+        )
         .unsafeRunSync()
         .filterColumnNames("joined-filtered")(_ != "V4")
+        .filterColumnNames("joined-filtered")(_ != "V4_2")
+        .bufferStream
+        .compile
+        .toList
+        .unsafeRunSync()
+        .map(_.toHomogeneousFrame(I32))
+        .reduce(_ concat _)
+
+      assertEquals(
+        saddleResult.toRowSeq.map(_._2).toSet,
+        result.toRowSeq.map(_._2).toSet
+      )
+
+    }
+
+  }
+  test("inner join 3") {
+    withTempTaskSystem { implicit ts =>
+      val numCols = 3
+      val numRows = 10
+      val (tableFrame, tableCsv) = generateTable(numRows, numCols)
+      val (tableFrame2, tableCsv2) = generateTable(numRows, numCols)
+      val (tableFrame3, tableCsv3) = generateTable(numRows + 1, numCols)
+      val colA = Seq(Seq(0, 0, 1), Seq(0, 2, 3), Seq(4, 5, 0), Seq(9))
+      val colB = Seq(Seq(2, 2, 1), Seq(99, 2, 0), Seq(4, 5, 0), Seq(4))
+      val colC = Seq(Seq(3, 3, 3), Seq(4, 4, 4), Seq(99, 0, 1), Seq(5, 99))
+
+      val tF = {
+        val tmp = tableFrame.addCol(
+          Series(colA.flatten.toVec),
+          "V4",
+          org.saddle.index.InnerJoin
+        )
+        tmp.setRowIndex(Index(tmp.firstCol("V4").toVec.toArray))
+      }
+      val tF2 = {
+        val tmp = tableFrame2
+          .addCol(Series(colB.flatten.toVec), "V4", org.saddle.index.InnerJoin)
+          .mapColIndex(v => v + "_2")
+        tmp.setRowIndex(Index(tmp.firstCol("V4_2").toVec.toArray))
+      }
+      val tF3 = {
+        val tmp = tableFrame3
+          .addCol(Series(colC.flatten.toVec), "V4", org.saddle.index.InnerJoin)
+          .mapColIndex(v => v + "_3")
+        tmp.setRowIndex(Index(tmp.firstCol("V4_3").toVec.toArray))
+      }
+
+      val saddleResult = tF
+        .rconcat(
+          tF2,
+          org.saddle.index.InnerJoin
+        )
+        .rconcat(tF3, org.saddle.index.InnerJoin)
+        .filterIx(_ != "V4_2")
+        .filterIx(_ != "V4_3")
+        .filterIx(_ != "V4")
+        .col(
+          "V4",
+          "V0",
+          "V1",
+          "V2",
+          "V0_2",
+          "V1_2",
+          "V2_2",
+          "V0_3",
+          "V1_3",
+          "V2_3"
+        )
+        .resetRowIndex
+
+      val tableA = csvStringToTable("table", tableCsv, numCols, 3)
+        .addColumnFromSeq(I32, "V4")(colA.flatten)
+        .unsafeRunSync()
+
+      val tableB = csvStringToTable("tableB", tableCsv2, numCols, 3)
+        .addColumnFromSeq(I32, "V4")(colB.flatten)
+        .unsafeRunSync()
+        .mapColIndex(_ + "_2")
+      val tableC = csvStringToTable("tableC", tableCsv3, numCols, 3)
+        .addColumnFromSeq(I32, "V4")(colC.flatten)
+        .unsafeRunSync()
+        .mapColIndex(_ + "_3")
+
+      assertEquals(toFrame(tableA), tF.resetRowIndex)
+      assertEquals(toFrame(tableB), tF2.resetRowIndex)
+      assertEquals(toFrame(tableC), tF3.resetRowIndex)
+
+      val result = tableA
+        .equijoinMultiple(
+          3,
+          List(
+            (tableB, 3, "inner", 0),
+            (tableC, 3, "inner", 0)
+          ),
+          3,
+          10
+        )(_ => ra3.lang.select(ra3.lang.star))
+        .unsafeRunSync()
+        .filterColumnNames("joined-filtered")(_ != "V4")
+        .filterColumnNames("joined-filtered")(_ != "V4_2")
+        .filterColumnNames("joined-filtered")(_ != "V4_3")
+        .bufferStream
+        .compile
+        .toList
+        .unsafeRunSync()
+        .map(_.toHomogeneousFrame(I32))
+        .reduce(_ concat _)
+
+      assertEquals(
+        saddleResult.toRowSeq.map(_._2).toSet,
+        result.toRowSeq.map(_._2).toSet
+      )
+
+    }
+
+  }
+  test("inner join filter") {
+    withTempTaskSystem { implicit ts =>
+      val numCols = 3
+      val numRows = 10
+      val (tableFrame, tableCsv) = generateTable(numRows, numCols)
+      val (tableFrame2, tableCsv2) = generateTable(numRows, numCols)
+      val colA = Seq(Seq(0, 0, 1), Seq(0, 2, 3), Seq(4, 5, 0), Seq(9))
+      val colB = Seq(Seq(2, 2, 1), Seq(99, 2, 0), Seq(4, 5, 0), Seq(4))
+
+      val tF = {
+        val tmp = tableFrame.addCol(
+          Series(colA.flatten.toVec),
+          "V4",
+          org.saddle.index.InnerJoin
+        )
+        tmp.setRowIndex(Index(tmp.firstCol("V4").toVec.toArray))
+      }
+      val tF2 = {
+        val tmp = tableFrame2
+          .addCol(Series(colB.flatten.toVec), "V4", org.saddle.index.InnerJoin)
+          .mapColIndex(v => v + "_2")
+        tmp.setRowIndex(Index(tmp.firstCol("V4_2").toVec.toArray))
+      }
+
+      // println(tF)
+      // println(tF2)
+
+      val saddleResult = tF
+        .rconcat(
+          tF2,
+          org.saddle.index.InnerJoin
+        )
+        .filterIx(_ != "V4_2")
+        .filterIx(_ != "V4")
+        .col(
+          "V4",
+          "V0",
+          "V1",
+          "V2",
+          "V0_2",
+          "V1_2",
+          "V2_2"
+        )
+        .resetRowIndex
+        .rfilter(_.first("V0").get <= 0)
+
+      val tableA = csvStringToTable("table", tableCsv, numCols, 3)
+        .addColumnFromSeq(I32, "V4")(colA.flatten)
+        .unsafeRunSync()
+
+      val tableB = csvStringToTable("tableB", tableCsv2, numCols, 3)
+        .addColumnFromSeq(I32, "V4")(colB.flatten)
+        .unsafeRunSync()
+        .mapColIndex(_ + "_2")
+
+      assertEquals(toFrame(tableA), tF.resetRowIndex)
+      assertEquals(toFrame(tableB), tF2.resetRowIndex)
+
+      val result = tableA
+        .equijoin(tableB, 3, 3, "inner", 3, 0)((t1, _) =>
+          t1.use[ra3.i32]("V0")(v0 => ra3.lang.select(ra3.lang.star).where(v0 <= 0))
+        )
+        .unsafeRunSync()
+        .filterColumnNames("joined-filtered")(_ != "V4")
+        .filterColumnNames("joined-filtered")(_ != "V4_2")
         .bufferStream
         .compile
         .toList
@@ -536,9 +778,12 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       assertEquals(toFrame(tableB), tF2.resetRowIndex)
 
       val result = tableA
-        .equijoin(tableB, 3, 3, "left", 3,0)
+        .equijoin(tableB, 3, 3, "left", 3, 0)((_, _) =>
+          ra3.lang.select(ra3.lang.star)
+        )
         .unsafeRunSync()
         .filterColumnNames("joined-filtered")(_ != "V4")
+        .filterColumnNames("joined-filtered")(_ != "V4_2")
         .bufferStream
         .compile
         .toList
@@ -611,7 +856,9 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       assertEquals(toFrame(tableB), tF2.resetRowIndex)
 
       val result = tableA
-        .equijoin(tableB, 3, 3, "right", 3,0)
+        .equijoin(tableB, 3, 3, "right", 3, 0)((_, _) =>
+          ra3.lang.select(ra3.lang.star)
+        )
         .unsafeRunSync()
         .filterColumnNames("joined-filtered")(s => s != "V4" && s != "V4_2")
         .bufferStream
@@ -659,7 +906,7 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       assertEquals(toFrame(tableA), tF.resetRowIndex)
 
       val result = tableA
-        .groupBy(List(3), 3,0)
+        .groupBy(List(3), 3, 0)
         .unsafeRunSync()
         .extractGroups
         .unsafeRunSync()
@@ -701,13 +948,80 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
 
       val result = toFrame(
         tableA
-          .groupBy(List(3), 3,0)
+          .groupBy(List(3), 3, 0)
           .unsafeRunSync()
-          .reduceGroups(
-            List(ReductionSum, ReductionSum, ReductionSum, ReductionSum)
-          )
+          .reduceGroups { table =>
+            table.use[i32](0) { c1 =>
+              table.use[i32](1) { c2 =>
+                table.use[i32](2) { c3 =>
+                  table.use[i32](3) { c4 =>
+                    ra3.lang.select(c1.sum, c2.sum, c3.sum, c4.sum as "V4")
+                  }
+                }
+
+              }
+            }
+          }
           .unsafeRunSync()
       )
+
+      println(saddleResult)
+      println(result)
+
+      assertEquals(
+        saddleResult.toRowSeq.map(_._2).toSet,
+        result.toRowSeq.map(_._2).toSet
+      )
+
+    }
+
+  }
+  test("reduce complete table") {
+
+    withTempTaskSystem { implicit ts =>
+      val numCols = 3
+      val numRows = 10
+      val (tableFrame, tableCsv) = generateTable(numRows, numCols)
+      val colA = Seq(Seq(0, 0, 1), Seq(0, 2, 3), Seq(4, 5, 0), Seq(9))
+
+      val tF = {
+        val tmp = tableFrame.addCol(
+          Series(colA.flatten.toVec),
+          "V4",
+          org.saddle.index.InnerJoin
+        )
+        tmp.setRowIndex(Index(tmp.firstCol("V4").toVec.toArray))
+      }
+
+      val saddleResult = Frame(tF.reduce(_.sum)).T
+
+      val tableA = csvStringToTable("table", tableCsv, numCols, 3)
+        .addColumnFromSeq(I32, "V4")(colA.flatten)
+        .unsafeRunSync()
+
+      assertEquals(toFrame(tableA), tF.resetRowIndex)
+
+      println(tableA)
+
+      val result = toFrame(
+        tableA
+          .reduceTable { table =>
+            table.use[i32](0) { c1 =>
+              table.use[i32](1) { c2 =>
+                table.use[i32](2) { c3 =>
+                  table.use[i32](3) { c4 =>
+                    ra3.lang.select(c1.sum, c2.sum, c3.sum, c4.sum as "V4")
+                  }
+                }
+
+              }
+            }
+          }
+          .unsafeRunSync()
+      )
+
+      println(saddleResult)
+      println(result)
 
       assertEquals(
         saddleResult.toRowSeq.map(_._2).toSet,
@@ -744,11 +1058,13 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       assertEquals(toFrame(tableA), tF.resetRowIndex)
 
       val result = toFrame(
-        tableA.topK(0,true,3,1.0,5)
+        tableA
+          .topK(0, true, 3, 1.0, 5)
           .unsafeRunSync()
       )
       val resultDesc = toFrame(
-        tableA.topK(0,false,3,1.0,5)
+        tableA
+          .topK(0, false, 3, 1.0, 5)
           .unsafeRunSync()
       )
 
@@ -757,17 +1073,20 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       assert(result.numRows <= 5)
       assert(saddleResultDesc.numRows <= 5)
       assert(
-        (saddleResult.toRowSeq.map(_._2).toSet &~ result.toRowSeq.map(_._2).toSet).isEmpty,
+        (saddleResult.toRowSeq.map(_._2).toSet &~ result.toRowSeq
+          .map(_._2)
+          .toSet).isEmpty
       )
       assert(
-        (saddleResultDesc.toRowSeq.map(_._2).toSet &~ resultDesc.toRowSeq.map(_._2).toSet).isEmpty,
-
+        (saddleResultDesc.toRowSeq.map(_._2).toSet &~ resultDesc.toRowSeq
+          .map(_._2)
+          .toSet).isEmpty
       )
 
     }
 
   }
-   test("filter on <>") {
+  test("filter on <>") {
     withTempTaskSystem { implicit ts =>
       val numCols = 3
       val numRows = 10
@@ -802,8 +1121,9 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       val numRows = 10
       val (tableFrame, tableCsv) = generateTable(numRows, numCols)
       val (tableFrame2, tableCsv2) = generateTable(numRows, numCols)
-      val colA = Seq(Seq(0, 0, 1), Seq(100,101,102), Seq(4, 5, 0), Seq(9))
-      val colB = Seq(Seq(200, 202, 201), Seq(200,201,202), Seq(204, 205, 200), Seq(4))
+      val colA = Seq(Seq(0, 0, 1), Seq(100, 101, 102), Seq(4, 5, 0), Seq(9))
+      val colB =
+        Seq(Seq(200, 202, 201), Seq(200, 201, 202), Seq(204, 205, 200), Seq(4))
 
       val tF = {
         val tmp = tableFrame.addCol(
@@ -854,13 +1174,14 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       assertEquals(toFrame(tableB), tF2.resetRowIndex)
 
       val joined = tableA
-        .equijoin(tableB, 3, 3, "inner", 3,0)
+        .equijoin(tableB, 3, 3, "inner", 3, 0)((_,_) => ra3.lang.select(ra3.lang.star))
         .unsafeRunSync()
 
-        println(joined.columns.head.segments.mkString("\n"))
+      println(joined.columns.head.segments.mkString("\n"))
 
       val result = joined
         .filterColumnNames("joined-filtered")(_ != "V4")
+        .filterColumnNames("joined-filtered")(_ != "V4_2")
         .bufferStream
         .compile
         .toList
@@ -934,11 +1255,12 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       assertEquals(toFrame(tableB), tF2.resetRowIndex)
 
       val joined = tableA
-        .equijoin(tableB, 3, 3, "inner", 3, 6)
+        .equijoin(tableB, 3, 3, "inner", 3, 6)((_,_) => ra3.lang.select(ra3.lang.star))
         .unsafeRunSync()
 
       val result = joined
         .filterColumnNames("joined-filtered")(_ != "V4")
+        .filterColumnNames("joined-filtered")(_ != "V4_2")
         .bufferStream
         .compile
         .toList
@@ -947,11 +1269,12 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
         .reduce(_ concat _)
 
       val joined2 = tableB
-        .equijoin(tableA, 3, 3, "inner", 3, 6)
+        .equijoin(tableA, 3, 3, "inner", 3, 6)((_,_) => ra3.lang.select(ra3.lang.star))
         .unsafeRunSync()
 
       val result2 = joined2
         .filterColumnNames("joined-filtered")(_ != "V4")
+        .filterColumnNames("joined-filtered")(_ != "V4_2")
         .bufferStream
         .compile
         .toList
@@ -1029,15 +1352,16 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       assertEquals(toFrame(tableA), tF.resetRowIndex)
       assertEquals(toFrame(tableB), tF2.resetRowIndex)
 
-      val pre = tableB.prePartition(List(3,0),3,0).unsafeRunSync()
+      val pre = tableB.prePartition(List(3, 0), 3, 0).unsafeRunSync()
       println(pre)
-      
+
       val joined = tableA
-        .equijoin(pre, 3, 3, "inner", 3, 6)
+        .equijoin(pre, 3, 3, "inner", 3, 6)((_,_) => ra3.lang.select(ra3.lang.star))
         .unsafeRunSync()
 
       val result = joined
         .filterColumnNames("joined-filtered")(_ != "V4")
+        .filterColumnNames("joined-filtered")(_ != "V4_2")
         .bufferStream
         .compile
         .toList
@@ -1046,11 +1370,12 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
         .reduce(_ concat _)
 
       val joined2 = tableB
-        .equijoin(tableA, 3, 3, "inner", 3, 6)
+        .equijoin(tableA, 3, 3, "inner", 3, 6)((_,_) => ra3.lang.select(ra3.lang.star))
         .unsafeRunSync()
 
       val result2 = joined2
         .filterColumnNames("joined-filtered")(_ != "V4")
+        .filterColumnNames("joined-filtered")(_ != "V4_2")
         .bufferStream
         .compile
         .toList

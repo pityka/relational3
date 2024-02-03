@@ -7,13 +7,23 @@ import tasks.{TaskSystemComponents, SharedFile}
 private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
   override def toSeq: Seq[Double] = values.toSeq
 
+  def broadcast(n: Int) = self.length match {
+    case x if x == n => this
+    case 1 =>
+      BufferDouble(Array.fill[Double](n)(values(0)))
+    case _ =>
+      throw new RuntimeException("broadcast called on buffer with wrong size")
+  }
+
   def sumGroups(partitionMap: BufferInt, numGroups: Int): BufferType = {
-    val ar = Array.ofDim[Double](numGroups)
+    val ar = Array.fill[Double](numGroups)(Double.NaN)
     var i = 0
     val n = partitionMap.length
     while (i < n) {
       if (!isMissing(i)) {
-        ar(partitionMap.raw(i)) += values(i)
+        if (ar(partitionMap.raw(i)).isNaN()) {
+          ar(partitionMap.raw(i)) = values(i)
+        } else ar(partitionMap.raw(i)) += values(i)
       }
       i += 1
     }
@@ -130,6 +140,30 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
     java.lang.Double.doubleToLongBits(values(l))
   }
 
+  def minMax = if (values.length == 0) None
+  else {
+    import org.saddle._
+    Some(
+      (
+        if (values.toVec.hasNA) Double.NaN else values.toVec.min2,
+        values.toVec.max.get
+      )
+    )
+  }
+
+  def firstInGroup(partitionMap: BufferInt, numGroups: Int): BufferType = {
+    assert(partitionMap.length == length)
+    val ar = Array.fill(numGroups)(Double.NaN)
+    var i = 0
+    val n = partitionMap.length
+    while (i < n) {
+      if (!isMissing(i)) { ar(partitionMap.raw(i)) = values(i) }
+      i += 1
+    }
+    tag.makeBuffer(ar)
+
+  }
+
   override def toSegment(name: LogicalPath)(implicit
       tsc: TaskSystemComponents
   ): IO[SegmentDouble] =
@@ -142,18 +176,8 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
         bb.asDoubleBuffer().put(values)
         fs2.Stream.chunk(fs2.Chunk.byteBuffer(bb))
       }.flatMap { stream =>
-        import org.saddle._
-        val minmax =
-          if (values.length == 0) None
-          else {
+        val minmax = self.minMax
 
-            Some(
-              (
-                if (values.toVec.hasNA) Double.NaN else values.toVec.min2,
-                values.toVec.max.get
-              )
-            )
-          }
         SharedFile
           .apply(stream, name.toString)
           .map(sf => SegmentDouble(Some(sf), values.length, minmax))
@@ -217,7 +241,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
       r(i) = if (self.values(i) > other.values(i).toDouble) 1 else 0
       i += 1
     }
-   BufferInt(r)
+    BufferInt(r)
   }
   def elementwise_gteq(other: BufferType): BufferInt = {
     assert(other.length == self.length)
@@ -253,7 +277,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
       r(i) = if (self.values(i) <= other.values(i).toDouble) 1 else 0
       i += 1
     }
-   BufferInt(r)
+    BufferInt(r)
   }
   def elementwise_neq(other: BufferType): BufferInt = {
     assert(other.length == self.length)
@@ -290,7 +314,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
       r(i) = if (self.values(i) > other.values(i).toDouble) 1 else 0
       i += 1
     }
-   BufferInt(r)
+    BufferInt(r)
   }
   def elementwise_gteq(other: BufferLong): BufferInt = {
     assert(other.length == self.length)
@@ -314,7 +338,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
       r(i) = if (self.values(i) < other.values(i).toDouble) 1 else 0
       i += 1
     }
-   BufferInt(r)
+    BufferInt(r)
   }
   def elementwise_lteq(other: BufferLong): BufferInt = {
     assert(other.length == self.length)
@@ -326,7 +350,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
       r(i) = if (self.values(i) <= other.values(i).toDouble) 1 else 0
       i += 1
     }
-BufferInt(r)
+    BufferInt(r)
   }
   def elementwise_neq(other: BufferLong): BufferInt = {
     assert(other.length == self.length)
@@ -340,7 +364,6 @@ BufferInt(r)
     }
     BufferInt(r)
   }
-
 
   def elementwise_roundToLong: BufferLong = {
     var i = 0

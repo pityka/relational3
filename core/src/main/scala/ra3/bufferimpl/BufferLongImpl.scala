@@ -6,6 +6,14 @@ import java.nio.ByteOrder
 import tasks.{TaskSystemComponents, SharedFile}
 
 private[ra3] trait BufferLongImpl { self: BufferLong =>
+
+  def broadcast(n: Int) = self.length match {
+    case x if x == n => this 
+    case 1 => 
+    BufferLong(Array.fill[Long](n)(values(0)))
+    case _ => throw new RuntimeException("broadcast called on buffer with wrong size")
+  }
+
   def positiveLocations: BufferInt = {
     import org.saddle._
     BufferInt(
@@ -22,7 +30,11 @@ private[ra3] trait BufferLongImpl { self: BufferLong =>
     var i = 0
     val n = partitionMap.length
     while (i < n) {
-      if (!isMissing(i)) { ar(partitionMap.raw(i)) += values(i) }
+      if (!isMissing(i)) { 
+        if (ar(partitionMap.raw(i)) == Long.MinValue) {
+          ar(partitionMap.raw(i)) = values(i)
+        } else { ar(partitionMap.raw(i)) += values(i) }
+      }
       i += 1
     }
     BufferLong(ar)
@@ -139,6 +151,24 @@ private[ra3] trait BufferLongImpl { self: BufferLong =>
     scala.util.hashing.byteswap64(values(l))
   }
 
+  def minMax = if (values.length == 0) None else {
+          Some(
+            (values.min,
+            values.max)
+          )
+        } 
+ def firstInGroup(partitionMap: BufferInt, numGroups: Int): BufferType = {
+    assert(partitionMap.length == length)
+    val ar = Array.fill(numGroups)(Long.MinValue)
+    var i = 0
+    val n = partitionMap.length
+    while (i < n) {
+      if (!isMissing(i)) { ar(partitionMap.raw(i)) = values(i) }
+      i += 1
+    }
+    tag.makeBuffer(ar)
+
+  }
   override def toSegment(
       name: LogicalPath
   )(implicit tsc: TaskSystemComponents): IO[SegmentLong] = {
@@ -151,12 +181,7 @@ private[ra3] trait BufferLongImpl { self: BufferLong =>
         fs2.Stream.chunk(fs2.Chunk.byteBuffer(bb))
       }.flatMap { stream =>
 
-        val minmax = if (values.length == 0) None else {
-          Some(
-            (values.min,
-            values.max)
-          )
-        } 
+        val minmax = minMax
         SharedFile
           .apply(stream, name.toString)
           .map(sf => SegmentLong(Some(sf), values.length, minmax))

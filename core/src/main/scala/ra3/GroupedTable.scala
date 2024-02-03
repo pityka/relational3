@@ -66,64 +66,76 @@ case class GroupedTable(
         .map { groups =>
           // groups x columns
           groups.zipWithIndex.map { case (partitionedTable, gIdx) =>
-            Table(partitionedTable.columns, this.colNames, name + "-g" + gIdx,None)
+            Table(
+              partitionedTable.columns,
+              this.colNames,
+              name + "-g" + gIdx,
+              None
+            )
           }
         }
     }
 
   }
 
-  def reduceGroups(reductions: Seq[ReductionOp])(implicit
+  // the where clause in the query will act as HAVING in sql
+  def reduceGroups(
+      query: TableReference => ra3.lang.Expr { type T <: ra3.lang.ReturnValue }
+  )(implicit
       tsc: TaskSystemComponents
   ) = {
-    assert(this.colNames.size == reductions.size)
+    val tRef = TableReference(
+      uniqueId = uniqueId,
+      colTags = partitions.head._1.columns.map(_.tag),
+      colNames = colNames
+    )
+    val program = query(tRef)
     val columns = colNames.size
     val name = ts.MakeUniqueId.queue0(
-      s"$uniqueId-reduce-${reductions.map(_.id).mkString("-")}",
+      s"$uniqueId-reduce-${program.hash}",
       List()
     )
     name.flatMap { name =>
       IO.parSequenceN(math.min(32, partitions.size))(
         partitions.zipWithIndex.map {
           case ((partition, groupMap), partitionIdx) =>
-            IO.parSequenceN(math.min(32, columns))(
-              (0 until columns).toVector.map { columnIdx =>
-                val segments = partition.columns(columnIdx).segments
-                val tag = partition.columns(columnIdx).tag
-
-                assert(
-                  segments.map(_.numElems).sum == groupMap.map.numElems
-                )
-
-                val reducedSegment =
-                  reductions(columnIdx).reduce[tag.SegmentType](
-                    segments,
-                    groupMap,
-                    LogicalPath(
-                      table = name,
-                      partition = None,
-                      segment = partitionIdx, // partitions will become segments
-                      column = columnIdx
-                    )
+            ts.SimpleQuery
+              .queue(
+                input = (0 until columns).toVector.map { columnIdx =>
+                  ra3.ts.SegmentWithName(
+                    segment = partition
+                      .columns(columnIdx)
+                      .segments, // to be removed
+                    tableUniqueId = this.uniqueId,
+                    columnName = this.colNames(columnIdx),
+                    columnIdx = columnIdx
                   )
-
-                reducedSegment
-                  .map {
-                    //   groups
-                    reducedSegment =>
-                      tag.makeColumn(Vector(reducedSegment))
-
-                  }
-              }
-            ).map {
-              // columns
-              columns =>
-                TableHelper(columns)
-            }
+                },
+                predicate = program,
+                outputPath = LogicalPath(name, None, partitionIdx, 0),
+                groupMap = Option((groupMap.map, groupMap.numGroups))
+              )
+              .map(columnSegments =>
+                columnSegments.map { case segmentOfColumn =>
+                  val tag = segmentOfColumn._1.tag
+                  val col: Column =
+                    tag.makeColumn(Vector(segmentOfColumn._1.as(tag)))
+                  val name = segmentOfColumn._2
+                  (col, name)
+                }
+              )
+              .map(columns =>
+                (TableHelper(columns.map(_._1).toVector), columns.map(_._2))
+              )
 
         }
       ).map { partitions =>
-        Table(partitions.reduce(_ concatenate _).columns, this.colNames, name,None)
+        Table(
+          partitions.map(_._1).reduce(_ concatenate _).columns,
+          partitions.head._2.toVector,
+          name,
+          None
+        )
       }
     }
 

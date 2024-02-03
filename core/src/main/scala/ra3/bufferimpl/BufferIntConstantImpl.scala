@@ -4,6 +4,14 @@ import ra3._
 import tasks.{TaskSystemComponents}
 private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
 
+  def broadcast(n: Int) = self.length match {
+    case x if x == n => this
+    case 1 =>
+      BufferIntConstant(value, n)
+    case _ =>
+      throw new RuntimeException("broadcast called on buffer with wrong size")
+  }
+
   def positiveLocations: BufferInt = {
     import org.saddle._
     if (self.value > 0)
@@ -19,14 +27,26 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
   /* Returns a buffer of numGroups. It may overflow. */
   def sumGroups(partitionMap: BufferInt, numGroups: Int): BufferType = {
     assert(partitionMap.length == length)
-    val ar = Array.ofDim[Int](numGroups)
+    val ar = Array.fill[Int](numGroups)(Int.MinValue)
     var i = 0
     val n = partitionMap.length
     while (i < n) {
-      if (!isMissing(i)) { ar(partitionMap.raw(i)) += value }
+      if (!isMissing(i)) {
+        if (ar(partitionMap.raw(i)) == Int.MinValue) {
+          ar(partitionMap.raw(i)) = value
+        } else { ar(partitionMap.raw(i)) += value }
+
+      }
       i += 1
     }
     BufferInt(ar)
+
+  }
+
+  def firstInGroup(partitionMap: BufferInt, numGroups: Int): BufferType = {
+    assert(partitionMap.length == length)
+    val ar = Array.fill[Int](numGroups)(value)
+    tag.makeBuffer(ar)
 
   }
 
@@ -125,6 +145,13 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
     scala.util.hashing.byteswap32(value).toLong
   }
 
+  def minMax = if (length == 0) None
+  else {
+    Some(
+      (value, value)
+    )
+  }
+
   override def toSegment(
       name: LogicalPath
   )(implicit tsc: TaskSystemComponents): IO[SegmentInt] = {
@@ -133,12 +160,7 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
       IO.pure {
 
         val minmax =
-          if (length == 0) None
-          else {
-            Some(
-              (value, value)
-            )
-          }
+          minMax
         SegmentInt(None, values.length, minmax)
       }
 
@@ -146,7 +168,7 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
 
   // Elementwise operations
 
-  def elementwise_*=(other: BufferType): Unit =  {
+  def elementwise_*=(other: BufferType): Unit = {
     ???
   }
   def elementwise_*(other: BufferDouble): BufferDouble = {
@@ -198,7 +220,6 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
     BufferInt(r)
   }
 
-  
   def elementwise_eq(other: BufferType): BufferInt = {
     assert(other.length == self.length)
     var i = 0
@@ -333,15 +354,17 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
     BufferInt(r)
   }
 
-
-  def elementwise_toDouble: BufferDouble =  {
+  def elementwise_abs: BufferInt = {
+    BufferIntConstant(math.abs(value), self.length)
+  }
+  def elementwise_toDouble: BufferDouble = {
     val r = Array.fill[Double](self.length)(self.value.toDouble)
-    
+
     BufferDouble(r)
   }
   def elementwise_toLong: BufferLong = {
     val r = Array.fill[Long](self.length)(self.value.toLong)
-    
+
     BufferLong(r)
   }
 

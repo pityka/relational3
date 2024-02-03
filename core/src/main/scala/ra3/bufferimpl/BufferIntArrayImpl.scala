@@ -6,6 +6,13 @@ import java.nio.ByteOrder
 import tasks.{TaskSystemComponents, SharedFile}
 private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
 
+  def broadcast(n: Int): BufferInt = self.length match {
+    case x if x == n => this
+    case 1 => BufferIntConstant.apply(value = self.values(0), length = n)
+    case _ =>
+      throw new RuntimeException("broadcast called on buffer with wrong size")
+  }
+
   def positiveLocations: BufferInt = {
     import org.saddle._
     BufferInt(
@@ -19,14 +26,32 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
   /* Returns a buffer of numGroups. It may overflow. */
   def sumGroups(partitionMap: BufferInt, numGroups: Int): BufferType = {
     assert(partitionMap.length == length)
-    val ar = Array.ofDim[Int](numGroups)
+    val ar = Array.fill[Int](numGroups)(Int.MinValue)
     var i = 0
     val n = partitionMap.length
     while (i < n) {
-      if (!isMissing(i)) { ar(partitionMap.raw(i)) += values(i) }
+      if (!isMissing(i)) {
+        if (ar(partitionMap.raw(i)) == Int.MinValue) {
+          ar(partitionMap.raw(i)) = values(i)
+        } else { ar(partitionMap.raw(i)) += values(i) }
+
+      }
       i += 1
     }
     BufferInt(ar)
+
+  }
+
+  def firstInGroup(partitionMap: BufferInt, numGroups: Int): BufferType = {
+    assert(partitionMap.length == length)
+    val ar = Array.fill(numGroups)(Int.MinValue)
+    var i = 0
+    val n = partitionMap.length
+    while (i < n) {
+      if (!isMissing(i)) { ar(partitionMap.raw(i)) = values(i) }
+      i += 1
+    }
+    tag.makeBuffer(ar)
 
   }
 
@@ -142,6 +167,13 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
     scala.util.hashing.byteswap32(values(l)).toLong
   }
 
+  def minMax = if (values.length == 0) None
+  else {
+    Some(
+      (values.min, values.max)
+    )
+  }
+
   override def toSegment(
       name: LogicalPath
   )(implicit tsc: TaskSystemComponents): IO[SegmentInt] = {
@@ -154,12 +186,7 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
         fs2.Stream.chunk(fs2.Chunk.byteBuffer(bb))
       }.flatMap { stream =>
         val minmax =
-          if (values.length == 0) None
-          else {
-            Some(
-              (values.min, values.max)
-            )
-          }
+          minMax
         SharedFile
           .apply(stream, name.toString)
           .map(sf => SegmentInt(Some(sf), values.length, minmax))
@@ -196,7 +223,7 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
       i += 1
     }
   }
-  def elementwise_+(other: BufferDouble): BufferDouble =  {
+  def elementwise_+(other: BufferDouble): BufferDouble = {
     assert(other.length == self.length)
     var i = 0
     val n = self.length
@@ -209,7 +236,7 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
   }
 
   def elementwise_&&(other: BufferType): BufferInt = {
-      assert(other.length == self.length)
+    assert(other.length == self.length)
     var i = 0
     val n = self.length
     val r = Array.ofDim[Int](n)
@@ -221,7 +248,7 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
     BufferInt(r)
   }
   def elementwise_||(other: BufferType): BufferInt = {
-      assert(other.length == self.length)
+    assert(other.length == self.length)
     var i = 0
     val n = self.length
     val r = Array.ofDim[Int](n)
@@ -230,11 +257,11 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
       r(i) = if (self.values(i) > 0 || other.values(i) > 0) 1 else 0
       i += 1
     }
-   BufferInt(r)
+    BufferInt(r)
   }
 
   def elementwise_eq(other: BufferType): BufferInt = {
-      assert(other.length == self.length)
+    assert(other.length == self.length)
     var i = 0
     val n = self.length
     val r = Array.ofDim[Int](n)
@@ -246,7 +273,7 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
     BufferInt(r)
   }
   def elementwise_gt(other: BufferType): BufferInt = {
-      assert(other.length == self.length)
+    assert(other.length == self.length)
     var i = 0
     val n = self.length
     val r = Array.ofDim[Int](n)
@@ -258,7 +285,7 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
     BufferInt(r)
   }
   def elementwise_gteq(other: BufferType): BufferInt = {
-      assert(other.length == self.length)
+    assert(other.length == self.length)
     var i = 0
     val n = self.length
     val r = Array.ofDim[Int](n)
@@ -270,7 +297,7 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
     BufferInt(r)
   }
   def elementwise_lt(other: BufferType): BufferInt = {
-      assert(other.length == self.length)
+    assert(other.length == self.length)
     var i = 0
     val n = self.length
     val r = Array.ofDim[Int](n)
@@ -282,7 +309,7 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
     BufferInt(r)
   }
   def elementwise_lteq(other: BufferType): BufferInt = {
-      assert(other.length == self.length)
+    assert(other.length == self.length)
     var i = 0
     val n = self.length
     val r = Array.ofDim[Int](n)
@@ -294,7 +321,7 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
     BufferInt(r)
   }
   def elementwise_neq(other: BufferType): BufferInt = {
-      assert(other.length == self.length)
+    assert(other.length == self.length)
     var i = 0
     val n = self.length
     val r = Array.ofDim[Int](n)
@@ -307,7 +334,7 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
   }
 
   def elementwise_eq(other: BufferDouble): BufferInt = {
-      assert(other.length == self.length)
+    assert(other.length == self.length)
     var i = 0
     val n = self.length
     val r = Array.ofDim[Int](n)
@@ -319,7 +346,7 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
     BufferInt(r)
   }
   def elementwise_gt(other: BufferDouble): BufferInt = {
-      assert(other.length == self.length)
+    assert(other.length == self.length)
     var i = 0
     val n = self.length
     val r = Array.ofDim[Int](n)
@@ -328,10 +355,10 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
       r(i) = if (self.values(i) > other.values(i).toInt) 1 else 0
       i += 1
     }
-  BufferInt(r)
+    BufferInt(r)
   }
   def elementwise_gteq(other: BufferDouble): BufferInt = {
-      assert(other.length == self.length)
+    assert(other.length == self.length)
     var i = 0
     val n = self.length
     val r = Array.ofDim[Int](n)
@@ -340,10 +367,10 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
       r(i) = if (self.values(i) >= other.values(i).toInt) 1 else 0
       i += 1
     }
-   BufferInt(r)
+    BufferInt(r)
   }
   def elementwise_lt(other: BufferDouble): BufferInt = {
-      assert(other.length == self.length)
+    assert(other.length == self.length)
     var i = 0
     val n = self.length
     val r = Array.ofDim[Int](n)
@@ -352,10 +379,10 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
       r(i) = if (self.values(i) < other.values(i).toInt) 1 else 0
       i += 1
     }
-   BufferInt(r)
+    BufferInt(r)
   }
   def elementwise_lteq(other: BufferDouble): BufferInt = {
-      assert(other.length == self.length)
+    assert(other.length == self.length)
     var i = 0
     val n = self.length
     val r = Array.ofDim[Int](n)
@@ -367,7 +394,7 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
     BufferInt(r)
   }
   def elementwise_neq(other: BufferDouble): BufferInt = {
-      assert(other.length == self.length)
+    assert(other.length == self.length)
     var i = 0
     val n = self.length
     val r = Array.ofDim[Int](n)
@@ -376,9 +403,20 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
       r(i) = if (self.values(i) != other.values(i).toInt) 1 else 0
       i += 1
     }
-   BufferInt(r)
+    BufferInt(r)
   }
 
+  def elementwise_abs: BufferInt = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+
+    while (i < n) {
+      r(i) = math.abs(self.values(i))
+      i += 1
+    }
+    BufferInt(r)
+  }
   def elementwise_toDouble: BufferDouble = {
     var i = 0
     val n = self.length

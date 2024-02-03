@@ -72,6 +72,7 @@ sealed trait Buffer { self =>
     * missing and non empty
     */
   def filter(mask: Buffer): BufferType = {
+    assert(this.length == mask.length, "mask length incorrect")
     this.take(mask.positiveLocations)
   }
 
@@ -128,12 +129,36 @@ sealed trait Buffer { self =>
     */
   def sumGroups(partitionMap: BufferInt, numGroups: Int): BufferType
 
-  
+  /** Reduce the groups by taking the first element per group */
+  def firstInGroup(partitionMap: BufferInt, numGroups: Int): BufferType 
+
+  /** If this buffer has size numElems then return it If this buffer has size 1
+    * then return a buffer with that element repeated numElem times Otherwise
+    * throw
+    *
+    * @param numElems
+    */
+  def broadcast(numElems: Int): BufferType
+
+  def minMax: Option[(Elem, Elem)]
+
+  def countNonMissing: Long = {
+    var i = 0
+    var s = 0
+    val n = length
+    while (i < n) {
+      if (!isMissing(i)) { s += 1 }
+      i += 1
+    }
+    s.toLong
+  }
 
 }
 
 object BufferDouble {
   def apply(s: Double*): BufferDouble = BufferDouble(s.toArray)
+  def constant(value: Double, length: Int): BufferDouble =
+    BufferDouble(Array.fill[Double](length)(value))
 }
 
 final case class BufferDouble(values: Array[Double])
@@ -146,7 +171,7 @@ final case class BufferDouble(values: Array[Double])
   type ColumnType = Column.F64Column
 
   type ColumnTagType = ColumnTag.F64.type
-  def tag: ColumnTagType = ColumnTag.F64  
+  def tag: ColumnTagType = ColumnTag.F64
 
 }
 
@@ -155,29 +180,29 @@ object BufferInt {
   def apply(e: Array[Int]): BufferInt = {
 
     def isConstant = {
-      var i = 1 
+      var i = 1
       val x = e(0)
       var stop = false
       while (i < e.length && !stop) {
         if (x != e(i)) {
           stop = true
         }
-        i+=1
+        i += 1
       }
       !stop
     }
 
-    if (e.isEmpty) empty 
+    if (e.isEmpty) empty
     else if (e.length == 1) single(e(0))
-    else if (isConstant) constant(e(0),e.length)
+    else if (isConstant) constant(e(0), e.length)
     else
-    BufferIntInArray(e)
+      BufferIntInArray(e)
   }
-  def empty : BufferIntConstant = BufferIntConstant(Int.MinValue,0)
-  def single(value:Int) : BufferIntConstant = BufferIntConstant(value,1)
-  def constant(value:Int, length:Int ) : BufferIntConstant = BufferIntConstant(value,length)
-  
-  
+  def empty: BufferIntConstant = BufferIntConstant(Int.MinValue, 0)
+  def single(value: Int): BufferIntConstant = BufferIntConstant(value, 1)
+  def constant(value: Int, length: Int): BufferIntConstant =
+    BufferIntConstant(value, length)
+
 }
 
 sealed trait BufferInt extends Buffer with Location with BufferIntImpl {
@@ -192,12 +217,11 @@ sealed trait BufferInt extends Buffer with Location with BufferIntImpl {
   def where(i: Int): BufferInt
   private[ra3] def values: Array[Int]
 
- 
-
-  
 }
 
-final case class BufferIntConstant(value: Int, length: Int) extends BufferInt with BufferIntConstantImpl {
+final case class BufferIntConstant(value: Int, length: Int)
+    extends BufferInt
+    with BufferIntConstantImpl {
 
   private[ra3] def values = Array.fill[Int](length)(value)
   def raw(i: Int): Int =
@@ -215,6 +239,8 @@ final case class BufferIntInArray(private val values0: Array[Int])
 }
 object BufferLong {
   def apply(s: Long*): BufferLong = BufferLong(s.toArray)
+  def constant(value: Long, length: Int): BufferLong =
+    BufferLong(Array.fill[Long](length)(value))
 }
 /* Buffer of Lng, missing is Long.MinValue */
 final case class BufferLong(private[ra3] val values: Array[Long])
@@ -231,6 +257,8 @@ final case class BufferLong(private[ra3] val values: Array[Long])
 }
 object BufferInstant {
   def apply(s: Long*): BufferInstant = BufferInstant(s.toArray)
+  def constant(value: Long, length: Int): BufferInstant =
+    BufferInstant(Array.fill[Long](length)(value))
 }
 /* Buffer of Lng, missing is Long.MinValue */
 final case class BufferInstant(private[ra3] val values: Array[Long])
@@ -248,6 +276,8 @@ final case class BufferInstant(private[ra3] val values: Array[Long])
 object BufferString {
   def apply(s: String*): BufferString = BufferString(s.toArray[CharSequence])
   val missing: CharSequence = s"${Char.MinValue}"
+  def constant(value: String, length: Int): BufferString =
+    BufferString(Array.fill[CharSequence](length)(value))
 }
 /* Buffer of CharSequence, missing is null */
 final case class BufferString(private[ra3] val values: Array[CharSequence])

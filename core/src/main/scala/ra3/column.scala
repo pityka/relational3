@@ -65,7 +65,9 @@ object Column {
     type ColumnTagType = ColumnTag.Instant.type
     def tag = ColumnTag.Instant
   }
-  case class StringColumn(segments: Vector[SegmentString]) extends Column with StringColumnImpl {
+  case class StringColumn(segments: Vector[SegmentString])
+      extends Column
+      with StringColumnImpl {
     def minMax: Option[(String, String)] = {
       val s = segments.flatMap(_.minMax.toSeq)
       if (s.isEmpty) None
@@ -111,7 +113,8 @@ object Column {
 
 }
 
-sealed trait Column  { self =>
+sealed trait Column { self =>
+
   type ColumnType >: this.type <: Column {
     type Elem = self.Elem
   }
@@ -142,9 +145,12 @@ sealed trait Column  { self =>
     s"$tag\tN_segments=${segments.size}\tN_elem=${segments.map(_.numElems).sum}"
 
   def as(c: Column) = this.asInstanceOf[c.ColumnType]
-  def as[C<:Column] = this.asInstanceOf[C]
+  def as[C <: Column] = this.asInstanceOf[C]
   def as(c: ColumnTag) = this.asInstanceOf[c.ColumnType]
   def castAndConcatenate(other: Column) = ++(other.asInstanceOf[ColumnType])
+
+  def countNonMissing(implicit tsc: TaskSystemComponents): IO[Long] =
+    ra3.ts.CountNonMissing.queue(segments)
 
   def estimateCDF(coverage: Double, numPointsPerSegment: Int)(implicit
       tsc: TaskSystemComponents
@@ -198,36 +204,45 @@ sealed trait Column  { self =>
       opTag: OP
   )(implicit tsc: TaskSystemComponents): IO[opTag.ColumnTypeC] = {
     assert(self.segments.size == other.segments.size)
-    ra3.ts.MakeUniqueId.queue0("elementwise-"+opTag, List(self, other)).flatMap { name =>
-      IO.parSequenceN(math.min(32, self.segments.size))(
-        self.segments.zip(other.segments).zipWithIndex.map {
-          case ((a, b), segmentIdx) =>
-            assert(a.numElems == b.numElems)
-            ra3.ts.ElementwiseBinaryOperation
-              .queue(opTag.op(a, Left(b)), LogicalPath(name, None, segmentIdx, 0))
-        }
-      ).map(segments => opTag.tagC.makeColumn(segments))
-    }
+    ra3.ts.MakeUniqueId
+      .queue0("elementwise-" + opTag, List(self, other))
+      .flatMap { name =>
+        IO.parSequenceN(math.min(32, self.segments.size))(
+          self.segments.zip(other.segments).zipWithIndex.map {
+            case ((a, b), segmentIdx) =>
+              assert(a.numElems == b.numElems)
+              ra3.ts.ElementwiseBinaryOperation
+                .queue(
+                  opTag.op(a, Left(b)),
+                  LogicalPath(name, None, segmentIdx, 0)
+                )
+          }
+        ).map(segments => opTag.tagC.makeColumn(segments))
+      }
   }
- 
+
   def elementwiseConstant[
       El,
       OP <: ra3.ops.BinaryOpTag {
-        type SegmentTypeA = SegmentType; 
+        type SegmentTypeA = SegmentType;
         type ElemB = El;
       }
   ](
       other: El,
       opTag: OP
   )(implicit tsc: TaskSystemComponents): IO[opTag.ColumnTypeC] = {
-    ra3.ts.MakeUniqueId.queue0("elementwiseConstant-"+opTag, List(self)).flatMap { name =>
-      IO.parSequenceN(math.min(32, self.segments.size))(
-        self.segments.zipWithIndex.map {
-          case (a, segmentIdx) =>
+    ra3.ts.MakeUniqueId
+      .queue0("elementwiseConstant-" + opTag, List(self))
+      .flatMap { name =>
+        IO.parSequenceN(math.min(32, self.segments.size))(
+          self.segments.zipWithIndex.map { case (a, segmentIdx) =>
             ra3.ts.ElementwiseBinaryOperation
-              .queue(opTag.op(a, Right(other)), LogicalPath(name, None, segmentIdx, 0))
-        }
-      ).map(segments => opTag.tagC.makeColumn(segments))
-    }
+              .queue(
+                opTag.op(a, Right(other)),
+                LogicalPath(name, None, segmentIdx, 0)
+              )
+          }
+        ).map(segments => opTag.tagC.makeColumn(segments))
+      }
   }
 }

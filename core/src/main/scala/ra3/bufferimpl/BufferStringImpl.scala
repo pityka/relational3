@@ -18,6 +18,14 @@ private[ra3] object CharSequenceOrdering
 }
 
 private[ra3] trait BufferStringImpl { self: BufferString =>
+
+  def broadcast(n: Int) = self.length match {
+    case x if x == n => this 
+    case 1 => 
+    BufferString(Array.fill[CharSequence](n)(values(0)))
+    case _ => throw new RuntimeException("broadcast called on buffer with wrong size")
+  }
+
   def positiveLocations: BufferInt = {
     import org.saddle._
     BufferInt(
@@ -145,6 +153,31 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
     hasher.hash(values(l).codePoints.toArray).toLong
   }
 
+   def firstInGroup(partitionMap: BufferInt, numGroups: Int): BufferType = {
+    assert(partitionMap.length == length)
+    val ar : Array[CharSequence] = Array.fill(numGroups)(s"${Char.MinValue}")
+    var i = 0
+    val n = partitionMap.length
+    while (i < n) {
+      if (!isMissing(i)) { ar(partitionMap.raw(i)) = values(i) }
+      i += 1
+    }
+    tag.makeBuffer(ar)
+
+  }
+
+  def minMax = {
+          if (values.length > 0)
+            Some(
+              (
+                values.min(CharSequenceOrdering).toString,
+                values.max(CharSequenceOrdering).toString
+              )
+            )
+          else None
+        }
+
+
   override def toSegment(
       name: LogicalPath
   )(implicit tsc: TaskSystemComponents): IO[SegmentString] = {
@@ -173,16 +206,7 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
           fs2.Stream.chunk(fs2.Chunk.byteBuffer(bb))
         }
       }.flatMap { stream =>
-        val minmax: Option[(String, String)] = {
-          if (values.length > 0)
-            Some(
-              (
-                values.min(CharSequenceOrdering).toString,
-                values.max(CharSequenceOrdering).toString
-              )
-            )
-          else None
-        }
+        val minmax: Option[(String, String)] =  minMax
 
         SharedFile
           .apply(stream, name.toString)

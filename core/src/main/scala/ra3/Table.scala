@@ -2,6 +2,7 @@ package ra3
 
 import tasks.TaskSystemComponents
 import cats.effect.IO
+import ra3.lang.Expr
 
 case class PartitionData(
     columns: Seq[Int],
@@ -27,6 +28,10 @@ case class PartitionData(
     )
 }
 
+
+
+
+
 // Segments in the same table are aligned: each column holds the same number of segments of the same size
 case class Table(
     columns: Vector[Column],
@@ -35,6 +40,7 @@ case class Table(
     partitions: Option[PartitionData]
 ) extends RelationalAlgebra {
   assert(columns.map(_.segments.map(_.numElems)).distinct.size == 1)
+
   def numCols = columns.size
   def numRows =
     columns.map(_.segments.map(_.numElems.toLong).sum).headOption.getOrElse(0L)
