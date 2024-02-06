@@ -2,6 +2,7 @@ package ra3
 import java.nio.ByteBuffer
 import java.nio.channels.WritableByteChannel
 import java.nio.channels.ReadableByteChannel
+import cats.effect.IO
 
 private[ra3] class CharArraySubSeq(buff: Array[Char], start: Int, to: Int)
     extends CharSequence {
@@ -14,7 +15,8 @@ private[ra3] class CharArraySubSeq(buff: Array[Char], start: Int, to: Int)
     else buff(rel)
   }
 
-  override def subSequence(start: Int, end: Int): CharSequence = throw new NotImplementedError
+  override def subSequence(start: Int, end: Int): CharSequence =
+    throw new NotImplementedError
 
 }
 
@@ -31,8 +33,10 @@ private[ra3] case class TableHelper(
 }
 
 private[ra3] object Utils {
-  def guessMemoryUsageInMB(s:Segment) = math.max(5,s.numElems * 32 / 1024 / 1024)
-  def guessMemoryUsageInMB(s:Column) = math.max(5,s.numElems * 32 / 1024 / 1024)
+  def guessMemoryUsageInMB(s: Segment) =
+    math.max(5, s.numElems * 32 / 1024 / 1024)
+  def guessMemoryUsageInMB(s: Column) =
+    math.max(5, s.numElems * 32 / 1024 / 1024)
   def writeFully(bb: ByteBuffer, channel: WritableByteChannel) = {
     bb.rewind
     while (bb.hasRemaining) {
@@ -49,6 +53,15 @@ private[ra3] object Utils {
       i = channel.read(bb)
     }
     bb.flip
+  }
+
+  def bufferMultiple[
+      S <: Segment {type SegmentType = S}
+  ](s: Seq[S])(implicit tsc: tasks.TaskSystemComponents): IO[S#BufferType] = {
+    val tag = s.head.tag
+    IO
+      .parSequenceN(32)(s.map(_.buffer))
+      .map(b => tag.cat(b.map(_.as(tag).asBufferType): _*))
   }
 
 }

@@ -1,6 +1,8 @@
 package ra3.lang
 import com.github.plokhotnyuk.jsoniter_scala.macros._
 import com.github.plokhotnyuk.jsoniter_scala.core._
+import cats.effect.IO
+import tasks.TaskSystemComponents
 
 class KeyTag
 sealed trait Key
@@ -16,7 +18,7 @@ case class ColumnKey(tableUniqueId: String, columnIdx: Int) extends Key
 sealed trait Expr { self =>
   type T
 
-  private[lang] def evalWith(env: Map[Key, Value[_]]): Value[T]
+  private[lang] def evalWith(env: Map[Key, Value[_]])(implicit tsc:TaskSystemComponents): IO[Value[T]]
   def hash = {
     val bytes = writeToArray(this.replaceTags())
     com.google.common.hash.Hashing.murmur3_128().hashBytes(bytes).asLong()
@@ -36,29 +38,29 @@ private[lang] object Expr {
 
   case object Star extends Expr {
     type T = ColumnSpec
-    def evalWith(env: Map[Key, Value[_]]): Value[T] = Value.Const(ra3.lang.Star)
+    def evalWith(env: Map[Key, Value[_]])(implicit tsc:TaskSystemComponents): IO[Value[T]] = IO.pure(Value.Const(ra3.lang.Star))
     def tags: Set[KeyTag] = Set.empty
     val columnKeys: Set[ColumnKey] = Set.empty
     def replace(i: Map[KeyTag, Int]): Expr = this
   }
   case class LitStr(s: String) extends Expr {
     type T = String
-    def evalWith(env: Map[Key, Value[_]]): Value[T] = Value.Const(s)
+    def evalWith(env: Map[Key, Value[_]])(implicit tsc:TaskSystemComponents): IO[Value[T]] = IO.pure(Value.Const(s))
     def tags: Set[KeyTag] = Set.empty
     val columnKeys: Set[ColumnKey] = Set.empty
     def replace(i: Map[KeyTag, Int]): Expr = this
   }
   case class LitNum(s: Int) extends Expr {
     type T = Int
-    def evalWith(env: Map[Key, Value[_]]): Value[T] = Value.Const(s)
+    def evalWith(env: Map[Key, Value[_]])(implicit tsc:TaskSystemComponents): IO[Value[T]] = IO.pure(Value.Const(s))
     def tags: Set[KeyTag] = Set.empty
     val columnKeys: Set[ColumnKey] = Set.empty
     def replace(i: Map[KeyTag, Int]): Expr = this
   }
   case class Ident(name: Key) extends Expr {
 
-    def evalWith(env: Map[Key, Value[_]]): Value[T] =
-      env(name).asInstanceOf[Value[T]]
+    def evalWith(env: Map[Key, Value[_]])(implicit tsc:TaskSystemComponents): IO[Value[T]] =
+      IO.pure(env(name).asInstanceOf[Value[T]])
     def as[T1] = asInstanceOf[Expr { type T = T1 }]
 
     def tags: Set[KeyTag] = name match {
@@ -82,11 +84,10 @@ private[lang] object Expr {
     val columnKeys: Set[ColumnKey] = arg0.columnKeys
     def replace(i: Map[KeyTag, Int]): Expr = BuiltInOp1(arg0.replace(i), op)
 
-    def evalWith(env: Map[Key, Value[_]]): Value[T] =
-      Value.Const(
-        op.op(
-          arg0.asInstanceOf[Expr { type T = op.A0 }].evalWith(env).v
-        )
+    def evalWith(env: Map[Key, Value[_]])(implicit tsc:TaskSystemComponents): IO[Value[T]] =
+      arg0.asInstanceOf[Expr { type T = op.A0 }].evalWith(env).flatMap(v => 
+        op.op(v.v).map(Value.Const(_))
+      
       )
 
   }
@@ -98,13 +99,13 @@ private[lang] object Expr {
     def replace(i: Map[KeyTag, Int]): Expr =
       BuiltInOp2(arg0.replace(i), arg1.replace(i), op)
 
-    def evalWith(env: Map[Key, Value[_]]): Value[T] =
-      Value.Const(
-        op.op(
-          arg0.asInstanceOf[Expr { type T = op.A0 }].evalWith(env).v,
-          arg1.asInstanceOf[Expr { type T = op.A1 }].evalWith(env).v
-        )
-      )
+    def evalWith(env: Map[Key, Value[_]])(implicit tsc:TaskSystemComponents): IO[Value[T]] =
+      for {
+        a0 <- arg0.asInstanceOf[Expr { type T = op.A0 }].evalWith(env)
+        a1 <- arg1.asInstanceOf[Expr { type T = op.A1 }].evalWith(env)
+        r <- op.op(a0.v,a1.v)
+      } yield Value.Const(r)
+      
 
   }
   case class BuiltInOp3(arg0: Expr, arg1: Expr, arg2: Expr, op: ops.Op3)
@@ -117,14 +118,14 @@ private[lang] object Expr {
     def replace(i: Map[KeyTag, Int]): Expr =
       BuiltInOp3(arg0.replace(i), arg1.replace(i), arg2.replace(i), op)
 
-    def evalWith(env: Map[Key, Value[_]]): Value[T] =
-      Value.Const(
-        op.op(
-          arg0.asInstanceOf[Expr { type T = op.A0 }].evalWith(env).v,
-          arg1.asInstanceOf[Expr { type T = op.A1 }].evalWith(env).v,
-          arg2.asInstanceOf[Expr { type T = op.A2 }].evalWith(env).v
-        )
-      )
+    def evalWith(env: Map[Key, Value[_]])(implicit tsc:TaskSystemComponents): IO[Value[T]] =
+      for {
+        a0 <- arg0.asInstanceOf[Expr { type T = op.A0 }].evalWith(env)
+        a1 <- arg1.asInstanceOf[Expr { type T = op.A1 }].evalWith(env)
+        a2 <- arg2.asInstanceOf[Expr { type T = op.A2 }].evalWith(env)
+        r <- op.op(a0.v,a1.v,a2.v)
+      } yield Value.Const(r)
+      
 
   }
   case class BuiltInOpStar(args: Seq[Expr], op: ops.OpStar)
@@ -137,12 +138,10 @@ private[lang] object Expr {
     def replace(i: Map[KeyTag, Int]): Expr =
       BuiltInOpStar(args.map(_.replace(i)), op)
 
-    def evalWith(env: Map[Key, Value[_]]): Value[T] =
-      Value.Const(
-        op.op(
-          args.map(_.asInstanceOf[Expr { type T = op.A }].evalWith(env).v):_*
-        )
-      )
+    def evalWith(env: Map[Key, Value[_]])(implicit tsc:TaskSystemComponents): IO[Value[T]] =
+          IO.parSequenceN(32)(args.map(_.asInstanceOf[Expr { type T = op.A }].evalWith(env))).map( args =>
+            Value.Const(op.op(args.map(_.v):_*)))
+        
 
   }
 
@@ -185,9 +184,10 @@ private[lang] object Expr {
       }
       Local(replacedName, assigned.replace(i), body.replace(i))
     }
-    def evalWith(env: Map[Key, Value[_]]): Value[T] = {
-      val assignedValue = assigned.evalWith(env)
+    def evalWith(env: Map[Key, Value[_]])(implicit tsc:TaskSystemComponents): IO[Value[T]] = {
+      assigned.evalWith(env).flatMap{ assignedValue =>
       body.evalWith(env + (name -> assignedValue))
+      }
     }
 
   }

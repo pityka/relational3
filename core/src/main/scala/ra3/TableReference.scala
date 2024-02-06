@@ -6,7 +6,7 @@ private[ra3] class ColWithNameTyped[T <: ColumnTag](
     protected val tag: T
 ) {
   def apply[T1](body: ra3.lang.Expr {
-    type T = tag.BufferType
+    type T = Either[tag.BufferType,Seq[tag.SegmentType]]
   } => ra3.lang.Expr { type T = T1 }): Expr { type T = T1 } =
     ra3.lang.global(ra3.lang.ColumnKey(uniqueId, colIdx)).apply[T1](body)
 }
@@ -16,7 +16,7 @@ private[ra3] class ColWithNameTyped2[T <: ColumnTag](
     col2: (String, Int)
 ) {
   type E = ra3.lang.Expr {
-    type T = col.BufferType
+    type T = Either[col.BufferType,Seq[col.SegmentType]]
   }
   def apply[T1](
       body: (E, E) => ra3.lang.Expr { type T = T1 }
@@ -36,7 +36,7 @@ private[ra3] class ColWithNameTyped3[T <: ColumnTag](
     col3: (String, Int)
 ) {
   type E = ra3.lang.Expr {
-    type T = col.BufferType
+    type T = Either[col.BufferType,Seq[col.SegmentType]]
   }
   def apply[T1](
       body: (E, E, E) => ra3.lang.Expr { type T = T1 }

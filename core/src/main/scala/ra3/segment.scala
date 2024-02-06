@@ -165,6 +165,8 @@ final case class SegmentInt(
 
   }
 
+  def isConstant(i:Int) = sf.isEmpty && minMax.isDefined && minMax.get._1 == minMax.get._2 && minMax.get._1 == i
+
 }
 final case class SegmentLong(
     sf: Option[SharedFile],
