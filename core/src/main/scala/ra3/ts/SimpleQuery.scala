@@ -39,6 +39,7 @@ object SimpleQuery {
       outputPath: LogicalPath,
       groupMap: Option[(SegmentInt, Int)]
   )(implicit tsc: TaskSystemComponents): IO[List[(Segment, String)]] = {
+    println(predicate)
     val neededColumns = predicate.columnKeys
     val numElems = {
       val d = input.map(_.segment.map(_.numElems).sum).distinct
@@ -83,6 +84,7 @@ object SimpleQuery {
         .map(_.v.asInstanceOf[ReturnValue])
         .flatMap { returnValue =>
           val mask = returnValue.filter
+          println(returnValue)
 
           // If all items are dropped then we do not buffer segments from Star
           // Segments needed for the predicate/projection program are already buffered though
@@ -222,7 +224,7 @@ object SimpleQuery {
   )(implicit
       tsc: TaskSystemComponents
   ): IO[Seq[(Segment, String)]] =
-    task(SimpleQuery(input, predicate.replaceTags(), outputPath, groupMap))(
+    task(SimpleQuery(input, predicate.replaceTags(Map.empty), outputPath, groupMap))(
       ResourceRequest(
         cpu = (1, 1),
         memory =

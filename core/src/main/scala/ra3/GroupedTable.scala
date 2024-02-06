@@ -90,14 +90,27 @@ case class GroupedTable(
       colNames = colNames
     )
     val program = query(tRef)
-    val columns = colNames.size
+    GroupedTable.reduceGroups(this,program)
+
+  }
+}
+
+object GroupedTable {
+  def reduceGroups(
+      self: GroupedTable,
+      program: ra3.lang.Expr { type T <: ra3.lang.ReturnValue }
+  )(implicit
+      tsc: TaskSystemComponents
+  ) : IO[Table] = {
+   
+    val columns = self.colNames.size
     val name = ts.MakeUniqueId.queue0(
-      s"$uniqueId-reduce-${program.hash}",
+      s"${self.uniqueId}-reduce-${program.hash}",
       List()
     )
     name.flatMap { name =>
-      IO.parSequenceN(math.min(32, partitions.size))(
-        partitions.zipWithIndex.map {
+      IO.parSequenceN(math.min(32, self.partitions.size))(
+        self.partitions.zipWithIndex.map {
           case ((partition, groupMap), partitionIdx) =>
             ts.SimpleQuery
               .queue(
@@ -106,8 +119,8 @@ case class GroupedTable(
                     segment = partition
                       .columns(columnIdx)
                       .segments, // to be removed
-                    tableUniqueId = this.uniqueId,
-                    columnName = this.colNames(columnIdx),
+                    tableUniqueId = self.uniqueId,
+                    columnName = self.colNames(columnIdx),
                     columnIdx = columnIdx
                   )
                 },

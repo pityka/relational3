@@ -79,11 +79,11 @@ object MultipleTableQuery {
           }
           .filter(v => neededColumns.contains(v._1))
           .map { case (key, segment, Some(takeBuffer)) =>
-            SimpleQuery
+            ra3.ts.SimpleQuery
               .bufferMultiple(segment.segment)
               .map(b => (key, Left(b.take(takeBuffer)), segment.columnName))
             case (key,segment,None) => 
-              SimpleQuery
+              ra3.ts.SimpleQuery
               .bufferMultiple(segment.segment).map(b => (key,Left(b),segment.columnName))              
           }
       )
@@ -149,7 +149,7 @@ object MultipleTableQuery {
                               )
                             )
                           else
-                            SimpleQuery
+                            ra3.ts.SimpleQuery
                               .bufferMultiple(segmentParts)
                               .map(b =>
                                 NamedColumnChunk(
@@ -228,7 +228,7 @@ object MultipleTableQuery {
   )(implicit
       tsc: TaskSystemComponents
   ): IO[Seq[(Segment, String)]] =
-    task(MultipleTableQuery(input, predicate.replaceTags(), outputPath, takes))(
+    task(MultipleTableQuery(input, predicate.replaceTags(Map.empty), outputPath, takes))(
       ResourceRequest(
         cpu = (1, 1),
         memory =

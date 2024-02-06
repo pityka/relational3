@@ -26,55 +26,32 @@ class LanguageSuite extends munit.FunSuite with WithTempTaskSystem {
       lang.star :: (e1 + e1).as("b") :: e1.as("a").list
     }).unsafeRunSync().v == List(ra3.lang.Star, NamedConstantI32(2, "b"), NamedConstantI32(1, "a")))
 
-    val s1 = gl[ra3.lang.DI32](ColumnKey("hole", 0))(buffer =>
+    gl[ra3.lang.DI32](ColumnKey("hole", 0))(buffer =>
         select(buffer as "boo", buffer as "boo2", buffer)
           where (buffer <= 0 )
-      ).replaceTags()
+      ).replaceTags(Map.empty)
 
-    println(
-      s1
-    )
-    // s1 match {
-    //   case LitNum(s) => 
-    //   case BuiltInOpStar(args, op) =>
-    //   case BuiltInOp3(arg0, arg1, arg2, op) =>
-    //   case BuiltInOp1(arg0, op) =>
-    //   case Ident(name) =>
-    //   case BuiltInOp2(arg0, arg1, ra3.lang.ops.MkSelect) =>
-    //   case BuiltInOp2(arg0, arg1, op) =>
-    //   case Expr.Star =>
-    //   case Local(name, assigned, body) =>
-    //   case LitStr(s) =>
-    // }
-
-    println(e)
-    println(e2)
-
-    println(writeToString(e))
-    println(writeToString(e2))
-    println(writeToString(e.replaceTags()))
-    println(writeToString(e2.replaceTags()))
-    val e3 = readFromString[Expr](writeToString(e.replaceTags()))
-    val e4 = readFromString[Expr](writeToString(e2.replaceTags()))
-    assert(writeToString(e.replaceTags()) == writeToString(e2.replaceTags()))
+    val e3 = readFromString[Expr](writeToString(e.replaceTags(Map.empty)))
+    val e4 = readFromString[Expr](writeToString(e2.replaceTags(Map.empty)))
+    assert(writeToString(e.replaceTags(Map.empty)) == writeToString(e2.replaceTags(Map.empty)))
     println(eval(e, Map(ColumnKey("hole", 0) -> Value.Const(1))).v)
     assert(eval(e, Map(ColumnKey("hole", 0) -> Value.Const(1))).v == "200")
     assert(eval(e3, Map(ColumnKey("hole", 0) -> Value.Const(1))).v == "200")
     assert(
       eval(
-        e.replaceTags(),
+        e.replaceTags(Map.empty),
         Map(ColumnKey("hole", 0) -> Value.Const(1))
       ).v == "200"
     )
     assert(
       eval(
-        e2.replaceTags(),
+        e2.replaceTags(Map.empty),
         Map(ColumnKey("hole", 0) -> Value.Const(1))
       ).v == "200"
     )
     assert(
       eval(
-        e3.replaceTags(),
+        e3.replaceTags(Map.empty),
         Map(ColumnKey("hole", 0) -> Value.Const(1))
       ).v == "200"
     )

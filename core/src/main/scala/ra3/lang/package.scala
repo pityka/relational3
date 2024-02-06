@@ -2,6 +2,8 @@ package ra3
 import cats.effect.IO
 import tasks.TaskSystemComponents
 package object lang {
+
+  type Query = ra3.lang.Expr { type T <: ra3.lang.ReturnValue }
   type IntExpr = Expr { type T = Int }
   type StrExpr = Expr { type T = String }
   type BufferExpr = Expr { type T <: Buffer }
@@ -9,10 +11,8 @@ package object lang {
 
   type DI32 = Either[BufferInt, Seq[SegmentInt]]
 
- 
-
   type ColumnExpr = Expr {
-    type T = Either[Buffer,Seq[Segment]]
+    type T = Either[Buffer, Seq[Segment]]
   }
   type I32ColumnExpr = Expr {
     type T = DI32
@@ -22,6 +22,8 @@ package object lang {
   }
 
   type ReturnExpr = Expr { type T = ReturnValue }
+
+  type GenericExpr[T0] = Expr { type T = T0 }
 
   implicit class SyntaxExpr[T0](a: Expr { type T = T0 })
       extends syntax.SyntaxExprImpl[T0] {
@@ -50,8 +52,7 @@ package object lang {
     protected def arg0 = a
 
   }
-  implicit class SyntaxColumn(a: ColumnExpr)
-      extends syntax.SyntaxColumnImpl {
+  implicit class SyntaxColumn(a: ColumnExpr) extends syntax.SyntaxColumnImpl {
     protected def arg0 = a
 
   }
@@ -106,8 +107,13 @@ package object lang {
     new Identifier(id)
   }
 
-  def select(args: Expr { type T = ColumnSpec }*): ReturnExpr =
+  
+ 
+
+
+  def select(args: Expr { type T = ColumnSpec }*): ReturnExpr = {
     Expr.makeOpStar(ops.MkSelect)(args: _*)
+  }
 
   private[ra3] def evaluate(expr: Expr)(implicit
       tsc: TaskSystemComponents
@@ -117,7 +123,7 @@ package object lang {
   ): IO[Value[expr.T]] =
     expr.evalWith(map)
 
-     private[ra3] def bufferIfNeeded[
+  private[ra3] def bufferIfNeeded[
       B <: Buffer { type BufferType = B },
       S <: Segment { type SegmentType = S; type BufferType = B },
       C
