@@ -6,6 +6,22 @@ import java.nio.ByteOrder
 import tasks.{TaskSystemComponents, SharedFile}
 private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
 
+  def elementAsCharSequence(i: Int): CharSequence = values(i).toString
+
+    def partition(numPartitions: Int, map: BufferInt): Vector[BufferType] = {
+    assert(length == map.length)
+    val growableBuffers =
+      Vector.fill(numPartitions)(org.saddle.Buffer.empty[Int])
+    var i = 0
+    val n = length
+    val mapv = map.values
+    while (i < n) {
+      growableBuffers(mapv(i)).+=(values(i))
+      i += 1
+    }
+    growableBuffers.map(v => BufferInt(v.toArray))
+  }
+
   def broadcast(n: Int): BufferInt = self.length match {
     case x if x == n => this
     case 1 => BufferIntConstant.apply(value = self.values(0), length = n)
@@ -134,14 +150,16 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
   ): (Option[BufferInt], Option[BufferInt]) = {
     val idx1 = Index(values)
     val idx2 = Index(other.values)
-    val reindexer = idx1.join(
-      idx2,
+    val reindexer = new (org.saddle.index.JoinerImpl[Int]).join(
+      left = idx1,
+      right = idx2,
       how = how match {
         case "inner" => org.saddle.index.InnerJoin
         case "left"  => org.saddle.index.LeftJoin
         case "right" => org.saddle.index.RightJoin
         case "outer" => org.saddle.index.OuterJoin
-      }
+      },
+      forceProperSemantics=true
     )
     (reindexer.lTake.map(BufferInt(_)), reindexer.rTake.map(BufferInt(_)))
   }
@@ -183,7 +201,7 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
         val bb =
           ByteBuffer.allocate(4 * values.length).order(ByteOrder.LITTLE_ENDIAN)
         bb.asIntBuffer().put(values)
-        fs2.Stream.chunk(fs2.Chunk.byteBuffer(bb))
+        fs2.Stream.chunk(fs2.Chunk.byteBuffer(Utils.compress(bb)))
       }.flatMap { stream =>
         val minmax =
           minMax
@@ -417,6 +435,17 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
     }
     BufferInt(r)
   }
+  def elementwise_not: BufferInt = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+
+    while (i < n) {
+      r(i) = if (self.values(i) > 0) 0 else 1
+      i += 1
+    }
+    BufferInt(r)
+  }
   def elementwise_toDouble: BufferDouble = {
     var i = 0
     val n = self.length
@@ -440,4 +469,264 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
     BufferLong(r)
   }
 
+  //
+
+  def minInGroups(partitionMap: BufferInt, numGroups: Int): BufferType = {
+    val ar = Array.fill[Int](numGroups)(Int.MaxValue)
+    var i = 0
+    val n = partitionMap.length
+    while (i < n) {
+      if (!isMissing(i)) {
+        val g = partitionMap.raw(i)
+        if (ar(g) == Int.MaxValue) {
+          ar(g) = values(i)
+        } else if (ar(g) > values(i)) {
+          ar(g) = values(i)
+        }
+      }
+      i += 1
+    }
+    BufferInt(ar)
+
+  }
+  def maxInGroups(partitionMap: BufferInt, numGroups: Int): BufferType = {
+    val ar = Array.fill[Int](numGroups)(Int.MinValue)
+    var i = 0
+    val n = partitionMap.length
+    while (i < n) {
+      if (!isMissing(i)) {
+        val g = partitionMap.raw(i)
+        if (ar(g) == Int.MinValue) {
+          ar(g) = values(i)
+        } else if (ar(g) < values(i)) {
+          ar(g) = values(i)
+        }
+      }
+      i += 1
+    }
+    BufferInt(ar)
+
+  }
+  def hasMissingInGroup(partitionMap: BufferInt, numGroups: Int): BufferInt = {
+    val ar = Array.fill[Int](numGroups)(0)
+    var i = 0
+    val n = partitionMap.length
+    while (i < n) {
+      val g = partitionMap.raw(i)
+      if (ar(g) == 0 && isMissing(i)) {
+        ar(g) = 1
+      }
+      i += 1
+    }
+    BufferInt(ar)
+
+  }
+  def allInGroups(partitionMap: BufferInt, numGroups: Int): BufferInt = {
+    val ar = Array.fill[Int](numGroups)(1)
+    var i = 0
+    val n = partitionMap.length
+    while (i < n) {
+      val g = partitionMap.raw(i)
+      if (ar(g) == 1 && (isMissing(i) || values(i) == 0)) {
+        ar(g) = 0
+      }
+      i += 1
+    }
+    BufferInt(ar)
+
+  }
+  def anyInGroups(partitionMap: BufferInt, numGroups: Int): BufferInt = {
+    val ar = Array.fill[Int](numGroups)(0)
+    var i = 0
+    val n = partitionMap.length
+    while (i < n) {
+      val g = partitionMap.raw(i)
+      if (ar(g) == 0 && values(i) == 1) {
+        ar(g) = 1
+      }
+      i += 1
+    }
+    BufferInt(ar)
+
+  }
+  def noneInGroups(partitionMap: BufferInt, numGroups: Int): BufferInt = {
+    val ar = Array.fill[Int](numGroups)(1)
+    var i = 0
+    val n = partitionMap.length
+    while (i < n) {
+      val g = partitionMap.raw(i)
+      if (ar(g) == 1 && values(i) == 1) {
+        ar(g) = 0
+      }
+      i += 1
+    }
+    BufferInt(ar)
+
+  }
+  def countInGroups(partitionMap: BufferInt, numGroups: Int): BufferType = {
+    val ar = Array.fill[Double](numGroups)(Double.NaN)
+    var i = 0
+    val n = partitionMap.length
+    while (i < n) {
+      if (!isMissing(i)) {
+        if (ar(partitionMap.raw(i)).isNaN()) {
+          ar(partitionMap.raw(i)) = 1d
+        } else ar(partitionMap.raw(i)) += 1d
+      }
+      i += 1
+    }
+    BufferInt(ar.map(_.toInt))
+
+  }
+  def countDistinctInGroups(
+      partitionMap: BufferInt,
+      numGroups: Int
+  ): BufferInt = {
+    val ar = Array.fill[scala.collection.mutable.Set[Int]](numGroups)(
+      scala.collection.mutable.Set.empty[Int]
+    )
+    var i = 0
+    val n = partitionMap.length
+    while (i < n) {
+      ar(partitionMap.raw(i)).add(values(i))
+
+      i += 1
+    }
+    BufferInt(ar.map(_.size))
+
+  }
+  def meanInGroups(partitionMap: BufferInt, numGroups: Int): BufferDouble = {
+    val ar = Array.fill[Double](numGroups)(Double.NaN)
+    val arCount = Array.ofDim[Int](numGroups)
+    var i = 0
+    val n = partitionMap.length
+    while (i < n) {
+      if (!isMissing(i)) {
+        if (ar(partitionMap.raw(i)).isNaN()) {
+          ar(partitionMap.raw(i)) = values(i)
+          arCount(partitionMap.raw(i)) = 1
+        } else {
+          ar(partitionMap.raw(i)) += values(i)
+          arCount(partitionMap.raw(i)) += 1
+        }
+      }
+      i += 1
+    }
+    var j = 0
+    val m = numGroups
+    while (j < m) {
+      ar(j) /= arCount(j)
+      j += 1
+    }
+    BufferDouble(ar)
+
+  }
+
+  def elementwise_printf(s: String): BufferString = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[CharSequence](n)
+
+    while (i < n) {
+      r(i) = s.formatted(values(i))
+      i += 1
+    }
+    BufferString(r)
+  }
+
+  def elementwise_containedIn(set: Set[Int]): ra3.BufferInt = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+
+    while (i < n) {
+      r(i) = if (set.contains(self.values(i))) 1 else 0
+      i += 1
+    }
+    BufferInt(r)
+  }
+
+  def elementwise_eq(other: Int): ra3.BufferInt = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+
+    while (i < n) {
+      r(i) = if (self.values(i) == other) 1 else 0
+      i += 1
+    }
+    BufferInt(r)
+  }
+
+  def elementwise_gt(other: Int): ra3.BufferInt = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+
+    while (i < n) {
+      r(i) = if (self.values(i) > other) 1 else 0
+      i += 1
+    }
+    BufferInt(r)
+  }
+
+  def elementwise_gteq(other: Int): ra3.BufferInt = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+
+    while (i < n) {
+      r(i) = if (self.values(i) >= other) 1 else 0
+      i += 1
+    }
+    BufferInt(r)
+  }
+
+  def elementwise_isMissing: ra3.BufferInt = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+
+    while (i < n) {
+      r(i) = if (isMissing(i)) 1 else 0
+      i += 1
+    }
+    BufferInt(r)
+  }
+
+  def elementwise_lt(other: Int): ra3.BufferInt = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+
+    while (i < n) {
+      r(i) = if (self.values(i) < other) 1 else 0
+      i += 1
+    }
+    BufferInt(r)
+  }
+
+  def elementwise_lteq(other: Int): ra3.BufferInt = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+
+    while (i < n) {
+      r(i) = if (self.values(i) <= other) 1 else 0
+      i += 1
+    }
+    BufferInt(r)
+  }
+
+  def elementwise_neq(other: Int): ra3.BufferInt = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+
+    while (i < n) {
+      r(i) = if (self.values(i) != other) 1 else 0
+      i += 1
+    }
+    BufferInt(r)
+  }
 }

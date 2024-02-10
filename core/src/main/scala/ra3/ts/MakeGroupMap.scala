@@ -24,6 +24,7 @@ object MakeGroupMap {
   private def doit(input: Seq[Column], outputPath: LogicalPath)(implicit
       tsc: TaskSystemComponents
   ) = {
+    scribe.debug(s"Make group map on $input to $outputPath")
     assert(input.map(_.tag).distinct.size == 1)
     val tag = input.head.tag
     val bufferedColumns = IO.parSequenceN(32)(input.map { column =>

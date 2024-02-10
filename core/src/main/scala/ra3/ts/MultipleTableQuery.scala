@@ -29,6 +29,10 @@ object MultipleTableQuery {
       outputPath: LogicalPath,
       takes: Seq[(String, Option[SegmentInt])]
   )(implicit tsc: TaskSystemComponents): IO[List[(Segment, String)]] = {
+        scribe.debug(
+      s"MultipleTableQuery task on ${input.groupBy(_.tableUniqueId).toSeq.map(s => (s._1, s._2.map(v => (v.columnName, v.segment.size))))} with $predicate to $outputPath. Takes: ${takes}"
+    )
+
     assert(input.forall(s => takes.exists(_._1 == s.tableUniqueId)))
     val neededColumns = predicate.columnKeys
     val numElems = {

@@ -6,12 +6,29 @@ import java.nio.ByteOrder
 import tasks.{TaskSystemComponents, SharedFile}
 
 private[ra3] trait BufferInstantImpl { self: BufferInstant =>
-  
+
+  def elementAsCharSequence(i: Int): CharSequence = values(i).toString
+
+    def partition(numPartitions: Int, map: BufferInt): Vector[BufferType] = {
+    assert(length == map.length)
+    val growableBuffers =
+      Vector.fill(numPartitions)(org.saddle.Buffer.empty[Long])
+    var i = 0
+    val n = length
+    val mapv = map.values
+    while (i < n) {
+      growableBuffers(mapv(i)).+=(values(i))
+      i += 1
+    }
+    growableBuffers.map(v => BufferInstant(v.toArray))
+  }
+
   def broadcast(n: Int) = self.length match {
-    case x if x == n => this 
-    case 1 => 
-    BufferInstant(Array.fill[Long](n)(values(0)))
-    case _ => throw new RuntimeException("broadcast called on buffer with wrong size")
+    case x if x == n => this
+    case 1 =>
+      BufferInstant(Array.fill[Long](n)(values(0)))
+    case _ =>
+      throw new RuntimeException("broadcast called on buffer with wrong size")
   }
 
   def positiveLocations: BufferInt = {
@@ -26,7 +43,7 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
 
   def sumGroups(partitionMap: BufferInt, numGroups: Int): BufferType = ???
 
-   def firstInGroup(partitionMap: BufferInt, numGroups: Int): BufferType = {
+  def firstInGroup(partitionMap: BufferInt, numGroups: Int): BufferType = {
     assert(partitionMap.length == length)
     val ar = Array.fill(numGroups)(Long.MinValue)
     var i = 0
@@ -119,18 +136,19 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
   ): (Option[BufferInt], Option[BufferInt]) = {
     val idx1 = Index(values)
     val idx2 = Index(other.values)
-    val reindexer = idx1.join(
-      idx2,
+     val reindexer = new (org.saddle.index.JoinerImpl[Long]).join(
+      left = idx1,
+      right = idx2,
       how = how match {
         case "inner" => org.saddle.index.InnerJoin
         case "left"  => org.saddle.index.LeftJoin
         case "right" => org.saddle.index.RightJoin
         case "outer" => org.saddle.index.OuterJoin
-      }
+      },
+      forceProperSemantics=true
     )
     (reindexer.lTake.map(BufferInt(_)), reindexer.rTake.map(BufferInt(_)))
   }
-
 
   override def take(locs: Location): BufferInstant = locs match {
     case Slice(start, until) =>
@@ -147,12 +165,12 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
   override def hashOf(l: Int): Long = {
     values(l)
   }
-def minMax = if (values.length == 0) None else {
-          Some(
-            (values.min,
-            values.max)
-          )
-        } 
+  def minMax = if (values.length == 0) None
+  else {
+    Some(
+      (values.min, values.max)
+    )
+  }
   override def toSegment(
       name: LogicalPath
   )(implicit tsc: TaskSystemComponents): IO[SegmentInstant] = {
@@ -162,7 +180,7 @@ def minMax = if (values.length == 0) None else {
         val bb =
           ByteBuffer.allocate(8 * values.length).order(ByteOrder.LITTLE_ENDIAN)
         bb.asLongBuffer().put(values)
-        fs2.Stream.chunk(fs2.Chunk.byteBuffer(bb))
+        fs2.Stream.chunk(fs2.Chunk.byteBuffer(Utils.compress(bb)))
       }.flatMap { stream =>
         val minmax = minMax
         SharedFile
@@ -172,6 +190,466 @@ def minMax = if (values.length == 0) None else {
 
   }
 
- 
+  def elementwise_isMissing: BufferInt = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+
+    while (i < n) {
+      r(i) = if (isMissing(i)) 1 else 0
+      i += 1
+    }
+    BufferInt(r)
+  }
+  def elementwise_toDouble: BufferDouble = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Double](n)
+
+    while (i < n) {
+      r(i) = values(i).toDouble
+      i += 1
+    }
+    BufferDouble(r)
+  }
+  def elementwise_toLong: BufferLong = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Long](n)
+
+    while (i < n) {
+      r(i) = values(i)
+      i += 1
+    }
+    BufferLong(r)
+  }
+
+  def elementwise_years: BufferInt = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+    val Z = java.time.ZoneId.of("Z")
+    while (i < n) {
+      r(i) = java.time.Instant.ofEpochMilli(values(i)).atZone(Z).getYear()
+      i += 1
+    }
+    BufferInt(r)
+  }
+  def elementwise_months: BufferInt = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+    val Z = java.time.ZoneId.of("Z")
+    while (i < n) {
+      r(i) = java.time.Instant.ofEpochMilli(values(i)).atZone(Z).getMonthValue()
+      i += 1
+    }
+    BufferInt(r)
+  }
+  def elementwise_days: BufferInt = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+    val Z = java.time.ZoneId.of("Z")
+    while (i < n) {
+      r(i) = java.time.Instant.ofEpochMilli(values(i)).atZone(Z).getDayOfMonth()
+      i += 1
+    }
+    BufferInt(r)
+  }
+  def elementwise_hours: BufferInt = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+    val Z = java.time.ZoneId.of("Z")
+    while (i < n) {
+      r(i) = java.time.Instant.ofEpochMilli(values(i)).atZone(Z).getHour()
+      i += 1
+    }
+    BufferInt(r)
+  }
+  def elementwise_minutes: BufferInt = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+    val Z = java.time.ZoneId.of("Z")
+    while (i < n) {
+      r(i) = java.time.Instant.ofEpochMilli(values(i)).atZone(Z).getMinute()
+      i += 1
+    }
+    BufferInt(r)
+  }
+  def elementwise_seconds: BufferInt = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+    val Z = java.time.ZoneId.of("Z")
+    while (i < n) {
+      r(i) = java.time.Instant.ofEpochMilli(values(i)).atZone(Z).getSecond()
+      i += 1
+    }
+    BufferInt(r)
+  }
+  def elementwise_nanoseconds: BufferInt = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+    val Z = java.time.ZoneId.of("Z")
+    while (i < n) {
+      r(i) = java.time.Instant.ofEpochMilli(values(i)).atZone(Z).getNano()
+      i += 1
+    }
+    BufferInt(r)
+  }
+  def elementwise_roundToYear: BufferInstant = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Long](n)
+    val Z = java.time.ZoneId.of("Z")
+    while (i < n) {
+      r(i) = java.time.Instant.now
+        .atZone(Z)
+        .truncatedTo(java.time.temporal.ChronoUnit.YEARS)
+        .toInstant()
+        .toEpochMilli()
+      i += 1
+    }
+    BufferInstant(r)
+  }
+  def elementwise_roundToMonth: BufferInstant = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Long](n)
+    val Z = java.time.ZoneId.of("Z")
+    while (i < n) {
+      r(i) = java.time.Instant.now
+        .atZone(Z)
+        .truncatedTo(java.time.temporal.ChronoUnit.MONTHS)
+        .toInstant()
+        .toEpochMilli()
+      i += 1
+    }
+    BufferInstant(r)
+  }
+  def elementwise_roundToDay: BufferInstant = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Long](n)
+    val Z = java.time.ZoneId.of("Z")
+    while (i < n) {
+      r(i) = java.time.Instant.now
+        .atZone(Z)
+        .truncatedTo(java.time.temporal.ChronoUnit.DAYS)
+        .toInstant()
+        .toEpochMilli()
+      i += 1
+    }
+    BufferInstant(r)
+  }
+  def elementwise_roundToHours: BufferInstant = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Long](n)
+    val Z = java.time.ZoneId.of("Z")
+    while (i < n) {
+      r(i) = java.time.Instant.now
+        .atZone(Z)
+        .truncatedTo(java.time.temporal.ChronoUnit.HOURS)
+        .toInstant()
+        .toEpochMilli()
+      i += 1
+    }
+    BufferInstant(r)
+  }
+  def elementwise_roundToMinute: BufferInstant = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Long](n)
+    val Z = java.time.ZoneId.of("Z")
+    while (i < n) {
+      r(i) = java.time.Instant.now
+        .atZone(Z)
+        .truncatedTo(java.time.temporal.ChronoUnit.MINUTES)
+        .toInstant()
+        .toEpochMilli()
+      i += 1
+    }
+    BufferInstant(r)
+  }
+  def elementwise_roundToSecond: BufferInstant = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Long](n)
+    val Z = java.time.ZoneId.of("Z")
+    while (i < n) {
+      r(i) = java.time.Instant.now
+        .atZone(Z)
+        .truncatedTo(java.time.temporal.ChronoUnit.SECONDS)
+        .toInstant()
+        .toEpochMilli()
+      i += 1
+    }
+    BufferInstant(r)
+  }
+  def elementwise_plus(l: Long): BufferInstant = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Long](n)
+    while (i < n) {
+      r(i) = values(i) + l
+      i += 1
+    }
+    BufferInstant(r)
+  }
+  def elementwise_minus(l: Long): BufferInstant = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Long](n)
+    while (i < n) {
+      r(i) = values(i) - l
+      i += 1
+    }
+    BufferInstant(r)
+  }
+
+  def elementwise_lteq(other: BufferInstant): BufferInt = {
+    assert(other.length == self.length)
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+
+    while (i < n) {
+      r(i) = if (self.values(i) <= other.values(i)) 1 else 0
+      i += 1
+    }
+    BufferInt(r)
+  }
+  def elementwise_lt(other: BufferInstant): BufferInt = {
+    assert(other.length == self.length)
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+
+    while (i < n) {
+      r(i) = if (self.values(i) < other.values(i)) 1 else 0
+      i += 1
+    }
+    BufferInt(r)
+  }
+  def elementwise_gt(other: BufferInstant): BufferInt = {
+    assert(other.length == self.length)
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+
+    while (i < n) {
+      r(i) = if (self.values(i) > other.values(i)) 1 else 0
+      i += 1
+    }
+    BufferInt(r)
+  }
+  def elementwise_gteq(other: BufferInstant): BufferInt = {
+    assert(other.length == self.length)
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+
+    while (i < n) {
+      r(i) = if (self.values(i) >= other.values(i)) 1 else 0
+      i += 1
+    }
+    BufferInt(r)
+  }
+  def elementwise_eq(other: BufferInstant): BufferInt = {
+    assert(other.length == self.length)
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+
+    while (i < n) {
+      r(i) = if (self.values(i) == other.values(i)) 1 else 0
+      i += 1
+    }
+    BufferInt(r)
+  }
+  def elementwise_neq(other: BufferInstant): BufferInt = {
+    assert(other.length == self.length)
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+
+    while (i < n) {
+      r(i) = if (self.values(i) != other.values(i)) 1 else 0
+      i += 1
+    }
+    BufferInt(r)
+  }
+
+  //
+
+  def elementwise_lteq(other: Long): BufferInt = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+
+    while (i < n) {
+      r(i) = if (self.values(i) <= other) 1 else 0
+      i += 1
+    }
+    BufferInt(r)
+  }
+  def elementwise_lt(other: Long): BufferInt = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+
+    while (i < n) {
+      r(i) = if (self.values(i) < other) 1 else 0
+      i += 1
+    }
+    BufferInt(r)
+  }
+  def elementwise_gt(other: Long): BufferInt = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+
+    while (i < n) {
+      r(i) = if (self.values(i) > other) 1 else 0
+      i += 1
+    }
+    BufferInt(r)
+  }
+  def elementwise_gteq(other: Long): BufferInt = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+
+    while (i < n) {
+      r(i) = if (self.values(i) >= other) 1 else 0
+      i += 1
+    }
+    BufferInt(r)
+  }
+  def elementwise_eq(other: Long): BufferInt = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+
+    while (i < n) {
+      r(i) = if (self.values(i) == other) 1 else 0
+      i += 1
+    }
+    BufferInt(r)
+  }
+  def elementwise_neq(other: Long): BufferInt = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+
+    while (i < n) {
+      r(i) = if (self.values(i) != other) 1 else 0
+      i += 1
+    }
+    BufferInt(r)
+  }
+
+  def hasMissingInGroup(partitionMap: BufferInt, numGroups: Int): BufferInt = {
+    val ar = Array.fill[Int](numGroups)(0)
+    var i = 0
+    val n = partitionMap.length
+    while (i < n) {
+      val g = partitionMap.raw(i)
+      if (ar(g) == 0 && isMissing(i)) {
+        ar(g) = 1
+      }
+      i += 1
+    }
+    BufferInt(ar)
+
+  }
+
+  def countInGroups(partitionMap: BufferInt, numGroups: Int): BufferInt = {
+    val ar = Array.fill[Double](numGroups)(Double.NaN)
+    var i = 0
+    val n = partitionMap.length
+    while (i < n) {
+      if (!isMissing(i)) {
+        if (ar(partitionMap.raw(i)).isNaN()) {
+          ar(partitionMap.raw(i)) = 1d
+        } else ar(partitionMap.raw(i)) += 1d
+      }
+      i += 1
+    }
+    BufferInt(ar.map(_.toInt))
+
+  }
+
+  def countDistinctInGroups(
+      partitionMap: BufferInt,
+      numGroups: Int
+  ): BufferInt = {
+    val ar = Array.fill[scala.collection.mutable.Set[Long]](numGroups)(
+      scala.collection.mutable.Set.empty[Long]
+    )
+    var i = 0
+    val n = partitionMap.length
+    while (i < n) {
+      ar(partitionMap.raw(i)).add(values(i))
+
+      i += 1
+    }
+    BufferInt(ar.map(_.size))
+
+  }
+
+  def elementwise_toISO: BufferString = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[CharSequence](n)
+
+    while (i < n) {
+      r(i) = java.time.Instant.ofEpochMilli(values(i)).toString
+      i += 1
+    }
+    BufferString(r)
+  }
+
+  def minInGroups(partitionMap: BufferInt, numGroups: Int): BufferType = {
+    val ar = Array.fill[Long](numGroups)(Long.MaxValue)
+    var i = 0
+    val n = partitionMap.length
+    while (i < n) {
+      if (!isMissing(i)) {
+        val g = partitionMap.raw(i)
+        if (ar(g) == Long.MaxValue) {
+          ar(g) = values(i)
+        } else if (ar(g) > values(i)) {
+          ar(g) = values(i)
+        }
+      }
+      i += 1
+    }
+    BufferInstant(ar)
+
+  }
+  def maxInGroups(partitionMap: BufferInt, numGroups: Int): BufferType = {
+    val ar = Array.fill[Long](numGroups)(Long.MinValue)
+    var i = 0
+    val n = partitionMap.length
+    while (i < n) {
+      if (!isMissing(i)) {
+        val g = partitionMap.raw(i)
+        if (ar(g) == Long.MinValue) {
+          ar(g) = values(i)
+        } else if (ar(g) < values(i)) {
+          ar(g) = values(i)
+        }
+      }
+      i += 1
+    }
+    BufferInstant(ar)
+
+  }
 
 }

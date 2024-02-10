@@ -78,8 +78,10 @@ object MakeUniqueId {
       ResourceRequest(cpu = (1, 1), memory = 1, scratch = 0, gpu = 0)
     )
   implicit val codec: JsonValueCodec[MakeUniqueId] = JsonCodecMaker.make
-  val task = Task[MakeUniqueId, String]("MakeUniqueId", 1) { case _ =>
-    _ => IO.delay(java.util.UUID.randomUUID().toString)
+  val task = Task[MakeUniqueId, String]("MakeUniqueId", 1) { case input =>
+    _ => 
+      scribe.debug(s"Make unique id for $input")
+      IO.delay(java.util.UUID.randomUUID().toString)
 
   }
 }

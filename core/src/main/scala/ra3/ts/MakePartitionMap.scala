@@ -36,6 +36,7 @@ object MakePartitionMap {
   val task = Task[MakePartitionMap, Output]("makepartitionmap", 1) {
     case input =>
       implicit ce =>
+        scribe.debug(s"Make partition map on ${input.input.size}  segments with base ${input.partitionBase} to ${input.outputPath}")
         val b: IO[Vector[Buffer]] = IO.parSequenceN(
           math.min(1, ce.resourceAllocated.cpu)
         )(input.input.map(_.buffer))

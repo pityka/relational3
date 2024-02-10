@@ -2,7 +2,8 @@ package ra3
 
 import tasks.TaskSystemComponents
 import cats.effect.IO
-import ra3.lang.Expr
+import com.github.plokhotnyuk.jsoniter_scala.core.JsonValueCodec
+import com.github.plokhotnyuk.jsoniter_scala.macros.JsonCodecMaker
 
 case class PartitionData(
     columns: Seq[Int],
@@ -56,12 +57,17 @@ case class Table(
   def apply(i: Int) = columns(i)
 
   override def toString =
-    s"Table($uniqueId: $numRows x $numCols . segments: ${segmentation.size} (seg_n:${segmentation.min}/${segmentation.max})\nPartitioning: $partitions\n${colNames
+    f"Table($uniqueId: $numRows%,d x $numCols%,d . num segments: ${segmentation.size}%,d (segment sizes min/max:${segmentation.min}%,d/${segmentation.max}%,d)\nPartitioning: $partitions\n${colNames
         .zip(columns)
         .map { case (name, col) =>
           s"'$name'\t${col.tag}"
         }
         .mkString("\n")}\n)"
+
+  def showSample(nrows: Int=100, ncols: Int = 10)(implicit tsc: TaskSystemComponents) : IO[String] = {
+    if (segmentation.isEmpty) IO.pure("")
+    else bufferSegment(0).map(_.toStringFrame.stringify(nrows,ncols))
+  }
   def bufferSegment(
       idx: Int
   )(implicit tsc: TaskSystemComponents): IO[BufferedTable] = {
@@ -99,4 +105,8 @@ case class Table(
       this.addColOfSameSegmentation(col, columnName)
     }
   }
+}
+
+object Table {
+  implicit val codec : JsonValueCodec[Table] = JsonCodecMaker.make
 }

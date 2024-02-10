@@ -37,8 +37,6 @@ case class PartitionedTable(
 ) {
   assert(columns.map(_.segments.map(_.numElems)).distinct.size == 1)
 
-  
-
   def numCols = columns.size
   def numRows =
     columns.map(_.segments.map(_.numElems.toLong).sum).headOption.getOrElse(0L)
@@ -81,11 +79,22 @@ case class PartitionedTable(
 }
 
 object PartitionedTable {
+
+  def makeFakePartitionsFromEachSegment(self: Table): Seq[PartitionedTable] =
+    (0 until self.columns.head.segments.size).toVector map { segmentIdx =>
+      PartitionedTable(
+        self.columns.map(col =>
+          col.tag.makeColumn(Vector(col.segments(segmentIdx)))
+        ),
+        PartitionMeta(Nil, 1)
+      )
+    }
   def partitionColumns(
       columnIdx: Seq[Int],
       inputColumns: Vector[Column],
       partitionBase: Int,
-      uniqueId: String
+      uniqueId: String,
+      maxSegmentsToBufferAtOnce: Int
   )(implicit tsc: TaskSystemComponents): IO[Vector[PartitionedTable]] = {
     assert(columnIdx.nonEmpty)
     val partitionColumns = columnIdx.map(inputColumns.apply)
@@ -105,47 +114,74 @@ object PartitionedTable {
           column = 0
         )
       )
-      partitionMap.flatMap { partitionMap =>
+      partitionMap
+    }.flatMap { partitionMapsPerSegment =>
+      val segmentIndices = (0 until numSegments).toList
+      val groups: List[(List[(Int, SegmentInt)], Int)] = segmentIndices
+        .zip(partitionMapsPerSegment)
+        .grouped(maxSegmentsToBufferAtOnce)
+        .toList
+        .zipWithIndex
+
+      // columns x partition x groupOfSegments
+      val partitionsOfColumns =
         IO.parTraverseN(math.min(32, inputColumns.size))(
           inputColumns.zipWithIndex
         ) { case (column, currentColumnIdx) =>
-          IO.parSequenceN(numPartitions)((0 until numPartitions).toList map {
-            pIdx =>
-              ts.TakePartition.queue(
-                input = column.segments(segmentIdx),
-                partitionMap = partitionMap,
-                pIdx = pIdx,
-                outputPath = LogicalPath(
-                  table = uniqueId,
-                  partition =
-                    Some(PartitionPath(columnIdx, numPartitions, pIdx)),
-                  segment = segmentIdx,
-                  column = currentColumnIdx
-                )
+          IO.parSequenceN(32)(groups.map { case (groupOfSegments, groupIdx) =>
+            val segmentsWithPartitionmapOfThisColumn
+                : Seq[(column.SegmentType, SegmentInt)] =
+              groupOfSegments.map { case (segmentIdx, partitionMap) =>
+                (column.segments(segmentIdx), partitionMap)
+              }
+
+            ts.TakePartition.queue(
+              inputSegmentsWithPartitionMaps =
+                segmentsWithPartitionmapOfThisColumn,
+              numPartition = numPartitions,
+              outputPath = LogicalPath(
+                table = uniqueId,
+                partition = Some(PartitionPath(columnIdx, numPartitions, -1)),
+                segment = groupIdx,
+                column = currentColumnIdx
               )
-          })
-
-        }
-      }
-    }.map {
-      // segment x column x partition
-      segments =>
-        // partition x column x segment
-        val transposed = segments.transpose.map(_.transpose).transpose
-
-        transposed.map { columns =>
-          PartitionedTable(
-            columns = columns.zipWithIndex.map { case (segments, columnIdx) =>
-              val column = inputColumns(columnIdx)
-              column.tag.makeColumn(segments.map(_.as(column)))
-            },
-            partitionMeta = PartitionMeta(
-              columns = columnIdx,
-              partitionBase = partitionBase
             )
-          )
+
+          }).map {
+            // group x partitions
+            partitionsOfGroupsOfThisColumn =>
+              assert(partitionsOfGroupsOfThisColumn.size == groups.size)
+              // partition x groupOfSegments
+              val tp = partitionsOfGroupsOfThisColumn.transpose 
+              assert(tp.size == numPartitions)
+              // partition
+              tp
+          }
+
         }
 
+      partitionsOfColumns.map {
+        // column x partition  x groupOfSegment
+        columns =>
+          assert(columns.size == inputColumns.size)
+          assert(columns.forall(x => x.size == numPartitions))
+          // partition x column 
+          val transposed = columns.transpose
+          
+        assert(transposed.size == numPartitions)
+          transposed.map { columns =>
+            PartitionedTable(
+              columns = columns.zipWithIndex.map { case (segments, columnIdx) =>
+                val column = inputColumns(columnIdx)
+                column.tag.makeColumn(segments.toVector.map(_.as(column)))
+              },
+              partitionMeta = PartitionMeta(
+                columns = columnIdx,
+                partitionBase = partitionBase
+              )
+            )
+          }
+      }
     }
   }
 }

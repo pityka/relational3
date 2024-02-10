@@ -4,6 +4,7 @@ import com.github.plokhotnyuk.jsoniter_scala.core._
 import cats.effect.IO
 import tasks.TaskSystemComponents
 import ra3.GroupedTable
+import ra3.lang.Expr
 
 class KeyTag
 sealed trait Key
@@ -30,7 +31,7 @@ private[ra3] case class DelayedTableSchema(
 
 sealed trait TableExpr { self =>
 
-  private[ra3] def eval(implicit
+  def evaluate(implicit
       tsc: TaskSystemComponents
   ): IO[ra3.Table] = evalWith(Map.empty).map(_.v)
 
@@ -49,7 +50,7 @@ sealed trait TableExpr { self =>
     replace(this.tags.toSeq.zipWithIndex.toMap)
 
 }
-private[tablelang] object TableExpr {
+private[ra3] object TableExpr {
 
   implicit val codec: JsonValueCodec[TableExpr] =
     JsonCodecMaker.make(CodecMakerConfig.withAllowRecursiveTypes(true))
@@ -130,6 +131,9 @@ private[tablelang] object TableExpr {
       arg0
         .evalWith(env)
         .flatMap { case TableValue(table) =>
+          scribe.info(
+            f"Will do simpl query on ${table.uniqueId} (${table.numRows}%,d x ${table.numCols} in ${table.segmentation.size}%,d segments)"
+          )
           ra3.SimpleQuery
             .simpleQuery(
               table,
@@ -148,21 +152,141 @@ private[tablelang] object TableExpr {
     }
   }
   case class GroupThenReduce(
-      arg0: TableExpr.Ident,
-      cols: Either[Seq[String], Seq[Int]],
+      arg0: ra3.lang.Expr.DelayedIdent,
+      arg1: Seq[(ra3.lang.Expr.DelayedIdent)],
+      groupwise: ra3.lang.Expr,
       partitionBase: Int,
       partitionLimit: Int,
+      maxSegmentsToBufferAtOnce: Int
+  ) extends TableExpr {
+
+    assert(arg1.forall(_.name.table == arg0.name.table))
+
+    val tags: Set[KeyTag] =
+      arg0.tableIdent.tags ++ arg1.flatMap(_.tableIdent.tags)
+    def replace(i: Map[KeyTag, Int]): TableExpr = {
+
+      GroupPartialThenReduce(
+        arg0.replace(Map.empty, i).asInstanceOf[ra3.lang.Expr.DelayedIdent],
+        arg1.map(
+          _.replace(Map.empty, i).asInstanceOf[ra3.lang.Expr.DelayedIdent]
+        ),
+        groupwise.replaceTags(i)
+      )
+    }
+
+    def evalWith(
+        env: Map[Key, TableValue]
+    )(implicit tsc: TaskSystemComponents) = {
+      arg0.tableIdent
+        .evalWith(env)
+        .flatMap { case TableValue(table) =>
+          val cols = (arg0 +: arg1).map(
+            _.name.selection.left
+              .map(s => table.colNames.indexOf(s))
+              .fold(identity, identity)
+          )
+          scribe.info(
+            f"Will do group by on ${table.uniqueId} (${table.numRows}%,d x ${table.numCols} in ${table.segmentation.size}%,d segments) on ${cols.size} columns"
+          )
+          table
+            .groupBy(
+              cols = cols,
+              partitionBase = partitionBase,
+              partitionLimit = partitionLimit,
+              maxSegmentsToBufferAtOnce = maxSegmentsToBufferAtOnce
+            )
+            .flatMap { groupedTable =>
+              scribe.info(
+                f"Will do reduction on ${groupedTable.uniqueId} (${groupedTable.partitions.size} partitions) "
+              )
+              val program = groupwise
+                .replaceDelayed(
+                  DelayedTableSchema(
+                    Map(
+                      arg0.name.table -> (groupedTable.uniqueId, groupedTable.colNames)
+                    )
+                  )
+                )
+                .asInstanceOf[ra3.lang.Query]
+              GroupedTable.reduceGroups(groupedTable, program)
+            }
+            .map(t => TableValue(t))
+
+        }
+
+    }
+  }
+  case class GroupPartialThenReduce(
+      arg0: ra3.lang.Expr.DelayedIdent,
+      arg1: Seq[(ra3.lang.Expr.DelayedIdent)],
+      groupwise: ra3.lang.Expr
+  ) extends TableExpr {
+
+    assert(arg1.forall(_.name.table == arg0.name.table))
+
+    val tags: Set[KeyTag] =
+      arg0.tableIdent.tags ++ arg1.flatMap(_.tableIdent.tags)
+    def replace(i: Map[KeyTag, Int]): TableExpr = {
+
+      GroupPartialThenReduce(
+        arg0.replace(Map.empty, i).asInstanceOf[ra3.lang.Expr.DelayedIdent],
+        arg1.map(
+          _.replace(Map.empty, i).asInstanceOf[ra3.lang.Expr.DelayedIdent]
+        ),
+        groupwise.replaceTags(i)
+      )
+    }
+
+    def evalWith(
+        env: Map[Key, TableValue]
+    )(implicit tsc: TaskSystemComponents) = {
+      arg0.tableIdent
+        .evalWith(env)
+        .flatMap { case TableValue(table) =>
+          val cols = (arg0 +: arg1).map(
+            _.name.selection.left
+              .map(s => table.colNames.indexOf(s))
+              .fold(identity, identity)
+          )
+          scribe.info(
+            f"Will do partial group by segments  on ${table.uniqueId} (${table.numRows}%,d x ${table.numCols} in ${table.segmentation.size}%,d segments) on ${cols.size} columns"
+          )
+          table
+            .groupBySegments(
+              cols = cols
+            )
+            .flatMap { groupedTable =>
+              scribe.info(
+                f"Will do partial reduction on ${groupedTable.uniqueId} (${groupedTable.partitions.size} partitions) "
+              )
+              val program = groupwise
+                .replaceDelayed(
+                  DelayedTableSchema(
+                    Map(
+                      arg0.name.table -> (groupedTable.uniqueId, groupedTable.colNames)
+                    )
+                  )
+                )
+                .asInstanceOf[ra3.lang.Query]
+              GroupedTable.reduceGroups(groupedTable, program)
+            }
+            .map(t => TableValue(t))
+
+        }
+
+    }
+  }
+  case class FullTablePartialReduce(
+      arg0: TableExpr.Ident,
       groupwise: ra3.lang.Expr
   ) extends TableExpr {
 
     val tags: Set[KeyTag] = arg0.tags
     def replace(i: Map[KeyTag, Int]): TableExpr = {
 
-      GroupThenReduce(
+      FullTablePartialReduce(
         arg0.replace(i).asInstanceOf[Ident],
-        cols,
-        partitionBase,
-        partitionLimit,
         groupwise.replaceTags(i)
       )
     }
@@ -173,15 +297,56 @@ private[tablelang] object TableExpr {
       arg0
         .evalWith(env)
         .flatMap { case TableValue(table) =>
-          table
-            .groupBy(
-              cols = cols match {
-                case Left(value)  => value.map(s => table.colNames.indexOf(s))
-                case Right(value) => value
-              },
-              partitionBase = partitionBase,
-              partitionLimit = partitionLimit
-            )
+          ra3.ReduceTable
+            .formSingleGroupAsOnePartitionPerSegment(table)
+            .flatMap { groupedTable =>
+              scribe.info(
+                f"Will do partial reduction on ${groupedTable.uniqueId} (${groupedTable.partitions.size} partitions) "
+              )
+
+              val program = groupwise
+                .replaceDelayed(
+                  DelayedTableSchema(
+                    Map(
+                      arg0.key -> (groupedTable.uniqueId, groupedTable.colNames)
+                    )
+                  )
+                )
+                .asInstanceOf[ra3.lang.Query]
+              GroupedTable.reduceGroups(groupedTable, program)
+            }
+            .map(t => TableValue(t))
+
+        }
+
+    }
+  }
+  case class ReduceTable(
+      arg0: TableExpr.Ident,
+      groupwise: ra3.lang.Expr
+  ) extends TableExpr {
+
+    val tags: Set[KeyTag] = arg0.tags
+    def replace(i: Map[KeyTag, Int]): TableExpr = {
+
+      ReduceTable(
+        arg0.replace(i).asInstanceOf[Ident],
+        groupwise.replaceTags(i)
+      )
+    }
+
+    def evalWith(
+        env: Map[Key, TableValue]
+    )(implicit tsc: TaskSystemComponents) = {
+      arg0
+        .evalWith(env)
+        .flatMap { case TableValue(table) =>
+          scribe.info(
+            f"Will do full table reduction at once  on ${table.uniqueId} (${table.numRows}%,d x ${table.numCols} in ${table.segmentation.size}%,d segments) "
+          )
+
+          ra3.ReduceTable
+            .formSingleGroup(table)
             .flatMap { groupedTable =>
               val program = groupwise
                 .replaceDelayed(
@@ -201,25 +366,32 @@ private[tablelang] object TableExpr {
     }
   }
   case class Join(
-      arg0: TableExpr.Ident,
-      arg0JoinColumn: Int,
-      arg1: Seq[(TableExpr.Ident, Int, String, Int)],
+      arg0: ra3.lang.Expr.DelayedIdent,
+      arg1: Seq[(ra3.lang.Expr.DelayedIdent, String, ra3.tablelang.Key)],
       partitionBase: Int,
       partitionLimit: Int,
+      maxSegmentsToBufferAtOnce: Int,
       elementwise: ra3.lang.Expr
   ) extends TableExpr {
 
-    val tags: Set[KeyTag] = arg0.tags
+    val tags: Set[KeyTag] =
+      arg0.tableIdent.tags ++ arg1.flatMap(_._1.tableIdent.tags)
     def replace(i: Map[KeyTag, Int]): TableExpr = {
 
       Join(
-        arg0.replace(i).asInstanceOf[Ident],
-        arg0JoinColumn,
-        arg1.map { case (t, column, how, against) =>
-          (t.replace(i).asInstanceOf[Ident], column, how, against)
+        arg0.replace(Map.empty, i).asInstanceOf[Expr.DelayedIdent],
+        arg1.map { case (columnAndTable, how, against) =>
+          (
+            columnAndTable
+              .replace(Map.empty, i)
+              .asInstanceOf[Expr.DelayedIdent],
+            how,
+            against
+          )
         },
         partitionBase,
         partitionLimit,
+        maxSegmentsToBufferAtOnce,
         elementwise.replaceTags(i)
       )
     }
@@ -227,31 +399,60 @@ private[tablelang] object TableExpr {
     def evalWith(
         env: Map[Key, TableValue]
     )(implicit tsc: TaskSystemComponents) = {
-      arg0
+      arg0.tableIdent
         .evalWith(env)
         .flatMap { case TableValue(table) =>
-          IO.parSequenceN(32)(arg1.map { case (a, b, c, d) =>
-            a.evalWith(env).map(x => (x.v, b, c, d))
+          IO.parSequenceN(32)(arg1.map { case (a, b, c) =>
+            a.tableIdent.evalWith(env).map(x => (x.v, a, b, c))
           }).flatMap { arg1Tables =>
             val program = elementwise
               .replaceDelayed(
                 DelayedTableSchema(
                   Map(
-                    arg0.key -> ((table.uniqueId, table.colNames))
+                    arg0.name.table -> ((table.uniqueId, table.colNames))
                   ) ++ (arg1Tables.map(_._1) zip arg1.map(_._1)).map {
-                    case (table, ident) =>
-                      (ident.key, (table.uniqueId, table.colNames))
+                    case (table, argxDelayed) =>
+                      (argxDelayed.name.table, (table.uniqueId, table.colNames))
                   }
                 )
               )
               .asInstanceOf[ra3.lang.Query]
-            ra3.EquijoinMultipleDriver
-              .equijoinMultiple(
+
+            val firstColIdx = arg0.name.selection.left
+              .map(s => table.colNames.indexOf(s))
+              .fold(identity, identity)
+
+            def tableStrings = (List(table) ++ arg1Tables.map(_._1)).map {
+              table =>
+                f"${table.uniqueId} (${table.numRows}%,d x ${table.numCols} in ${table.segmentation.size}%,d segments)  "
+            }
+
+            scribe.info(f"Will join the following tables: ${tableStrings.mkString(" x ")} ")
+
+            ra3.Equijoin
+              .equijoinPlanner(
                 table,
-                arg0JoinColumn,
-                arg1Tables,
+                firstColIdx,
+                arg1Tables.map {
+                  case (table, delayedCol, how, delayedAgainst) =>
+                    val colIdx: Int = delayedCol.name.selection.left
+                      .map(s => table.colNames.indexOf(s))
+                      .fold(identity, identity)
+                    val againstTable: Int =
+                      if (arg0.name.table == delayedAgainst) 0
+                      else {
+                        val c = arg1.zipWithIndex
+                          .find(_._1._1.name.table == delayedAgainst)
+                          .get
+                          ._2
+                        c + 1
+                      }
+
+                    (table, colIdx, how, againstTable)
+                },
                 partitionBase,
                 partitionLimit,
+                maxSegmentsToBufferAtOnce,
                 program
               )
               .map(TableValue(_))

@@ -9,7 +9,7 @@ import cats.effect.IO
 
 case class ComputeJoinIndex(
     first: Column,
-      rest: Seq[(Column, String, Int)], // col, how , index of against which one
+    rest: Seq[(Column, String, Int)], // col, how , index of against which one
     outputPath: LogicalPath
 )
 object ComputeJoinIndex {
@@ -18,10 +18,17 @@ object ComputeJoinIndex {
       rest: Seq[(Column, String, Int)],
       outputPath: LogicalPath
   )(implicit tsc: TaskSystemComponents): IO[Seq[Option[SegmentInt]]] = {
+    scribe.debug(
+      f"Compute join index between ${first.tag}(n=${first.numElems}%,d) and ${rest
+          .map { case (col, how, i) =>
+            f"${col.tag}(n=${col.numElems}%,d) $how $i"
+          }
+          .mkString(" x ")} to $outputPath"
+    )
     if (rest.size == 1) {
-      val (c,h,_) = rest.head
-      doit2(first,c,h,outputPath).map{ case (a,b) => List(a,b)}
-    } else doitMultiple(first,rest,outputPath)
+      val (c, h, _) = rest.head
+      doit2(first, c, h, outputPath).map { case (a, b) => List(a, b) }
+    } else doitMultiple(first, rest, outputPath)
   }
   private def doit2(
       left: Column,
@@ -179,15 +186,19 @@ object ComputeJoinIndex {
     task(ComputeJoinIndex(first, rest, outputPath))(
       ResourceRequest(
         cpu = (1, 1),
-        memory = ra3.Utils.guessMemoryUsageInMB(first) + rest.map(_._1).map(ra3.Utils
-          .guessMemoryUsageInMB).sum,
+        memory = (ra3.Utils.guessMemoryUsageInMB(first) + rest
+          .map(_._1)
+          .map(ra3.Utils.guessMemoryUsageInMB)
+          .sum) *  (first.tag match {
+            case x if x == ra3.ColumnTag.StringTag => 16 
+            case _ => 4
+          }),
         scratch = 0,
         gpu = 0
       )
     )
   implicit val codec: JsonValueCodec[ComputeJoinIndex] = JsonCodecMaker.make
-  implicit val codec2
-      : JsonValueCodec[ Seq[(Option[SegmentInt])]] =
+  implicit val codec2: JsonValueCodec[Seq[(Option[SegmentInt])]] =
     JsonCodecMaker.make
   val task =
     Task[ComputeJoinIndex, Seq[(Option[SegmentInt])]](

@@ -16,7 +16,11 @@ case class SegmentWithName(
     tableUniqueId: String,
     columnName: String,
     columnIdx: Int
-)
+) {
+  override def toString =
+    s"SegmentWithName(table=$tableUniqueId,columnName=$columnName,columnIdx=$columnIdx,segments=${segment
+        .map(s => (s.tag, s.numElems))})"
+}
 
 case class SimpleQuery(
     input: Seq[SegmentWithName],
@@ -39,21 +43,16 @@ object SimpleQuery {
       outputPath: LogicalPath,
       groupMap: Option[(SegmentInt, Int)]
   )(implicit tsc: TaskSystemComponents): IO[List[(Segment, String)]] = {
-    println(predicate)
+    scribe.debug(
+      s"SimpleQuery task on ${input.groupBy(_.tableUniqueId).toSeq.map(s => (s._1, s._2.map(v => (v.columnName, v.segment.size))))} with $predicate to $outputPath. Grouping: $groupMap"
+    )
     val neededColumns = predicate.columnKeys
     val numElems = {
       val d = input.map(_.segment.map(_.numElems).sum).distinct
       assert(d.size == 1, "uneven column lengths")
       d.head
     }
-    // val bIn: IO[List[(ra3.lang.ColumnKey, Buffer, String)]] =
-    //   IO.parSequenceN(32)(input.toList.map {
-    //     case SegmentWithName(segmentParts, tableId, columnName, columnIdx) =>
-    //       val ck = ra3.lang.ColumnKey(tableId, columnIdx)
-    //       if (neededColumns.contains(ck))
-    //         bufferMultiple(segmentParts).map(b => Some((ck, b, columnName)))
-    //       else IO.pure(None)
-    //   }).map(_.collect { case Some(x) => x })
+
     val groupMapBuffer = groupMap match {
       case None             => IO.pure(None)
       case Some((map, num)) => map.buffer.map(s => Some((s, num)))
@@ -83,8 +82,8 @@ object SimpleQuery {
         .evaluate(predicate, env)
         .map(_.v.asInstanceOf[ReturnValue])
         .flatMap { returnValue =>
+          scribe.debug(s"SQ program evaluation done projection: ${returnValue.projections} filter: ${returnValue.filter}")
           val mask = returnValue.filter
-          println(returnValue)
 
           // If all items are dropped then we do not buffer segments from Star
           // Segments needed for the predicate/projection program are already buffered though
@@ -182,7 +181,7 @@ object SimpleQuery {
                 val filteredSegment =
                   if (maskIsEmpty)
                     (bufferOrSegment match {
-                      case Left(value) => value.tag
+                      case Left(value)  => value.tag
                       case Right(value) => value.tag
                     }).makeBufferFromSeq()
                       .toSegment(outputPath.copy(column = columnIdx))
@@ -224,7 +223,9 @@ object SimpleQuery {
   )(implicit
       tsc: TaskSystemComponents
   ): IO[Seq[(Segment, String)]] =
-    task(SimpleQuery(input, predicate.replaceTags(Map.empty), outputPath, groupMap))(
+    task(
+      SimpleQuery(input, predicate.replaceTags(Map.empty), outputPath, groupMap)
+    )(
       ResourceRequest(
         cpu = (1, 1),
         memory =

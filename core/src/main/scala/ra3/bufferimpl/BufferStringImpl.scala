@@ -4,6 +4,9 @@ import cats.effect.IO
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import tasks.{TaskSystemComponents, SharedFile}
+import org.saddle.scalar.ScalarTagInt
+import org.saddle.scalar.ScalarTagDouble
+import org.saddle.scalar.ScalarTagLong
 
 private[ra3] object CharSequenceOrdering
     extends scala.math.Ordering[CharSequence] { self =>
@@ -19,11 +22,29 @@ private[ra3] object CharSequenceOrdering
 
 private[ra3] trait BufferStringImpl { self: BufferString =>
 
+
+  def elementAsCharSequence(i: Int): CharSequence = values(i)
+
+  def partition(numPartitions: Int, map: BufferInt): Vector[BufferType] = {
+    assert(length == map.length)
+    val growableBuffers =
+      Vector.fill(numPartitions)(org.saddle.Buffer.empty[CharSequence])
+    var i = 0
+    val n = length
+    val mapv = map.values
+    while (i < n) {
+      growableBuffers(mapv(i)).+=(values(i))
+      i += 1
+    }
+    growableBuffers.map(v => BufferString(v.toArray))
+  }
+
   def broadcast(n: Int) = self.length match {
-    case x if x == n => this 
-    case 1 => 
-    BufferString(Array.fill[CharSequence](n)(values(0)))
-    case _ => throw new RuntimeException("broadcast called on buffer with wrong size")
+    case x if x == n => this
+    case 1 =>
+      BufferString(Array.fill[CharSequence](n)(values(0)))
+    case _ =>
+      throw new RuntimeException("broadcast called on buffer with wrong size")
   }
 
   def positiveLocations: BufferInt = {
@@ -77,24 +98,34 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
 
   def length = values.length
 
-
-    
-
   def groups = {
-    import org.saddle.{Buffer => _, _}
-    val idx = Index(values.map(_.toString))
-    val uniques = idx.uniques
-    val counts = idx.counts
+    val counts = scala.collection.mutable.AnyRefMap[CharSequence, Int]()
+    val buffer = org.saddle.Buffer.empty[CharSequence]
+
     val map = Array.ofDim[Int](values.length)
     var i = 0
     while (i < values.length) {
-      map(i) = uniques.getFirst(values(i).toString)
+      val cs = values(i)
+      counts.get(cs) match {
+        case None =>
+          counts.update(cs, 1)
+          buffer.+=(cs)
+        case Some(value) => counts.update(cs, value + 1)
+      }
       i += 1
     }
+    i = 0
+    val groups = buffer.toArray
+    val groupmap = groups.zipWithIndex.toMap
+    while (i < values.length) {
+      map(i) = groupmap(values(i))
+      i += 1
+    }
+    val c = groups.map(cs => counts(cs))
     Buffer.GroupMap(
       map = BufferInt(map),
-      numGroups = uniques.length,
-      groupSizes = BufferInt(counts)
+      numGroups = buffer.length,
+      groupSizes = BufferInt(c)
     )
   }
 
@@ -123,14 +154,16 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
     import org.saddle.{Buffer => _, _}
     val idx1 = Index(values.map(_.toString))
     val idx2 = Index(other.values.map(_.toString))
-    val reindexer = idx1.join(
-      idx2,
+    val reindexer = new (org.saddle.index.JoinerImpl[String]).join(
+      left = idx1,
+      right = idx2,
       how = how match {
         case "inner" => org.saddle.index.InnerJoin
         case "left"  => org.saddle.index.LeftJoin
         case "right" => org.saddle.index.RightJoin
         case "outer" => org.saddle.index.OuterJoin
-      }
+      },
+      forceProperSemantics = true
     )
     (reindexer.lTake.map(BufferInt(_)), reindexer.rTake.map(BufferInt(_)))
   }
@@ -141,8 +174,18 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
       System.arraycopy(values, start, r, 0, until - start)
       BufferString(r)
     case idx: BufferInt =>
-      import org.saddle.{Buffer => _, _}
-      BufferString(values.toVec.take(idx.values).fillNA(_ => BufferString.missing).toArray)
+      val ar = Array.ofDim[CharSequence](idx.length)
+      var i = 0
+      val n = ar.length
+      val v = idx.values
+      while (i < n) {
+        val t = v(i)
+        ar(i) = if (t < 0) BufferString.missing else values(t)
+        i += 1
+      }
+      BufferString(
+        ar
+      )
   }
 
   override def isMissing(l: Int): Boolean = {
@@ -153,9 +196,9 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
     hasher.hash(values(l).codePoints.toArray).toLong
   }
 
-   def firstInGroup(partitionMap: BufferInt, numGroups: Int): BufferType = {
+  def firstInGroup(partitionMap: BufferInt, numGroups: Int): BufferType = {
     assert(partitionMap.length == length)
-    val ar : Array[CharSequence] = Array.fill(numGroups)(s"${Char.MinValue}")
+    val ar: Array[CharSequence] = Array.fill(numGroups)(s"${Char.MinValue}")
     var i = 0
     val n = partitionMap.length
     while (i < n) {
@@ -167,16 +210,15 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
   }
 
   def minMax = {
-          if (values.length > 0)
-            Some(
-              (
-                values.min(CharSequenceOrdering).toString,
-                values.max(CharSequenceOrdering).toString
-              )
-            )
-          else None
-        }
-
+    if (values.length > 0)
+      Some(
+        (
+          values.min(CharSequenceOrdering).toString,
+          values.max(CharSequenceOrdering).toString
+        )
+      )
+    else None
+  }
 
   override def toSegment(
       name: LogicalPath
@@ -203,10 +245,13 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
             }
           }
           bb.flip()
-          fs2.Stream.chunk(fs2.Chunk.byteBuffer(bb))
+
+          val bbCompressed = Utils.compress(bb)
+
+          fs2.Stream.chunk(fs2.Chunk.byteBuffer(bbCompressed))
         }
       }.flatMap { stream =>
-        val minmax: Option[(String, String)] =  minMax
+        val minmax: Option[(String, String)] = minMax
 
         SharedFile
           .apply(stream, name.toString)
@@ -215,7 +260,7 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
 
   }
 
-  def elementwise_+(other: BufferType) : BufferType = {
+  def elementwise_+(other: BufferType): BufferType = {
     assert(other.length == self.length)
     var i = 0
     val n = self.length
@@ -227,88 +272,159 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
     BufferString(r)
   }
   def elementwise_eq(other: BufferType): BufferInt = {
-      assert(other.length == self.length)
+    assert(other.length == self.length)
     var i = 0
     val n = self.length
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (self.values(i) == other.values(i)) 1 else 0
+      r(i) =
+        if (CharSequence.compare(self.values(i), other.values(i)) == 0) 1 else 0
       i += 1
     }
     BufferInt(r)
   }
-  def elementwise_gt(other: BufferType): BufferInt = {
-      assert(other.length == self.length)
+  def elementwise_eq(other: String): BufferInt = {
     var i = 0
     val n = self.length
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (CharSequenceOrdering.gt(self.values(i) , other.values(i))) 1 else 0
+      r(i) = if (CharSequence.compare(self.values(i), other) == 0) 1 else 0
+      i += 1
+    }
+    BufferInt(r)
+  }
+  def elementwise_containedIn(other: Set[String]): BufferInt = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+
+    while (i < n) {
+      r(i) = if (other.contains(self.values(i).toString)) 1 else 0
+      i += 1
+    }
+    BufferInt(r)
+  }
+  def elementwise_matches(other: String): BufferInt = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+    val pattern = other.r
+    while (i < n) {
+      r(i) = if (pattern.matches(values(i))) 1 else 0
+      i += 1
+    }
+    BufferInt(r)
+  }
+  def elementwise_concatenate(other: String): BufferString = {
+
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[CharSequence](n)
+    while (i < n) {
+      r(i) = (values(i).toString + other)
+      i += 1
+    }
+    BufferString(r)
+  }
+  def elementwise_concatenate(other: BufferString): BufferString = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[CharSequence](n)
+    while (i < n) {
+      r(i) = (values(i).toString + other.values(i).toString)
+      i += 1
+    }
+    BufferString(r)
+  }
+  def elementwise_gt(other: BufferType): BufferInt = {
+    assert(other.length == self.length)
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+
+    while (i < n) {
+      r(i) =
+        if (CharSequenceOrdering.gt(self.values(i), other.values(i))) 1 else 0
       i += 1
     }
     BufferInt(r)
   }
   def elementwise_gteq(other: BufferType): BufferInt = {
-      assert(other.length == self.length)
+    assert(other.length == self.length)
     var i = 0
     val n = self.length
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (CharSequenceOrdering.gteq(self.values(i) , other.values(i))) 1 else 0
+      r(i) =
+        if (CharSequenceOrdering.gteq(self.values(i), other.values(i))) 1 else 0
       i += 1
     }
     BufferInt(r)
   }
   def elementwise_lt(other: BufferType): BufferInt = {
-      assert(other.length == self.length)
+    assert(other.length == self.length)
     var i = 0
     val n = self.length
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (CharSequenceOrdering.lt(self.values(i) , other.values(i))) 1 else 0
+      r(i) =
+        if (CharSequenceOrdering.lt(self.values(i), other.values(i))) 1 else 0
       i += 1
     }
     BufferInt(r)
   }
   def elementwise_lteq(other: BufferType): BufferInt = {
-      assert(other.length == self.length)
+    assert(other.length == self.length)
     var i = 0
     val n = self.length
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (CharSequenceOrdering.lteq(self.values(i) , other.values(i))) 1 else 0
+      r(i) =
+        if (CharSequenceOrdering.lteq(self.values(i), other.values(i))) 1 else 0
       i += 1
     }
     BufferInt(r)
   }
   def elementwise_neq(other: BufferType): BufferInt = {
-      assert(other.length == self.length)
+    assert(other.length == self.length)
     var i = 0
     val n = self.length
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (self.values(i) != other.values(i)) 1 else 0
+      r(i) =
+        if (CharSequence.compare(self.values(i), other.values(i)) == 0) 0 else 1
       i += 1
     }
     BufferInt(r)
   }
-  def elementwise_length: BufferInt  = {
+  def elementwise_neq(other: String): BufferInt = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+
+    while (i < n) {
+      r(i) = if (CharSequence.compare(self.values(i), other) == 0) 0 else 1
+      i += 1
+    }
+    BufferInt(r)
+  }
+  def elementwise_length: BufferInt = {
     var i = 0
     val n = self.length
     val r = Array.ofDim[Int](n)
     while (i < n) {
-      r(i) = self.values(i).length() 
+      r(i) = self.values(i).length()
       i += 1
     }
     BufferInt(r)
   }
-  def elementwise_nonempty: BufferInt  = {
+  def elementwise_nonempty: BufferInt = {
     var i = 0
     val n = self.length
     val r = Array.ofDim[Int](n)
@@ -317,6 +433,135 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
       i += 1
     }
     BufferInt(r)
+  }
+  def elementwise_parseInt: BufferInt = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+    def parse(cs: CharSequence) = {
+      val ar = Array.ofDim[Char](cs.length())
+      var i = 0
+      while (i < cs.length()) {
+        ar(i) = cs.charAt(i)
+        i += 1
+      }
+      ScalarTagInt.parse(ar, 0, cs.length())
+    }
+    while (i < n) {
+      r(i) = parse(self.values(i))
+      i += 1
+    }
+    BufferInt(r)
+  }
+  def elementwise_parseDouble: BufferDouble = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Double](n)
+    def parse(cs: CharSequence) = {
+      // would be good to spare this allocation
+      val ar = Array.ofDim[Char](cs.length())
+      var i = 0
+      while (i < cs.length()) {
+        ar(i) = cs.charAt(i)
+        i += 1
+      }
+      ScalarTagDouble.parse(ar, 0, cs.length())
+    }
+    while (i < n) {
+      r(i) = parse(self.values(i))
+      i += 1
+    }
+    BufferDouble(r)
+  }
+  def elementwise_parseLong: BufferLong = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Long](n)
+    def parse(cs: CharSequence) = {
+      val ar = Array.ofDim[Char](cs.length())
+      var i = 0
+      while (i < cs.length()) {
+        ar(i) = cs.charAt(i)
+        i += 1
+      }
+      ScalarTagLong.parse(ar, 0, cs.length())
+    }
+    while (i < n) {
+      r(i) = parse(self.values(i))
+      i += 1
+    }
+    BufferLong(r)
+  }
+  def elementwise_parseInstant: BufferInstant = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Long](n)
+
+    while (i < n) {
+      r(i) = java.time.Instant.parse(self.values(i)).toEpochMilli()
+      i += 1
+    }
+    BufferInstant(r)
+  }
+  def elementwise_substring(start: Int, len: Int): BufferString = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[CharSequence](n)
+
+    while (i < n) {
+      r(i) = values(i).subSequence(start, start + len)
+      i += 1
+    }
+    BufferString(r)
+  }
+
+  def countInGroups(partitionMap: BufferInt, numGroups: Int): BufferInt = {
+    val ar = Array.fill[Double](numGroups)(Double.NaN)
+    var i = 0
+    val n = partitionMap.length
+    while (i < n) {
+      if (!isMissing(i)) {
+        if (ar(partitionMap.raw(i)).isNaN()) {
+          ar(partitionMap.raw(i)) = 1d
+        } else ar(partitionMap.raw(i)) += 1d
+      }
+      i += 1
+    }
+    BufferInt(ar.map(_.toInt))
+
+  }
+
+  def countDistinctInGroups(
+      partitionMap: BufferInt,
+      numGroups: Int
+  ): BufferInt = {
+    val ar = Array.fill[scala.collection.mutable.Set[String]](numGroups)(
+      scala.collection.mutable.Set.empty[String]
+    )
+    var i = 0
+    val n = partitionMap.length
+    while (i < n) {
+      ar(partitionMap.raw(i)).add(values(i).toString)
+
+      i += 1
+    }
+    BufferInt(ar.map(_.size))
+
+  }
+
+  def hasMissingInGroup(partitionMap: BufferInt, numGroups: Int): BufferInt = {
+    val ar = Array.fill[Int](numGroups)(0)
+    var i = 0
+    val n = partitionMap.length
+    while (i < n) {
+      val g = partitionMap.raw(i)
+      if (ar(g) == 0 && isMissing(i)) {
+        ar(g) = 1
+      }
+      i += 1
+    }
+    BufferInt(ar)
+
   }
 
 }

@@ -44,6 +44,8 @@ sealed trait Buffer { self =>
 
   def toSeq: Seq[Elem]
 
+  def elementAsCharSequence(i: Int): CharSequence 
+
   /** Returns locations at which this is <= or >= than the first element of
     * other
     */
@@ -64,6 +66,12 @@ sealed trait Buffer { self =>
 
   /** negative indices yield NA values */
   def take(locs: Location): BufferType
+
+  /** partitions the buffer with the partition map supplied 
+   * Returns as many new buffers of various sizes as many distinct values in the map
+   * 
+  */
+  def partition(numPartitions: Int, map: BufferInt) : Vector[BufferType]
 
   /** returns indexes where value is positive (or positive length) */
   def positiveLocations: BufferInt
@@ -328,7 +336,7 @@ object Buffer {
     } else {
       import org.saddle._
       import org.saddle.order._
-      assert(columns.map(_.map(_.length.toLong).sum).distinct == 1)
+      assert(columns.map(_.map(_.length.toLong).sum).distinct.size == 1,s"Got columns of multiple lengths: ${columns.map(_.map(_.length.toLong).sum).distinct}")
       val buffers = columns.map(buffers => buffers.head.tag.cat(buffers: _*))
       val factorizedEachBuffer = buffers.map(_.groups.map.toSeq).toVector
       // from here this is very inefficient because allocates too much

@@ -12,11 +12,11 @@ private[lang] sealed trait Op1 {
       C
   ](
       arg: Either[B, Seq[S]]
-  )(fun: B => B)(implicit tsc: TaskSystemComponents): IO[Either[B, Seq[S]]] =
+  )(fun: B => C)(implicit tsc: TaskSystemComponents) =
     arg match {
-      case Left(b) => IO.pure(Left(fun(b)).withRight[Seq[S]])
+      case Left(b) => IO.pure(Left(fun(b)))
       case Right(s) =>
-        ra3.Utils.bufferMultiple(s).map(b => Left(fun(b)).withRight[Seq[S]])
+        ra3.Utils.bufferMultiple(s).map(b => Left(fun(b)))
     }
   def op(a: A0)(implicit tsc: TaskSystemComponents): IO[T]
 }
@@ -30,7 +30,7 @@ private[lang] object Op1 {
   }
 
   case object MkUnnamedColumnSpecChunk extends Op1 {
-    type A0 = Either[Buffer,Seq[Segment]]
+    type A0 = Either[Buffer, Seq[Segment]]
     type T = ra3.lang.UnnamedColumnChunk
     def op(a: A0)(implicit tsc: TaskSystemComponents) =
       IO.pure(ra3.lang.UnnamedColumnChunk(a))
@@ -58,23 +58,218 @@ private[lang] object Op1 {
       IO.pure(a.toString)
   }
 
-  // sealed trait BufferOp1II extends Op1 {
-  //   type A0 = ra3.BufferInt
-  //   type T = ra3.BufferInt
-  // }
   sealed trait ColumnOp1II extends Op1 {
     type A0 = ra3.lang.DI32
     type T = ra3.lang.DI32
   }
+  sealed trait ColumnOp1DI extends Op1 {
+    type A0 = ra3.lang.DF64
+    type T = ra3.lang.DI32
+  }
+  sealed trait ColumnOp1InstI extends Op1 {
+    type A0 = ra3.lang.DInst
+    type T = ra3.lang.DI32
+  }
+  sealed trait ColumnOp1InstD extends Op1 {
+    type A0 = ra3.lang.DInst
+    type T = ra3.lang.DF64
+  }
+  sealed trait ColumnOp1InstL extends Op1 {
+    type A0 = ra3.lang.DInst
+    type T = ra3.lang.DI64
+  }
+  sealed trait ColumnOp1InstInst extends Op1 {
+    type A0 = ra3.lang.DInst
+    type T = ra3.lang.DInst
+  }
+  sealed trait ColumnOp1DD extends Op1 {
+    type A0 = ra3.lang.DF64
+    type T = ra3.lang.DF64
+  }
+  sealed trait ColumnOp1ID extends Op1 {
+    type A0 = ra3.lang.DI32
+    type T = ra3.lang.DF64
+  }
+  sealed trait ColumnOp1StrI extends Op1 {
+    type A0 = ra3.lang.DStr
+    type T = ra3.lang.DI32
+  }
+  sealed trait ColumnOp1StrD extends Op1 {
+    type A0 = ra3.lang.DStr
+    type T = ra3.lang.DF64
+  }
+  sealed trait ColumnOp1StrL extends Op1 {
+    type A0 = ra3.lang.DStr
+    type T = ra3.lang.DI64
+  }
+  sealed trait ColumnOp1StrInst extends Op1 {
+    type A0 = ra3.lang.DStr
+    type T = ra3.lang.DInst
+  }
+  sealed trait ColumnOp1InstStr extends Op1 {
+    type A0 = ra3.lang.DInst
+    type T = ra3.lang.DStr
+  }
 
-  // case object BufferAbsOpI extends BufferOp1II {
-  //   def op(a: BufferInt)(implicit tsc: TaskSystemComponents): IO[BufferInt] =
-  //     IO.pure(a.elementwise_abs)
-  // }
   case object ColumnAbsOpI extends ColumnOp1II {
     def op(
         a: ra3.lang.DI32
     )(implicit tsc: TaskSystemComponents) = bufferBefore(a)(_.elementwise_abs)
+  }
+  case object ColumnNotOpI extends ColumnOp1II {
+    def op(
+        a: ra3.lang.DI32
+    )(implicit tsc: TaskSystemComponents) = bufferBefore(a)(_.elementwise_not)
+  }
+
+  case object ColumnIsMissingOpD extends ColumnOp1DI {
+    def op(
+        a: ra3.lang.DF64
+    )(implicit tsc: TaskSystemComponents) =
+      bufferBefore(a)(_.elementwise_isMissing)
+  }
+  case object ColumnAbsOpD extends ColumnOp1DD {
+    def op(
+        a: ra3.lang.DF64
+    )(implicit tsc: TaskSystemComponents) = bufferBefore(a)(_.elementwise_abs)
+  }
+  case object ColumnRoundToDoubleOpD extends ColumnOp1DD {
+    def op(
+        a: ra3.lang.DF64
+    )(implicit tsc: TaskSystemComponents) =
+      bufferBefore(a)(_.elementwise_roundToDouble)
+  }
+  case object ColumnRoundToIntOpD extends ColumnOp1DI {
+    def op(
+        a: ra3.lang.DF64
+    )(implicit tsc: TaskSystemComponents) =
+      bufferBefore(a)(_.elementwise_roundToInt)
+  }
+
+  case object ColumnIsMissingOpI extends ColumnOp1II {
+    def op(
+        a: ra3.lang.DI32
+    )(implicit tsc: TaskSystemComponents) =
+      bufferBefore(a)(_.elementwise_isMissing)
+  }
+  case object ColumnToDoubleOpI extends ColumnOp1ID {
+    def op(
+        a: ra3.lang.DI32
+    )(implicit tsc: TaskSystemComponents) =
+      bufferBefore(a)(_.elementwise_toDouble)
+  }
+
+  case object ColumnIsMissingOpInst extends ColumnOp1InstI {
+    def op(
+        a: ra3.lang.DInst
+    )(implicit tsc: TaskSystemComponents) =
+      bufferBefore(a)(_.elementwise_isMissing)
+  }
+  case object ColumnToDoubleOpInst extends ColumnOp1InstD {
+    def op(
+        a: ra3.lang.DInst
+    )(implicit tsc: TaskSystemComponents) =
+      bufferBefore(a)(_.elementwise_toDouble)
+  }
+  case object ColumnToLongOpInst extends ColumnOp1InstL {
+    def op(
+        a: ra3.lang.DInst
+    )(implicit tsc: TaskSystemComponents) =
+      bufferBefore(a)(_.elementwise_toLong)
+  }
+  case object ColumnYearsOpInst extends ColumnOp1InstI {
+    def op(
+        a: ra3.lang.DInst
+    )(implicit tsc: TaskSystemComponents) = bufferBefore(a)(_.elementwise_years)
+  }
+  case object ColumnMonthsOpInst extends ColumnOp1InstI {
+    def op(
+        a: ra3.lang.DInst
+    )(implicit tsc: TaskSystemComponents) =
+      bufferBefore(a)(_.elementwise_months)
+  }
+  case object ColumnDaysOpInst extends ColumnOp1InstI {
+    def op(
+        a: ra3.lang.DInst
+    )(implicit tsc: TaskSystemComponents) = bufferBefore(a)(_.elementwise_days)
+  }
+  case object ColumnHoursOpInst extends ColumnOp1InstI {
+    def op(
+        a: ra3.lang.DInst
+    )(implicit tsc: TaskSystemComponents) = bufferBefore(a)(_.elementwise_hours)
+  }
+  case object ColumnMinutesOpInst extends ColumnOp1InstI {
+    def op(
+        a: ra3.lang.DInst
+    )(implicit tsc: TaskSystemComponents) =
+      bufferBefore(a)(_.elementwise_minutes)
+  }
+  case object ColumnSecondsOpInst extends ColumnOp1InstI {
+    def op(
+        a: ra3.lang.DInst
+    )(implicit tsc: TaskSystemComponents) =
+      bufferBefore(a)(_.elementwise_seconds)
+  }
+
+  case object ColumnNanosecondsOpInst extends ColumnOp1InstI {
+    def op(
+        a: ra3.lang.DInst
+    )(implicit tsc: TaskSystemComponents) =
+      bufferBefore(a)(_.elementwise_nanoseconds)
+  }
+  case object ColumnRoundToYearOpInst extends ColumnOp1InstInst {
+    def op(
+        a: ra3.lang.DInst
+    )(implicit tsc: TaskSystemComponents) =
+      bufferBefore(a)(_.elementwise_roundToYear)
+  }
+  case object ColumnRoundToMonthOpInst extends ColumnOp1InstInst {
+    def op(
+        a: ra3.lang.DInst
+    )(implicit tsc: TaskSystemComponents) =
+      bufferBefore(a)(_.elementwise_roundToMonth)
+  }
+  case object ColumnRoundToDayOpInst extends ColumnOp1InstInst {
+    def op(
+        a: ra3.lang.DInst
+    )(implicit tsc: TaskSystemComponents) =
+      bufferBefore(a)(_.elementwise_roundToDay)
+  }
+  case object ColumnRoundToHourOpInst extends ColumnOp1InstInst {
+    def op(
+        a: ra3.lang.DInst
+    )(implicit tsc: TaskSystemComponents) =
+      bufferBefore(a)(_.elementwise_roundToHours)
+  }
+
+  case object ColumnParseI32OpStr extends ColumnOp1StrI {
+    def op(
+        a: ra3.lang.DStr
+    )(implicit tsc: TaskSystemComponents) =
+      bufferBefore(a)(_.elementwise_parseInt)
+  }
+  case object ColumnParseF64OpStr extends ColumnOp1StrD {
+    def op(
+        a: ra3.lang.DStr
+    )(implicit tsc: TaskSystemComponents) =
+      bufferBefore(a)(_.elementwise_parseDouble)
+  }
+  case object ColumnParseI64OpStr extends ColumnOp1StrL {
+    def op(
+        a: ra3.lang.DStr
+    )(implicit tsc: TaskSystemComponents) =
+      bufferBefore(a)(_.elementwise_parseLong)
+  }
+  case object ColumnParseInstOpStr extends ColumnOp1StrInst {
+    def op(
+        a: ra3.lang.DStr
+    )(implicit tsc: TaskSystemComponents) =
+      bufferBefore(a)(_.elementwise_parseInstant)
+  }
+  case object ColumnToISOOpInst extends ColumnOp1InstStr {
+    def op(
+        a: ra3.lang.DInst
+    )(implicit tsc: TaskSystemComponents) = bufferBefore(a)(_.elementwise_toISO)
   }
 
 }

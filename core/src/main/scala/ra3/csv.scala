@@ -3,15 +3,10 @@ package ra3
 import java.nio.channels.ReadableByteChannel
 import java.nio.charset.CharsetDecoder
 import java.io.File
-import java.nio.channels.WritableByteChannel
-import java.nio.charset.Charset
-import java.nio.charset.StandardCharsets
-import java.nio.ByteBuffer
 import org.saddle.io.csv.Callback
 import tasks.TaskSystemComponents
 import scala.collection.mutable.ArrayBuffer
 import cats.effect.IO
-import tasks.SharedFile
 import ra3.ColumnTag.I32
 import ra3.ColumnTag.Instant
 import ra3.ColumnTag.F64
@@ -33,58 +28,6 @@ object InstantParser {
 
 object csv {
 
-  def writeCSVToSharedFiles(
-      table: Table,
-      channel: WritableByteChannel,
-      columnSeparator: Char = ',',
-      quoteChar: Char = '"',
-      recordSeparator: String = "\r\n",
-      charset: Charset = StandardCharsets.UTF_8
-  )(implicit tsc: TaskSystemComponents): IO[Seq[SharedFile]] = {
-
-    def toStringColumns(segmentIdx: Int): IO[Seq[Seq[String]]] = {
-      IO.parSequenceN(32)((0 until table.columns.size).toList map { colIdx =>
-        val column = table.columns(colIdx)
-
-        column
-          .segments(segmentIdx)
-          .buffer
-          .map(_.toSeq.map(_.toString))
-
-      })
-    }
-
-    def quote(s: String) =
-      if (s.contains(columnSeparator)) s"$quoteChar$s$quoteChar" else s
-
-    val columnSeparatorStr = columnSeparator.toString
-    channel.write(
-      ByteBuffer.wrap(
-        (table.colNames.toSeq
-          .map(quote)
-          .mkString(columnSeparatorStr)
-          + recordSeparator)
-          .getBytes(charset)
-      )
-    )
-
-    val segments = table.columns.head.segments.size
-
-    IO.parSequenceN(32)(((0 until segments).toList).map { segmentIdx =>
-      val data = toStringColumns(segmentIdx).map(_.transpose).flatMap { rows =>
-        val renderedBatch = rows.map { row =>
-          row.map(quote).mkString(columnSeparatorStr) + recordSeparator
-        }.mkString
-        val asByte = renderedBatch.getBytes(charset)
-
-        SharedFile.apply(asByte, s"${table.uniqueId}/csv/$segmentIdx.csv")
-      }
-
-      data
-
-    })
-
-  }
   def readHeterogeneousFromCSVFile(
       name: String,
       columnTypes: Seq[(Int, ColumnTag, Option[InstantParser])],
@@ -127,7 +70,7 @@ object csv {
       quoteChar: Char = '"',
       recordSeparator: String = "\r\n",
       maxLines: Long = Long.MaxValue,
-      maxSegmentLength: Int = 100000,
+      maxSegmentLength: Int = 1_000_000,
       header: Boolean = false,
       bufferSize: Int = 8192
   )(implicit
@@ -139,6 +82,11 @@ object csv {
       .toArray
 
     val locs = sortedColumnTypes.map(_._1)
+
+    require(
+      locs.distinct.size == locs.size,
+      "Column index fields in columnTypes are not unique. "
+    )
 
     val callback = new ColumnBufferCallback(
       name,
@@ -315,7 +263,8 @@ object csv {
         s: Array[Char],
         from: Array[Int],
         to: Array[Int],
-        len: Int
+        len: Int,
+        eol: Array[Int]
     ): org.saddle.io.csv.Control = {
       var i = 0
 
@@ -354,7 +303,7 @@ object csv {
           }
         }
 
-        if (toi < 0) {
+        if (toi < 0 || eol(i) < 0) {
           if (line == 0 && !emptyLoc && headerLocFields != locs.length) {
             error = true
             errorString =

@@ -119,7 +119,7 @@ final case class SegmentDouble(
       case Some(sf) =>
         sf.bytes.map { byteVector =>
           val bb =
-            byteVector.toByteBuffer
+            Utils.decompress(byteVector)
               .order(ByteOrder.LITTLE_ENDIAN)
               .asDoubleBuffer()
           val ar = Array.ofDim[Double](bb.remaining)
@@ -156,7 +156,7 @@ final case class SegmentInt(
       case Some(value) =>
         value.bytes.map { byteVector =>
           val bb =
-            byteVector.toByteBuffer.order(ByteOrder.LITTLE_ENDIAN).asIntBuffer()
+            Utils.decompress(byteVector).order(ByteOrder.LITTLE_ENDIAN).asIntBuffer()
           val ar = Array.ofDim[Int](bb.remaining)
           bb.get(ar)
           BufferInt(ar)
@@ -165,7 +165,8 @@ final case class SegmentInt(
 
   }
 
-  def isConstant(i:Int) = sf.isEmpty && minMax.isDefined && minMax.get._1 == minMax.get._2 && minMax.get._1 == i
+  def isConstant(i: Int) =
+    sf.isEmpty && minMax.isDefined && minMax.get._1 == minMax.get._2 && minMax.get._1 == i
 
 }
 final case class SegmentLong(
@@ -181,7 +182,6 @@ final case class SegmentLong(
   type ColumnTagType = ColumnTag.I64.type
   val tag = ColumnTag.I64
 
-
   override def buffer(implicit tsc: TaskSystemComponents): IO[BufferLong] = {
     sf match {
       case None if minMax.isDefined =>
@@ -191,7 +191,7 @@ final case class SegmentLong(
       case Some(value) =>
         value.bytes.map { byteVector =>
           val bb =
-            byteVector.toByteBuffer
+            Utils.decompress(byteVector)
               .order(ByteOrder.LITTLE_ENDIAN)
               .asLongBuffer()
           val ar = Array.ofDim[Long](bb.remaining)
@@ -216,17 +216,17 @@ final case class SegmentInstant(
   type ColumnTagType = ColumnTag.Instant.type
   val tag = ColumnTag.Instant
 
-
   override def buffer(implicit tsc: TaskSystemComponents): IO[BufferType] = {
     sf match {
       case None if minMax.isDefined =>
         assert(minMax.get._1 == minMax.get._2)
-        IO.pure(BufferInstant.constant(value = minMax.get._1, length = numElems))
+        IO.pure(
+          BufferInstant.constant(value = minMax.get._1, length = numElems)
+        )
       case None => IO.pure(BufferInstant(Array.emptyLongArray))
       case Some(value) =>
         value.bytes.map { byteVector =>
-          val bb =
-            byteVector.toByteBuffer
+          val bb = Utils.decompress(byteVector)
               .order(ByteOrder.LITTLE_ENDIAN)
               .asLongBuffer()
           val ar = Array.ofDim[Long](bb.remaining)
@@ -251,7 +251,6 @@ final case class SegmentString(
   type ColumnTagType = ColumnTag.StringTag.type
   val tag = ColumnTag.StringTag
 
-
   override def buffer(implicit tsc: TaskSystemComponents): IO[BufferType] = {
     sf match {
       case None if minMax.isDefined =>
@@ -260,8 +259,12 @@ final case class SegmentString(
       case None => IO.pure(BufferString(Array.empty[CharSequence]))
       case Some(value) =>
         value.bytes.map { byteVector =>
+          
+
+          val decompressed = Utils.decompress(byteVector)
+
           val bb =
-            byteVector.toByteBuffer
+            decompressed
               .order(ByteOrder.BIG_ENDIAN) // char data is laid out big endian
           val ar = Array.ofDim[CharSequence](numElems)
           var i = 0

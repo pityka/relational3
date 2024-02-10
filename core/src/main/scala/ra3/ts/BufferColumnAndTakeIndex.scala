@@ -32,7 +32,7 @@ object BufferColumnAndTakeIndex {
   )(implicit
       tsc: TaskSystemComponents
   ) = {
-
+    
     if (idx.isDefined && idx.get.numElems == 0) IO.pure(input.tag.emptySegment)
     else {
       val bufferedColumn = IO

@@ -4,6 +4,7 @@ import com.github.plokhotnyuk.jsoniter_scala.core._
 import cats.effect.IO
 import tasks.TaskSystemComponents
 import ra3.tablelang.DelayedTableSchema
+import ra3.tablelang
 class KeyTag
 sealed trait Key
 sealed trait SingletonKey extends Key
@@ -12,15 +13,30 @@ case object Numgroups extends SingletonKey
 case class IntKey(s: Int) extends Key
 case class TagKey(s: KeyTag) extends Key
 case class ColumnKey(tableUniqueId: String, columnIdx: Int) extends Key
-case class Delayed(table: ra3.tablelang.Key, selection: Either[String,Int]) extends Key
+case class Delayed(
+    private[ra3] table: ra3.tablelang.Key,
+    private[ra3] selection: Either[String, Int]
+) extends Key 
+// {
+//   private[ra3] def tableIdent = ra3.tablelang.TableExpr.Ident(table)
+//   private[ra3] def replace(i: Map[ra3.tablelang.KeyTag, Int]) = table match {
+//     case ra3.tablelang.TagKey(s) =>
+//       Delayed(ra3.tablelang.IntKey(i(s)), selection)
+//     case _ => this
+//   }
+//   private[ra3] def tags: Set[ra3.tablelang.KeyTag] = table match {
+//     case ra3.tablelang.TagKey(s) => Set(s)
+//     case _                       => Set.empty
+//   }
+// }
 
 sealed trait Expr { self =>
-  type T
+  private[ra3] type T
 
   private[lang] def evalWith(env: Map[Key, Value[_]])(implicit
       tsc: TaskSystemComponents
   ): IO[Value[T]]
-  def hash = {
+  private[ra3] def hash = {
     val bytes = writeToArray(this.replaceTags(Map.empty))
     com.google.common.hash.Hashing.murmur3_128().hashBytes(bytes).asLong()
   }
@@ -52,6 +68,17 @@ private[ra3] object Expr {
       this
     def replaceDelayed(map: DelayedTableSchema) = this
   }
+  case class LitStrSet(s: Set[String]) extends Expr {
+    type T = Set[String]
+    def evalWith(env: Map[Key, Value[_]])(implicit
+        tsc: TaskSystemComponents
+    ): IO[Value[T]] = IO.pure(Value.Const(s))
+    def tags: Set[KeyTag] = Set.empty
+    val columnKeys: Set[ColumnKey] = Set.empty
+    def replace(i: Map[KeyTag, Int], i2: Map[ra3.tablelang.KeyTag, Int]): Expr =
+      this
+    def replaceDelayed(map: DelayedTableSchema) = this
+  }
   case class LitStr(s: String) extends Expr {
     type T = String
     def evalWith(env: Map[Key, Value[_]])(implicit
@@ -74,6 +101,70 @@ private[ra3] object Expr {
       this
     def replaceDelayed(map: DelayedTableSchema) = this
   }
+  case class LitF64(s: Double) extends Expr {
+    type T = Double
+    def evalWith(env: Map[Key, Value[_]])(implicit
+        tsc: TaskSystemComponents
+    ): IO[Value[T]] = IO.pure(Value.Const(s))
+    def tags: Set[KeyTag] = Set.empty
+    val columnKeys: Set[ColumnKey] = Set.empty
+    def replace(i: Map[KeyTag, Int], i2: Map[ra3.tablelang.KeyTag, Int]): Expr =
+      this
+    def replaceDelayed(map: DelayedTableSchema) = this
+  }
+   case class LitF64Set(s: Set[Double]) extends Expr {
+    type T = Set[Double]
+    def evalWith(env: Map[Key, Value[_]])(implicit
+        tsc: TaskSystemComponents
+    ): IO[Value[T]] = IO.pure(Value.Const(s))
+    def tags: Set[KeyTag] = Set.empty
+    val columnKeys: Set[ColumnKey] = Set.empty
+    def replace(i: Map[KeyTag, Int], i2: Map[ra3.tablelang.KeyTag, Int]): Expr =
+      this
+    def replaceDelayed(map: DelayedTableSchema) = this
+  }
+   case class LitI32Set(s: Set[Int]) extends Expr {
+    type T = Set[Int]
+    def evalWith(env: Map[Key, Value[_]])(implicit
+        tsc: TaskSystemComponents
+    ): IO[Value[T]] = IO.pure(Value.Const(s))
+    def tags: Set[KeyTag] = Set.empty
+    val columnKeys: Set[ColumnKey] = Set.empty
+    def replace(i: Map[KeyTag, Int], i2: Map[ra3.tablelang.KeyTag, Int]): Expr =
+      this
+    def replaceDelayed(map: DelayedTableSchema) = this
+  }
+
+
+  case class DelayedIdent(private[ra3] val name: Delayed) extends Expr {
+
+    def join = ra3.lang.Join(this)
+    def groupBy = ra3.lang.GroupBy(this)
+
+    private[ra3] def tableIdent = ra3.tablelang.TableExpr.Ident(name.table)
+
+    private[ra3] def evalWith(env: Map[Key, Value[_]])(implicit
+        tsc: TaskSystemComponents
+    ): IO[Value[T]] =
+      IO.pure(env(name).asInstanceOf[Value[T]])
+    private[ra3] def cast[T1] = asInstanceOf[DelayedIdent { type T = T1 }]
+
+    private[ra3]  def tags: Set[KeyTag] = Set.empty
+    private[ra3] val columnKeys: Set[ColumnKey] = Set.empty
+    
+    private[ra3] override def replace(
+        i: Map[KeyTag, Int],
+        i2: Map[ra3.tablelang.KeyTag, Int]
+    ) = name.table  match {      
+      case tablelang.TagKey(s) =>DelayedIdent(Delayed(ra3.tablelang.IntKey(i2(s)),name.selection))
+      case _ => this
+    } 
+
+    private[ra3]  override def replaceDelayed(i: DelayedTableSchema) = name match {
+      case x: Delayed => Ident(i.replace(x))
+      case _          => this
+    }
+  }
   case class Ident(name: Key) extends Expr {
 
     def evalWith(env: Map[Key, Value[_]])(implicit
@@ -84,6 +175,7 @@ private[ra3] object Expr {
 
     def tags: Set[KeyTag] = name match {
       case TagKey(s) => Set(s)
+      
       case _         => Set.empty
     }
     val columnKeys: Set[ColumnKey] = name match {
@@ -95,6 +187,8 @@ private[ra3] object Expr {
         i2: Map[ra3.tablelang.KeyTag, Int]
     ) = name match {
       case TagKey(s) => Ident(IntKey(i(s)))
+      case Delayed(ra3.tablelang.TagKey(t), s) =>
+          Ident(Delayed(ra3.tablelang.IntKey(i2(t)), s))
       case _         => this
     }
 

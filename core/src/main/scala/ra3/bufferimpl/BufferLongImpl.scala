@@ -6,12 +6,29 @@ import java.nio.ByteOrder
 import tasks.{TaskSystemComponents, SharedFile}
 
 private[ra3] trait BufferLongImpl { self: BufferLong =>
+  
+def elementAsCharSequence(i: Int): CharSequence = values(i).toString
+
+    def partition(numPartitions: Int, map: BufferInt): Vector[BufferType] = {
+    assert(length == map.length)
+    val growableBuffers =
+      Vector.fill(numPartitions)(org.saddle.Buffer.empty[Long])
+    var i = 0
+    val n = length
+    val mapv = map.values
+    while (i < n) {
+      growableBuffers(mapv(i)).+=(values(i))
+      i += 1
+    }
+    growableBuffers.map(v => BufferLong(v.toArray))
+  }
 
   def broadcast(n: Int) = self.length match {
-    case x if x == n => this 
-    case 1 => 
-    BufferLong(Array.fill[Long](n)(values(0)))
-    case _ => throw new RuntimeException("broadcast called on buffer with wrong size")
+    case x if x == n => this
+    case 1 =>
+      BufferLong(Array.fill[Long](n)(values(0)))
+    case _ =>
+      throw new RuntimeException("broadcast called on buffer with wrong size")
   }
 
   def positiveLocations: BufferInt = {
@@ -30,7 +47,7 @@ private[ra3] trait BufferLongImpl { self: BufferLong =>
     var i = 0
     val n = partitionMap.length
     while (i < n) {
-      if (!isMissing(i)) { 
+      if (!isMissing(i)) {
         if (ar(partitionMap.raw(i)) == Long.MinValue) {
           ar(partitionMap.raw(i)) = values(i)
         } else { ar(partitionMap.raw(i)) += values(i) }
@@ -121,18 +138,19 @@ private[ra3] trait BufferLongImpl { self: BufferLong =>
   ): (Option[BufferInt], Option[BufferInt]) = {
     val idx1 = Index(values)
     val idx2 = Index(other.values)
-    val reindexer = idx1.join(
-      idx2,
+    val reindexer = new (org.saddle.index.JoinerImpl[Long]).join(
+      left = idx1,
+      right = idx2,
       how = how match {
         case "inner" => org.saddle.index.InnerJoin
         case "left"  => org.saddle.index.LeftJoin
         case "right" => org.saddle.index.RightJoin
         case "outer" => org.saddle.index.OuterJoin
-      }
+      },
+      forceProperSemantics=true
     )
     (reindexer.lTake.map(BufferInt(_)), reindexer.rTake.map(BufferInt(_)))
   }
-
 
   override def take(locs: Location): BufferLong = locs match {
     case Slice(start, until) =>
@@ -151,13 +169,13 @@ private[ra3] trait BufferLongImpl { self: BufferLong =>
     scala.util.hashing.byteswap64(values(l))
   }
 
-  def minMax = if (values.length == 0) None else {
-          Some(
-            (values.min,
-            values.max)
-          )
-        } 
- def firstInGroup(partitionMap: BufferInt, numGroups: Int): BufferType = {
+  def minMax = if (values.length == 0) None
+  else {
+    Some(
+      (values.min, values.max)
+    )
+  }
+  def firstInGroup(partitionMap: BufferInt, numGroups: Int): BufferType = {
     assert(partitionMap.length == length)
     val ar = Array.fill(numGroups)(Long.MinValue)
     var i = 0
@@ -178,9 +196,8 @@ private[ra3] trait BufferLongImpl { self: BufferLong =>
         val bb =
           ByteBuffer.allocate(8 * values.length).order(ByteOrder.LITTLE_ENDIAN)
         bb.asLongBuffer().put(values)
-        fs2.Stream.chunk(fs2.Chunk.byteBuffer(bb))
+        fs2.Stream.chunk(fs2.Chunk.byteBuffer(Utils.compress(bb)))
       }.flatMap { stream =>
-
         val minmax = minMax
         SharedFile
           .apply(stream, name.toString)
@@ -188,7 +205,5 @@ private[ra3] trait BufferLongImpl { self: BufferLong =>
       }
 
   }
-
-  
 
 }

@@ -20,6 +20,7 @@ object EstimateCDF {
   )(implicit
       tsc: TaskSystemComponents
   ) = {
+    scribe.debug(f"estimate cdf input=${input.tag}(numEl=${input.numElems}%,d) sampling points=$n%,d to $outputPath ")
     val bIn = input.buffer
     bIn.flatMap { case bIn =>
       val t = bIn.cdf(n)

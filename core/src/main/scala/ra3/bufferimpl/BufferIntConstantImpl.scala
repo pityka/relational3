@@ -4,6 +4,22 @@ import ra3._
 import tasks.{TaskSystemComponents}
 private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
 
+  def elementAsCharSequence(i: Int): CharSequence = value.toString
+
+    def partition(numPartitions: Int, map: BufferInt): Vector[BufferType] = {
+    assert(length == map.length)
+    val growableBuffers =
+      Vector.fill(numPartitions)(org.saddle.Buffer.empty[Int])
+    var i = 0
+    val n = length
+    val mapv = map.values
+    while (i < n) {
+      growableBuffers(mapv(i)).+=(value)
+      i += 1
+    }
+    growableBuffers.map(v => BufferInt(v.toArray))
+  }
+
   def broadcast(n: Int) = self.length match {
     case x if x == n => this
     case 1 =>
@@ -112,14 +128,16 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
   ): (Option[BufferInt], Option[BufferInt]) = {
     val idx1 = Index(values)
     val idx2 = Index(other.values)
-    val reindexer = idx1.join(
-      idx2,
+     val reindexer = new (org.saddle.index.JoinerImpl[Int]).join(
+      left = idx1,
+      right = idx2,
       how = how match {
         case "inner" => org.saddle.index.InnerJoin
         case "left"  => org.saddle.index.LeftJoin
         case "right" => org.saddle.index.RightJoin
         case "outer" => org.saddle.index.OuterJoin
-      }
+      },
+      forceProperSemantics=true
     )
     (reindexer.lTake.map(BufferInt(_)), reindexer.rTake.map(BufferInt(_)))
   }
@@ -275,6 +293,10 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
     }
     BufferInt(r)
   }
+  def elementwise_lteq(other: Double): BufferInt = {
+
+    BufferInt.constant(if (self.value <= other) 1 else 0, length)
+  }
   def elementwise_neq(other: BufferType): BufferInt = {
     assert(other.length == self.length)
     var i = 0
@@ -285,6 +307,9 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
       i += 1
     }
     BufferInt(r)
+  }
+  def elementwise_neq(other: Double): BufferInt = {
+    BufferInt.constant(if (self.value != other) 1 else 0, length)
   }
 
   def elementwise_eq(other: BufferDouble): BufferInt = {
@@ -298,6 +323,9 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
     }
     BufferInt(r)
   }
+  def elementwise_eq(other: Double): BufferInt = {
+    BufferInt.constant(if (self.value == other) 1 else 0, length)
+  }
   def elementwise_gt(other: BufferDouble): BufferInt = {
     assert(other.length == self.length)
     var i = 0
@@ -308,6 +336,9 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
       i += 1
     }
     BufferInt(r)
+  }
+  def elementwise_gt(other: Double): BufferInt = {
+    BufferInt.constant(if (self.value > other) 1 else 0, length)
   }
   def elementwise_gteq(other: BufferDouble): BufferInt = {
     assert(other.length == self.length)
@@ -320,6 +351,9 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
     }
     BufferInt(r)
   }
+  def elementwise_gteq(other: Double): BufferInt = {
+    BufferInt.constant(if (self.value >= other) 1 else 0, length)
+  }
   def elementwise_lt(other: BufferDouble): BufferInt = {
     assert(other.length == self.length)
     var i = 0
@@ -330,6 +364,9 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
       i += 1
     }
     BufferInt(r)
+  }
+  def elementwise_lt(other: Double): BufferInt = {
+    BufferInt.constant(if (self.value < other) 1 else 0, length)
   }
   def elementwise_lteq(other: BufferDouble): BufferInt = {
     assert(other.length == self.length)
@@ -342,6 +379,7 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
     }
     BufferInt(r)
   }
+
   def elementwise_neq(other: BufferDouble): BufferInt = {
     assert(other.length == self.length)
     var i = 0
@@ -367,5 +405,89 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
 
     BufferLong(r)
   }
+
+  def elementwise_not: BufferInt = {
+    val n = self.length
+
+    val r = if (self.value > 0) 0 else 1
+    BufferInt.constant(r, n)
+  }
+  def elementwise_containedIn(s: Set[Int]): BufferInt = {
+    val n = self.length
+    val t = if (s.contains(value)) 1 else 0
+
+    BufferInt.constant(t, n)
+  }
+
+  def allInGroups(partitionMap: ra3.BufferInt, numGroups: Int): ra3.BufferInt = 
+     BufferIntConstant(if (value > 0) 1 else 0 ,numGroups) 
+
+  def anyInGroups(partitionMap: ra3.BufferInt, numGroups: Int): ra3.BufferInt = 
+    BufferIntConstant(if (value > 0) 1 else 0 ,numGroups)
+
+  def noneInGroups(partitionMap: ra3.BufferInt, numGroups: Int): ra3.BufferInt = 
+    BufferIntConstant(if (value > 0) 0 else 1 ,numGroups)
+
+     def hasMissingInGroup(partitionMap: ra3.BufferInt, numGroups: Int): ra3.BufferInt = 
+      BufferIntConstant(if (isMissing(0)) 1 else 0 ,numGroups)
+
+  def maxInGroups(partitionMap: ra3.BufferInt, numGroups: Int): ra3.BufferInt = 
+    BufferIntConstant(value ,numGroups) 
+
+  def meanInGroups(partitionMap: ra3.BufferInt, numGroups: Int): ra3.BufferDouble = 
+    BufferDouble.constant(value.toDouble,numGroups)
+
+  def minInGroups(partitionMap: ra3.BufferInt, numGroups: Int): ra3.BufferInt = 
+    BufferIntConstant(value ,numGroups) 
+
+  def countDistinctInGroups(partitionMap: ra3.BufferInt, numGroups: Int): ra3.BufferInt = 
+     BufferIntConstant(if (isMissing(0)) 0 else 1,numGroups)
+
+  def countInGroups(partitionMap: ra3.BufferInt, numGroups: Int): ra3.BufferInt = {
+    val ar = Array.fill[Double](numGroups)(Double.NaN)
+    var i = 0
+    val n = partitionMap.length
+    while (i < n) {
+      if (!isMissing(i)) {
+        if (ar(partitionMap.raw(i)).isNaN()) {
+          ar(partitionMap.raw(i)) = 1d
+        } else ar(partitionMap.raw(i)) += 1d
+      }
+      i += 1
+    }
+    BufferInt(ar.map(_.toInt))
+
+  }
+
+  
+
+  def elementwise_eq(other: Int): ra3.BufferInt = 
+    BufferIntConstant(if (value == other) 1 else 0,length)
+
+  def elementwise_gt(other: Int): ra3.BufferInt = 
+    BufferIntConstant(if (value > other) 1 else 0,length)
+
+  def elementwise_gteq(other: Int): ra3.BufferInt = 
+    BufferIntConstant(if (value >= other) 1 else 0,length)
+
+  def elementwise_isMissing: ra3.BufferInt = 
+    BufferIntConstant(if (isMissing(0)) 1 else 0,length)
+
+  def elementwise_lt(other: Int): ra3.BufferInt = 
+    BufferIntConstant(if (value < other) 1 else 0,length)
+
+  def elementwise_lteq(other: Int): ra3.BufferInt = 
+    BufferIntConstant(if (value <= other) 1 else 0,length)
+
+  def elementwise_neq(other: Int): ra3.BufferInt = 
+    BufferIntConstant(if (value != other) 1 else 0,length)
+
+  def elementwise_printf(s: String): ra3.BufferString = {
+    BufferString.constant(s.format(value),length)
+  }
+
+ 
+
+  
 
 }

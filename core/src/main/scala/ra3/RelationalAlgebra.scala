@@ -2,6 +2,7 @@ package ra3
 
 import cats.effect.IO
 import tasks.{TaskSystemComponents}
+import ra3.ts.ExportCsv
 
 trait RelationalAlgebra { self: Table =>
 
@@ -95,8 +96,8 @@ trait RelationalAlgebra { self: Table =>
       colTags = columns.map(_.tag),
       colNames = colNames
     )
-    ra3.SimpleQuery.simpleQuery(self,query(tRef))
-    
+    ra3.SimpleQuery.simpleQuery(self, query(tRef))
+
   }
 
   def rfilterInEquality(
@@ -143,13 +144,15 @@ trait RelationalAlgebra { self: Table =>
   def prePartition(
       columnIdx: Seq[Int],
       partitionBase: Int,
-      partitionLimit: Int
+      partitionLimit: Int,
+      maxSegmentsToBufferAtOnce: Int
   )(implicit tsc: TaskSystemComponents) = {
     partition(
       columnIdx = columnIdx,
       partitionBase = partitionBase,
       numPartitionsIsImportant = true,
-      partitionLimit = partitionLimit
+      partitionLimit = partitionLimit,
+      maxSegmentsToBufferAtOnce = maxSegmentsToBufferAtOnce
     ).map { parts =>
       val pz = parts.zipWithIndex
       val partitionMapOverSegments =
@@ -181,7 +184,8 @@ trait RelationalAlgebra { self: Table =>
       columnIdx: Seq[Int],
       partitionBase: Int,
       numPartitionsIsImportant: Boolean,
-      partitionLimit: Int
+      partitionLimit: Int,
+      maxSegmentsToBufferAtOnce: Int
   )(implicit tsc: TaskSystemComponents): IO[Vector[PartitionedTable]] =
     if (self.numRows <= partitionLimit.toLong)
       IO.pure(Vector(PartitionedTable(self.columns, PartitionMeta(Nil, 1))))
@@ -224,11 +228,14 @@ trait RelationalAlgebra { self: Table =>
       }
     }
     else {
-
+      scribe.info(
+        f"Will partition ${self.columns.size} columns of ${self.uniqueId} by partition key of column $columnIdx, each ${self.segmentation.size}%,d segments, total elements: ${self.numRows}%,d. "
+      )
       PartitionedTable.partitionColumns(
         columnIdx = columnIdx,
         inputColumns = self.columns,
         partitionBase = partitionBase,
+        maxSegmentsToBufferAtOnce = maxSegmentsToBufferAtOnce,
         uniqueId = self.uniqueId + "partitioned-" + columnIdx.mkString(
           "-"
         ) + "-" + partitionBase + "-" + partitionLimit
@@ -250,7 +257,8 @@ trait RelationalAlgebra { self: Table =>
       joinColumnOther: Int,
       how: String,
       partitionBase: Int,
-      partitionLimit: Int
+      partitionLimit: Int,
+      maxSegmentsToBufferAtOnce: Int
   )(query: (TableReference, TableReference) => ra3.lang.Expr {
     type T <: ra3.lang.ReturnValue
   })(implicit tsc: TaskSystemComponents) = {
@@ -271,147 +279,17 @@ trait RelationalAlgebra { self: Table =>
       colNames = other.colNames
     )
     val program = query(tRefSelf, tRefOther)
-    val name = ts.MakeUniqueId.queue2(
+    Equijoin.equijoinTwo(
       self,
       other,
-      s"join-$how-$partitionBase-$joinColumnSelf-$joinColumnOther-${program.hash}",
-      Nil
+      joinColumnSelf,
+      joinColumnOther,
+      how,
+      partitionBase,
+      partitionLimit,
+      maxSegmentsToBufferAtOnce,
+      program
     )
-
-    // if either one fits in, then we scan the other
-    val noPartitioning =
-      (self.numRows <= partitionLimit.toLong || other.numRows <= partitionLimit.toLong)
-    val bufferSelf = self.numRows <= partitionLimit.toLong
-    val bufferOther = other.numRows <= partitionLimit.toLong
-
-    val pSelf = if (noPartitioning) {
-      if (bufferSelf)
-        IO.pure(Vector(PartitionedTable(self.columns, PartitionMeta(Nil, 1))))
-      else
-        IO.pure {
-          (0 until self.columns.head.segments.size).toVector map { segmentIdx =>
-            PartitionedTable(
-              self.columns.map(col =>
-                col.tag.makeColumn(Vector(col.segments(segmentIdx)))
-              ),
-              PartitionMeta(Nil, 1)
-            )
-          }
-        }
-    } else
-      self.partition(
-        columnIdx = List(joinColumnSelf),
-        partitionBase = partitionBase,
-        numPartitionsIsImportant = true,
-        partitionLimit = partitionLimit
-      )
-
-    val pOther = if (noPartitioning) {
-      if (bufferOther)
-        IO.pure(Vector(PartitionedTable(other.columns, PartitionMeta(Nil, 1))))
-      else
-        IO.pure {
-          (0 until other.columns.head.segments.size).toVector map {
-            segmentIdx =>
-              PartitionedTable(
-                other.columns.map(col =>
-                  col.tag.makeColumn(Vector(col.segments(segmentIdx)))
-                ),
-                PartitionMeta(Nil, 1)
-              )
-          }
-        }
-    } else
-      other.partition(
-        columnIdx = List(joinColumnOther),
-        partitionBase = partitionBase,
-        numPartitionsIsImportant = true,
-        partitionLimit = partitionLimit
-      )
-    IO.both(name, IO.both(pSelf, pOther))
-      .flatMap { case (name, (pSelf, pOther)) =>
-        assert(pSelf.size == pOther.size || pSelf.size == 1 || pOther.size == 1)
-        val zippedPartitions =
-          if (pSelf.size > 1 && pOther.size > 1) (pSelf zip pOther)
-          else if (pSelf.size == 1) pOther.map(o => (pSelf.head, o))
-          else pSelf.map(s => (s, pOther.head))
-        val joinedColumnsAndPartitions =
-          IO.parSequenceN(32)(zippedPartitions.zipWithIndex.map {
-            case ((pSelf, pOther), pIdx) =>
-              val pColumnSelf = pSelf.columns(joinColumnSelf)
-              val pColumnOther = pOther
-                .columns(joinColumnOther)
-                .asInstanceOf[pColumnSelf.ColumnType]
-
-              val joinIndex = ts.ComputeJoinIndex
-                .queue(
-                  first = pColumnSelf.asInstanceOf[pColumnSelf.ColumnType],
-                  rest = List((pColumnOther, how, 0)),
-                  outputPath = LogicalPath(
-                    table = name + ".joinindex",
-                    partition =
-                      Some(PartitionPath(Nil, zippedPartitions.size, pIdx)),
-                    segment = 0,
-                    column = 0
-                  )
-                )
-                .map { list => (list.head, list.last) }
-
-              val joinedPartition =
-                joinIndex
-                  .flatMap { case (takeSelf, takeOther) =>
-                    ts.MultipleTableQuery.queue(
-                      input =
-                        pSelf.columns.zipWithIndex.map { case (s, columnIdx) =>
-                          ra3.ts.SegmentWithName(
-                            segment = s.segments,
-                            tableUniqueId = self.uniqueId,
-                            columnName = self.colNames(columnIdx),
-                            columnIdx = columnIdx
-                          )
-                        } ++ pOther.columns.zipWithIndex.map {
-                          case (s, columnIdx) =>
-                            ra3.ts.SegmentWithName(
-                              segment = s.segments,
-                              tableUniqueId = other.uniqueId,
-                              columnName = other.colNames(columnIdx),
-                              columnIdx = columnIdx
-                            )
-                        },
-                      predicate = program,
-                      outputPath = LogicalPath(name, None, pIdx, 0),
-                      takes = List(
-                        (self.uniqueId -> takeSelf),
-                        (other.uniqueId -> takeOther)
-                      )
-                    )
-
-                  }
-              joinedPartition.map { columnsAsSingleSegment =>
-                (
-                  TableHelper(
-                    columnsAsSingleSegment.map { case (segment, _) =>
-                      segment.tag.makeColumn(Vector(segment.asSegmentType))
-                    }.toVector
-                  ),
-                  columnsAsSingleSegment.map(_._2) // colnames
-                )
-              }
-
-          })
-        joinedColumnsAndPartitions.map((_, name))
-      }
-      .map { case (joinedPartitions, name) =>
-        assert(joinedPartitions.map(_._2).distinct.size == 1)
-        Table(
-          joinedPartitions.map(_._1).reduce(_ concatenate _).columns,
-          joinedPartitions.headOption
-            .map(_._2.toVector)
-            .getOrElse(Vector.empty),
-          name,
-          None
-        )
-      }
   }
 
   def equijoinMultiple(
@@ -442,45 +320,22 @@ trait RelationalAlgebra { self: Table =>
       )
     }
     val program = query(tRefSelf +: tRefOther)
-    EquijoinMultipleDriver.equijoinMultiple(self,joinColumnSelf,others,partitionBase,partitionLimit,program)
+    Equijoin.equijoinMultiple(
+      self,
+      joinColumnSelf,
+      others,
+      partitionBase,
+      partitionLimit,
+      program
+    )
   }
 
   def reduceTable(query: TableReference => ra3.lang.Expr {
     type T <: ra3.lang.ReturnValue
   })(implicit tsc: TaskSystemComponents) = {
-    require(
-      self.numRows < Int.MaxValue - 100,
-      "Too long table, can't reduce it at once"
-    )
-    val name = ts.MakeUniqueId.queue(
-      self,
-      s"reduceTable",
-      Nil
-    )
-    name.flatMap { name =>
-      val singleGroup = GroupedTable(
-        List(
-          (
-            PartitionedTable(
-              columns = self.columns,
-              partitionMeta = PartitionMeta(Nil, 0)
-            ),
-            Segment.GroupMap(
-              map = SegmentInt(None, self.numRows.toInt, minMax = Some((0, 0))),
-              numGroups = 1,
-              groupSizes = SegmentInt(
-                None,
-                1,
-                Some((self.numRows.toInt, self.numRows.toInt))
-              )
-            )
-          )
-        ),
-        self.colNames,
-        name
-      )
-      singleGroup.reduceGroups(query)
-    }
+    ReduceTable
+      .formSingleGroup(self)
+      .flatMap(singleGroup => singleGroup.reduceGroups(query))
   }
 
   /** Group by which return group locations
@@ -491,7 +346,8 @@ trait RelationalAlgebra { self: Table =>
   def groupBy(
       cols: Seq[Int],
       partitionBase: Int,
-      partitionLimit: Int
+      partitionLimit: Int,
+      maxSegmentsToBufferAtOnce: Int
   )(implicit
       tsc: TaskSystemComponents
   ): IO[GroupedTable] = {
@@ -510,7 +366,8 @@ trait RelationalAlgebra { self: Table =>
           columnIdx = cols,
           partitionBase = partitionBase,
           numPartitionsIsImportant = false,
-          partitionLimit = partitionLimit
+          partitionLimit = partitionLimit,
+          maxSegmentsToBufferAtOnce = maxSegmentsToBufferAtOnce
         )
         .flatMap { case partitions =>
           val groupedPartitions =
@@ -536,6 +393,49 @@ trait RelationalAlgebra { self: Table =>
           groupedPartitions
         }
         .map(GroupedTable(_, this.colNames, name))
+    }
+
+  }
+
+  /** Group by without partitioning
+    *
+    * Useful to reduce the segments without partitioning
+    */
+  def groupBySegments(
+      cols: Seq[Int]
+  )(implicit
+      tsc: TaskSystemComponents
+  ): IO[GroupedTable] = {
+    assert(
+      cols.nonEmpty
+    )
+
+    val name = ts.MakeUniqueId.queue(
+      self,
+      s"groupbysegments-${cols.mkString("_")}",
+      Nil
+    )
+    name.flatMap { name =>
+      val partitions = PartitionedTable.makeFakePartitionsFromEachSegment(self)
+
+      IO.parSequenceN(32)(partitions.zipWithIndex.map {
+        case (partition, pIdx) =>
+          val columnsOfGroupBy = cols.map(partition.columns.apply)
+          val groupMap = ts.MakeGroupMap.queue(
+            columnsOfGroupBy,
+            outputPath = LogicalPath(
+              table = self.uniqueId + ".groupmap",
+              partition = Some(PartitionPath(cols, partitions.size, pIdx)),
+              0,
+              0
+            )
+          )
+
+          groupMap.map { case (a, b, c) =>
+            (partition, Segment.GroupMap(a, b, c))
+          }
+
+      }).map(GroupedTable(_, this.colNames, name))
     }
 
   }
@@ -675,6 +575,28 @@ trait RelationalAlgebra { self: Table =>
         if (ascending) self.rfilterInEquality(sortColumn, cutoff, true)
         else self.rfilterInEquality(sortColumn, cutoff, false)
     }
+
+  }
+
+  def exportToCsv(
+      columnSeparator: Char = ',',
+      quoteChar: Char = '"',
+      recordSeparator: String = "\r\n",
+      compression: Option[ra3.ts.ExportCsv.CompressionFormat] = Some(ExportCsv.Gzip)
+  )(implicit tsc: TaskSystemComponents) = {
+    IO.parSequenceN(32)((0 until self.segmentation.size).toList map {
+      segmentIdx =>
+        val cols = self.columns.map(_.segments(segmentIdx))
+        ts.ExportCsv.queue(
+          segments = cols,
+          columnSeparator = columnSeparator,
+          quoteChar = quoteChar,
+          recordSeparator = recordSeparator,
+          outputName = self.uniqueId,
+          outputSegmentIndex = segmentIdx,
+          compression = compression
+        )
+    })
 
   }
 
