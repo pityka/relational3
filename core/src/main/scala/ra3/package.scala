@@ -5,12 +5,12 @@ package object ra3 extends ColumnTags {
       file: SharedFile,
       name: String,
       columns: Seq[(Int, ColumnTag, Option[ra3.ts.ImportCsv.InstantFormat])],
-      recordSeparator: String,
-      fieldSeparator: Char,
-      header: Boolean,
-      maxLines: Long,
       maxSegmentLength: Int,
-      compression: Option[ra3.ts.ImportCsv.CompressionFormat]
+      compression: Option[ra3.ts.ImportCsv.CompressionFormat] = None,
+      recordSeparator: String = "\r\n",
+      fieldSeparator: Char = ',',
+      header: Boolean = false,
+      maxLines: Long = Long.MaxValue,
   )(implicit
       tsc: TaskSystemComponents
   ) = ra3.ts.ImportCsv.queue(

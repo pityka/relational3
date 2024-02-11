@@ -60,38 +60,6 @@ object main extends App {
           }
         }
   }
-  val parseB = Task[(SharedFile, Int, String), ra3.Table]("parseB", 1) {
-    case (path, segmentSize, name) =>
-      implicit ce =>
-        path.file.use { file =>
-          IO {
-            val channel =
-              java.nio.file.Files.newByteChannel(file.toPath)
-
-            
-
-            val table = ra3.csv
-              .readHeterogeneousFromCSVChannel(
-                name,
-                List(
-                  (0, ColumnTag.StringTag, None),
-                  (1, ColumnTag.StringTag, None),
-                  (2, ColumnTag.F64, None)
-                ),
-                channel = channel,
-                header = false,
-                maxSegmentLength = segmentSize,
-                fieldSeparator = '\t',
-                recordSeparator = "\n"
-              )
-              .toOption
-              .get
-
-            scribe.info(table.toString)
-            table
-          }
-        }
-  }
 
   if (args(0) == "generategroup") {
     val num = args(1).toInt
@@ -167,12 +135,30 @@ object main extends App {
         tasks.util.Uri(s"file://${fileB.getAbsolutePath()}")
       ).unsafeRunSync()
 
-      val tableA = parseB((sfA, segmentSize, "tabA"))(
-        ResourceRequest(1, 1)
-      ).unsafeRunSync()
-      val tableB = parseB((sfB, segmentSize, "tabB"))(
-        ResourceRequest(1, 1)
-      ).unsafeRunSync()
+      val tableA = ra3
+        .importCsv(
+          sfA,
+          "tabA",
+          List(
+            (0, ColumnTag.StringTag, None),
+            (1, ColumnTag.StringTag, None),
+            (1, ColumnTag.F64, None)
+          ),
+          maxSegmentLength = segmentSize
+        )
+        .unsafeRunSync()
+      val tableB = ra3
+        .importCsv(
+          sfB,
+          "tabB",
+          List(
+            (0, ColumnTag.StringTag, None),
+            (1, ColumnTag.StringTag, None),
+            (1, ColumnTag.F64, None)
+          ),
+          maxSegmentLength = segmentSize
+        )
+        .unsafeRunSync()
 
       println(tableA)
       println(tableA.showSample(nrows = 10).unsafeRunSync())
@@ -200,6 +186,7 @@ object main extends App {
                   case (_, customerB, meanpriceB) =>
                     customerA.join
                       .inner(customerB)
+                      .withPartitionBase(256)
                       .elementwise(select(customerA, meanpriceA, meanpriceB))
                 }
             }
