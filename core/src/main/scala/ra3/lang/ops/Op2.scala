@@ -405,10 +405,17 @@ private[lang] object Op2 {
   case object ColumnLtEqOpDcD extends ColumnOp2DcDI {
     def op(a: DF64, b: Double)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
-      } yield Left(a.elementwise_lteq(b))
-
+        a <- bufferIfNeededWithPrecondition(a)((segment:SegmentDouble) => segment.minMax match {
+          case None => true 
+          case Some((min,_)) => if ( b < min) false else true
+        })
+      } yield (a match {
+        case Right(a)    => Left(a.elementwise_lteq(b))
+        case Left(numEl) => 
+          Left(BufferInt.constant(0, numEl))
+      })
     }
+  
   }
 
   case object ColumnLtOpDD extends ColumnOp2DDI {
@@ -423,9 +430,15 @@ private[lang] object Op2 {
   case object ColumnLtOpDcD extends ColumnOp2DcDI {
     def op(a: DF64, b: Double)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
-      } yield Left(a.elementwise_lt(b))
-
+        a <- bufferIfNeededWithPrecondition(a)((segment:SegmentDouble) => segment.minMax match {
+          case None => true 
+          case Some((min,_)) => if ( b <= min) false else true
+        })
+      } yield (a match {
+        case Right(a)    => Left(a.elementwise_lt(b))
+        case Left(numEl) => 
+          Left(BufferInt.constant(0, numEl))
+      })
     }
   }
   case object ColumnGtEqOpDD extends ColumnOp2DDI {
@@ -440,9 +453,15 @@ private[lang] object Op2 {
   case object ColumnGtEqOpDcD extends ColumnOp2DcDI {
     def op(a: DF64, b: Double)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
-      } yield Left(a.elementwise_gteq(b))
-
+        a <- bufferIfNeededWithPrecondition(a)((segment:SegmentDouble) => segment.minMax match {
+          case None => true 
+          case Some((_,max)) => if ( b > max) false else true
+        })
+      } yield (a match {
+        case Right(a)    => Left(a.elementwise_gteq(b))
+        case Left(numEl) => 
+          Left(BufferInt.constant(0, numEl))
+      })
     }
   }
   case object ColumnGtOpDD extends ColumnOp2DDI {
@@ -457,9 +476,15 @@ private[lang] object Op2 {
   case object ColumnGtOpDcD extends ColumnOp2DcDI {
     def op(a: DF64, b: Double)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
-      } yield Left(a.elementwise_gt(b))
-
+        a <- bufferIfNeededWithPrecondition(a)((segment:SegmentDouble) => segment.minMax match {
+          case None => true 
+          case Some((_,max)) => if ( b >= max) false else true
+        })
+      } yield (a match {
+        case Right(a)    => Left(a.elementwise_gt(b))
+        case Left(numEl) => 
+          Left(BufferInt.constant(0, numEl))
+      })
     }
   }
   case object ColumnEqOpDD extends ColumnOp2DDI {
