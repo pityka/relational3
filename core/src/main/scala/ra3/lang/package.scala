@@ -164,6 +164,20 @@ package object lang {
       case Right(s) =>
         ra3.Utils.bufferMultiple(s)
     }
+  private[ra3] def bufferIfNeededWithPrecondition[
+      B <: Buffer { type BufferType = B },
+      S <: Segment { type SegmentType = S; type BufferType = B },
+      C
+  ](
+      arg: Either[B, Seq[S]]
+  )(prec: S => Boolean)(implicit tsc: TaskSystemComponents): IO[Either[Int,B]] =
+    arg match {
+      case Left(b) => IO.pure(Right(b))
+      case Right(s) =>
+        if (s.exists(prec))
+        ra3.Utils.bufferMultiple(s).map(Right(_))
+        else IO.pure(Left(s.map(_.numElems).sum))
+    }
 
   // *****
 

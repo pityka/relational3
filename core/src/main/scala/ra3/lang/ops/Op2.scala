@@ -38,18 +38,19 @@ private[lang] object Op2 {
     type A0 = ra3.lang.ReturnValue
     type A1 = DI32
     type T = ReturnValue
-    def op(a: A0, b: A1)(implicit tsc: TaskSystemComponents) = 
+    def op(a: A0, b: A1)(implicit tsc: TaskSystemComponents) =
       (a.filter match {
-        case None => IO.pure(Some(b)) 
-        case Some(f) => for {
-          f <- bufferIfNeeded(f)
-          b <- bufferIfNeeded(b)
-        } yield Some(Left(b.elementwise_&&(f)))
-      }).map(f => ReturnValue(a.projections,f))
-      
+        case None => IO.pure(Some(b))
+        case Some(f) =>
+          for {
+            f <- bufferIfNeeded(f)
+            b <- bufferIfNeeded(b)
+          } yield Some(Left(b.elementwise_&&(f)))
+      }).map(f => ReturnValue(a.projections, f))
+
   }
   case object MkNamedColumnSpecChunk extends Op2 {
-    type A0 = Either[Buffer,Seq[Segment]]
+    type A0 = Either[Buffer, Seq[Segment]]
     type A1 = String
     type T = NamedColumnChunk
     def op(a: A0, b: String)(implicit tsc: TaskSystemComponents) =
@@ -92,7 +93,7 @@ private[lang] object Op2 {
     type A1 = Set[String]
     type T = ra3.lang.DI32
   }
-  
+
   sealed trait ColumnOp2ICISetI extends Op2 {
     type A0 = ra3.lang.DI32
     type A1 = Set[Int]
@@ -103,63 +104,57 @@ private[lang] object Op2 {
     type A1 = Set[Double]
     type T = ra3.lang.DI32
   }
-   sealed trait ColumnOp2DDD extends Op2 {
+  sealed trait ColumnOp2DDD extends Op2 {
     type A0 = ra3.lang.DF64
     type A1 = ra3.lang.DF64
     type T = ra3.lang.DF64
   }
-   sealed trait ColumnOp2DDI extends Op2 {
+  sealed trait ColumnOp2DDI extends Op2 {
     type A0 = ra3.lang.DF64
     type A1 = ra3.lang.DF64
     type T = ra3.lang.DI32
   }
-   sealed trait ColumnOp2DcDI extends Op2 {
+  sealed trait ColumnOp2DcDI extends Op2 {
     type A0 = ra3.lang.DF64
     type A1 = Double
     type T = ra3.lang.DI32
   }
-   sealed trait ColumnOp2DcStrStr extends Op2 {
+  sealed trait ColumnOp2DcStrStr extends Op2 {
     type A0 = ra3.lang.DF64
     type A1 = String
     type T = ra3.lang.DStr
   }
-   sealed trait ColumnOp2IcStrStr extends Op2 {
+  sealed trait ColumnOp2IcStrStr extends Op2 {
     type A0 = ra3.lang.DI32
     type A1 = String
     type T = ra3.lang.DStr
   }
-   sealed trait ColumnOp2InstcLInst extends Op2 {
+  sealed trait ColumnOp2InstcLInst extends Op2 {
     type A0 = ra3.lang.DInst
     type A1 = Long
     type T = ra3.lang.DInst
   }
-   sealed trait ColumnOp2InstInstI extends Op2 {
+  sealed trait ColumnOp2InstInstI extends Op2 {
     type A0 = ra3.lang.DInst
     type A1 = ra3.lang.DInst
     type T = ra3.lang.DI32
   }
-   sealed trait ColumnOp2InstcLI extends Op2 {
+  sealed trait ColumnOp2InstcLI extends Op2 {
     type A0 = ra3.lang.DInst
     type A1 = Long
     type T = ra3.lang.DI32
   }
-   sealed trait ColumnOp2InstcStrI extends Op2 {
+  sealed trait ColumnOp2InstcStrI extends Op2 {
     type A0 = ra3.lang.DInst
     type A1 = String
     type T = ra3.lang.DI32
   }
-  
-   sealed trait ColumnOp2InstcIInst extends Op2 {
+
+  sealed trait ColumnOp2InstcIInst extends Op2 {
     type A0 = ra3.lang.DInst
     type A1 = Int
     type T = ra3.lang.DInst
   }
-  
-  //  sealed trait ColumnOp2IcStrI extends Op2 {
-  //   type A0 = ra3.lang.DI32
-  //   type A1 = String
-  //   type T = ra3.lang.I32
-  // }
 
   
 
@@ -175,8 +170,15 @@ private[lang] object Op2 {
   case object ColumnEqOpIcI extends ColumnOp2ICII {
     def op(a: DI32, b: Int)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
-      } yield Left(a.elementwise_eq(b))
+        a <- bufferIfNeededWithPrecondition(a)((segment:SegmentInt) => segment.minMax match {
+          case None => true 
+          case Some((min,max)) => if (b < min || b > max) false else true
+        })
+      } yield (a match {
+        case Right(a)    => Left(a.elementwise_eq(b))
+        case Left(numEl) => 
+          Left(BufferInt.constant(0, numEl))
+      })
     }
   }
   case object ColumnLtEqOpII extends ColumnOp2III {
@@ -188,11 +190,41 @@ private[lang] object Op2 {
 
     }
   }
-  case object ColumnLtEqOpIcI extends ColumnOp2ICII {
-    def op(a: DI32, b: Int)(implicit tsc: TaskSystemComponents): IO[DI32] = {
+  case object ColumnLtOpII extends ColumnOp2III {
+    def op(a: DI32, b: DI32)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
         a <- bufferIfNeeded(a)
-      } yield Left(a.elementwise_lteq(b))
+        b <- bufferIfNeeded(b)
+      } yield Left(a.elementwise_lt(b))
+
+    }
+  }
+  case object ColumnLtEqOpIcI extends ColumnOp2ICII {
+    def op(a: DI32, b: Int)(implicit tsc: TaskSystemComponents): IO[DI32] =  {
+      for {
+        a <- bufferIfNeededWithPrecondition(a)((segment:SegmentInt) => segment.minMax match {
+          case None => true 
+          case Some((min,_)) => if (b < min ) false else true
+        })
+      } yield (a match {
+        case Right(a)    => Left(a.elementwise_lteq(b))
+        case Left(numEl) => 
+          Left(BufferInt.constant(0, numEl))
+      })
+    }
+  }
+  case object ColumnLtOpIcI extends ColumnOp2ICII {
+    def op(a: DI32, b: Int)(implicit tsc: TaskSystemComponents): IO[DI32] =  {
+      for {
+        a <- bufferIfNeededWithPrecondition(a)((segment:SegmentInt) => segment.minMax match {
+          case None => true 
+          case Some((min,_)) => if (b <= min ) false else true
+        })
+      } yield (a match {
+        case Right(a)    => Left(a.elementwise_lt(b))
+        case Left(numEl) => 
+          Left(BufferInt.constant(0, numEl))
+      })
     }
   }
   case object ColumnGtEqOpII extends ColumnOp2III {
@@ -204,18 +236,55 @@ private[lang] object Op2 {
 
     }
   }
-  case object ColumnGtEqOpIcI extends ColumnOp2ICII {
-    def op(a: DI32, b: Int)(implicit tsc: TaskSystemComponents): IO[DI32] = {
+  case object ColumnGtOpII extends ColumnOp2III {
+    def op(a: DI32, b: DI32)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
         a <- bufferIfNeeded(a)
-      } yield Left(a.elementwise_gteq(b))
+        b <- bufferIfNeeded(b)
+      } yield Left(a.elementwise_gt(b))
+
+    }
+  }
+  case object ColumnGtEqOpIcI extends ColumnOp2ICII {
+    def op(a: DI32, b: Int)(implicit tsc: TaskSystemComponents): IO[DI32] =  {
+      for {
+        a <- bufferIfNeededWithPrecondition(a)((segment:SegmentInt) => segment.minMax match {
+          case None => true 
+          case Some((_,max)) => if ( b > max) false else true
+        })
+      } yield (a match {
+        case Right(a)    => Left(a.elementwise_gteq(b))
+        case Left(numEl) => 
+          Left(BufferInt.constant(0, numEl))
+      })
+    }
+  }
+  case object ColumnGtOpIcI extends ColumnOp2ICII {
+    def op(a: DI32, b: Int)(implicit tsc: TaskSystemComponents): IO[DI32] =  {
+      for {
+        a <- bufferIfNeededWithPrecondition(a)((segment:SegmentInt) => segment.minMax match {
+          case None => true 
+          case Some((_,max)) => if ( b >= max) false else true
+        })
+      } yield (a match {
+        case Right(a)    => Left(a.elementwise_gt(b))
+        case Left(numEl) => 
+          Left(BufferInt.constant(0, numEl))
+      })
     }
   }
   case object ColumnEqOpStrcStr extends ColumnOp2StrCStrI {
     def op(a: DStr, b: String)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
-      } yield Left(a.elementwise_eq(b))
+        a <- bufferIfNeededWithPrecondition(a)((segment:SegmentString) => segment.minMax match {
+          case None => true 
+          case Some((min,max)) => if (b < min || b > max) false else true
+        })
+      } yield (a match {
+        case Right(a)    => Left(a.elementwise_eq(b))
+        case Left(numEl) => 
+          Left(BufferInt.constant(0, numEl))
+      })
     }
   }
   case object ColumnMatchesOpStrcStr extends ColumnOp2StrCStrI {
@@ -226,24 +295,51 @@ private[lang] object Op2 {
     }
   }
   case object ColumnContainedInOpStrcStrSet extends ColumnOp2StrCStrSetI {
-    def op(a: DStr, b: Set[String])(implicit tsc: TaskSystemComponents): IO[DI32] = {
+    def op(a: DStr, b: Set[String])(implicit
+        tsc: TaskSystemComponents
+    ): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
-      } yield Left(a.elementwise_containedIn(b))
+        a <- bufferIfNeededWithPrecondition(a)((segment:SegmentString) => segment.minMax match {
+          case None => true 
+          case Some((min,max)) =>  if (b.forall(b => b < min || b > max)) false else true
+        })
+      } yield (a match {
+        case Right(a)    => Left(a.elementwise_containedIn(b))
+        case Left(numEl) => 
+          Left(BufferInt.constant(0, numEl))
+      })
     }
   }
   case object ColumnContainedInOpIcISet extends ColumnOp2ICISetI {
-    def op(a: DI32, b: Set[Int])(implicit tsc: TaskSystemComponents): IO[DI32] = {
+    def op(a: DI32, b: Set[Int])(implicit
+        tsc: TaskSystemComponents
+    ): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
-      } yield Left(a.elementwise_containedIn(b))
+        a <- bufferIfNeededWithPrecondition(a)((segment:SegmentInt) => segment.minMax match {
+          case None => true 
+          case Some((min,max)) =>  if (b.forall(b => b < min || b > max)) false else true
+        })
+      } yield (a match {
+        case Right(a)    => Left(a.elementwise_containedIn(b))
+        case Left(numEl) => 
+          Left(BufferInt.constant(0, numEl))
+      })
     }
   }
   case object ColumnContainedInOpDcDSet extends ColumnOp2DCDSetI {
-    def op(a: DF64, b: Set[Double])(implicit tsc: TaskSystemComponents): IO[DI32] = {
+    def op(a: DF64, b: Set[Double])(implicit
+        tsc: TaskSystemComponents
+    ): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
-      } yield Left(a.elementwise_containedIn(b))
+        a <- bufferIfNeededWithPrecondition(a)((segment:SegmentDouble) => segment.minMax match {
+          case None => true 
+          case Some((min,max)) =>  if (b.forall(b => b < min || b > max)) false else true
+        })
+      } yield (a match {
+        case Right(a)    => Left(a.elementwise_containedIn(b))
+        case Left(numEl) => 
+          Left(BufferInt.constant(0, numEl))
+      })
     }
   }
 
@@ -259,7 +355,6 @@ private[lang] object Op2 {
   case object MinusOp extends Op2III {
     def op(a: Int, b: Int)(implicit tsc: TaskSystemComponents) = IO.pure(a - b)
   }
-
 
   case object ColumnDivOpDD extends ColumnOp2DDD {
     def op(a: DF64, b: DF64)(implicit tsc: TaskSystemComponents): IO[DF64] = {
@@ -315,6 +410,24 @@ private[lang] object Op2 {
 
     }
   }
+
+  case object ColumnLtOpDD extends ColumnOp2DDI {
+    def op(a: DF64, b: DF64)(implicit tsc: TaskSystemComponents): IO[DI32] = {
+      for {
+        a <- bufferIfNeeded(a)
+        b <- bufferIfNeeded(b)
+      } yield Left(a.elementwise_lt(b))
+
+    }
+  }
+  case object ColumnLtOpDcD extends ColumnOp2DcDI {
+    def op(a: DF64, b: Double)(implicit tsc: TaskSystemComponents): IO[DI32] = {
+      for {
+        a <- bufferIfNeeded(a)
+      } yield Left(a.elementwise_lt(b))
+
+    }
+  }
   case object ColumnGtEqOpDD extends ColumnOp2DDI {
     def op(a: DF64, b: DF64)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
@@ -332,6 +445,23 @@ private[lang] object Op2 {
 
     }
   }
+  case object ColumnGtOpDD extends ColumnOp2DDI {
+    def op(a: DF64, b: DF64)(implicit tsc: TaskSystemComponents): IO[DI32] = {
+      for {
+        a <- bufferIfNeeded(a)
+        b <- bufferIfNeeded(b)
+      } yield Left(a.elementwise_gt(b))
+
+    }
+  }
+  case object ColumnGtOpDcD extends ColumnOp2DcDI {
+    def op(a: DF64, b: Double)(implicit tsc: TaskSystemComponents): IO[DI32] = {
+      for {
+        a <- bufferIfNeeded(a)
+      } yield Left(a.elementwise_gt(b))
+
+    }
+  }
   case object ColumnEqOpDD extends ColumnOp2DDI {
     def op(a: DF64, b: DF64)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
@@ -342,11 +472,17 @@ private[lang] object Op2 {
     }
   }
   case object ColumnEqOpDcD extends ColumnOp2DcDI {
-    def op(a: DF64, b: Double)(implicit tsc: TaskSystemComponents): IO[DI32] = {
+    def op(a: DF64, b: Double)(implicit tsc: TaskSystemComponents): IO[DI32] =  {
       for {
-        a <- bufferIfNeeded(a)
-      } yield Left(a.elementwise_eq(b))
-
+        a <- bufferIfNeededWithPrecondition(a)((segment:SegmentDouble) => segment.minMax match {
+          case None => true 
+          case Some((min,max)) => if (b < min || b > max) false else true
+        })
+      } yield (a match {
+        case Right(a)    => Left(a.elementwise_eq(b))
+        case Left(numEl) => 
+          Left(BufferInt.constant(0, numEl))
+      })
     }
   }
   case object ColumnNEqOpDD extends ColumnOp2DDI {
@@ -366,7 +502,6 @@ private[lang] object Op2 {
 
     }
   }
-
 
   case object ColumnPrintfOpDcStr extends ColumnOp2DcStrStr {
     def op(a: DF64, b: String)(implicit tsc: TaskSystemComponents): IO[DStr] = {
@@ -440,10 +575,37 @@ private[lang] object Op2 {
   }
 
   case object ColumnLtEqOpInstcStr extends ColumnOp2InstcStrI {
-    def op(a: DInst, b: String)(implicit tsc: TaskSystemComponents): IO[DI32] = {
+    def op(a: DInst, b: String)(implicit
+        tsc: TaskSystemComponents
+    ): IO[DI32] = {
       for {
         a <- bufferIfNeeded(a)
-      } yield Left(a.elementwise_lteq(java.time.Instant.parse(b).toEpochMilli()))
+      } yield Left(
+        a.elementwise_lteq(java.time.Instant.parse(b).toEpochMilli())
+      )
+
+    }
+  }
+
+  case object ColumnLtOpInstInst extends ColumnOp2InstInstI {
+    def op(a: DInst, b: DInst)(implicit tsc: TaskSystemComponents): IO[DI32] = {
+      for {
+        a <- bufferIfNeeded(a)
+        b <- bufferIfNeeded(b)
+      } yield Left(a.elementwise_lt(b))
+
+    }
+  }
+
+  case object ColumnLtOpInstcStr extends ColumnOp2InstcStrI {
+    def op(a: DInst, b: String)(implicit
+        tsc: TaskSystemComponents
+    ): IO[DI32] = {
+      for {
+        a <- bufferIfNeeded(a)
+      } yield Left(
+        a.elementwise_lt(java.time.Instant.parse(b).toEpochMilli())
+      )
 
     }
   }
@@ -458,10 +620,36 @@ private[lang] object Op2 {
   }
 
   case object ColumnGtEqOpInstcStr extends ColumnOp2InstcStrI {
-    def op(a: DInst, b: String)(implicit tsc: TaskSystemComponents): IO[DI32] = {
+    def op(a: DInst, b: String)(implicit
+        tsc: TaskSystemComponents
+    ): IO[DI32] = {
       for {
         a <- bufferIfNeeded(a)
-      } yield Left(a.elementwise_gteq(java.time.Instant.parse(b).toEpochMilli()))
+      } yield Left(
+        a.elementwise_gteq(java.time.Instant.parse(b).toEpochMilli())
+      )
+
+    }
+  }
+  case object ColumnGtOpInstInst extends ColumnOp2InstInstI {
+    def op(a: DInst, b: DInst)(implicit tsc: TaskSystemComponents): IO[DI32] = {
+      for {
+        a <- bufferIfNeeded(a)
+        b <- bufferIfNeeded(b)
+      } yield Left(a.elementwise_gt(b))
+
+    }
+  }
+
+  case object ColumnGtOpInstcStr extends ColumnOp2InstcStrI {
+    def op(a: DInst, b: String)(implicit
+        tsc: TaskSystemComponents
+    ): IO[DI32] = {
+      for {
+        a <- bufferIfNeeded(a)
+      } yield Left(
+        a.elementwise_gt(java.time.Instant.parse(b).toEpochMilli())
+      )
 
     }
   }
@@ -476,7 +664,9 @@ private[lang] object Op2 {
   }
 
   case object ColumnEqOpInstcStr extends ColumnOp2InstcStrI {
-    def op(a: DInst, b: String)(implicit tsc: TaskSystemComponents): IO[DI32] = {
+    def op(a: DInst, b: String)(implicit
+        tsc: TaskSystemComponents
+    ): IO[DI32] = {
       for {
         a <- bufferIfNeeded(a)
       } yield Left(a.elementwise_eq(java.time.Instant.parse(b).toEpochMilli()))
@@ -494,14 +684,16 @@ private[lang] object Op2 {
   }
 
   case object ColumnNEqOpInstcStr extends ColumnOp2InstcStrI {
-    def op(a: DInst, b: String)(implicit tsc: TaskSystemComponents): IO[DI32] = {
+    def op(a: DInst, b: String)(implicit
+        tsc: TaskSystemComponents
+    ): IO[DI32] = {
       for {
         a <- bufferIfNeeded(a)
       } yield Left(a.elementwise_neq(java.time.Instant.parse(b).toEpochMilli()))
 
     }
   }
-  
+
   case object ColumnPlusSecondsOpInstcInt extends ColumnOp2InstcIInst {
     def op(a: DInst, b: Int)(implicit tsc: TaskSystemComponents): IO[DInst] = {
       for {
@@ -530,19 +722,12 @@ private[lang] object Op2 {
     def op(a: DInst, b: Int)(implicit tsc: TaskSystemComponents): IO[DInst] = {
       for {
         a <- bufferIfNeeded(a)
-      } yield Left(a.elementwise_minus(b * 1000L* 60L * 60L * 24L))
+      } yield Left(a.elementwise_minus(b * 1000L * 60L * 60L * 24L))
 
     }
   }
 
-
-
-   
-
-
-
-
-case object ColumnNEqOpStrcStr extends ColumnOp2StrCStrI {
+  case object ColumnNEqOpStrcStr extends ColumnOp2StrCStrI {
     def op(a: DStr, b: String)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
         a <- bufferIfNeeded(a)
@@ -550,7 +735,7 @@ case object ColumnNEqOpStrcStr extends ColumnOp2StrCStrI {
 
     }
   }
-case object ColumnConcatOpStrcStr extends ColumnOp2StrCStrStr {
+  case object ColumnConcatOpStrcStr extends ColumnOp2StrCStrStr {
     def op(a: DStr, b: String)(implicit tsc: TaskSystemComponents): IO[DStr] = {
       for {
         a <- bufferIfNeeded(a)
@@ -558,7 +743,7 @@ case object ColumnConcatOpStrcStr extends ColumnOp2StrCStrStr {
 
     }
   }
-case object ColumnConcatOpStrStr extends ColumnOp2StrStrStr {
+  case object ColumnConcatOpStrStr extends ColumnOp2StrStrStr {
     def op(a: DStr, b: DStr)(implicit tsc: TaskSystemComponents): IO[DStr] = {
       for {
         a <- bufferIfNeeded(a)
@@ -567,7 +752,6 @@ case object ColumnConcatOpStrStr extends ColumnOp2StrStrStr {
 
     }
   }
-
 
   case object ColumnAndOpII extends ColumnOp2III {
     def op(a: DI32, b: DI32)(implicit tsc: TaskSystemComponents): IO[DI32] = {
@@ -587,9 +771,5 @@ case object ColumnConcatOpStrStr extends ColumnOp2StrStrStr {
 
     }
   }
-  
 
-
-
- 
 }

@@ -97,16 +97,16 @@ object main extends App {
 
         (s"$unique\t$billions\t$float\n")
       }
-      val fos1 = new java.util.zip.GZIPOutputStream(
+      val fos1 = new java.io.BufferedOutputStream(
         (
           new java.io.FileOutputStream(
-            s"generatedGroupJoinData1_$num.$fileIdx.txt.gz"
+            s"generatedGroupJoinData1_$num.$fileIdx.txt"
           )
         )
       )
-      val fos2 = new java.util.zip.GZIPOutputStream(
+      val fos2 = new java.io.BufferedOutputStream(
         new java.io.FileOutputStream(
-          s"generatedGroupJoinData2_$num.$fileIdx.txt.gz"
+          s"generatedGroupJoinData2_$num.$fileIdx.txt"
         )
       )
       Iterator
@@ -171,10 +171,12 @@ object main extends App {
               List(
                 (0, ColumnTag.StringTag, None),
                 (1, ColumnTag.StringTag, None),
-                (1, ColumnTag.F64, None)
+                (2, ColumnTag.F64, None)
               ),
               maxSegmentLength = segmentSize,
-              compression = Some(ImportCsv.Gzip)
+              recordSeparator = "\n",
+              fieldSeparator = '\t'
+              // compression = Some(ImportCsv.Gzip)
             )
         })
         .flatMap(Table.concatenate(_: _*))
@@ -188,10 +190,12 @@ object main extends App {
               List(
                 (0, ColumnTag.StringTag, None),
                 (1, ColumnTag.StringTag, None),
-                (1, ColumnTag.F64, None)
+                (2, ColumnTag.F64, None)
               ),
               maxSegmentLength = segmentSize,
-              compression = Some(ImportCsv.Gzip)
+              recordSeparator = "\n",
+              fieldSeparator = '\t'
+              // compression = Some(ImportCsv.Gzip)
             )
         })
         .flatMap(Table.concatenate(_: _*))

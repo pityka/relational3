@@ -35,6 +35,14 @@ trait SyntaxInstColumnImpl {
   def >=(arg1: InstColumnExpr) =
     Expr.makeOp2(ops.Op2.ColumnGtEqOpInstInst)(arg0, arg1)
   def >=(arg1: String) = Expr.makeOp2(ops.Op2.ColumnGtEqOpInstcStr)(arg0, arg1)
+
+  def <(arg1: InstColumnExpr) =
+    Expr.makeOp2(ops.Op2.ColumnLtOpInstInst)(arg0, arg1)
+  def <(arg1: String) = Expr.makeOp2(ops.Op2.ColumnLtOpInstcStr)(arg0, arg1)
+  def >(arg1: InstColumnExpr) =
+    Expr.makeOp2(ops.Op2.ColumnGtOpInstInst)(arg0, arg1)
+  def >(arg1: String) = Expr.makeOp2(ops.Op2.ColumnGtOpInstcStr)(arg0, arg1)
+
   def ===(arg1: InstColumnExpr) =
     Expr.makeOp2(ops.Op2.ColumnEqOpInstInst)(arg0, arg1)
   def ===(arg1: String) = Expr.makeOp2(ops.Op2.ColumnEqOpInstcStr)(arg0, arg1)
