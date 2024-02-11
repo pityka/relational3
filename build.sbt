@@ -2,14 +2,14 @@ import com.typesafe.tools.mima.core._
 
 inThisBuild(
   List(
-    homepage := Some(url("https://pityka.github.io/???/")),
+    homepage := Some(url("https://pityka.github.io/")),
     licenses := List(("MIT", url("https://opensource.org/licenses/MIT"))),
     developers := List(
       Developer(
         "pityka",
         "Istvan Bartha",
         "bartha.pityu@gmail.com",
-        url("https://github.com/pityka/???")
+        url("https://github.com/pityka/relational3")
       )
     )
   )
