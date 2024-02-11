@@ -7,6 +7,7 @@ import org.saddle._
 import cats.effect.IO
 import com.typesafe.config.ConfigFactory
 import scala.util.Random
+import ra3.ts.ImportCsv
 object main extends App {
 
   scribe
@@ -85,39 +86,57 @@ object main extends App {
   }
   if (args(0) == "generatejoin") {
     val num = args(1).toInt
+    val numFiles = args(2).toInt
 
-    def makeRow() = {
-      val unique = java.util.UUID.randomUUID().toString
-      val billions = Random.alphanumeric.take(5).mkString
+    0 until numFiles foreach { fileIdx =>
+      def makeRow() = {
+        val unique = java.util.UUID.randomUUID().toString
+        val billions = Random.alphanumeric.take(6).mkString
 
-      val float = Random.nextDouble()
+        val float = Random.nextDouble()
 
-      (s"$unique\t$billions\t$float\n")
-    }
-    val fos1 = new java.io.BufferedOutputStream(
-      new java.io.FileOutputStream(s"generatedGroupJoinData1_$num.txt")
-    )
-    val fos2 = new java.io.BufferedOutputStream(
-      new java.io.FileOutputStream(s"generatedGroupJoinData2_$num.txt")
-    )
-    Iterator
-      .continually {
-        val a = makeRow()
-        val b = makeRow()
-        fos1.write(a.getBytes("US-ASCII"))
-        fos2.write(b.getBytes("US-ASCII"))
+        (s"$unique\t$billions\t$float\n")
       }
-      .take(num)
-      .foreach(_ => ())
-    fos1.close()
-    fos2.close()
+      val fos1 = new java.util.zip.GZIPOutputStream(
+        (
+          new java.io.FileOutputStream(
+            s"generatedGroupJoinData1_$num.$fileIdx.txt.gz"
+          )
+        )
+      )
+      val fos2 = new java.util.zip.GZIPOutputStream(
+        new java.io.FileOutputStream(
+          s"generatedGroupJoinData2_$num.$fileIdx.txt.gz"
+        )
+      )
+      Iterator
+        .continually {
+          val a = makeRow()
+          val b = makeRow()
+          fos1.write(a.getBytes("US-ASCII"))
+          fos2.write(b.getBytes("US-ASCII"))
+        }
+        .take(num)
+        .foreach(_ => ())
+      fos1.close()
+      fos2.close()
+    }
     System.exit(0)
   }
 
   if (args(0) == "join") {
-    val fileA = new java.io.File(args(1))
-    val fileB = new java.io.File(args(2))
-    val segmentSize = args(3).toInt
+    val filesA = args
+      .drop(2)
+      .filter(_.startsWith("generatedGroupJoinData1_"))
+      .map(new java.io.File(_))
+      .toList
+    val filesB = args
+      .drop(2)
+      .filter(_.startsWith("generatedGroupJoinData2_"))
+      .map(new java.io.File(_))
+      .toList
+
+    val segmentSize = args(2).toInt
 
     val config = ConfigFactory.parseString(
       s"""tasks.fileservice.storageURI=./storage/
@@ -128,36 +147,54 @@ object main extends App {
     )
 
     withTaskSystem(Some(config)) { implicit tsc =>
-      val sfA = SharedFile(uri =
-        tasks.util.Uri(s"file://${fileA.getAbsolutePath()}")
-      ).unsafeRunSync()
-      val sfB = SharedFile(uri =
-        tasks.util.Uri(s"file://${fileB.getAbsolutePath()}")
-      ).unsafeRunSync()
-
-      val tableA = ra3
-        .importCsv(
-          sfA,
-          "tabA",
-          List(
-            (0, ColumnTag.StringTag, None),
-            (1, ColumnTag.StringTag, None),
-            (1, ColumnTag.F64, None)
-          ),
-          maxSegmentLength = segmentSize
+      val sfA = IO
+        .parSequenceN(32)(
+          filesA.map(f =>
+            SharedFile(uri = tasks.util.Uri(s"file://${f.getAbsolutePath()}"))
+          )
         )
         .unsafeRunSync()
-      val tableB = ra3
-        .importCsv(
-          sfB,
-          "tabB",
-          List(
-            (0, ColumnTag.StringTag, None),
-            (1, ColumnTag.StringTag, None),
-            (1, ColumnTag.F64, None)
-          ),
-          maxSegmentLength = segmentSize
+      val sfB = IO
+        .parSequenceN(32)(
+          filesB.map(f =>
+            SharedFile(uri = tasks.util.Uri(s"file://${f.getAbsolutePath()}"))
+          )
         )
+        .unsafeRunSync()
+
+      val tableA = IO
+        .parSequenceN(32)(sfA.map { sf =>
+          ra3
+            .importCsv(
+              sf,
+              sf.name,
+              List(
+                (0, ColumnTag.StringTag, None),
+                (1, ColumnTag.StringTag, None),
+                (1, ColumnTag.F64, None)
+              ),
+              maxSegmentLength = segmentSize,
+              compression = Some(ImportCsv.Gzip)
+            )
+        })
+        .flatMap(Table.concatenate(_: _*))
+        .unsafeRunSync()
+      val tableB = IO
+        .parSequenceN(32)(sfB.map { sf =>
+          ra3
+            .importCsv(
+              sf,
+              sf.name,
+              List(
+                (0, ColumnTag.StringTag, None),
+                (1, ColumnTag.StringTag, None),
+                (1, ColumnTag.F64, None)
+              ),
+              maxSegmentLength = segmentSize,
+              compression = Some(ImportCsv.Gzip)
+            )
+        })
+        .flatMap(Table.concatenate(_: _*))
         .unsafeRunSync()
 
       println(tableA)

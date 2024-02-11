@@ -500,6 +500,172 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
     }
 
   }
+  test("inner join with filter pushdown") {
+    withTempTaskSystem { implicit ts =>
+      val numCols = 3
+      val numRows = 10
+      val (tableFrame, tableCsv) = generateTable(numRows, numCols)
+      val (tableFrame2, tableCsv2) = generateTable(numRows*2, numCols)
+      val colA = Seq(Seq(1, 1, 2), Seq(1, 1, 1), Seq(2, 2, 1), Seq(1))
+      val colB = Seq(Seq(3,3,4), Seq(1, 2, 1), Seq(2, 1, 2), Seq(1),Seq(3,3,4), Seq(1, 2, 1), Seq(2, 1, 2), Seq(1))
+
+      val tF = {
+        val tmp = tableFrame.addCol(
+          Series(colA.flatten.toVec),
+          "V4",
+          org.saddle.index.InnerJoin
+        )
+        tmp.setRowIndex(Index(tmp.firstCol("V4").toVec.toArray))
+      }
+      val tF2 = {
+        val tmp = tableFrame2
+          .addCol(Series(colB.flatten.toVec), "V4", org.saddle.index.InnerJoin)
+          .mapColIndex(v => v + "_2")
+        tmp.setRowIndex(Index(tmp.firstCol("V4_2").toVec.toArray))
+      }
+
+      // println(tF)
+      // println(tF2)
+
+      val saddleResult = tF
+        .rconcat(
+          tF2,
+          org.saddle.index.InnerJoin
+        )
+        .filterIx(_ != "V4_2")
+        .filterIx(_ != "V4")
+        .col(
+          "V0",
+          "V4",
+          "V0",
+          "V1",
+          "V2",
+          "V0_2",
+          "V1_2",
+          "V2_2"
+        )
+        .resetRowIndex
+
+      val tableA = csvStringToTable("table", tableCsv, numCols, 3)
+        .addColumnFromSeq(I32, "V4")(colA.flatten)
+        .unsafeRunSync()
+
+      val tableB = csvStringToTable("tableB", tableCsv2, numCols, 3)
+        .addColumnFromSeq(I32, "V4")(colB.flatten)
+        .unsafeRunSync()
+        .mapColIndex(_ + "_2")
+
+      assertEquals(toFrame(tableA), tF.resetRowIndex)
+      assertEquals(toFrame(tableB), tF2.resetRowIndex)
+
+      val result = tableA
+        .equijoin(tableB, 3, 3, "inner", 3, 11,2)((a, _) =>
+          a.use[ColumnTag.I32.type]("V0"){ a =>
+          ra3.lang.select(a,ra3.lang.star)
+          }
+        )
+        .unsafeRunSync()
+        .filterColumnNames("joined-filtered")(_ != "V4")
+        .filterColumnNames("joined-filtered")(_ != "V4_2")
+        .bufferStream
+        .compile
+        .toList
+        .unsafeRunSync()
+        .map(_.toHomogeneousFrame(I32))
+        .reduce(_ concat _)
+
+      println(result)
+
+      assertEquals(
+        saddleResult.toRowSeq.map(_._2).toSet,
+        result.toRowSeq.map(_._2).toSet
+      )
+
+    }
+
+  }
+  test("inner join with 3") {
+    withTempTaskSystem { implicit ts =>
+      val numCols = 3
+      val numRows = 10
+      val (tableFrame, tableCsv) = generateTable(numRows, numCols)
+      val (tableFrame2, tableCsv2) = generateTable(numRows, numCols)
+      val colA = Seq(Seq(1, 1, 2), Seq(1, 1, 1), Seq(2, 2, 1), Seq(1))
+      val colB = Seq(Seq(3,3,4), Seq(1, 2, 1), Seq(2, 1, 2), Seq(1))
+
+      val tF = {
+        val tmp = tableFrame.addCol(
+          Series(colA.flatten.toVec),
+          "V4",
+          org.saddle.index.InnerJoin
+        )
+        tmp.setRowIndex(Index(tmp.firstCol("V4").toVec.toArray))
+      }
+      val tF2 = {
+        val tmp = tableFrame2
+          .addCol(Series(colB.flatten.toVec), "V4", org.saddle.index.InnerJoin)
+          .mapColIndex(v => v + "_2")
+        tmp.setRowIndex(Index(tmp.firstCol("V4_2").toVec.toArray))
+      }
+
+      // println(tF)
+      // println(tF2)
+
+      val saddleResult = tF
+        .rconcat(
+          tF2,
+          org.saddle.index.InnerJoin
+        )
+        .filterIx(_ != "V4_2")
+        .filterIx(_ != "V4")
+        .col(
+          "V0",
+          "V4",
+          "V0",
+          "V1",
+          "V2",
+          "V0_2",
+          "V1_2",
+          "V2_2"
+        )
+        .resetRowIndex
+
+      val tableA = csvStringToTable("table", tableCsv, numCols, 3)
+        .addColumnFromSeq(I32, "V4")(colA.flatten)
+        .unsafeRunSync()
+
+      val tableB = csvStringToTable("tableB", tableCsv2, numCols, 3)
+        .addColumnFromSeq(I32, "V4")(colB.flatten)
+        .unsafeRunSync()
+        .mapColIndex(_ + "_2")
+
+      assertEquals(toFrame(tableA), tF.resetRowIndex)
+      assertEquals(toFrame(tableB), tF2.resetRowIndex)
+
+      val result = tableA
+        .equijoin(tableB, 3, 3, "inner", 3, 0,2)((a, _) =>
+          a.use[ColumnTag.I32.type]("V0"){ a =>
+          ra3.lang.select(a,ra3.lang.star)
+          }
+        )
+        .unsafeRunSync()
+        .filterColumnNames("joined-filtered")(_ != "V4")
+        .filterColumnNames("joined-filtered")(_ != "V4_2")
+        .bufferStream
+        .compile
+        .toList
+        .unsafeRunSync()
+        .map(_.toHomogeneousFrame(I32))
+        .reduce(_ concat _)
+
+      assertEquals(
+        saddleResult.toRowSeq.map(_._2).toSet,
+        result.toRowSeq.map(_._2).toSet
+      )
+
+    }
+
+  }
   test("inner join 2") {
     withTempTaskSystem { implicit ts =>
       val numCols = 3

@@ -29,10 +29,6 @@ case class PartitionData(
     )
 }
 
-
-
-
-
 // Segments in the same table are aligned: each column holds the same number of segments of the same size
 case class Table(
     columns: Vector[Column],
@@ -64,9 +60,11 @@ case class Table(
         }
         .mkString("\n")}\n)"
 
-  def showSample(nrows: Int=100, ncols: Int = 10)(implicit tsc: TaskSystemComponents) : IO[String] = {
+  def showSample(nrows: Int = 100, ncols: Int = 10)(implicit
+      tsc: TaskSystemComponents
+  ): IO[String] = {
     if (segmentation.isEmpty) IO.pure("")
-    else bufferSegment(0).map(_.toStringFrame.stringify(nrows,ncols))
+    else bufferSegment(0).map(_.toStringFrame.stringify(nrows, ncols))
   }
   def bufferSegment(
       idx: Int
@@ -108,5 +106,26 @@ case class Table(
 }
 
 object Table {
-  implicit val codec : JsonValueCodec[Table] = JsonCodecMaker.make
+  implicit val codec: JsonValueCodec[Table] = JsonCodecMaker.make
+
+  def concatenate(
+      others: Table*
+  )(implicit tsc: TaskSystemComponents): IO[Table] = {
+    val name = ts.MakeUniqueId.queue(
+      others.head,
+      s"concat",
+      others.flatMap(_.columns)
+    )
+    name.map { name =>
+      val all = others
+      assert(all.map(_.colNames).distinct.size == 1)
+      assert(all.map(_.columns.map(_.tag)).distinct.size == 1)
+      val columns = all.head.columns.size
+      val cols = 0 until columns map { cIdx =>
+        all.map(_.columns(cIdx)).reduce(_ castAndConcatenate _)
+      } toVector
+
+      Table(cols, all.head.colNames, name, None)
+    }
+  }
 }
