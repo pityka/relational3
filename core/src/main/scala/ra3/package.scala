@@ -11,6 +11,7 @@ package object ra3 extends ColumnTags {
       fieldSeparator: Char = ',',
       header: Boolean = false,
       maxLines: Long = Long.MaxValue,
+      bufferSize: Int = 8292
   )(implicit
       tsc: TaskSystemComponents
   ) = ra3.ts.ImportCsv.queue(
@@ -22,6 +23,7 @@ package object ra3 extends ColumnTags {
     header,
     maxLines,
     maxSegmentLength,
-    compression
+    compression,
+    bufferSize
   )
 }

@@ -206,4 +206,87 @@ def elementAsCharSequence(i: Int): CharSequence = values(i).toString
 
   }
 
+    def elementwise_printf(s: String): BufferString = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[CharSequence](n)
+
+    while (i < n) {
+      r(i) = s.formatted(values(i))
+      i += 1
+    }
+    BufferString(r)
+  }
+
+  def elementwise_isMissing: BufferInt = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+
+    while (i < n) {
+      r(i) = if (isMissing(i)) 1 else 0
+      i += 1
+    }
+    BufferInt(r)
+  }
+   def elementwise_toDouble: BufferDouble = {
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Double](n)
+
+    while (i < n) {
+      r(i) = self.values(i).toDouble
+      i += 1
+    }
+    BufferDouble(r)
+  }
+
+   def countInGroups(partitionMap: BufferInt, numGroups: Int): BufferInt = {
+    val ar = Array.fill[Double](numGroups)(Double.NaN)
+    var i = 0
+    val n = partitionMap.length
+    while (i < n) {
+      if (!isMissing(i)) {
+        if (ar(partitionMap.raw(i)).isNaN()) {
+          ar(partitionMap.raw(i)) = 1d
+        } else ar(partitionMap.raw(i)) += 1d
+      }
+      i += 1
+    }
+    BufferInt(ar.map(_.toInt))
+
+  }
+  def countDistinctInGroups(
+      partitionMap: BufferInt,
+      numGroups: Int
+  ): BufferInt = {
+    val ar = Array.fill[scala.collection.mutable.Set[Long]](numGroups)(
+      scala.collection.mutable.Set.empty[Long]
+    )
+    var i = 0
+    val n = partitionMap.length
+    while (i < n) {
+      ar(partitionMap.raw(i)).add(values(i))
+
+      i += 1
+    }
+    BufferInt(ar.map(_.size))
+
+  }
+
+   def hasMissingInGroup(partitionMap: BufferInt, numGroups: Int): BufferInt = {
+    val ar = Array.fill[Int](numGroups)(0)
+    var i = 0
+    val n = partitionMap.length
+    while (i < n) {
+      val g = partitionMap.raw(i)
+      if (ar(g) == 0 && isMissing(i)) {
+        ar(g) = 1
+      }
+      i += 1
+    }
+    BufferInt(ar)
+
+  }
+
 }

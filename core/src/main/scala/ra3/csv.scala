@@ -23,6 +23,13 @@ object InstantParser {
       java.time.Instant.parse(cs).toEpochMilli()
     }
   }
+  case class LocalDateTimeAtUTC(s:String) extends InstantParser {
+    val fmt = java.time.format.DateTimeFormatter.ofPattern(s)
+    def read(buff: Array[Char], start: Int, until: Int): Long =  {
+      val cs = new CharArraySubSeq(buff, start, until)
+      java.time.LocalDateTime.parse(cs,fmt).atZone(java.time.ZoneOffset.UTC).toInstant().toEpochMilli()
+    }
+  }
 
 }
 
@@ -155,7 +162,7 @@ object csv {
       extends Callback {
 
     val locs = columnTypes.map(_._1)
-    private val locsIdx = org.saddle.Index(locs)
+    private val locsIdx : org.saddle.Index[Int] = org.saddle.Index(locs)
 
     val headerFields = scala.collection.mutable.ArrayBuffer[String]()
     val allHeaderFields = scala.collection.mutable.ArrayBuffer[String]()
@@ -296,9 +303,9 @@ object csv {
             if (loc >= headerAllFields) {
               error = true
               errorString =
-                s"Too long line ${line + 1} (1-based). Expected $headerAllFields fields, got ${loc + 1}."
+                s"Too long line ${line + 1} (1-based). Expected $headerAllFields fields, got ${loc + 1}.  "
             } else {
-              add(s, fromi, ptoi, loc)
+              add(s, fromi, ptoi, locsIdx.getFirst(loc))
             }
           }
         }

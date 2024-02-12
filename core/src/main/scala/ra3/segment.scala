@@ -48,6 +48,12 @@ object Segment {
       groupSizes: SegmentInt
   )
 
+  import com.github.plokhotnyuk.jsoniter_scala.core._
+  import com.github.plokhotnyuk.jsoniter_scala.macros._
+  implicit val customCodecOfDouble: JsonValueCodec[Double] =Utils.customDoubleCodec
+    
+  implicit val segmentCodec: JsonValueCodec[Segment] = JsonCodecMaker.make
+
 }
 
 sealed trait SegmentPair { self =>
@@ -119,7 +125,8 @@ final case class SegmentDouble(
       case Some(sf) =>
         sf.bytes.map { byteVector =>
           val bb =
-            Utils.decompress(byteVector)
+            Utils
+              .decompress(byteVector)
               .order(ByteOrder.LITTLE_ENDIAN)
               .asDoubleBuffer()
           val ar = Array.ofDim[Double](bb.remaining)
@@ -129,6 +136,7 @@ final case class SegmentDouble(
     }
 
 }
+
 final case class SegmentInt(
     sf: Option[SharedFile],
     numElems: Int,
@@ -156,7 +164,10 @@ final case class SegmentInt(
       case Some(value) =>
         value.bytes.map { byteVector =>
           val bb =
-            Utils.decompress(byteVector).order(ByteOrder.LITTLE_ENDIAN).asIntBuffer()
+            Utils
+              .decompress(byteVector)
+              .order(ByteOrder.LITTLE_ENDIAN)
+              .asIntBuffer()
           val ar = Array.ofDim[Int](bb.remaining)
           bb.get(ar)
           BufferInt(ar)
@@ -191,7 +202,8 @@ final case class SegmentLong(
       case Some(value) =>
         value.bytes.map { byteVector =>
           val bb =
-            Utils.decompress(byteVector)
+            Utils
+              .decompress(byteVector)
               .order(ByteOrder.LITTLE_ENDIAN)
               .asLongBuffer()
           val ar = Array.ofDim[Long](bb.remaining)
@@ -226,9 +238,10 @@ final case class SegmentInstant(
       case None => IO.pure(BufferInstant(Array.emptyLongArray))
       case Some(value) =>
         value.bytes.map { byteVector =>
-          val bb = Utils.decompress(byteVector)
-              .order(ByteOrder.LITTLE_ENDIAN)
-              .asLongBuffer()
+          val bb = Utils
+            .decompress(byteVector)
+            .order(ByteOrder.LITTLE_ENDIAN)
+            .asLongBuffer()
           val ar = Array.ofDim[Long](bb.remaining)
           bb.get(ar)
           BufferInstant(ar)
@@ -259,8 +272,6 @@ final case class SegmentString(
       case None => IO.pure(BufferString(Array.empty[CharSequence]))
       case Some(value) =>
         value.bytes.map { byteVector =>
-          
-
           val decompressed = Utils.decompress(byteVector)
 
           val bb =

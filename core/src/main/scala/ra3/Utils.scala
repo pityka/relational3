@@ -8,6 +8,8 @@ import scodec.bits.ByteVector
 private[ra3] class CharArraySubSeq(buff: Array[Char], start: Int, to: Int)
     extends CharSequence {
 
+  override def toString = buff.drop(start).take(to-start).mkString
+
   override def length(): Int = to - start
 
   override def charAt(index: Int): Char = {
@@ -110,6 +112,36 @@ private[ra3] object Utils {
     )
     java.nio.ByteBuffer.wrap(decompressedBuffer)
   }
+
+  import com.github.plokhotnyuk.jsoniter_scala.core._
+
+  val customDoubleCodec = new JsonValueCodec[Double] {
+      val nullValue: Double = 0.0f
+
+      def decodeValue(in: JsonReader, default: Double): Double =
+        if (in.isNextToken('"')) {
+          in.rollbackToken()
+          val len = in.readStringAsCharBuf()
+          if (in.isCharBufEqualsTo(len, "NaN")) Double.NaN
+          else if (in.isCharBufEqualsTo(len, "Infinity"))
+            Double.PositiveInfinity
+          else if (in.isCharBufEqualsTo(len, "-Infinity"))
+            Double.NegativeInfinity
+          else in.decodeError("illegal double")
+        } else {
+          in.rollbackToken()
+          in.readDouble()
+        }
+
+      def encodeValue(x: Double, out: JsonWriter): _root_.scala.Unit =
+        if (_root_.java.lang.Double.isFinite(x)) out.writeVal(x)
+        else
+          out.writeNonEscapedAsciiVal {
+            if (x != x) "NaN"
+            else if (x >= 0) "Infinity"
+            else "-Infinity"
+          }
+    }
 
 
 

@@ -78,6 +78,11 @@ private[lang] object Op2 {
     type A1 = String
     type T = ra3.lang.DI32
   }
+  sealed trait ColumnOp2LCStrStr extends Op2 {
+    type A0 = ra3.lang.DI64
+    type A1 = String
+    type T = ra3.lang.DStr
+  }
   sealed trait ColumnOp2StrCStrStr extends Op2 {
     type A0 = ra3.lang.DStr
     type A1 = String
@@ -528,6 +533,7 @@ private[lang] object Op2 {
     }
   }
 
+ 
   case object ColumnPrintfOpDcStr extends ColumnOp2DcStrStr {
     def op(a: DF64, b: String)(implicit tsc: TaskSystemComponents): IO[DStr] = {
       for {
@@ -793,6 +799,15 @@ private[lang] object Op2 {
         a <- bufferIfNeeded(a)
         b <- bufferIfNeeded(b)
       } yield Left(a.`elementwise_||`(b))
+
+    }
+  }
+
+   case object ColumnPrintfOpLcStr extends ColumnOp2LCStrStr {
+    def op(a: DI64, b: String)(implicit tsc: TaskSystemComponents): IO[DStr] = {
+      for {
+        a <- bufferIfNeeded(a)
+      } yield Left(a.elementwise_printf(b))
 
     }
   }

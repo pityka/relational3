@@ -110,6 +110,14 @@ private[lang] object Op1 {
     type A0 = ra3.lang.DInst
     type T = ra3.lang.DStr
   }
+  sealed trait ColumnOp1LI extends Op1 {
+    type A0 = ra3.lang.DI64
+    type T = ra3.lang.DI32
+  }
+  sealed trait ColumnOp1LD extends Op1 {
+    type A0 = ra3.lang.DI64
+    type T = ra3.lang.DF64
+  }
 
   case object ColumnAbsOpI extends ColumnOp1II {
     def op(
@@ -122,6 +130,12 @@ private[lang] object Op1 {
     )(implicit tsc: TaskSystemComponents) = bufferBefore(a)(_.elementwise_not)
   }
 
+  case object ColumnIsMissingOpL extends ColumnOp1LI {
+    def op(
+        a: ra3.lang.DI64
+    )(implicit tsc: TaskSystemComponents) =
+      bufferBefore(a)(_.elementwise_isMissing)
+  }
   case object ColumnIsMissingOpD extends ColumnOp1DI {
     def op(
         a: ra3.lang.DF64
@@ -270,6 +284,12 @@ private[lang] object Op1 {
     def op(
         a: ra3.lang.DInst
     )(implicit tsc: TaskSystemComponents) = bufferBefore(a)(_.elementwise_toISO)
+  }
+   case object ColumnToDoubleOpL extends ColumnOp1LD {
+    def op(
+        a: ra3.lang.DI64
+    )(implicit tsc: TaskSystemComponents) =
+      bufferBefore(a)(_.elementwise_toDouble)
   }
 
 }

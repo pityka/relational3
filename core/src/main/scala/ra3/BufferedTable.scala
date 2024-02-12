@@ -37,7 +37,15 @@ case class BufferedTable(
   def toStringFrame = {
     import org.saddle._
     Frame(columns.map { column =>
-      column.toSeq.map(_.toString).toVec
+      column.tag match {
+        case x if x == ra3.ColumnTag.Instant =>
+          column
+            .as(ra3.ColumnTag.Instant)
+            .toSeq
+            .map(v => java.time.Instant.ofEpochMilli(v).toString)
+            .toVec
+        case _ => column.toSeq.map(_.toString).toVec
+      }
     }: _*)
       .setColIndex(colNames.toIndex)
   }

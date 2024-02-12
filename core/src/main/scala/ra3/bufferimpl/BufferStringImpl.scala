@@ -98,6 +98,56 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
 
   def length = values.length
 
+  // alternative with sorting.
+  // correct but I don't know which one is better
+  // nothing is measured in theory the hashmap has better complexity
+  // 
+  // def groups = {
+  //   if (self.length == 0) Buffer.GroupMap(map = BufferInt.empty,numGroups = 0, groupSizes = BufferInt.empty)
+  //   else {
+  //   val sorted = values.sorted(CharSequenceOrdering)
+  //   val buffer = org.saddle.Buffer.empty[CharSequence]
+  //   val counts = org.saddle.Buffer.empty[Int]
+  //   val map = Array.ofDim[Int](values.length)
+
+  //   var i = 1
+  //   val n = sorted.length 
+  //   var c = sorted(0)
+  //   var cc = 1
+  //   buffer.+=(c)
+  //   while (i<n) {
+  //     val n = sorted(i)
+  //     if (CharSequenceOrdering.compare(n,c) != 0) {
+  //       counts.+=(cc)
+  //       cc = 1
+  //       c = n 
+  //       buffer.+=(n)
+  //     } else {
+  //       cc +=1
+  //     }
+  //     i+=1
+  //   }
+  //   counts.+=(cc)
+
+  //   val groups = buffer.toArray
+  //   val groupmap = groups.zipWithIndex.toMap
+  //   i = 0
+  //   while (i < values.length) {
+  //     map(i) = groupmap(values(i))
+  //     i += 1
+  //   }
+  //   Buffer.GroupMap(
+  //     map = BufferInt(map),
+  //     numGroups = buffer.length,
+  //     groupSizes = BufferInt(counts.toArray)
+  //   )
+
+  // }
+
+
+    
+  // }
+
   def groups = {
     val counts = scala.collection.mutable.AnyRefMap[CharSequence, Int]()
     val buffer = org.saddle.Buffer.empty[CharSequence]
