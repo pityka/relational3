@@ -53,6 +53,7 @@ sealed trait Expr { self =>
 
 }
 private[ra3] object Expr {
+  implicit val customCodecOfDouble: JsonValueCodec[Double] =ra3.Utils.customDoubleCodec
 
   implicit val codec: JsonValueCodec[Expr] =
     JsonCodecMaker.make(CodecMakerConfig.withAllowRecursiveTypes(true))

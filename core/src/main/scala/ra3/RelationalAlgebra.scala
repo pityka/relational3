@@ -370,6 +370,7 @@ trait RelationalAlgebra { self: Table =>
           maxSegmentsToBufferAtOnce = maxSegmentsToBufferAtOnce
         )
         .flatMap { case partitions =>
+          scribe.info(f"Partitioning of $name done with ${partitions.size} partitions with sizes min=${partitions.map(_.numRows).min}%,2d max=${partitions.map(_.numRows).max}%,2d. Will find groups of each partition.")
           val groupedPartitions =
             IO.parSequenceN(32)(partitions.zipWithIndex.map {
               case (partition, pIdx) =>

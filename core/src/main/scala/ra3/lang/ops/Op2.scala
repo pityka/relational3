@@ -6,6 +6,7 @@ import ra3.lang.ReturnValue
 import ra3.lang.bufferIfNeeded
 import tasks.TaskSystemComponents
 import cats.effect.IO
+import ra3.bufferimpl.{CharSequenceOrdering => CSOrdering}
 private[lang] sealed trait Op2 {
   type A0
   type A1
@@ -77,6 +78,11 @@ private[lang] object Op2 {
     type A0 = ra3.lang.DStr
     type A1 = String
     type T = ra3.lang.DI32
+  }
+  sealed trait ColumnOp2LCStrStr extends Op2 {
+    type A0 = ra3.lang.DI64
+    type A1 = String
+    type T = ra3.lang.DStr
   }
   sealed trait ColumnOp2StrCStrStr extends Op2 {
     type A0 = ra3.lang.DStr
@@ -156,8 +162,6 @@ private[lang] object Op2 {
     type T = ra3.lang.DInst
   }
 
-  
-
   case object ColumnEqOpII extends ColumnOp2III {
     def op(a: DI32, b: DI32)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
@@ -170,13 +174,15 @@ private[lang] object Op2 {
   case object ColumnEqOpIcI extends ColumnOp2ICII {
     def op(a: DI32, b: Int)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeededWithPrecondition(a)((segment:SegmentInt) => segment.minMax match {
-          case None => true 
-          case Some((min,max)) => if (b < min || b > max) false else true
-        })
+        a <- bufferIfNeededWithPrecondition(a)((segment: SegmentInt) =>
+          segment.minMax match {
+            case None             => true
+            case Some((min, max)) => if (b < min || b > max) false else true
+          }
+        )
       } yield (a match {
-        case Right(a)    => Left(a.elementwise_eq(b))
-        case Left(numEl) => 
+        case Right(a) => Left(a.elementwise_eq(b))
+        case Left(numEl) =>
           Left(BufferInt.constant(0, numEl))
       })
     }
@@ -200,29 +206,33 @@ private[lang] object Op2 {
     }
   }
   case object ColumnLtEqOpIcI extends ColumnOp2ICII {
-    def op(a: DI32, b: Int)(implicit tsc: TaskSystemComponents): IO[DI32] =  {
+    def op(a: DI32, b: Int)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeededWithPrecondition(a)((segment:SegmentInt) => segment.minMax match {
-          case None => true 
-          case Some((min,_)) => if (b < min ) false else true
-        })
+        a <- bufferIfNeededWithPrecondition(a)((segment: SegmentInt) =>
+          segment.minMax match {
+            case None           => true
+            case Some((min, _)) => if (b < min) false else true
+          }
+        )
       } yield (a match {
-        case Right(a)    => Left(a.elementwise_lteq(b))
-        case Left(numEl) => 
+        case Right(a) => Left(a.elementwise_lteq(b))
+        case Left(numEl) =>
           Left(BufferInt.constant(0, numEl))
       })
     }
   }
   case object ColumnLtOpIcI extends ColumnOp2ICII {
-    def op(a: DI32, b: Int)(implicit tsc: TaskSystemComponents): IO[DI32] =  {
+    def op(a: DI32, b: Int)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeededWithPrecondition(a)((segment:SegmentInt) => segment.minMax match {
-          case None => true 
-          case Some((min,_)) => if (b <= min ) false else true
-        })
+        a <- bufferIfNeededWithPrecondition(a)((segment: SegmentInt) =>
+          segment.minMax match {
+            case None           => true
+            case Some((min, _)) => if (b <= min) false else true
+          }
+        )
       } yield (a match {
-        case Right(a)    => Left(a.elementwise_lt(b))
-        case Left(numEl) => 
+        case Right(a) => Left(a.elementwise_lt(b))
+        case Left(numEl) =>
           Left(BufferInt.constant(0, numEl))
       })
     }
@@ -246,29 +256,33 @@ private[lang] object Op2 {
     }
   }
   case object ColumnGtEqOpIcI extends ColumnOp2ICII {
-    def op(a: DI32, b: Int)(implicit tsc: TaskSystemComponents): IO[DI32] =  {
+    def op(a: DI32, b: Int)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeededWithPrecondition(a)((segment:SegmentInt) => segment.minMax match {
-          case None => true 
-          case Some((_,max)) => if ( b > max) false else true
-        })
+        a <- bufferIfNeededWithPrecondition(a)((segment: SegmentInt) =>
+          segment.minMax match {
+            case None           => true
+            case Some((_, max)) => if (b > max) false else true
+          }
+        )
       } yield (a match {
-        case Right(a)    => Left(a.elementwise_gteq(b))
-        case Left(numEl) => 
+        case Right(a) => Left(a.elementwise_gteq(b))
+        case Left(numEl) =>
           Left(BufferInt.constant(0, numEl))
       })
     }
   }
   case object ColumnGtOpIcI extends ColumnOp2ICII {
-    def op(a: DI32, b: Int)(implicit tsc: TaskSystemComponents): IO[DI32] =  {
+    def op(a: DI32, b: Int)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeededWithPrecondition(a)((segment:SegmentInt) => segment.minMax match {
-          case None => true 
-          case Some((_,max)) => if ( b >= max) false else true
-        })
+        a <- bufferIfNeededWithPrecondition(a)((segment: SegmentInt) =>
+          segment.minMax match {
+            case None           => true
+            case Some((_, max)) => if (b >= max) false else true
+          }
+        )
       } yield (a match {
-        case Right(a)    => Left(a.elementwise_gt(b))
-        case Left(numEl) => 
+        case Right(a) => Left(a.elementwise_gt(b))
+        case Left(numEl) =>
           Left(BufferInt.constant(0, numEl))
       })
     }
@@ -276,13 +290,17 @@ private[lang] object Op2 {
   case object ColumnEqOpStrcStr extends ColumnOp2StrCStrI {
     def op(a: DStr, b: String)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeededWithPrecondition(a)((segment:SegmentString) => segment.minMax match {
-          case None => true 
-          case Some((min,max)) => if (b < min || b > max) false else true
-        })
+        a <- bufferIfNeededWithPrecondition(a)((segment: SegmentString) =>
+          segment.minMax match {
+            case None => true
+            case Some((min, max)) =>
+              if (CSOrdering.lt(b, min) || CSOrdering.gt(b, max)) false
+              else true
+          }
+        )
       } yield (a match {
-        case Right(a)    => Left(a.elementwise_eq(b))
-        case Left(numEl) => 
+        case Right(a) => Left(a.elementwise_eq(b))
+        case Left(numEl) =>
           Left(BufferInt.constant(0, numEl))
       })
     }
@@ -299,13 +317,18 @@ private[lang] object Op2 {
         tsc: TaskSystemComponents
     ): IO[DI32] = {
       for {
-        a <- bufferIfNeededWithPrecondition(a)((segment:SegmentString) => segment.minMax match {
-          case None => true 
-          case Some((min,max)) =>  if (b.forall(b => b < min || b > max)) false else true
-        })
+        a <- bufferIfNeededWithPrecondition(a)((segment: SegmentString) =>
+          segment.minMax match {
+            case None => true
+            case Some((min, max)) =>
+              if (b.forall(b => CSOrdering.lt(b, min) || CSOrdering.gt(b, max)))
+                false
+              else true
+          }
+        )
       } yield (a match {
-        case Right(a)    => Left(a.elementwise_containedIn(b))
-        case Left(numEl) => 
+        case Right(a) => Left(a.elementwise_containedIn(b))
+        case Left(numEl) =>
           Left(BufferInt.constant(0, numEl))
       })
     }
@@ -315,13 +338,16 @@ private[lang] object Op2 {
         tsc: TaskSystemComponents
     ): IO[DI32] = {
       for {
-        a <- bufferIfNeededWithPrecondition(a)((segment:SegmentInt) => segment.minMax match {
-          case None => true 
-          case Some((min,max)) =>  if (b.forall(b => b < min || b > max)) false else true
-        })
+        a <- bufferIfNeededWithPrecondition(a)((segment: SegmentInt) =>
+          segment.minMax match {
+            case None => true
+            case Some((min, max)) =>
+              if (b.forall(b => b < min || b > max)) false else true
+          }
+        )
       } yield (a match {
-        case Right(a)    => Left(a.elementwise_containedIn(b))
-        case Left(numEl) => 
+        case Right(a) => Left(a.elementwise_containedIn(b))
+        case Left(numEl) =>
           Left(BufferInt.constant(0, numEl))
       })
     }
@@ -331,13 +357,16 @@ private[lang] object Op2 {
         tsc: TaskSystemComponents
     ): IO[DI32] = {
       for {
-        a <- bufferIfNeededWithPrecondition(a)((segment:SegmentDouble) => segment.minMax match {
-          case None => true 
-          case Some((min,max)) =>  if (b.forall(b => b < min || b > max)) false else true
-        })
+        a <- bufferIfNeededWithPrecondition(a)((segment: SegmentDouble) =>
+          segment.minMax match {
+            case None => true
+            case Some((min, max)) =>
+              if (b.forall(b => b < min || b > max)) false else true
+          }
+        )
       } yield (a match {
-        case Right(a)    => Left(a.elementwise_containedIn(b))
-        case Left(numEl) => 
+        case Right(a) => Left(a.elementwise_containedIn(b))
+        case Left(numEl) =>
           Left(BufferInt.constant(0, numEl))
       })
     }
@@ -405,17 +434,19 @@ private[lang] object Op2 {
   case object ColumnLtEqOpDcD extends ColumnOp2DcDI {
     def op(a: DF64, b: Double)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeededWithPrecondition(a)((segment:SegmentDouble) => segment.minMax match {
-          case None => true 
-          case Some((min,_)) => if ( b < min) false else true
-        })
+        a <- bufferIfNeededWithPrecondition(a)((segment: SegmentDouble) =>
+          segment.minMax match {
+            case None           => true
+            case Some((min, _)) => if (b < min) false else true
+          }
+        )
       } yield (a match {
-        case Right(a)    => Left(a.elementwise_lteq(b))
-        case Left(numEl) => 
+        case Right(a) => Left(a.elementwise_lteq(b))
+        case Left(numEl) =>
           Left(BufferInt.constant(0, numEl))
       })
     }
-  
+
   }
 
   case object ColumnLtOpDD extends ColumnOp2DDI {
@@ -430,13 +461,15 @@ private[lang] object Op2 {
   case object ColumnLtOpDcD extends ColumnOp2DcDI {
     def op(a: DF64, b: Double)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeededWithPrecondition(a)((segment:SegmentDouble) => segment.minMax match {
-          case None => true 
-          case Some((min,_)) => if ( b <= min) false else true
-        })
+        a <- bufferIfNeededWithPrecondition(a)((segment: SegmentDouble) =>
+          segment.minMax match {
+            case None           => true
+            case Some((min, _)) => if (b <= min) false else true
+          }
+        )
       } yield (a match {
-        case Right(a)    => Left(a.elementwise_lt(b))
-        case Left(numEl) => 
+        case Right(a) => Left(a.elementwise_lt(b))
+        case Left(numEl) =>
           Left(BufferInt.constant(0, numEl))
       })
     }
@@ -453,13 +486,15 @@ private[lang] object Op2 {
   case object ColumnGtEqOpDcD extends ColumnOp2DcDI {
     def op(a: DF64, b: Double)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeededWithPrecondition(a)((segment:SegmentDouble) => segment.minMax match {
-          case None => true 
-          case Some((_,max)) => if ( b > max) false else true
-        })
+        a <- bufferIfNeededWithPrecondition(a)((segment: SegmentDouble) =>
+          segment.minMax match {
+            case None           => true
+            case Some((_, max)) => if (b > max) false else true
+          }
+        )
       } yield (a match {
-        case Right(a)    => Left(a.elementwise_gteq(b))
-        case Left(numEl) => 
+        case Right(a) => Left(a.elementwise_gteq(b))
+        case Left(numEl) =>
           Left(BufferInt.constant(0, numEl))
       })
     }
@@ -476,13 +511,15 @@ private[lang] object Op2 {
   case object ColumnGtOpDcD extends ColumnOp2DcDI {
     def op(a: DF64, b: Double)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeededWithPrecondition(a)((segment:SegmentDouble) => segment.minMax match {
-          case None => true 
-          case Some((_,max)) => if ( b >= max) false else true
-        })
+        a <- bufferIfNeededWithPrecondition(a)((segment: SegmentDouble) =>
+          segment.minMax match {
+            case None           => true
+            case Some((_, max)) => if (b >= max) false else true
+          }
+        )
       } yield (a match {
-        case Right(a)    => Left(a.elementwise_gt(b))
-        case Left(numEl) => 
+        case Right(a) => Left(a.elementwise_gt(b))
+        case Left(numEl) =>
           Left(BufferInt.constant(0, numEl))
       })
     }
@@ -497,15 +534,17 @@ private[lang] object Op2 {
     }
   }
   case object ColumnEqOpDcD extends ColumnOp2DcDI {
-    def op(a: DF64, b: Double)(implicit tsc: TaskSystemComponents): IO[DI32] =  {
+    def op(a: DF64, b: Double)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeededWithPrecondition(a)((segment:SegmentDouble) => segment.minMax match {
-          case None => true 
-          case Some((min,max)) => if (b < min || b > max) false else true
-        })
+        a <- bufferIfNeededWithPrecondition(a)((segment: SegmentDouble) =>
+          segment.minMax match {
+            case None             => true
+            case Some((min, max)) => if (b < min || b > max) false else true
+          }
+        )
       } yield (a match {
-        case Right(a)    => Left(a.elementwise_eq(b))
-        case Left(numEl) => 
+        case Right(a) => Left(a.elementwise_eq(b))
+        case Left(numEl) =>
           Left(BufferInt.constant(0, numEl))
       })
     }
@@ -793,6 +832,15 @@ private[lang] object Op2 {
         a <- bufferIfNeeded(a)
         b <- bufferIfNeeded(b)
       } yield Left(a.`elementwise_||`(b))
+
+    }
+  }
+
+  case object ColumnPrintfOpLcStr extends ColumnOp2LCStrStr {
+    def op(a: DI64, b: String)(implicit tsc: TaskSystemComponents): IO[DStr] = {
+      for {
+        a <- bufferIfNeeded(a)
+      } yield Left(a.elementwise_printf(b))
 
     }
   }

@@ -22,7 +22,7 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
           ),
           channel = channel,
           header = false,
-          maxSegmentLength = 100000,
+          maxSegmentLength = 10000,
           fieldSeparator = ';',
           recordSeparator = "\n"
         )
@@ -62,7 +62,6 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
         .colAt(0)
         .mapValues(_.toDouble)
         .sorted
-        .mapVec(_.roundTo(2))
 
       println(result)
 
@@ -81,14 +80,15 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
         .groupBy
         .combine(_.mean)
         .sorted
-        .mapVec(_.roundTo(2))
 
       println(expected)
       // .toOption
       // .get
       println(table)
+      import org.saddle.ops.BinOps._
+      assert((result - expected).values.toSeq.forall(v => math.abs(v) < 1e-3))
       assert(table.numRows == 1000000)
-      assert(result == expected)
+      assertEquals(result.index.sorted , expected.index.sorted)
     }
   }
   test("1brc filter") {
@@ -108,7 +108,7 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
           ),
           channel = channel,
           header = false,
-          maxSegmentLength = 100000,
+          maxSegmentLength = 10000,
           fieldSeparator = ';',
           recordSeparator = "\n"
         )
@@ -157,6 +157,82 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
       // .toOption
       // .get
       println(table)
+      assert(table.numRows == 1000000)
+      assert(result == expected)
+    }
+  }
+  test("unique stations") {
+    withTempTaskSystem { implicit tsc =>
+      val channel =
+        Channels.newChannel(getClass().getResourceAsStream("/1brc.1M.txt"))
+      val channel2 =
+        Channels.newChannel(getClass().getResourceAsStream("/1brc.1M.txt"))
+
+      val table = ra3.csv
+        .readHeterogeneousFromCSVChannel(
+          "1brc",
+          List(
+            (0, ColumnTag.StringTag, None),
+            (1, ColumnTag.F64, None)
+            // 0 until (numCols) map (i => (i, ColumnTag.I32, None)): _*
+          ),
+          channel = channel,
+          header = false,
+          maxSegmentLength = 10000,
+          fieldSeparator = ';',
+          recordSeparator = "\n"
+        )
+        .toOption
+        .get
+        .mapColIndex {
+          case "V0" => "station"
+          case "V1" => "value"
+        }
+
+      val result = schema[DStr, DF64](table) { case (table, station, _) =>
+        station.groupBy.partial.reduceGroupsWith(
+            select(
+              station.first as "station",
+            )
+          )
+          .in[DStr, DF64, DF64] { (_, station, sum, count) =>
+            station.groupBy.reduceGroupsWith(
+              select(
+                station.first
+              )
+            )
+
+          }
+          
+      }.evaluate
+        .unsafeRunSync()
+        .bufferStream
+        .compile
+        .toList
+        .unsafeRunSync()
+        .map(_.toStringFrame)
+        .reduce(_ concat _)
+        .colAt(0)
+        .toVec.toSeq.sorted
+        
+
+
+
+      val expected = org.saddle.csv.CsvParser
+        .parseFromChannel[String](
+          channel2,
+          fieldSeparator = ';',
+          recordSeparator = "\n"
+        )
+        .toOption
+        .get
+        ._1
+        .withRowIndex(0)
+        .colAt(0)
+        .mapValues(_.toDouble)
+        .index.toSeq.distinct.sorted
+
+      
       assert(table.numRows == 1000000)
       assert(result == expected)
     }

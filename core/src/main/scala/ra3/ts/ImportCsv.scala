@@ -6,7 +6,6 @@ import tasks.jsonitersupport._
 import com.github.plokhotnyuk.jsoniter_scala.macros._
 import com.github.plokhotnyuk.jsoniter_scala.core._
 import cats.effect.IO
-import de.lhns.fs2.compress.GzipDecompressor
 
 case class ImportCsv(
     file: SharedFile,
@@ -17,7 +16,8 @@ case class ImportCsv(
     header: Boolean,
     maxLines: Long,
     maxSegmentLength: Int,
-    compression: Option[ImportCsv.CompressionFormat]
+    compression: Option[ImportCsv.CompressionFormat],
+    bufferSize: Int
 )
 object ImportCsv {
   sealed trait CompressionFormat
@@ -25,6 +25,7 @@ object ImportCsv {
 
   sealed trait InstantFormat
   case object ISO extends InstantFormat
+  case class LocalDateTimeAtUTC(s:String) extends InstantFormat
   def queue(
       file: SharedFile,
       name: String,
@@ -34,7 +35,8 @@ object ImportCsv {
       header: Boolean,
       maxLines: Long,
       maxSegmentLength: Int,
-      compression: Option[CompressionFormat]
+      compression: Option[CompressionFormat],
+      bufferSize: Int
   )(implicit
       tsc: TaskSystemComponents
   ): IO[Table] = {
@@ -49,12 +51,13 @@ object ImportCsv {
         header,
         maxLines,
         maxSegmentLength,
-        compression
+        compression,
+        bufferSize
       )
     )(
       ResourceRequest(
         cpu = (1, 1),
-        memory = ra3.Utils.guessMemoryUsageInMB(maxSegmentLength),
+        memory = ra3.Utils.guessMemoryUsageInMB(maxSegmentLength) * columns.size,
         scratch = 0,
         gpu = 0
       )
@@ -70,21 +73,19 @@ object ImportCsv {
       header: Boolean,
       maxLines: Long,
       maxSegmentLength: Int,
-      compression: Option[CompressionFormat]
+      compression: Option[CompressionFormat],
+      bufferSize : Int
   )(implicit tsc: TaskSystemComponents): IO[Table] = {
 
-    val stream = file.stream
-    val uncompressedStream = compression match {
-      case None => stream
-      case Some(Gzip) =>
-        implicit val gzipDecompressor: GzipDecompressor[IO] =
-          GzipDecompressor.make()
-        stream.through(GzipDecompressor[IO].decompress)
-    }
-
-    fs2.io.toInputStreamResource(uncompressedStream).use { is =>
+    val rawStream = file.stream
+    
+    fs2.io.toInputStreamResource(rawStream).use { is =>
       IO {
-        val channel = java.nio.channels.Channels.newChannel(is)
+        val is2 = compression match {
+          case None => is 
+          case Some(Gzip) =>  new java.util.zip.GZIPInputStream(is)
+        }
+        val channel = java.nio.channels.Channels.newChannel(is2)
         val result = ra3.csv
           .readHeterogeneousFromCSVChannel(
             name = name,
@@ -94,6 +95,7 @@ object ImportCsv {
                 v._2,
                 v._3 match {
                   case Some(ISO) => Some(ra3.InstantParser.ISO)
+                  case Some(LocalDateTimeAtUTC(s)) => Some(ra3.InstantParser.LocalDateTimeAtUTC(s))
                   case None      => None
                 }
               )
@@ -103,7 +105,8 @@ object ImportCsv {
             maxLines = maxLines,
             maxSegmentLength = maxSegmentLength,
             fieldSeparator = fieldSeparator,
-            recordSeparator = recordSeparator
+            recordSeparator = recordSeparator,
+            bufferSize = bufferSize
           )
         result
       }.flatMap { result =>
@@ -134,7 +137,8 @@ object ImportCsv {
         input.header,
         input.maxLines,
         input.maxSegmentLength,
-        input.compression
+        input.compression,
+        input.bufferSize
       )
 
   }

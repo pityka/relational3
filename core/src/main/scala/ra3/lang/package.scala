@@ -22,6 +22,9 @@ package object lang {
   type I32ColumnExpr = Expr {
     type T = DI32
   }
+  type I64ColumnExpr = Expr {
+    type T = DI64
+  }
   type F64ColumnExpr = Expr {
     type T = Either[BufferDouble, Seq[SegmentDouble]]
   }
@@ -69,6 +72,11 @@ package object lang {
     protected def arg0 = a
 
   }
+  implicit class SyntaxColumnLong(a: I64ColumnExpr)
+      extends syntax.SyntaxI64ColumnImpl {
+    protected def arg0 = a
+
+  }
   implicit class SyntaxColumnStr(a: StrColumnExpr)
       extends syntax.SyntaxStrColumnImpl {
     protected def arg0 = a
@@ -107,6 +115,9 @@ package object lang {
 
   implicit def conversionDF64(
       a: Expr { type T = DF64 }
+  ): Expr { type T = ColumnSpec } = a.unnamed
+  implicit def conversionDI64(
+      a: Expr { type T = DI64 }
   ): Expr { type T = ColumnSpec } = a.unnamed
 
   implicit def conversionStr64(

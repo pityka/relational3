@@ -7,7 +7,7 @@ import tasks.{TaskSystemComponents, SharedFile}
 
 private[ra3] trait BufferInstantImpl { self: BufferInstant =>
 
-  def elementAsCharSequence(i: Int): CharSequence = values(i).toString
+  def elementAsCharSequence(i: Int): CharSequence = java.time.Instant.ofEpochMilli(values(i)).toString
 
     def partition(numPartitions: Int, map: BufferInt): Vector[BufferType] = {
     assert(length == map.length)

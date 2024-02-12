@@ -11,7 +11,7 @@ import ra3.ts.ImportCsv
 object main extends App {
 
   scribe
-    .Logger("tasks.queue.TaskQueue") // Look-up or create the named logger
+    .Logger("tasks.queue") // Look-up or create the named logger
     .orphan() // This keeps the logger from propagating any records up the hierarchy
     .clearHandlers() // Clears any existing handlers on this logger
     .withHandler(minimumLevel =
