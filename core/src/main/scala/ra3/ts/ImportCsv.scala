@@ -17,7 +17,8 @@ case class ImportCsv(
     header: Boolean,
     maxLines: Long,
     maxSegmentLength: Int,
-    compression: Option[ImportCsv.CompressionFormat]
+    compression: Option[ImportCsv.CompressionFormat],
+    bufferSize: Int
 )
 object ImportCsv {
   sealed trait CompressionFormat
@@ -34,7 +35,8 @@ object ImportCsv {
       header: Boolean,
       maxLines: Long,
       maxSegmentLength: Int,
-      compression: Option[CompressionFormat]
+      compression: Option[CompressionFormat],
+      bufferSize: Int
   )(implicit
       tsc: TaskSystemComponents
   ): IO[Table] = {
@@ -49,7 +51,8 @@ object ImportCsv {
         header,
         maxLines,
         maxSegmentLength,
-        compression
+        compression,
+        bufferSize
       )
     )(
       ResourceRequest(
@@ -70,7 +73,8 @@ object ImportCsv {
       header: Boolean,
       maxLines: Long,
       maxSegmentLength: Int,
-      compression: Option[CompressionFormat]
+      compression: Option[CompressionFormat],
+      bufferSize : Int
   )(implicit tsc: TaskSystemComponents): IO[Table] = {
 
     val stream = file.stream
@@ -103,7 +107,8 @@ object ImportCsv {
             maxLines = maxLines,
             maxSegmentLength = maxSegmentLength,
             fieldSeparator = fieldSeparator,
-            recordSeparator = recordSeparator
+            recordSeparator = recordSeparator,
+            bufferSize = bufferSize
           )
         result
       }.flatMap { result =>
@@ -134,7 +139,8 @@ object ImportCsv {
         input.header,
         input.maxLines,
         input.maxSegmentLength,
-        input.compression
+        input.compression,
+        input.bufferSize
       )
 
   }
