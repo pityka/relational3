@@ -6,7 +6,6 @@ import tasks.jsonitersupport._
 import com.github.plokhotnyuk.jsoniter_scala.macros._
 import com.github.plokhotnyuk.jsoniter_scala.core._
 import cats.effect.IO
-import de.lhns.fs2.compress.GzipDecompressor
 
 case class ImportCsv(
     file: SharedFile,
@@ -77,18 +76,15 @@ object ImportCsv {
       bufferSize : Int
   )(implicit tsc: TaskSystemComponents): IO[Table] = {
 
-    val stream = file.stream
-    val uncompressedStream = compression match {
-      case None => stream
-      case Some(Gzip) =>
-        implicit val gzipDecompressor: GzipDecompressor[IO] =
-          GzipDecompressor.make()
-        stream.through(GzipDecompressor[IO].decompress)
-    }
-
-    fs2.io.toInputStreamResource(uncompressedStream).use { is =>
+    val rawStream = file.stream
+    
+    fs2.io.toInputStreamResource(rawStream).use { is =>
       IO {
-        val channel = java.nio.channels.Channels.newChannel(is)
+        val is2 = compression match {
+          case None => is 
+          case Some(Gzip) =>  new java.util.zip.GZIPInputStream(is)
+        }
+        val channel = java.nio.channels.Channels.newChannel(is2)
         val result = ra3.csv
           .readHeterogeneousFromCSVChannel(
             name = name,

@@ -128,6 +128,7 @@ lazy val prototype = project
   .settings(
     name := "ra3-prototype",
     publish / skip := true,
+        publishArtifact := false,
     libraryDependencies ++= List(
       "io.github.pityka" %% "saddle-core" % "4.0.0-M11",
       "io.github.pityka" %% "tasks-core" % "3.0.0-M6",
@@ -141,6 +142,7 @@ lazy val example1brc = project
   .settings(
     name := "ra3-example1brc",
     publish / skip := true,
+        publishArtifact := false,
     libraryDependencies ++= List(
       "com.typesafe.akka" %% "akka-actor" % akkaVersion,
       "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
