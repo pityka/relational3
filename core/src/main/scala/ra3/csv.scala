@@ -23,6 +23,13 @@ object InstantParser {
       java.time.Instant.parse(cs).toEpochMilli()
     }
   }
+  case class LocalDateTimeAtUTC(s:String) extends InstantParser {
+    val fmt = java.time.format.DateTimeFormatter.ofPattern(s)
+    def read(buff: Array[Char], start: Int, until: Int): Long =  {
+      val cs = new CharArraySubSeq(buff, start, until)
+      java.time.LocalDateTime.parse(cs,fmt).atZone(java.time.ZoneOffset.UTC).toInstant().toEpochMilli()
+    }
+  }
 
 }
 

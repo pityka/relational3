@@ -8,6 +8,8 @@ import scodec.bits.ByteVector
 private[ra3] class CharArraySubSeq(buff: Array[Char], start: Int, to: Int)
     extends CharSequence {
 
+  override def toString = buff.drop(start).take(to-start).mkString
+
   override def length(): Int = to - start
 
   override def charAt(index: Int): Char = {

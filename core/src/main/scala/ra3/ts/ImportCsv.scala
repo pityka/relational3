@@ -25,6 +25,7 @@ object ImportCsv {
 
   sealed trait InstantFormat
   case object ISO extends InstantFormat
+  case class LocalDateTimeAtUTC(s:String) extends InstantFormat
   def queue(
       file: SharedFile,
       name: String,
@@ -94,6 +95,7 @@ object ImportCsv {
                 v._2,
                 v._3 match {
                   case Some(ISO) => Some(ra3.InstantParser.ISO)
+                  case Some(LocalDateTimeAtUTC(s)) => Some(ra3.InstantParser.LocalDateTimeAtUTC(s))
                   case None      => None
                 }
               )
