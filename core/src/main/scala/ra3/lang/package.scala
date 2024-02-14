@@ -72,6 +72,11 @@ package object lang {
     protected def arg0 = a
 
   }
+  implicit class SyntaxColumnLong(a: I64ColumnExpr)
+      extends syntax.SyntaxI64ColumnImpl {
+    protected def arg0 = a
+
+  }
   implicit class SyntaxColumnStr(a: StrColumnExpr)
       extends syntax.SyntaxStrColumnImpl {
     protected def arg0 = a
