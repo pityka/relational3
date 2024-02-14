@@ -22,6 +22,9 @@ package object lang {
   type I32ColumnExpr = Expr {
     type T = DI32
   }
+  type I64ColumnExpr = Expr {
+    type T = DI64
+  }
   type F64ColumnExpr = Expr {
     type T = Either[BufferDouble, Seq[SegmentDouble]]
   }

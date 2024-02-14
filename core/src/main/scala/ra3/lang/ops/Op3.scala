@@ -365,4 +365,53 @@ private[lang] object Op3 {
     } yield Left(a.firstInGroup(b, c))
   }
 
+   case object BufferCountInGroupsOpL extends Op3 {
+    type A0 = DI64
+    type A1 = BufferInt
+    type A2 = Int
+    type T = DI32
+    def op(a: DI64, b: BufferInt, c: Int)(implicit
+        tsc: TaskSystemComponents
+    ): IO[DI32] = for {
+      a <- bufferIfNeeded(a)
+    } yield Left(a.countInGroups(b, c))
+  }
+  case object BufferCountDistinctInGroupsOpL extends Op3 {
+    type A0 = DI64
+    type A1 = BufferInt
+    type A2 = Int
+    type T = DI32
+    def op(a: DI64, b: BufferInt, c: Int)(implicit
+        tsc: TaskSystemComponents
+    ): IO[DI32] = for {
+      a <- bufferIfNeeded(a)
+    } yield Left(a.countDistinctInGroups(b, c))
+  }
+
+
+  case object BufferFirstGroupsOpL extends Op3 {
+    type A0 = DI64
+    type A1 = BufferInt
+    type A2 = Int
+    type T = DI64
+    def op(a: DI64, b: BufferInt, c: Int)(implicit
+        tsc: TaskSystemComponents
+    ): IO[DI64] = for {
+      a <- bufferIfNeeded(a)
+    } yield Left(a.firstInGroup(b, c))
+  }
+
+   case object BufferHasMissingInGroupsOpL extends Op3 {
+    type A0 = DI64
+    type A1 = BufferInt
+    type A2 = Int
+    type T = DI32
+    def op(a: DI64, b: BufferInt, c: Int)(implicit
+        tsc: TaskSystemComponents
+    ): IO[DI32] = for {
+      a <- bufferIfNeeded(a)
+    } yield Left(a.hasMissingInGroup(b, c))
+  }
+
+
 }
