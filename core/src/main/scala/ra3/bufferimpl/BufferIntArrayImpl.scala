@@ -217,7 +217,7 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
     var i = 0
     val n = self.length
     while (i < n) {
-      self.values(i) = self.values(i) * other.values(i)
+      self.values(i) = self.values(i) * other.raw(i)
       i += 1
     }
   }
@@ -237,7 +237,7 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
     var i = 0
     val n = self.length
     while (i < n) {
-      self.values(i) = self.values(i) + other.values(i)
+      self.values(i) = self.values(i) + other.raw(i)
       i += 1
     }
   }
@@ -260,7 +260,7 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (self.values(i) > 0 && other.values(i) > 0) 1 else 0
+      r(i) = if (self.values(i) > 0 && other.raw(i) > 0) 1 else 0
       i += 1
     }
     BufferInt(r)
@@ -270,9 +270,10 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
     var i = 0
     val n = self.length
     val r = Array.ofDim[Int](n)
+   
 
     while (i < n) {
-      r(i) = if (self.values(i) > 0 || other.values(i) > 0) 1 else 0
+      r(i) = if (self.values(i) > 0 || other.raw(i) > 0) 1 else 0
       i += 1
     }
     BufferInt(r)
@@ -285,7 +286,7 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (self.values(i) == other.values(i)) 1 else 0
+      r(i) = if (self.values(i) == other.raw(i)) 1 else 0
       i += 1
     }
     BufferInt(r)
@@ -297,7 +298,7 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (self.values(i) > other.values(i)) 1 else 0
+      r(i) = if (self.values(i) > other.raw(i)) 1 else 0
       i += 1
     }
     BufferInt(r)
@@ -309,7 +310,7 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (self.values(i) >= other.values(i)) 1 else 0
+      r(i) = if (self.values(i) >= other.raw(i)) 1 else 0
       i += 1
     }
     BufferInt(r)
@@ -321,7 +322,7 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (self.values(i) < other.values(i)) 1 else 0
+      r(i) = if (self.values(i) < other.raw(i)) 1 else 0
       i += 1
     }
     BufferInt(r)
@@ -333,7 +334,7 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (self.values(i) <= other.values(i)) 1 else 0
+      r(i) = if (self.values(i) <= other.raw(i)) 1 else 0
       i += 1
     }
     BufferInt(r)
@@ -345,7 +346,7 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (self.values(i) != other.values(i)) 1 else 0
+      r(i) = if (self.values(i) != other.raw(i)) 1 else 0
       i += 1
     }
     BufferInt(r)

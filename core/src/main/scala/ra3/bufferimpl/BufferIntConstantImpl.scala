@@ -221,7 +221,7 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
     val n = self.length
     val r = Array.ofDim[Int](n)
     while (i < n) {
-      r(i) = if (self.value > 0 && other.values(i) > 0) 1 else 0
+      r(i) = if (self.value > 0 && other.raw(i) > 0) 1 else 0
       i += 1
     }
     BufferInt(r)
@@ -232,7 +232,7 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
     val n = self.length
     val r = Array.ofDim[Int](n)
     while (i < n) {
-      r(i) = if (self.value > 0 || other.values(i) > 0) 1 else 0
+      r(i) = if (self.value > 0 || other.raw(i) > 0) 1 else 0
       i += 1
     }
     BufferInt(r)
@@ -244,7 +244,7 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
     val n = self.length
     val r = Array.ofDim[Int](n)
     while (i < n) {
-      r(i) = if (self.value == other.values(i)) 1 else 0
+      r(i) = if (self.value == other.raw(i)) 1 else 0
       i += 1
     }
     BufferInt(r)
@@ -255,7 +255,7 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
     val n = self.length
     val r = Array.ofDim[Int](n)
     while (i < n) {
-      r(i) = if (self.value > other.values(i)) 1 else 0
+      r(i) = if (self.value > other.raw(i)) 1 else 0
       i += 1
     }
     BufferInt(r)
@@ -266,7 +266,7 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
     val n = self.length
     val r = Array.ofDim[Int](n)
     while (i < n) {
-      r(i) = if (self.value >= other.values(i)) 1 else 0
+      r(i) = if (self.value >= other.raw(i)) 1 else 0
       i += 1
     }
     BufferInt(r)
@@ -277,7 +277,7 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
     val n = self.length
     val r = Array.ofDim[Int](n)
     while (i < n) {
-      r(i) = if (self.value < other.values(i)) 1 else 0
+      r(i) = if (self.value < other.raw(i)) 1 else 0
       i += 1
     }
     BufferInt(r)
@@ -288,7 +288,7 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
     val n = self.length
     val r = Array.ofDim[Int](n)
     while (i < n) {
-      r(i) = if (self.value <= other.values(i)) 1 else 0
+      r(i) = if (self.value <= other.raw(i)) 1 else 0
       i += 1
     }
     BufferInt(r)
@@ -303,7 +303,7 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
     val n = self.length
     val r = Array.ofDim[Int](n)
     while (i < n) {
-      r(i) = if (self.value != other.values(i)) 1 else 0
+      r(i) = if (self.value != other.raw(i)) 1 else 0
       i += 1
     }
     BufferInt(r)
