@@ -351,7 +351,7 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (other.contains(self.values(i).toString)) 1 else 0
+      r(i) = if (other.exists(b => CharSequence.compare(self.values(i),b) == 0)) 1 else 0
       i += 1
     }
     BufferInt(r)
