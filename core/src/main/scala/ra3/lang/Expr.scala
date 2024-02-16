@@ -136,6 +136,18 @@ private[ra3] object Expr {
     def replaceDelayed(map: DelayedTableSchema) = this
   }
 
+  case class LitI64(s: Long) extends Expr {
+    type T = Long
+    def evalWith(env: Map[Key, Value[_]])(implicit
+        tsc: TaskSystemComponents
+    ): IO[Value[T]] = IO.pure(Value.Const(s))
+    def tags: Set[KeyTag] = Set.empty
+    val columnKeys: Set[ColumnKey] = Set.empty
+    def replace(i: Map[KeyTag, Int], i2: Map[ra3.tablelang.KeyTag, Int]): Expr =
+      this
+    def replaceDelayed(map: DelayedTableSchema) = this
+  }
+
 
   case class DelayedIdent(private[ra3] val name: Delayed) extends Expr {
 

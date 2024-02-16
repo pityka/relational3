@@ -162,12 +162,12 @@ private[lang] object Op2 {
     type T = ra3.lang.DInst
   }
     sealed trait ColumnOp2LLI extends Op2 {
-    type A0 = ra3.lang.DInst
-    type A1 = Long
+    type A0 = ra3.lang.DI64
+    type A1 = ra3.lang.DI64
     type T = ra3.lang.DI32
   }
     sealed trait ColumnOp2LcLI extends Op2 {
-    type A0 = ra3.lang.DInst
+    type A0 = ra3.lang.DI64
     type A1 = Long
     type T = ra3.lang.DI32
   }
@@ -865,7 +865,7 @@ private[lang] object Op2 {
     }
   }
   case object ColumnEqOpLcL extends ColumnOp2LcLI {
-    def op(a: DI64, b: Double)(implicit tsc: TaskSystemComponents): IO[DI32] = {
+    def op(a: DI64, b: Long)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
         a <- bufferIfNeededWithPrecondition(a)((segment: SegmentLong) =>
           segment.minMax match {

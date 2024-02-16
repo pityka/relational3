@@ -101,6 +101,7 @@ package object lang {
   }
   import scala.language.implicitConversions
   implicit def conversionF64Lit(a: Double): Expr.LitF64 = Expr.LitF64(a)
+  implicit def conversionI64Lit(a: Long): Expr.LitI64 = Expr.LitI64(a)
   implicit def conversionF64LitSet(a: Set[Double]): Expr.LitF64Set =
     Expr.LitF64Set(a)
   implicit def conversionI32LitSet(a: Set[Int]): Expr.LitI32Set =
