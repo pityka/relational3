@@ -161,6 +161,16 @@ private[lang] object Op2 {
     type A1 = Int
     type T = ra3.lang.DInst
   }
+    sealed trait ColumnOp2LLI extends Op2 {
+    type A0 = ra3.lang.DInst
+    type A1 = Long
+    type T = ra3.lang.DI32
+  }
+    sealed trait ColumnOp2LcLI extends Op2 {
+    type A0 = ra3.lang.DInst
+    type A1 = Long
+    type T = ra3.lang.DI32
+  }
 
   case object ColumnEqOpII extends ColumnOp2III {
     def op(a: DI32, b: DI32)(implicit tsc: TaskSystemComponents): IO[DI32] = {
@@ -842,6 +852,32 @@ private[lang] object Op2 {
         a <- bufferIfNeeded(a)
       } yield Left(a.elementwise_printf(b))
 
+    }
+  }
+
+    case object ColumnEqOpLL extends ColumnOp2LLI {
+    def op(a: DI64, b: DI64)(implicit tsc: TaskSystemComponents): IO[DI32] = {
+      for {
+        a <- bufferIfNeeded(a)
+        b <- bufferIfNeeded(b)
+      } yield Left(a.elementwise_eq(b))
+
+    }
+  }
+  case object ColumnEqOpLcL extends ColumnOp2LcLI {
+    def op(a: DI64, b: Double)(implicit tsc: TaskSystemComponents): IO[DI32] = {
+      for {
+        a <- bufferIfNeededWithPrecondition(a)((segment: SegmentLong) =>
+          segment.minMax match {
+            case None             => true
+            case Some((min, max)) => if (b < min || b > max) false else true
+          }
+        )
+      } yield (a match {
+        case Right(a) => Left(a.elementwise_eq(b))
+        case Left(numEl) =>
+          Left(BufferInt.constant(0, numEl))
+      })
     }
   }
 

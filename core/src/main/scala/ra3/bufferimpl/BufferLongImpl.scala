@@ -288,5 +288,17 @@ def elementAsCharSequence(i: Int): CharSequence = values(i).toString
     BufferInt(ar)
 
   }
+ def elementwise_eq(other: BufferType): BufferInt = {
+    assert(other.length == self.length)
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+
+    while (i < n) {
+      r(i) = if (self.values(i) == other.values(i)) 1 else 0
+      i += 1
+    }
+    BufferInt(r)
+  }
 
 }

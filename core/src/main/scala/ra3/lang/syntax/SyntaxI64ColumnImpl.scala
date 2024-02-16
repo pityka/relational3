@@ -64,8 +64,8 @@ trait SyntaxI64ColumnImpl {
   // def >(arg1: I32ColumnExpr) = Expr.makeOp2(ops.Op2.ColumnGtOpII)(arg0, arg1)
   // def >(arg1: Int) = Expr.makeOp2(ops.Op2.ColumnGtOpIcI)(arg0, arg1)
   
-  // def ===(arg1: I32ColumnExpr) = Expr.makeOp2(ops.Op2.ColumnEqOpII)(arg0, arg1)
-  // def ===(arg1: Int) = Expr.makeOp2(ops.Op2.ColumnEqOpIcI)(arg0, arg1)
+  def ===(arg1: I64ColumnExpr) = Expr.makeOp2(ops.Op2.ColumnEqOpLL)(arg0, arg1)
+  def ===(arg1: Long) = Expr.makeOp2(ops.Op2.ColumnEqOpLcL)(arg0, arg1)
   // def !==(arg1: I32ColumnExpr) = Expr.makeOp2(ops.Op2.ColumnNEqOpII)(arg0, arg1)
   // def !==(arg1: Int) = Expr.makeOp2(ops.Op2.ColumnNEqOpIcI)(arg0, arg1)
   // def containedIn(arg1: Set[Int]) =
