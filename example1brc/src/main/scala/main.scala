@@ -210,12 +210,15 @@ object main extends App {
           customer: DelayedIdent[DStr],
           price: DelayedIdent[DF64]
       ) =
-        customer.groupBy.partial
-          .reduceGroupsWith(select(customer.first, price.sum, price.count))
+        customer.groupBy
+          .apply(select(customer.first, price.sum, price.count))
+          .partial
           .in[DStr, DF64, DF64] { case (_, customer, sum, count) =>
-            customer.groupBy.reduceGroupsWith(
-              select(customer.first, (sum.sum / count.sum))
-            )
+            customer
+              .groupBy(
+                select(customer.first, (sum.sum / count.sum))
+              )
+              .all
           }
 
       val (show, table) =
@@ -273,7 +276,8 @@ object main extends App {
       val (show, table) = schema[DStr, DStr, DStr, DF64](tableA) {
         case (_, uuid, customer, category, price) =>
           category.groupBy
-            .reduceGroupsWith(select(category.first, price.mean))
+            .apply(select(category.first, price.mean))
+            .all
             .in[DStr, DF64] { case (uniqueCategoriesTable, category, _) =>
               uniqueCategoriesTable.query(
                 select(star).where(category.matches("aa."))
@@ -296,8 +300,7 @@ object main extends App {
                   ) =>
                 filteredCustomer.groupBy
                   .by(filteredCategory)
-                  .partial
-                  .reduceGroupsWith(
+                  .apply(
                     select(
                       filteredCustomer.first,
                       filteredCategory.first,
@@ -305,18 +308,20 @@ object main extends App {
                       filteredPrice.count
                     )
                   )
+                  .partial
             }
             .in[DStr, DStr, DF64, DF64] {
               case (_, customer, category, sum, count) =>
                 customer.groupBy
                   .by(category)
-                  .reduceGroupsWith(
+                  .apply(
                     select(
                       customer.first as "customer",
                       category.first as "category",
                       sum.sum / count.sum as "mean value"
                     )
                   )
+                  .all
             }
 
       }.evaluate
@@ -405,21 +410,24 @@ object main extends App {
     )
 
     val result = schema[DStr, DF64](table) { (_, station, value) =>
-      station.groupBy.partial
-        .reduceGroupsWith(
+      station.groupBy
+        .apply(
           select(
             station.first as "station",
             value.sum as "sum",
             value.count as "count"
           )
         )
+        .partial
         .in[DStr, DF64, DF64] { (_, station, sum, count) =>
-          station.groupBy.reduceGroupsWith(
-            select(
-              station.first,
-              sum.sum / count.sum
+          station.groupBy
+            .apply(
+              select(
+                station.first,
+                sum.sum / count.sum
+              )
             )
-          )
+            .all
 
         }
     }.evaluate

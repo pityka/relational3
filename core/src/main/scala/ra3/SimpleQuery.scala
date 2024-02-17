@@ -4,7 +4,9 @@ import tasks.TaskSystemComponents
 import cats.effect.IO
 
 private[ra3] object SimpleQuery {
-  def simpleQuery(self:Table, program: ra3.lang.Query)(implicit tsc: TaskSystemComponents) = {
+  def simpleQuery(self: Table, program: ra3.lang.Query)(implicit
+      tsc: TaskSystemComponents
+  ) = {
     val nSegments = self.columns.head.segments.size
     ts.MakeUniqueId
       .queue(self, "where-" + program.hash, Nil)
@@ -43,5 +45,43 @@ private[ra3] object SimpleQuery {
           )
         )
       }
-  } 
+  }
+  def simpleQueryCount(self: Table, program: ra3.lang.Query)(implicit
+      tsc: TaskSystemComponents
+  ): IO[Table] = {
+    val nSegments = self.columns.head.segments.size
+    ts.MakeUniqueId
+      .queue(self, "simple-count-" + program.hash, Nil)
+      .flatMap { name =>
+        IO.parTraverseN(math.min(32, nSegments))(
+          (0 until nSegments).toList
+        ) { segmentIdx =>
+          ts.SimpleQueryCount.queue(
+            input = self.columns.map(_.segments(segmentIdx)).zipWithIndex.map {
+              case (s, columnIdx) =>
+                ra3.ts.SegmentWithName(
+                  segment = List(s),
+                  tableUniqueId = self.uniqueId,
+                  columnName = self.colNames(columnIdx),
+                  columnIdx = columnIdx
+                )
+            },
+            predicate = program,
+            groupMap = None
+          )
+        }.map(_.map(_.toLong).foldLeft(0L)(_ + _))
+          .flatMap { count =>
+            ra3.ColumnTag.I64
+              .makeColumnFromSeq(name, 0)(List(List(count)))
+              .map { column =>
+                Table(
+                  columns = Vector(column),
+                  colNames = Vector("count"),
+                  uniqueId = name,
+                  partitions = None
+                )
+              }
+          }
+      }
+  }
 }

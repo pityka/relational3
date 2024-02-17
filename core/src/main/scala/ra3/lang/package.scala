@@ -155,6 +155,9 @@ package object lang {
   def select(args: Expr { type T = ColumnSpec }*): ReturnExpr = {
     Expr.makeOpStar(ops.MkSelect)(args: _*)
   }
+  def project(args: Expr { type T = ColumnSpec }*): ReturnExpr = {
+    Expr.makeOpStar(ops.MkSelect)(args: _*)
+  }
 
   private[ra3] def evaluate(expr: Expr)(implicit
       tsc: TaskSystemComponents
@@ -199,7 +202,7 @@ package object lang {
   }
   object GroupBy {
     def apply(a: Expr.DelayedIdent) =
-      GroupBuilderSyntax(a, Vector.empty, None, None, None, None, false)
+      GroupBuilderSyntax(a, Vector.empty, None, None, None, None)
   }
 
   def local[T1](
@@ -279,7 +282,6 @@ package object lang {
       private val partitionBase: Option[Int],
       private val partitionLimit: Option[Int],
       private val maxSegmentsToBufferAtOnce: Option[Int],
-      private val _partial: Boolean
   ) {
 
     def by(n: Expr.DelayedIdent) = {
@@ -287,14 +289,13 @@ package object lang {
       copy(others = others :+ n)
     }
 
-    def partial = copy(_partial = true)
 
     def withPartitionBase(num: Int) = copy(partitionBase = Some(num))
     def withPartitionLimit(num: Int) = copy(partitionLimit = Some(num))
     def withMaxSegmentsBufferingAtOnce(num: Int) =
       copy(maxSegmentsToBufferAtOnce = Some(num))
-    def reduceGroupsWith(q: ra3.lang.Query) = copy(prg = Some(q)).done
-    def done = if (!_partial)
+    def apply(q: ra3.lang.Query) = copy(prg = Some(q))
+    def all = 
       ra3.tablelang.TableExpr.GroupThenReduce(
         first,
         others,
@@ -303,11 +304,19 @@ package object lang {
         partitionLimit.getOrElse(10_000_000),
         maxSegmentsToBufferAtOnce.getOrElse(10)
       )
-    else
+    def partial = 
       ra3.tablelang.TableExpr.GroupPartialThenReduce(
         first,
         others,
         prg.getOrElse(ra3.lang.select(ra3.lang.star))
+      )
+    def count = ra3.tablelang.TableExpr.GroupThenCount(
+        first,
+        others,
+        prg.getOrElse(ra3.lang.select(ra3.lang.star)),
+        partitionBase.getOrElse(128),
+        partitionLimit.getOrElse(10_000_000),
+        maxSegmentsToBufferAtOnce.getOrElse(10)
       )
 
   }
@@ -472,6 +481,8 @@ package object lang {
 
     def query(prg: ra3.lang.Query) =
       ra3.tablelang.TableExpr.SimpleQuery(a, prg)
+    def count(prg: ra3.lang.Query) =
+      ra3.tablelang.TableExpr.SimpleQueryCount(a, prg)
 
     @scala.annotation.nowarn
     def useColumn[T0: NotNothing](
@@ -584,6 +595,35 @@ package object lang {
       val d3 = Expr.DelayedIdent(ra3.lang.Delayed(a.key, Right(n3))).cast[T2]
       val d4 = Expr.DelayedIdent(ra3.lang.Delayed(a.key, Right(n4))).cast[T3]
       body(d1, d2, d3, d4)
+    }
+    @scala.annotation.nowarn
+    def useColumns[
+        T0: NotNothing,
+        T1: NotNothing,
+        T2: NotNothing,
+        T3: NotNothing,
+        T4: NotNothing,
+    ](
+        n1: Int,
+        n2: Int,
+        n3: Int,
+        n4: Int,
+        n5: Int,
+    )(
+        body: (
+            ra3.lang.DelayedIdent[T0],
+            ra3.lang.DelayedIdent[T1],
+            ra3.lang.DelayedIdent[T2],
+            ra3.lang.DelayedIdent[T3],
+            ra3.lang.DelayedIdent[T4],
+        ) => TableExpr
+    ) = {
+      val d1 = Expr.DelayedIdent(ra3.lang.Delayed(a.key, Right(n1))).cast[T0]
+      val d2 = Expr.DelayedIdent(ra3.lang.Delayed(a.key, Right(n2))).cast[T1]
+      val d3 = Expr.DelayedIdent(ra3.lang.Delayed(a.key, Right(n3))).cast[T2]
+      val d4 = Expr.DelayedIdent(ra3.lang.Delayed(a.key, Right(n4))).cast[T3]
+      val d5 = Expr.DelayedIdent(ra3.lang.Delayed(a.key, Right(n5))).cast[T4]
+      body(d1, d2, d3, d4, d5)
     }
 
   }

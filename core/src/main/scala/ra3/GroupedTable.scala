@@ -78,21 +78,21 @@ case class GroupedTable(
 
   }
 
-  // the where clause in the query will act as HAVING in sql
-  def reduceGroups(
-      query: TableReference => ra3.lang.Expr { type T <: ra3.lang.ReturnValue }
-  )(implicit
-      tsc: TaskSystemComponents
-  ) = {
-    val tRef = TableReference(
-      uniqueId = uniqueId,
-      colTags = partitions.head._1.columns.map(_.tag),
-      colNames = colNames
-    )
-    val program = query(tRef)
-    GroupedTable.reduceGroups(this,program)
+  // // the where clause in the query will act as HAVING in sql
+  // def reduceGroups(
+  //     query: TableReference => ra3.lang.Expr { type T <: ra3.lang.ReturnValue }
+  // )(implicit
+  //     tsc: TaskSystemComponents
+  // ) = {
+  //   val tRef = TableReference(
+  //     uniqueId = uniqueId,
+  //     colTags = partitions.head._1.columns.map(_.tag),
+  //     colNames = colNames
+  //   )
+  //   val program = query(tRef)
+  //   GroupedTable.reduceGroups(this,program)
 
-  }
+  // }
 }
 
 object GroupedTable {
@@ -101,8 +101,8 @@ object GroupedTable {
       program: ra3.lang.Expr { type T <: ra3.lang.ReturnValue }
   )(implicit
       tsc: TaskSystemComponents
-  ) : IO[Table] = {
-   
+  ): IO[Table] = {
+
     val columns = self.colNames.size
     val name = ts.MakeUniqueId.queue0(
       s"${self.uniqueId}-reduce-${program.hash}",
@@ -150,6 +150,55 @@ object GroupedTable {
           None
         )
       }
+    }
+
+  }
+  def countGroups(
+      self: GroupedTable,
+      program: ra3.lang.Expr { type T <: ra3.lang.ReturnValue }
+  )(implicit
+      tsc: TaskSystemComponents
+  ): IO[Table] = {
+
+    val columns = self.colNames.size
+    val name = ts.MakeUniqueId.queue0(
+      s"${self.uniqueId}-count-groups-${program.hash}",
+      List()
+    )
+    name.flatMap { name =>
+      IO.parSequenceN(math.min(32, self.partitions.size))(
+        self.partitions.zipWithIndex.map {
+          case ((partition, groupMap), _) =>
+            ts.SimpleQueryCount
+              .queue(
+                input = (0 until columns).toVector.map { columnIdx =>
+                  ra3.ts.SegmentWithName(
+                    segment = partition
+                      .columns(columnIdx)
+                      .segments, // to be removed
+                    tableUniqueId = self.uniqueId,
+                    columnName = self.colNames(columnIdx),
+                    columnIdx = columnIdx
+                  )
+                },
+                predicate = program,
+                groupMap = Option((groupMap.map, groupMap.numGroups))
+              )
+
+        }
+      ).map(_.map(_.toLong).foldLeft(0L)(_ + _))
+        .flatMap { count =>
+          ra3.ColumnTag.I64
+            .makeColumnFromSeq(name, 0)(List(List(count)))
+            .map { column =>
+              Table(
+                columns = Vector(column),
+                colNames = Vector("count"),
+                uniqueId = name,
+                partitions = None
+              )
+            }
+        }
     }
 
   }

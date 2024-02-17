@@ -151,6 +151,46 @@ private[ra3] object TableExpr {
 
     }
   }
+  case class SimpleQueryCount(
+      arg0: TableExpr.Ident,
+      elementwise: ra3.lang.Expr
+  ) extends TableExpr {
+
+    val tags: Set[KeyTag] = arg0.tags
+    def replace(i: Map[KeyTag, Int]): TableExpr = {
+
+      SimpleQueryCount(
+        arg0.replace(i).asInstanceOf[Ident],
+        elementwise.replaceTags(i)
+      )
+    }
+
+    def evalWith(
+        env: Map[Key, TableValue]
+    )(implicit tsc: TaskSystemComponents) = {
+      arg0
+        .evalWith(env)
+        .flatMap { case TableValue(table) =>
+          scribe.info(
+            f"Will do simple query count on ${table.uniqueId} (${table.numRows}%,d x ${table.numCols} in ${table.segmentation.size}%,d segments)"
+          )
+          ra3.SimpleQuery
+            .simpleQueryCount(
+              table,
+              elementwise
+                .replaceDelayed(
+                  DelayedTableSchema(
+                    Map(arg0.key -> (table.uniqueId, table.colNames))
+                  )
+                )
+                .asInstanceOf[ra3.lang.Query]
+            )
+            .map(t => TableValue(t))
+
+        }
+
+    }
+  }
   case class GroupThenReduce(
       arg0: ra3.lang.Expr.DelayedIdent,
       arg1: Seq[(ra3.lang.Expr.DelayedIdent)],
@@ -166,12 +206,13 @@ private[ra3] object TableExpr {
       arg0.tableIdent.tags ++ arg1.flatMap(_.tableIdent.tags)
     def replace(i: Map[KeyTag, Int]): TableExpr = {
 
-      GroupPartialThenReduce(
+      GroupThenReduce(
         arg0.replace(Map.empty, i).asInstanceOf[ra3.lang.Expr.DelayedIdent],
         arg1.map(
           _.replace(Map.empty, i).asInstanceOf[ra3.lang.Expr.DelayedIdent]
         ),
-        groupwise.replaceTags(i)
+        groupwise.replaceTags(i),
+        partitionBase,partitionLimit,maxSegmentsToBufferAtOnce
       )
     }
 
@@ -210,6 +251,73 @@ private[ra3] object TableExpr {
                 )
                 .asInstanceOf[ra3.lang.Query]
               GroupedTable.reduceGroups(groupedTable, program)
+            }
+            .map(t => TableValue(t))
+
+        }
+
+    }
+  }
+  case class GroupThenCount(
+      arg0: ra3.lang.Expr.DelayedIdent,
+      arg1: Seq[(ra3.lang.Expr.DelayedIdent)],
+      groupwise: ra3.lang.Expr,
+      partitionBase: Int,
+      partitionLimit: Int,
+      maxSegmentsToBufferAtOnce: Int
+  ) extends TableExpr {
+
+    assert(arg1.forall(_.name.table == arg0.name.table))
+
+    val tags: Set[KeyTag] =
+      arg0.tableIdent.tags ++ arg1.flatMap(_.tableIdent.tags)
+    def replace(i: Map[KeyTag, Int]): TableExpr = {
+
+      GroupThenCount(
+        arg0.replace(Map.empty, i).asInstanceOf[ra3.lang.Expr.DelayedIdent],
+        arg1.map(
+          _.replace(Map.empty, i).asInstanceOf[ra3.lang.Expr.DelayedIdent]
+        ),
+        groupwise.replaceTags(i),
+        partitionBase,partitionLimit,maxSegmentsToBufferAtOnce
+      )
+    }
+
+    def evalWith(
+        env: Map[Key, TableValue]
+    )(implicit tsc: TaskSystemComponents) = {
+      arg0.tableIdent
+        .evalWith(env)
+        .flatMap { case TableValue(table) =>
+          val cols = (arg0 +: arg1).map(
+            _.name.selection.left
+              .map(s => table.colNames.indexOf(s))
+              .fold(identity, identity)
+          )
+          scribe.info(
+            f"Will do group by on ${table.uniqueId} (${table.numRows}%,d x ${table.numCols} in ${table.segmentation.size}%,d segments) on ${cols.size} columns"
+          )
+          table
+            .groupBy(
+              cols = cols,
+              partitionBase = partitionBase,
+              partitionLimit = partitionLimit,
+              maxSegmentsToBufferAtOnce = maxSegmentsToBufferAtOnce
+            )
+            .flatMap { groupedTable =>
+              scribe.info(
+                f"Will do reduction on ${groupedTable.uniqueId} (${groupedTable.partitions.size} partitions) "
+              )
+              val program = groupwise
+                .replaceDelayed(
+                  DelayedTableSchema(
+                    Map(
+                      arg0.name.table -> (groupedTable.uniqueId, groupedTable.colNames)
+                    )
+                  )
+                )
+                .asInstanceOf[ra3.lang.Query]
+              GroupedTable.countGroups(groupedTable, program)
             }
             .map(t => TableValue(t))
 

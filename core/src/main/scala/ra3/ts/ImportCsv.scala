@@ -6,6 +6,8 @@ import tasks.jsonitersupport._
 import com.github.plokhotnyuk.jsoniter_scala.macros._
 import com.github.plokhotnyuk.jsoniter_scala.core._
 import cats.effect.IO
+import java.nio.charset.StandardCharsets
+import java.nio.charset.CodingErrorAction
 
 case class ImportCsv(
     file: SharedFile,
@@ -17,7 +19,8 @@ case class ImportCsv(
     maxLines: Long,
     maxSegmentLength: Int,
     compression: Option[ImportCsv.CompressionFormat],
-    bufferSize: Int
+    bufferSize: Int,
+    characterDecoder: ImportCsv.CharacterDecoder
 )
 object ImportCsv {
   sealed trait CompressionFormat
@@ -25,7 +28,16 @@ object ImportCsv {
 
   sealed trait InstantFormat
   case object ISO extends InstantFormat
-  case class LocalDateTimeAtUTC(s:String) extends InstantFormat
+  case class LocalDateTimeAtUTC(s: String) extends InstantFormat
+
+  sealed trait CharacterDecoder {
+    def silent: Boolean
+  }
+  case class UTF8(silent: Boolean) extends CharacterDecoder
+  case class ASCII(silent: Boolean) extends CharacterDecoder
+  case class ISO88591(silent: Boolean) extends CharacterDecoder
+  case class UTF16(silent: Boolean) extends CharacterDecoder
+
   def queue(
       file: SharedFile,
       name: String,
@@ -36,7 +48,8 @@ object ImportCsv {
       maxLines: Long,
       maxSegmentLength: Int,
       compression: Option[CompressionFormat],
-      bufferSize: Int
+      bufferSize: Int,
+      characterDecoder: CharacterDecoder
   )(implicit
       tsc: TaskSystemComponents
   ): IO[Table] = {
@@ -52,12 +65,14 @@ object ImportCsv {
         maxLines,
         maxSegmentLength,
         compression,
-        bufferSize
+        bufferSize,
+        characterDecoder
       )
     )(
       ResourceRequest(
         cpu = (1, 1),
-        memory = ra3.Utils.guessMemoryUsageInMB(maxSegmentLength) * columns.size,
+        memory =
+          ra3.Utils.guessMemoryUsageInMB(maxSegmentLength) * columns.size,
         scratch = 0,
         gpu = 0
       )
@@ -74,16 +89,42 @@ object ImportCsv {
       maxLines: Long,
       maxSegmentLength: Int,
       compression: Option[CompressionFormat],
-      bufferSize : Int
+      bufferSize: Int,
+      characterDecoder: CharacterDecoder
   )(implicit tsc: TaskSystemComponents): IO[Table] = {
 
     val rawStream = file.stream
-    
+
+    val charset = {
+      val c1 = characterDecoder match {
+        case ASCII(_) =>
+          StandardCharsets.US_ASCII
+            .newDecoder()
+        case (UTF8(_)) =>
+          StandardCharsets.UTF_8
+            .newDecoder()
+        case (ISO88591(_)) =>
+          StandardCharsets.ISO_8859_1
+            .newDecoder()
+        case (UTF16(_)) =>
+          StandardCharsets.UTF_16
+            .newDecoder()
+      }
+
+      if (characterDecoder.silent) {
+        c1.onMalformedInput(CodingErrorAction.REPLACE)
+          .onUnmappableCharacter(CodingErrorAction.REPLACE)
+      } else c1
+
+    }
+
     fs2.io.toInputStreamResource(rawStream).use { is =>
       IO {
         val is2 = compression match {
-          case None => is 
-          case Some(Gzip) =>  new java.util.zip.GZIPInputStream(is)
+          case None       => is
+          case Some(Gzip) => 
+            new ra3.commons.GzipCompressorInputStream(is,true)
+            new java.util.zip.GZIPInputStream(is)
         }
         val channel = java.nio.channels.Channels.newChannel(is2)
         val result = ra3.csv
@@ -95,8 +136,9 @@ object ImportCsv {
                 v._2,
                 v._3 match {
                   case Some(ISO) => Some(ra3.InstantParser.ISO)
-                  case Some(LocalDateTimeAtUTC(s)) => Some(ra3.InstantParser.LocalDateTimeAtUTC(s))
-                  case None      => None
+                  case Some(LocalDateTimeAtUTC(s)) =>
+                    Some(ra3.InstantParser.LocalDateTimeAtUTC(s))
+                  case None => None
                 }
               )
             ),
@@ -106,7 +148,8 @@ object ImportCsv {
             maxSegmentLength = maxSegmentLength,
             fieldSeparator = fieldSeparator,
             recordSeparator = recordSeparator,
-            bufferSize = bufferSize
+            bufferSize = bufferSize,
+            charset = charset
           )
         result
       }.flatMap { result =>
@@ -138,7 +181,8 @@ object ImportCsv {
         input.maxLines,
         input.maxSegmentLength,
         input.compression,
-        input.bufferSize
+        input.bufferSize,
+        input.characterDecoder
       )
 
   }

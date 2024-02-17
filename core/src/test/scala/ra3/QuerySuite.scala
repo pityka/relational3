@@ -3,7 +3,7 @@ package ra3
 import tasks.TaskSystemComponents
 import cats.effect.unsafe.implicits.global
 import ColumnTag.I32
-
+import ra3.lang._
 
 class QuerySuite extends munit.FunSuite with WithTempTaskSystem {
 
@@ -15,7 +15,6 @@ class QuerySuite extends munit.FunSuite with WithTempTaskSystem {
       .resetRowIndex
   }
 
-
   test("simple filter with pushdown ===") {
     withTempTaskSystem { implicit ts =>
       val numCols = 3
@@ -24,13 +23,12 @@ class QuerySuite extends munit.FunSuite with WithTempTaskSystem {
       val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
 
       val result = ra3Table
-        .query { table =>
-          table.use[I32.type](0){ col0 =>
-          ra3.lang.select(ra3.lang.star).where(col0 === 0)
-          }
+        .schema[DI32] { (table, col0) =>
+          table.query(ra3.lang.select(ra3.lang.star).where(col0 === 0))
         }
+        .evaluate
         .unsafeRunSync()
-      
+
       val takenF = (0 until 4)
         .map(i =>
           result.bufferSegment(i).unsafeRunSync().toHomogeneousFrame(I32)
@@ -38,7 +36,7 @@ class QuerySuite extends munit.FunSuite with WithTempTaskSystem {
         .reduce(_ concat _)
         .resetRowIndex
         .filterIx(_.nonEmpty)
-        
+
       val expect =
         tableFrame.resetRowIndex.rfilter(_.values(0) == 0)
 
@@ -54,13 +52,14 @@ class QuerySuite extends munit.FunSuite with WithTempTaskSystem {
       val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
 
       val result = ra3Table
-        .query { table =>
-          table.use[I32.type](0){ col0 =>
-          ra3.lang.select(ra3.lang.star).where(col0.containedIn(Set(0,1)))
-          }
+        .schema[DI32] { (table, col0) =>
+          table.query(
+            ra3.lang.select(ra3.lang.star).where(col0.containedIn(Set(0, 1)))
+          )
         }
+        .evaluate
         .unsafeRunSync()
-      
+
       val takenF = (0 until 4)
         .map(i =>
           result.bufferSegment(i).unsafeRunSync().toHomogeneousFrame(I32)
@@ -68,9 +67,9 @@ class QuerySuite extends munit.FunSuite with WithTempTaskSystem {
         .reduce(_ concat _)
         .resetRowIndex
         .filterIx(_.nonEmpty)
-        
+
       val expect =
-        tableFrame.rfilter(v => Set(0,1).contains(v.values(0))).resetRowIndex
+        tableFrame.rfilter(v => Set(0, 1).contains(v.values(0))).resetRowIndex
 
       assertEquals(takenF, expect)
     }
@@ -84,13 +83,12 @@ class QuerySuite extends munit.FunSuite with WithTempTaskSystem {
       val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
 
       val result = ra3Table
-        .query { table =>
-          table.use[I32.type](0){ col0 =>
-          ra3.lang.select(ra3.lang.star).where(col0 >= 0)
-          }
-        }
+        .schema[DI32] { (table, col0) =>
+            table.query(ra3.lang.select(ra3.lang.star).where(col0 >= 0))
+          }.evaluate
+        
         .unsafeRunSync()
-      
+
       val takenF = (0 until 4)
         .map(i =>
           result.bufferSegment(i).unsafeRunSync().toHomogeneousFrame(I32)
@@ -98,7 +96,7 @@ class QuerySuite extends munit.FunSuite with WithTempTaskSystem {
         .reduce(_ concat _)
         .resetRowIndex
         .filterIx(_.nonEmpty)
-        
+
       val expect =
         tableFrame.rfilter(_.values(0) >= 0).resetRowIndex
 
@@ -114,13 +112,12 @@ class QuerySuite extends munit.FunSuite with WithTempTaskSystem {
       val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
 
       val result = ra3Table
-        .query { table =>
-          table.use[I32.type](0){ col0 =>
-          ra3.lang.select(ra3.lang.star).where(col0 <= 0)
-          }
-        }
+        .schema[DI32] { (table, col0) =>
+            table.query(ra3.lang.select(ra3.lang.star).where(col0 <= 0))
+          
+        }.evaluate
         .unsafeRunSync()
-      
+
       val takenF = (0 until 4)
         .map(i =>
           result.bufferSegment(i).unsafeRunSync().toHomogeneousFrame(I32)
@@ -129,13 +126,12 @@ class QuerySuite extends munit.FunSuite with WithTempTaskSystem {
         .resetRowIndex
         .filterIx(_.nonEmpty)
 
-        
-        val expect =
-          tableFrame.rfilter(_.values(0) <= 0).resetRowIndex
-          
+      val expect =
+        tableFrame.rfilter(_.values(0) <= 0).resetRowIndex
+
       assertEquals(takenF, expect)
     }
 
   }
- 
+
 }

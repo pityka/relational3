@@ -34,20 +34,20 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
         }
 
       val result = schema[DStr, DF64](table) { case (_, station, value) =>
-        station.groupBy.partial.reduceGroupsWith(
+        station.groupBy(
             select(
               station.first as "station",
               value.sum as "sum",
               value.count as "count"
             )
-          )
+          ).partial
           .in[DStr, DF64, DF64] { (_, station, sum, count) =>
-            station.groupBy.reduceGroupsWith(
+            station.groupBy(
               select(
                 station.first,
                 sum.sum / count.sum
               )
-            )
+            ).all
 
           }
       }.evaluate
@@ -190,17 +190,17 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
         }
 
       val result = schema[DStr, DF64](table) { case (table, station, _) =>
-        station.groupBy.partial.reduceGroupsWith(
+        station.groupBy(
             select(
               station.first as "station",
             )
-          )
+          ).all
           .in[DStr, DF64, DF64] { (_, station, sum, count) =>
-            station.groupBy.reduceGroupsWith(
+            station.groupBy(
               select(
                 station.first
               )
-            )
+            ).all
 
           }
           

@@ -63,8 +63,10 @@ case class Table(
   def showSample(nrows: Int = 100, ncols: Int = 10)(implicit
       tsc: TaskSystemComponents
   ): IO[String] = {
-    if (segmentation.isEmpty) IO.pure("")
-    else bufferSegment(0).map(_.toStringFrame.stringify(nrows, ncols))
+    this.segmentation.zipWithIndex.find(_._1 > 0).map(_._2) match {
+      case None => IO.pure("")
+      case Some(segmentIdx) => bufferSegment(segmentIdx).map(_.toStringFrame.stringify(nrows, ncols))
+    } 
   }
   def bufferSegment(
       idx: Int

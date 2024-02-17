@@ -82,7 +82,7 @@ object SimpleQuery {
         .evaluate(predicate, env)
         .map(_.v.asInstanceOf[ReturnValue])
         .flatMap { returnValue =>
-          scribe.debug(s"SQ program evaluation done projection: ${returnValue.projections} filter: ${returnValue.filter}")
+          
           val mask = returnValue.filter
 
           // If all items are dropped then we do not buffer segments from Star
@@ -99,6 +99,8 @@ object SimpleQuery {
             case Some(Right(s)) if s.forall(_.isConstant(1)) => true
             case _                                           => false
           }
+
+          scribe.debug(s"SQ program evaluation done projection: ${returnValue.projections} filter: ${returnValue.filter} maskIsEmpty=$maskIsEmpty maskIsComplete=$maskIsComplete")
 
           val selected: IO[List[NamedColumnSpec[_]]] = IO
             .parSequenceN(32)(returnValue.projections.zipWithIndex.map {
