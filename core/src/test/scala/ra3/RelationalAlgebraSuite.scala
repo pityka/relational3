@@ -130,6 +130,13 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       .reduce(_ concat _)
       .resetRowIndex
   }
+  def toLongFrame(t: Table)(implicit tsc: TaskSystemComponents) = {
+    t.bufferStream.compile.toList
+      .unsafeRunSync()
+      .map(_.toHomogeneousFrame(ra3.ColumnTag.I64))
+      .reduce(_ concat _)
+      .resetRowIndex
+  }
 
   test("to and from csv 1 segment") {
     withTempTaskSystem { implicit ts =>
@@ -289,6 +296,34 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
         .filterIx(_.nonEmpty)
       val expect =
         tableFrame.resetRowIndex
+
+      assertEquals(takenF, expect)
+    }
+
+  }
+  test("simple query count") {
+    withTempTaskSystem { implicit ts =>
+      val numCols = 3
+      val numRows = 10
+      val (tableFrame, tableCsv) = generateTable(numRows, numCols)
+      val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
+
+      val less = ra3Table
+        .schema[DI32,DI32] { (table,col0, col1) =>
+            table.count(ra3.lang
+              .select(col1 as "b", col1, ra3.lang.star)
+              .where(col0.tap("col0") <= 0))
+          
+        }.evaluate
+        .unsafeRunSync()
+      val takenF = (0 until 1)
+        .map(i => less.bufferSegment(i).unsafeRunSync().toHomogeneousFrame(ra3.ColumnTag.I64))
+        .reduce(_ concat _)
+        .resetRowIndex
+        .filterIx(_.nonEmpty)
+        println(takenF)
+      val expect =
+        Frame("count"->Vec(tableFrame.colAt(0).toVec.countif(_ <= 0).toLong))
 
       assertEquals(takenF, expect)
     }
@@ -1331,6 +1366,53 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       assertEquals(
         saddleResult.toRowSeq.map(_._2).toSet,
         result.toRowSeq.map(_._2).toSet
+      )
+
+    }
+
+  }
+  test("count groups") {
+
+    withTempTaskSystem { implicit ts =>
+      val numCols = 3
+      val numRows = 10
+      val (tableFrame, tableCsv) = generateTable(numRows, numCols)
+      val colA = Seq(Seq(0, 0, 1), Seq(0, 2, 3), Seq(4, 5, 0), Seq(9))
+
+      val tF = {
+        val tmp = tableFrame.addCol(
+          Series(colA.flatten.toVec),
+          "V4",
+          org.saddle.index.InnerJoin
+        )
+        tmp.setRowIndex(Index(tmp.firstCol("V4").toVec.toArray))
+      }
+
+      val saddleResult = tF.groupBy.combine(_.sum).resetRowIndex.colAt(0).toVec.countif(_ <= 0)
+
+      val tableA = csvStringToTable("table", tableCsv, numCols, 3)
+        .addColumnFromSeq(I32, "V4")(colA.flatten)
+        .unsafeRunSync()
+
+      assertEquals(toFrame(tableA), tF.resetRowIndex)
+
+
+      val result = toLongFrame(
+        tableA.schema[DI32,DI32,DI32,DI32]( (_,c1,c2,c3,c4) =>
+            c4.groupBy.withPartitionBase(3).withPartitionLimit(0).withMaxSegmentsBufferingAtOnce(2)
+            .apply(
+              ra3.lang.select(c1.sum, c2.sum, c3.sum, c4.sum as "V4")
+              .where(c1.sum <= 0)
+            ).count
+          ).evaluate
+          
+          .unsafeRunSync()
+      )
+
+
+      assertEquals(
+        Frame("count" -> Vec(saddleResult.toLong)),
+        result
       )
 
     }
