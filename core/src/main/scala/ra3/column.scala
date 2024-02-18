@@ -9,12 +9,10 @@ import com.github.plokhotnyuk.jsoniter_scala.macros._
 import com.github.plokhotnyuk.jsoniter_scala.core._
 import tasks._
 import bufferimpl.CharSequenceOrdering
-import columnimpl._
 
 object Column {
   case class Int32Column(segments: Vector[SegmentInt])
-      extends Column
-      with I32ColumnImpl {
+      extends Column {
     def nonMissingMinMax: Option[(Int, Int)] = {
       val s = segments.flatMap(_.nonMissingMinMax.toSeq)
       if (s.isEmpty) None
@@ -66,8 +64,7 @@ object Column {
     def tag = ColumnTag.Instant
   }
   case class StringColumn(segments: Vector[SegmentString])
-      extends Column
-      with StringColumnImpl {
+      extends Column {
     def nonMissingMinMax: Option[(String, String)] = {
       val s = segments.flatMap(_.nonMissingMinMax.toSeq)
       if (s.isEmpty) None
@@ -91,8 +88,7 @@ object Column {
     def tag = ColumnTag.StringTag
   }
   case class F64Column(segments: Vector[SegmentDouble])
-      extends Column
-      with F64ColumnImpl {
+      extends Column{
     def nonMissingMinMax: Option[(Double, Double)] = {
       val s = segments.flatMap(_.nonMissingMinMax.toSeq)
       if (s.isEmpty) None
@@ -194,55 +190,5 @@ sealed trait Column { self =>
     }
   }
 
-  def elementwise[
-      C2 <: Column { type ColumnType = C2 },
-      OP <: ra3.ops.BinaryOpTag {
-        type SegmentTypeA = SegmentType; type SegmentTypeB = C2#SegmentType
-      }
-  ](
-      other: C2,
-      opTag: OP
-  )(implicit tsc: TaskSystemComponents): IO[opTag.ColumnTypeC] = {
-    assert(self.segments.size == other.segments.size)
-    ra3.ts.MakeUniqueId
-      .queue0("elementwise-" + opTag, List(self, other))
-      .flatMap { name =>
-        IO.parSequenceN(math.min(32, self.segments.size))(
-          self.segments.zip(other.segments).zipWithIndex.map {
-            case ((a, b), segmentIdx) =>
-              assert(a.numElems == b.numElems)
-              ra3.ts.ElementwiseBinaryOperation
-                .queue(
-                  opTag.op(a, Left(b)),
-                  LogicalPath(name, None, segmentIdx, 0)
-                )
-          }
-        ).map(segments => opTag.tagC.makeColumn(segments))
-      }
-  }
-
-  def elementwiseConstant[
-      El,
-      OP <: ra3.ops.BinaryOpTag {
-        type SegmentTypeA = SegmentType;
-        type ElemB = El;
-      }
-  ](
-      other: El,
-      opTag: OP
-  )(implicit tsc: TaskSystemComponents): IO[opTag.ColumnTypeC] = {
-    ra3.ts.MakeUniqueId
-      .queue0("elementwiseConstant-" + opTag, List(self))
-      .flatMap { name =>
-        IO.parSequenceN(math.min(32, self.segments.size))(
-          self.segments.zipWithIndex.map { case (a, segmentIdx) =>
-            ra3.ts.ElementwiseBinaryOperation
-              .queue(
-                opTag.op(a, Right(other)),
-                LogicalPath(name, None, segmentIdx, 0)
-              )
-          }
-        ).map(segments => opTag.tagC.makeColumn(segments))
-      }
-  }
+ 
 }
