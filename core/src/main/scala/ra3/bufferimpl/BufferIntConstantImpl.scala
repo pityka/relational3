@@ -11,7 +11,6 @@ def nonMissingMinMax = makeStatistic().nonMissingMinMax
       hasMissing = if (value == Int.MinValue) true else false,
       nonMissingMinMax = if (value == Int.MinValue) None else Some((value,value)),
       lowCardinalityNonMissingSet = if (value == Int.MinValue) None else Some(Set(value)),
-      countNonMissing = if (value == Int.MinValue) 0 else length
     )
   }
 

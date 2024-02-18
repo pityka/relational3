@@ -6,7 +6,6 @@ import ra3.lang.ReturnValue
 import ra3.lang.bufferIfNeeded
 import tasks.TaskSystemComponents
 import cats.effect.IO
-import ra3.bufferimpl.{CharSequenceOrdering => CSOrdering}
 private[lang] sealed trait Op2 {
   type A0
   type A1
@@ -161,12 +160,12 @@ private[lang] object Op2 {
     type A1 = Int
     type T = ra3.lang.DInst
   }
-    sealed trait ColumnOp2LLI extends Op2 {
+  sealed trait ColumnOp2LLI extends Op2 {
     type A0 = ra3.lang.DI64
     type A1 = ra3.lang.DI64
     type T = ra3.lang.DI32
   }
-    sealed trait ColumnOp2LcLI extends Op2 {
+  sealed trait ColumnOp2LcLI extends Op2 {
     type A0 = ra3.lang.DI64
     type A1 = Long
     type T = ra3.lang.DI32
@@ -185,10 +184,7 @@ private[lang] object Op2 {
     def op(a: DI32, b: Int)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
         a <- bufferIfNeededWithPrecondition(a)((segment: SegmentInt) =>
-          segment.nonMissingMinMax match {
-            case None             => true
-            case Some((min, max)) => if (b < min || b > max) false else true
-          }
+          segment.statistic.mightEq(b)
         )
       } yield (a match {
         case Right(a) => Left(a.elementwise_eq(b))
@@ -219,10 +215,7 @@ private[lang] object Op2 {
     def op(a: DI32, b: Int)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
         a <- bufferIfNeededWithPrecondition(a)((segment: SegmentInt) =>
-          segment.nonMissingMinMax match {
-            case None           => true
-            case Some((min, _)) => if (b < min) false else true
-          }
+          segment.statistic.mightLtEq(b)
         )
       } yield (a match {
         case Right(a) => Left(a.elementwise_lteq(b))
@@ -235,10 +228,7 @@ private[lang] object Op2 {
     def op(a: DI32, b: Int)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
         a <- bufferIfNeededWithPrecondition(a)((segment: SegmentInt) =>
-          segment.nonMissingMinMax match {
-            case None           => true
-            case Some((min, _)) => if (b <= min) false else true
-          }
+          segment.statistic.mightLt(b)
         )
       } yield (a match {
         case Right(a) => Left(a.elementwise_lt(b))
@@ -269,10 +259,7 @@ private[lang] object Op2 {
     def op(a: DI32, b: Int)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
         a <- bufferIfNeededWithPrecondition(a)((segment: SegmentInt) =>
-          segment.nonMissingMinMax match {
-            case None           => true
-            case Some((_, max)) => if (b > max) false else true
-          }
+          segment.statistic.mightGtEq(b)
         )
       } yield (a match {
         case Right(a) => Left(a.elementwise_gteq(b))
@@ -285,10 +272,7 @@ private[lang] object Op2 {
     def op(a: DI32, b: Int)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
         a <- bufferIfNeededWithPrecondition(a)((segment: SegmentInt) =>
-          segment.nonMissingMinMax match {
-            case None           => true
-            case Some((_, max)) => if (b >= max) false else true
-          }
+          segment.statistic.mightGt(b)
         )
       } yield (a match {
         case Right(a) => Left(a.elementwise_gt(b))
@@ -301,12 +285,7 @@ private[lang] object Op2 {
     def op(a: DStr, b: String)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
         a <- bufferIfNeededWithPrecondition(a)((segment: SegmentString) =>
-          segment.nonMissingMinMax match {
-            case None => true
-            case Some((min, max)) =>
-              if (CSOrdering.lt(b, min) || CSOrdering.gt(b, max)) false
-              else true
-          }
+          segment.statistic.mightEq(b)
         )
       } yield (a match {
         case Right(a) => Left(a.elementwise_eq(b))
@@ -328,13 +307,7 @@ private[lang] object Op2 {
     ): IO[DI32] = {
       for {
         a <- bufferIfNeededWithPrecondition(a)((segment: SegmentString) =>
-          segment.nonMissingMinMax match {
-            case None => true
-            case Some((min, max)) =>
-              if (b.forall(b => CSOrdering.lt(b, min) || CSOrdering.gt(b, max)))
-                false
-              else true
-          }
+          b.exists(b => segment.statistic.mightEq(b))
         )
       } yield (a match {
         case Right(a) => Left(a.elementwise_containedIn(b))
@@ -349,11 +322,7 @@ private[lang] object Op2 {
     ): IO[DI32] = {
       for {
         a <- bufferIfNeededWithPrecondition(a)((segment: SegmentInt) =>
-          segment.nonMissingMinMax match {
-            case None => true
-            case Some((min, max)) =>
-              if (b.forall(b => b < min || b > max)) false else true
-          }
+          b.exists(b => segment.statistic.mightEq(b))
         )
       } yield (a match {
         case Right(a) => Left(a.elementwise_containedIn(b))
@@ -368,11 +337,7 @@ private[lang] object Op2 {
     ): IO[DI32] = {
       for {
         a <- bufferIfNeededWithPrecondition(a)((segment: SegmentDouble) =>
-          segment.nonMissingMinMax match {
-            case None => true
-            case Some((min, max)) =>
-              if (b.forall(b => b < min || b > max)) false else true
-          }
+          b.exists(b => segment.statistic.mightEq(b))
         )
       } yield (a match {
         case Right(a) => Left(a.elementwise_containedIn(b))
@@ -445,10 +410,7 @@ private[lang] object Op2 {
     def op(a: DF64, b: Double)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
         a <- bufferIfNeededWithPrecondition(a)((segment: SegmentDouble) =>
-          segment.nonMissingMinMax match {
-            case None           => true
-            case Some((min, _)) => if (b < min) false else true
-          }
+          segment.statistic.mightLtEq(b)
         )
       } yield (a match {
         case Right(a) => Left(a.elementwise_lteq(b))
@@ -472,10 +434,7 @@ private[lang] object Op2 {
     def op(a: DF64, b: Double)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
         a <- bufferIfNeededWithPrecondition(a)((segment: SegmentDouble) =>
-          segment.nonMissingMinMax match {
-            case None           => true
-            case Some((min, _)) => if (b <= min) false else true
-          }
+          segment.statistic.mightLt(b)
         )
       } yield (a match {
         case Right(a) => Left(a.elementwise_lt(b))
@@ -497,10 +456,7 @@ private[lang] object Op2 {
     def op(a: DF64, b: Double)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
         a <- bufferIfNeededWithPrecondition(a)((segment: SegmentDouble) =>
-          segment.nonMissingMinMax match {
-            case None           => true
-            case Some((_, max)) => if (b > max) false else true
-          }
+          segment.statistic.mightGtEq(b)
         )
       } yield (a match {
         case Right(a) => Left(a.elementwise_gteq(b))
@@ -522,10 +478,7 @@ private[lang] object Op2 {
     def op(a: DF64, b: Double)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
         a <- bufferIfNeededWithPrecondition(a)((segment: SegmentDouble) =>
-          segment.nonMissingMinMax match {
-            case None           => true
-            case Some((_, max)) => if (b >= max) false else true
-          }
+          segment.statistic.mightGt(b)
         )
       } yield (a match {
         case Right(a) => Left(a.elementwise_gt(b))
@@ -547,10 +500,7 @@ private[lang] object Op2 {
     def op(a: DF64, b: Double)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
         a <- bufferIfNeededWithPrecondition(a)((segment: SegmentDouble) =>
-          segment.nonMissingMinMax match {
-            case None             => true
-            case Some((min, max)) => if (b < min || b > max) false else true
-          }
+          segment.statistic.mightEq(b)
         )
       } yield (a match {
         case Right(a) => Left(a.elementwise_eq(b))
@@ -855,7 +805,7 @@ private[lang] object Op2 {
     }
   }
 
-    case object ColumnEqOpLL extends ColumnOp2LLI {
+  case object ColumnEqOpLL extends ColumnOp2LLI {
     def op(a: DI64, b: DI64)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
         a <- bufferIfNeeded(a)
@@ -868,10 +818,7 @@ private[lang] object Op2 {
     def op(a: DI64, b: Long)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
         a <- bufferIfNeededWithPrecondition(a)((segment: SegmentLong) =>
-          segment.nonMissingMinMax match {
-            case None             => true
-            case Some((min, max)) => if (b < min || b > max) false else true
-          }
+          segment.statistic.mightEq(b)
         )
       } yield (a match {
         case Right(a) => Left(a.elementwise_eq(b))

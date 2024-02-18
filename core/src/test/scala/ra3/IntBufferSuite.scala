@@ -7,7 +7,6 @@ class IntBufferSuite extends munit.FunSuite with WithTempTaskSystem {
       val s = Seq(0, 1, 2, 3, Int.MinValue, -1)
       val st = BufferInt(s: _*).asInstanceOf[BufferIntInArray].makeStatistic()
       assertEquals(st.hasMissing, true)
-      assertEquals(st.countNonMissing, 5)
       assertEquals(st.nonMissingMinMax, Some(-1 -> 3))
       assertEquals(st.lowCardinalityNonMissingSet, Some(Set(0, 1, 2, 3, -1)))
 
@@ -16,7 +15,6 @@ class IntBufferSuite extends munit.FunSuite with WithTempTaskSystem {
       val s = Seq(0 until 256:_*)
       val st = BufferInt(s: _*).asInstanceOf[BufferIntInArray].makeStatistic()
       assertEquals(st.hasMissing, false)
-      assertEquals(st.countNonMissing, 256)
       assertEquals(st.nonMissingMinMax, Some(0 -> 255))
       assertEquals(st.lowCardinalityNonMissingSet, None)
 
@@ -32,7 +30,6 @@ class IntBufferSuite extends munit.FunSuite with WithTempTaskSystem {
       assertEquals(segment.numElems, 6)
       assertEquals(segment.nonMissingMinMax.get, (-1, 3))
       assertEquals(segment.statistic.hasMissing, true)
-      assertEquals(segment.statistic.countNonMissing, 5)
     }
   }
   test("toSegment empty") {

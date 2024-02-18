@@ -22,13 +22,13 @@ object ReduceTable {
                   None,
                   partitionedTable.numRows.toInt,
                   statistic =
-                    StatisticInt.constant(0, partitionedTable.numRows.toInt)
+                    StatisticInt.constant(0)
                 ),
                 numGroups = 1,
                 groupSizes = SegmentInt(
                   None,
                   1,
-                  StatisticInt.constant(partitionedTable.numRows.toInt, 1)
+                  StatisticInt.constant(partitionedTable.numRows.toInt)
                 )
               )
             )
@@ -60,13 +60,13 @@ object ReduceTable {
               map = SegmentInt(
                 None,
                 self.numRows.toInt,
-                statistic = StatisticInt.constant(0, self.numRows.toInt)
+                statistic = StatisticInt.constant(0)
               ),
               numGroups = 1,
               groupSizes = SegmentInt(
                 None,
                 1,
-                StatisticInt.constant(self.numRows.toInt, 1)
+                StatisticInt.constant(self.numRows.toInt)
               )
             )
           )

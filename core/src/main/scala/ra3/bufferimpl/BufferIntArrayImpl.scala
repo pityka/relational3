@@ -37,7 +37,6 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
       hasMissing = hasMissing,
       nonMissingMinMax = if (countNonMissing > 0) Some((min, max)) else None,
       lowCardinalityNonMissingSet = if (set.size <= 255) Some(set.toSet) else None ,
-      countNonMissing
     )
   }
 

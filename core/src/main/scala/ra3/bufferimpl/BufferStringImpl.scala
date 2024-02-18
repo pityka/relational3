@@ -54,7 +54,6 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
       hasMissing = hasMissing,
       nonMissingMinMax = if (countNonMissing > 0) Some((min.get, max.get)) else None,
       lowCardinalityNonMissingSet = if (set.size <= 255) Some(set.toSet) else None ,
-      countNonMissing
     )
   }
 
