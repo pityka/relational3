@@ -156,6 +156,7 @@ case class StatisticCharSequence(
     lowCardinalityNonMissingSet: Option[Set[CharSequence]]
 ) {
   import ra3.bufferimpl.{CharSequenceOrdering => CSO}
+  
   def mightLtEq(i: CharSequence): Boolean = {
     if (i == BufferString.MissingValue) false
     else nonMissingMinMax.exists { case (min, _) => CSO.gteq(i, min) }

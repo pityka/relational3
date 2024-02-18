@@ -2,6 +2,7 @@ package ra3.lang.ops
 import cats.effect.IO
 import tasks.TaskSystemComponents
 import ra3._
+import ra3.lang.bufferIfNeededWithPrecondition
 private[lang] sealed trait Op1 {
   type A0
   type T
@@ -134,13 +135,29 @@ private[lang] object Op1 {
     def op(
         a: ra3.lang.DI64
     )(implicit tsc: TaskSystemComponents) =
-      bufferBefore(a)(_.elementwise_isMissing)
+       for {
+        a <- bufferIfNeededWithPrecondition(a)((segment: SegmentLong) =>
+          segment.statistic.hasMissing
+        )
+      } yield (a match {
+        case Right(a) => Left(a.elementwise_isMissing)
+        case Left(numEl) =>
+          Left(BufferInt.constant(0, numEl))
+      })
   }
   case object ColumnIsMissingOpD extends ColumnOp1DI {
     def op(
         a: ra3.lang.DF64
     )(implicit tsc: TaskSystemComponents) =
-      bufferBefore(a)(_.elementwise_isMissing)
+      for {
+        a <- bufferIfNeededWithPrecondition(a)((segment: SegmentDouble) =>
+          segment.statistic.hasMissing
+        )
+      } yield (a match {
+        case Right(a) => Left(a.elementwise_isMissing)
+        case Left(numEl) =>
+          Left(BufferInt.constant(0, numEl))
+      })
   }
   case object ColumnAbsOpD extends ColumnOp1DD {
     def op(
@@ -164,7 +181,15 @@ private[lang] object Op1 {
     def op(
         a: ra3.lang.DI32
     )(implicit tsc: TaskSystemComponents) =
-      bufferBefore(a)(_.elementwise_isMissing)
+      for {
+        a <- bufferIfNeededWithPrecondition(a)((segment: SegmentInt) =>
+          segment.statistic.hasMissing
+        )
+      } yield (a match {
+        case Right(a) => Left(a.elementwise_isMissing)
+        case Left(numEl) =>
+          Left(BufferInt.constant(0, numEl))
+      })
   }
   case object ColumnToDoubleOpI extends ColumnOp1ID {
     def op(
@@ -177,7 +202,15 @@ private[lang] object Op1 {
     def op(
         a: ra3.lang.DInst
     )(implicit tsc: TaskSystemComponents) =
-      bufferBefore(a)(_.elementwise_isMissing)
+      for {
+        a <- bufferIfNeededWithPrecondition(a)((segment: SegmentInstant) =>
+          segment.statistic.hasMissing
+        )
+      } yield (a match {
+        case Right(a) => Left(a.elementwise_isMissing)
+        case Left(numEl) =>
+          Left(BufferInt.constant(0, numEl))
+      })
   }
   case object ColumnToDoubleOpInst extends ColumnOp1InstD {
     def op(
