@@ -115,13 +115,15 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
       partitionMap: BufferInt,
       numGroups: Int
   ): BufferInt = {
-    val ar = Array.fill[scala.collection.mutable.Set[Double]](numGroups)(
-      scala.collection.mutable.Set.empty[Double]
+    // need to convert to long bits due to NaN failing all comparisons
+    val ar = Array.fill[scala.collection.mutable.Set[Long]](numGroups)(
+      scala.collection.mutable.Set.empty[Long]
     )
     var i = 0
     val n = partitionMap.length
     while (i < n) {
-      ar(partitionMap.raw(i)).add(values(i))
+      
+      ar(partitionMap.raw(i)).add(java.lang.Double.doubleToLongBits(values(i)))
 
       i += 1
     }
@@ -161,12 +163,15 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
   ): BufferInt = {
     import org.saddle._
     val c = other.values(0)
+    if (c.isNaN) BufferInt.empty 
+    else {
     val idx =
       if (lessThan)
         values.toVec.find(_ <= c)
       else values.toVec.find(_ >= c)
 
     BufferInt(idx.toArray)
+    }
   }
 
   override def cdf(numPoints: Int): (BufferDouble, BufferDouble) = {
@@ -263,7 +268,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
   override def isMissing(l: Int): Boolean = values(l).isNaN
 
   override def hashOf(l: Int): Long = {
-    java.lang.Double.doubleToLongBits(values(l))
+    scala.util.hashing.byteswap64(java.lang.Double.doubleToLongBits(values(l)))
   }
 
   def minMax = if (values.length == 0) None
@@ -309,42 +314,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
           .map(sf => SegmentDouble(Some(sf), values.length, minmax))
       }
 
-  def elementwise_*=(other: BufferType): Unit = {
-    assert(other.length == self.length)
-    var i = 0
-    val n = self.length
-    while (i < n) {
-      self.values(i) = self.values(i) * other.values(i)
-      i += 1
-    }
-  }
-  def elementwise_*=(other: BufferLong): Unit = {
-    assert(other.length == self.length)
-    var i = 0
-    val n = self.length
-    while (i < n) {
-      self.values(i) = self.values(i) * other.values(i).toDouble
-      i += 1
-    }
-  }
-  def elementwise_+=(other: BufferType): Unit = {
-    assert(other.length == self.length)
-    var i = 0
-    val n = self.length
-    while (i < n) {
-      self.values(i) = self.values(i) + other.values(i)
-      i += 1
-    }
-  }
-  def elementwise_+=(other: BufferLong): Unit = {
-    assert(other.length == self.length)
-    var i = 0
-    val n = self.length
-    while (i < n) {
-      self.values(i) = self.values(i) + other.values(i).toDouble
-      i += 1
-    }
-  }
+ 
   def elementwise_eq(other: BufferType): BufferInt = {
     assert(other.length == self.length)
     var i = 0
@@ -352,7 +322,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (self.values(i) == other.values(i).toDouble) 1 else 0
+      r(i) = if (self.values(i) == other.values(i)) 1 else 0
       i += 1
     }
     BufferInt(r)
@@ -364,7 +334,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (self.values(i) > other.values(i).toDouble) 1 else 0
+      r(i) = if (self.values(i) > other.values(i)) 1 else 0
       i += 1
     }
     BufferInt(r)
@@ -376,7 +346,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (self.values(i) >= other.values(i).toDouble) 1 else 0
+      r(i) = if (self.values(i) >= other.values(i)) 1 else 0
       i += 1
     }
     BufferInt(r)
@@ -388,7 +358,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (self.values(i) < other.values(i).toDouble) 1 else 0
+      r(i) = if (self.values(i) < other.values(i)) 1 else 0
       i += 1
     }
     BufferInt(r)
@@ -400,7 +370,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (self.values(i) <= other.values(i).toDouble) 1 else 0
+      r(i) = if (self.values(i) <= other.values(i)) 1 else 0
       i += 1
     }
     BufferInt(r)
@@ -478,7 +448,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (self.values(i) != other.values(i).toDouble) 1 else 0
+      r(i) = if (self.values(i) != other.values(i)) 1 else 0
       i += 1
     }
     BufferInt(r)
@@ -491,7 +461,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (self.values(i) == other.values(i).toDouble) 1 else 0
+      r(i) = if (self.values(i) == other.values(i)) 1 else 0
       i += 1
     }
     BufferInt(r)
@@ -503,7 +473,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (self.values(i) > other.values(i).toDouble) 1 else 0
+      r(i) = if (self.values(i) > other.values(i)) 1 else 0
       i += 1
     }
     BufferInt(r)
@@ -515,7 +485,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (self.values(i) >= other.values(i).toDouble) 1 else 0
+      r(i) = if (self.values(i) >= other.values(i)) 1 else 0
       i += 1
     }
     BufferInt(r)
@@ -527,7 +497,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (self.values(i) < other.values(i).toDouble) 1 else 0
+      r(i) = if (self.values(i) < other.values(i)) 1 else 0
       i += 1
     }
     BufferInt(r)
@@ -539,7 +509,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (self.values(i) <= other.values(i).toDouble) 1 else 0
+      r(i) = if (self.values(i) <= other.values(i)) 1 else 0
       i += 1
     }
     BufferInt(r)
@@ -551,7 +521,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (self.values(i) != other.values(i).toDouble) 1 else 0
+      r(i) = if (self.values(i) != other.values(i)) 1 else 0
       i += 1
     }
     BufferInt(r)
@@ -562,7 +532,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
     val n = self.length
     val r = Array.ofDim[Long](n)
     while (i < n) {
-      r(i) = self.values(i).toLong
+      r(i) = if (isMissing(i)) BufferLong.MissingValue else self.values(i).toLong
       i += 1
     }
     BufferLong(r)
@@ -592,7 +562,31 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
     }
     BufferDouble(r)
   }
+  def elementwise_mul(other: BufferLong): BufferType = {
+    assert(other.length == self.length)
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Double](n)
+
+    while (i < n) {
+      r(i) = self.values(i) * other.values(i)
+      i += 1
+    }
+    BufferDouble(r)
+  }
   def elementwise_add(other: BufferType): BufferType = {
+    assert(other.length == self.length)
+    var i = 0
+    val n = self.length
+    val r = Array.ofDim[Double](n)
+
+    while (i < n) {
+      r(i) = self.values(i) + other.values(i)
+      i += 1
+    }
+    BufferDouble(r)
+  }
+  def elementwise_add(other: BufferLong): BufferType = {
     assert(other.length == self.length)
     var i = 0
     val n = self.length
@@ -666,7 +660,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = math.round(values(i)).toInt
+      r(i) = if (isMissing(i)) BufferInt.MissingValue else math.round(values(i)).toInt
       i += 1
     }
     BufferInt(r)

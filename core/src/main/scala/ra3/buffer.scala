@@ -133,9 +133,6 @@ sealed trait Buffer { self =>
       tsc: TaskSystemComponents
   ): IO[SegmentType]
 
-  /** Reduce the groups defined by the map with summation
-    */
-  def sumGroups(partitionMap: BufferInt, numGroups: Int): BufferType
 
   /** Reduce the groups by taking the first element per group */
   def firstInGroup(partitionMap: BufferInt, numGroups: Int): BufferType 
@@ -164,6 +161,7 @@ sealed trait Buffer { self =>
 }
 
 object BufferDouble {
+  val MissingValue = Double.NaN
   def apply(s: Double*): BufferDouble = BufferDouble(s.toArray)
   def constant(value: Double, length: Int): BufferDouble =
     BufferDouble(Array.fill[Double](length)(value))
@@ -184,6 +182,7 @@ final case class BufferDouble(values: Array[Double])
 }
 
 object BufferInt {
+  val MissingValue = Int.MinValue
   def apply(e: Int*): BufferInt = apply(e.toArray)
   def apply(e: Array[Int]): BufferInt = {
 
@@ -246,6 +245,7 @@ final case class BufferIntInArray(private val values0: Array[Int])
 
 }
 object BufferLong {
+  val MissingValue = Long.MinValue
   def apply(s: Long*): BufferLong = BufferLong(s.toArray)
   def constant(value: Long, length: Int): BufferLong =
     BufferLong(Array.fill[Long](length)(value))
@@ -264,6 +264,7 @@ final case class BufferLong(private[ra3] val values: Array[Long])
 
 }
 object BufferInstant {
+  val MissingValue = Long.MinValue
   def apply(s: Long*): BufferInstant = BufferInstant(s.toArray)
   def constant(value: Long, length: Int): BufferInstant =
     BufferInstant(Array.fill[Long](length)(value))
@@ -284,6 +285,7 @@ final case class BufferInstant(private[ra3] val values: Array[Long])
 object BufferString {
   def apply(s: String*): BufferString = BufferString(s.toArray[CharSequence])
   val missing: CharSequence = s"${Char.MinValue}"
+  val MissingValue = missing
   def constant(value: String, length: Int): BufferString =
     BufferString(Array.fill[CharSequence](length)(value))
 }

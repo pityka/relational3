@@ -7,7 +7,7 @@ import scodec.bits.ByteVector
 import java.nio.CharBuffer
 
 
-private[ra3] class CharArraySubSeq(buff: Array[Char], start: Int, to: Int)
+private[ra3] case class CharArraySubSeq(buff: Array[Char], start: Int, to: Int)
     extends CharSequence {
 
   override def toString = {

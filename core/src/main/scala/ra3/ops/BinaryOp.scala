@@ -143,29 +143,25 @@ private[ra3] sealed trait BinaryOpSSI extends BinaryOp {
 private[ra3] case class Op_ddd_multiply(a: SegmentDouble, b: Either[SegmentDouble,Double])
     extends BinaryOpDDD {
   def op(a: BufferDouble, b: BufferDouble): BufferDouble = {
-    a.elementwise_*=(b)
-    a
+    a.elementwise_mul(b)
   }
 }
 private[ra3] case class Op_dld_multiply(a: SegmentDouble, b: Either[SegmentLong,Long])
     extends BinaryOpDLD {
   def op(a: BufferDouble, b: BufferLong ): BufferDouble = {
-    a.elementwise_*=(b)
-    a
+    a.elementwise_mul(b)
   }
 }
 private[ra3] case class Op_ddd_add(a: SegmentDouble, b: Either[SegmentDouble,Double])
     extends BinaryOpDDD {
   def op(a: BufferDouble, b: BufferDouble): BufferDouble = {
-    a.elementwise_+=(b)
-    a
+    a.elementwise_add(b)
   }
 }
 private[ra3] case class Op_dld_add(a: SegmentDouble, b: Either[SegmentLong,Long])
     extends BinaryOpDLD {
   def op(a: BufferDouble, b: BufferLong): BufferDouble = {
-    a.elementwise_+=(b)
-    a
+    a.elementwise_add(b)
   }
 }
 private[ra3] case class Op_ddi_eq(a: SegmentDouble, b: Either[SegmentDouble,Double])
@@ -261,15 +257,13 @@ private[ra3] case class Op_iii_or(a: SegmentInt, b: Either[SegmentInt,Int])
 private[ra3] case class Op_iii_multiply(a: SegmentInt, b: Either[SegmentInt,Int])
     extends BinaryOpIII {
   def op(a: BufferInt, b: BufferInt): BufferInt = {
-    a.elementwise_*=(b)
-    a
+    a.elementwise_*(b)
   }
 }
 private[ra3] case class Op_iii_add(a: SegmentInt, b: Either[SegmentInt,Int])
     extends BinaryOpIII {
   def op(a: BufferInt, b: BufferInt): BufferInt = {
-    a.elementwise_+=(b)
-    a
+    a.elementwise_+(b)
   }
 }
 private[ra3] case class Op_iii_eq(a: SegmentInt, b: Either[SegmentInt,Int])

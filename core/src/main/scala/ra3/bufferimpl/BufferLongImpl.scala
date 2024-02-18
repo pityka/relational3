@@ -7,7 +7,7 @@ import tasks.{TaskSystemComponents, SharedFile}
 
 private[ra3] trait BufferLongImpl { self: BufferLong =>
   
-def elementAsCharSequence(i: Int): CharSequence = values(i).toString
+def elementAsCharSequence(i: Int): CharSequence = if (isMissing(i)) "NA" else values(i).toString
 
     def partition(numPartitions: Int, map: BufferInt): Vector[BufferType] = {
     assert(length == map.length)
@@ -67,12 +67,15 @@ def elementAsCharSequence(i: Int): CharSequence = values(i).toString
   ): BufferInt = {
     import org.saddle._
     val c = other.values(0)
+    if (c == BufferLong.MissingValue) BufferInt.empty 
+    else {
     val idx =
       if (lessThan)
         values.toVec.find(_ <= c)
       else values.toVec.find(_ >= c)
 
     BufferInt(idx.toArray)
+    }
   }
 
   def toSeq = values.toSeq
@@ -235,7 +238,7 @@ def elementAsCharSequence(i: Int): CharSequence = values(i).toString
     val r = Array.ofDim[Double](n)
 
     while (i < n) {
-      r(i) = self.values(i).toDouble
+      r(i) = if (isMissing(i)) BufferDouble.MissingValue else self.values(i).toDouble
       i += 1
     }
     BufferDouble(r)
@@ -295,7 +298,7 @@ def elementAsCharSequence(i: Int): CharSequence = values(i).toString
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (self.values(i) == other.values(i)) 1 else 0
+      r(i) = if (!isMissing(i) && !other.isMissing(i) && self.values(i) == other.values(i)) 1 else 0
       i += 1
     }
     BufferInt(r)
@@ -306,7 +309,7 @@ def elementAsCharSequence(i: Int): CharSequence = values(i).toString
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (self.values(i) == other) 1 else 0
+      r(i) = if (!isMissing(i) && other != BufferLong.MissingValue && self.values(i) == other) 1 else 0
       i += 1
     }
     BufferInt(r)

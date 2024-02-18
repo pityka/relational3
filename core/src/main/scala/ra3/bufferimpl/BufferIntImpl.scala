@@ -6,10 +6,11 @@ private[ra3] trait BufferIntImpl { self: BufferInt =>
   def elementwise_isMissing: BufferInt
   def elementwise_containedIn(i: Set[Int]): BufferInt
 
-  def elementwise_*=(other: BufferType): Unit
   def elementwise_*(other: BufferDouble): BufferDouble
-  def elementwise_+=(other: BufferType): Unit
   def elementwise_+(other: BufferDouble): BufferDouble
+
+  def elementwise_*(other: BufferInt): BufferInt
+  def elementwise_+(other: BufferInt): BufferInt
 
   def elementwise_&&(other: BufferType): BufferInt
   def elementwise_||(other: BufferType): BufferInt
@@ -47,4 +48,7 @@ private[ra3] trait BufferIntImpl { self: BufferInt =>
   def allInGroups(partitionMap: BufferInt, numGroups: Int): BufferInt
   def anyInGroups(partitionMap: BufferInt, numGroups: Int): BufferInt
   def noneInGroups(partitionMap: BufferInt, numGroups: Int): BufferInt
+
+
+  def sumGroups(partitionMap: BufferInt, numGroups: Int): BufferType
 }
