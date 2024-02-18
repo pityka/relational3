@@ -22,6 +22,40 @@ private[ra3] object CharSequenceOrdering
 
 private[ra3] trait BufferStringImpl { self: BufferString =>
 
+  def makeStatistic() = {
+    var i = 0
+    val n = length
+    var hasMissing = false
+    var countNonMissing = 0
+    var min = Option.empty[CharSequence]
+    var max = Option.empty[CharSequence]
+    val set = scala.collection.mutable.Set.empty[CharSequence]
+    while (i < n) {
+      if (isMissing(i)) {
+        hasMissing = true
+      } else {
+        countNonMissing += 1
+        val v = values(i)
+        if (min.isEmpty || CharSequenceOrdering.lt(v ,min.get)) {
+          min = Some(v)
+        }
+        if (max.isEmpty || CharSequenceOrdering.gt(v , max.get)) {
+          max = Some(v)
+        }
+        if (set.size < 256 && !set.contains(v)) {
+          set.+=(v)
+        }
+      }
+      i += 1
+    }
+    StatisticCharSequence(
+      hasMissing = hasMissing,
+      minMax = if (countNonMissing > 0) Some((min.get, max.get)) else None,
+      lowCardinalityNonMissingSet = if (set.size <= 255) Some(set.toSet) else None ,
+      countNonMissing
+    )
+  }
+
   def elementAsCharSequence(i: Int): CharSequence =
     if (isMissing(i)) "NA" else values(i)
 
@@ -267,7 +301,6 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
   }
 
   def minMax = {
-    println(values.toList)
     if (values.length > 0)
       Some(
         (

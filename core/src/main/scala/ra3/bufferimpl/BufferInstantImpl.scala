@@ -7,6 +7,40 @@ import tasks.{TaskSystemComponents, SharedFile}
 
 private[ra3] trait BufferInstantImpl { self: BufferInstant =>
 
+  def makeStatistic() = {
+    var i = 0
+    val n = length
+    var hasMissing = false
+    var countNonMissing = 0
+    var min = Long.MaxValue
+    var max = Long.MinValue
+    val set = scala.collection.mutable.Set.empty[Long]
+    while (i < n) {
+      if (isMissing(i)) {
+        hasMissing = true
+      } else {
+        countNonMissing += 1
+        val v = values(i)
+        if (v < min) {
+          min = v
+        }
+        if (v > max) {
+          max = v
+        }
+        if (set.size < 256 && !set.contains(v)) {
+          set.+=(v)
+        }
+      }
+      i += 1
+    }
+    StatisticLong(
+      hasMissing = hasMissing,
+      minMax = if (countNonMissing > 0) Some((min, max)) else None,
+      lowCardinalityNonMissingSet = if (set.size <= 255) Some(set.toSet) else None ,
+      countNonMissing
+    )
+  }
+
   def elementAsCharSequence(i: Int): CharSequence = if (isMissing(i)) "NA" else java.time.Instant.ofEpochMilli(values(i)).toString
 
     def partition(numPartitions: Int, map: BufferInt): Vector[BufferType] = {

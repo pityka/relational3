@@ -4,6 +4,23 @@ import cats.effect.unsafe.implicits.global
 import java.nio.CharBuffer
 
 class StringBufferSuite extends munit.FunSuite with WithTempTaskSystem {
+      test("makeStatistic") {
+      val s = Seq("0", "1", "2", "3", BufferString.MissingValue, "4")
+      val st = BufferString(s.toArray).makeStatistic()
+      assertEquals(st.hasMissing, true)
+      assertEquals(st.countNonMissing, 5)
+      assertEquals(st.minMax, Some("0" -> "4"))
+      assertEquals(st.lowCardinalityNonMissingSet, Some(Set[CharSequence]("0","1","2","3","4")))
+
+  }
+  test("makeStatistic long") {
+      val s = Seq(0 until 256:_*).map(_.toString)
+      val st = BufferString(s: _*).makeStatistic()
+      assertEquals(st.hasMissing, false)
+      assertEquals(st.countNonMissing, 256)
+      assertEquals(st.minMax, Some("0" -> "99"))
+      assertEquals(st.lowCardinalityNonMissingSet, None)
+  }
   test("toSegment") {
     withTempTaskSystem { implicit tsc =>
       val s: Seq[CharSequence] =

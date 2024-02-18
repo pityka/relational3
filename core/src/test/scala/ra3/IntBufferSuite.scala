@@ -3,6 +3,24 @@ package ra3
 import cats.effect.unsafe.implicits.global
 
 class IntBufferSuite extends munit.FunSuite with WithTempTaskSystem {
+  test("makeStatistic") {
+      val s = Seq(0, 1, 2, 3, Int.MinValue, -1)
+      val st = BufferInt(s: _*).asInstanceOf[BufferIntInArray].makeStatistic()
+      assertEquals(st.hasMissing, true)
+      assertEquals(st.countNonMissing, 5)
+      assertEquals(st.minMax, Some(-1 -> 3))
+      assertEquals(st.lowCardinalityNonMissingSet, Some(Set(0, 1, 2, 3, -1)))
+
+  }
+  test("makeStatistic long") {
+      val s = Seq(0 until 256:_*)
+      val st = BufferInt(s: _*).asInstanceOf[BufferIntInArray].makeStatistic()
+      assertEquals(st.hasMissing, false)
+      assertEquals(st.countNonMissing, 256)
+      assertEquals(st.minMax, Some(0 -> 255))
+      assertEquals(st.lowCardinalityNonMissingSet, None)
+
+  }
   test("toSegment") {
     withTempTaskSystem { implicit tsc =>
       val s = Seq(0, 1, 2, 3, Int.MinValue, -1)
@@ -21,7 +39,7 @@ class IntBufferSuite extends munit.FunSuite with WithTempTaskSystem {
       val segment = BufferInt(s: _*)
         .toSegment(LogicalPath("toSegmentTest2", None, 0, 0))
         .unsafeRunSync()
-        assertEquals(BufferInt(s:_*),BufferIntConstant(Int.MinValue,0))
+      assertEquals(BufferInt(s: _*), BufferIntConstant(Int.MinValue, 0))
       assertEquals(segment.buffer.unsafeRunSync().toSeq, s)
       assertEquals(segment.numElems, 0)
       assertEquals(segment.minMax, None)
@@ -30,11 +48,11 @@ class IntBufferSuite extends munit.FunSuite with WithTempTaskSystem {
   }
   test("toSegment constant") {
     withTempTaskSystem { implicit tsc =>
-      val s = Seq(1,1,1,1,1,1)
+      val s = Seq(1, 1, 1, 1, 1, 1)
       val segment = BufferInt(s: _*)
         .toSegment(LogicalPath("toSegmentTest3", None, 0, 0))
         .unsafeRunSync()
-        assertEquals(BufferInt(s:_*),BufferIntConstant(1,6))
+      assertEquals(BufferInt(s: _*), BufferIntConstant(1, 6))
       assertEquals(segment.buffer.unsafeRunSync().toSeq, s)
       assertEquals(segment.numElems, 6)
       assertEquals(segment.minMax.get, (1, 1))
@@ -105,14 +123,17 @@ class IntBufferSuite extends munit.FunSuite with WithTempTaskSystem {
 
   test("sum groups") {
     assertEquals(
-      BufferInt(0, 0, 1, 1, 2, 2,Int.MinValue)
-        .sumGroups(BufferInt(0, 1, 0, 1, 0, 1,1), 2)
+      BufferInt(0, 0, 1, 1, 2, 2, Int.MinValue)
+        .sumGroups(BufferInt(0, 1, 0, 1, 0, 1, 1), 2)
         .toSeq,
       Seq(3, 3)
     )
   }
   test("broadcast") {
-    assertEquals(BufferIntInArray(Array(1)).broadcast(3),BufferIntConstant(1,3))
+    assertEquals(
+      BufferIntInArray(Array(1)).broadcast(3),
+      BufferIntConstant(1, 3)
+    )
   }
 
 }

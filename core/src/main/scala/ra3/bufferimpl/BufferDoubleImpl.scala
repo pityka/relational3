@@ -5,11 +5,46 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import tasks.{TaskSystemComponents, SharedFile}
 private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
+
+  def makeStatistic() = {
+    var i = 0
+    val n = length
+    var hasMissing = false
+    var countNonMissing = 0
+    var min = Double.MaxValue
+    var max = Double.MinValue
+    val set = scala.collection.mutable.Set.empty[Double]
+    while (i < n) {
+      if (isMissing(i)) {
+        hasMissing = true
+      } else {
+        countNonMissing += 1
+        val v = values(i)
+        if (v < min) {
+          min = v
+        }
+        if (v > max) {
+          max = v
+        }
+        if (set.size < 256 && !set.contains(v)) {
+          set.+=(v)
+        }
+      }
+      i += 1
+    }
+    StatisticDouble(
+      hasMissing = hasMissing,
+      minMax = if (countNonMissing > 0) Some((min, max)) else None,
+      lowCardinalityNonMissingSet = if (set.size <= 255) Some(set.toSet) else None ,
+      countNonMissing
+    )
+  }
+
   override def toSeq: Seq[Double] = values.toSeq
 
   def elementAsCharSequence(i: Int): CharSequence = values(i).toString
 
-    def partition(numPartitions: Int, map: BufferInt): Vector[BufferType] = {
+  def partition(numPartitions: Int, map: BufferInt): Vector[BufferType] = {
     assert(length == map.length)
     val growableBuffers =
       Vector.fill(numPartitions)(org.saddle.Buffer.empty[Double])
@@ -122,7 +157,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
     var i = 0
     val n = partitionMap.length
     while (i < n) {
-      
+
       ar(partitionMap.raw(i)).add(java.lang.Double.doubleToLongBits(values(i)))
 
       i += 1
@@ -163,14 +198,14 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
   ): BufferInt = {
     import org.saddle._
     val c = other.values(0)
-    if (c.isNaN) BufferInt.empty 
+    if (c.isNaN) BufferInt.empty
     else {
-    val idx =
-      if (lessThan)
-        values.toVec.find(_ <= c)
-      else values.toVec.find(_ >= c)
+      val idx =
+        if (lessThan)
+          values.toVec.find(_ <= c)
+        else values.toVec.find(_ >= c)
 
-    BufferInt(idx.toArray)
+      BufferInt(idx.toArray)
     }
   }
 
@@ -243,7 +278,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
         case "right" => org.saddle.index.RightJoin
         case "outer" => org.saddle.index.OuterJoin
       },
-      forceProperSemantics=true
+      forceProperSemantics = true
     )
     (reindexer.lTake.map(BufferInt(_)), reindexer.rTake.map(BufferInt(_)))
   }
@@ -314,7 +349,6 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
           .map(sf => SegmentDouble(Some(sf), values.length, minmax))
       }
 
- 
   def elementwise_eq(other: BufferType): BufferInt = {
     assert(other.length == self.length)
     var i = 0
@@ -532,7 +566,8 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
     val n = self.length
     val r = Array.ofDim[Long](n)
     while (i < n) {
-      r(i) = if (isMissing(i)) BufferLong.MissingValue else self.values(i).toLong
+      r(i) =
+        if (isMissing(i)) BufferLong.MissingValue else self.values(i).toLong
       i += 1
     }
     BufferLong(r)
@@ -660,7 +695,9 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (isMissing(i)) BufferInt.MissingValue else math.round(values(i)).toInt
+      r(i) =
+        if (isMissing(i)) BufferInt.MissingValue
+        else math.round(values(i)).toInt
       i += 1
     }
     BufferInt(r)

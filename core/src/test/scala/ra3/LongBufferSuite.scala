@@ -3,6 +3,25 @@ package ra3
 import cats.effect.unsafe.implicits.global
 
 class LongBufferSuite extends munit.FunSuite with WithTempTaskSystem {
+  test("makeStatistic") {
+      val s = Seq(0L, 1L, 2L, 3L, Long.MinValue, -1L)
+      val st = BufferLong(s: _*).makeStatistic()
+      assertEquals(st.hasMissing, true)
+      assertEquals(st.countNonMissing, 5)
+      assertEquals(st.minMax, Some(-1L -> 3L))
+      assertEquals(st.lowCardinalityNonMissingSet, Some(Set(0L, 1L, 2L, 3L, -1L)))
+
+  }
+  test("makeStatistic long") {
+      val s = Seq(0 until 256:_*).map(_.toLong)
+      val st = BufferLong(s: _*).makeStatistic()
+      assertEquals(st.hasMissing, false)
+      assertEquals(st.countNonMissing, 256)
+      assertEquals(st.minMax, Some(0L -> 255L))
+      assertEquals(st.lowCardinalityNonMissingSet, None)
+
+  }
+  
   test("toSegment") {
     withTempTaskSystem { implicit tsc =>
       val s = Seq(0L, 1L, 2L, 3L, Long.MinValue, -1L)

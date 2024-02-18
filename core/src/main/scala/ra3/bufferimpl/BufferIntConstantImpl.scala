@@ -4,6 +4,17 @@ import ra3._
 import tasks.{TaskSystemComponents}
 private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
 
+  def makeStatistic() = {
+    
+   
+    StatisticInt(
+      hasMissing = if (value == Int.MinValue) true else false,
+      minMax = if (value == Int.MinValue) None else Some((value,value)),
+      lowCardinalityNonMissingSet = if (value == Int.MinValue) None else Some(Set(value)),
+      countNonMissing = if (value == Int.MinValue) 0 else length
+    )
+  }
+
   def elementAsCharSequence(i: Int): CharSequence =
     if (value == Int.MinValue) "NA" else value.toString
 

@@ -3,6 +3,25 @@ package ra3
 import cats.effect.unsafe.implicits.global
 
 class DoubleBufferSuite extends munit.FunSuite with WithTempTaskSystem {
+  test("makeStatistic") {
+      val s = Seq(0d, 1d, 2d, 3d, Double.NaN, -1d)
+      val st = BufferDouble(s: _*).makeStatistic()
+      assertEquals(st.hasMissing, true)
+      assertEquals(st.countNonMissing, 5)
+      assertEquals(st.minMax, Some(-1d -> 3d))
+      assertEquals(st.lowCardinalityNonMissingSet, Some(Set(0d, 1d, 2d, 3d, -1d)))
+
+  }
+  test("makeStatistic long") {
+      val s = Seq(0 until 256:_*).map(_.toDouble)
+      val st = BufferDouble(s: _*).makeStatistic()
+      assertEquals(st.hasMissing, false)
+      assertEquals(st.countNonMissing, 256)
+      assertEquals(st.minMax, Some(0d -> 255d))
+      assertEquals(st.lowCardinalityNonMissingSet, None)
+
+  }
+
   def assertEqualDoubleSeq(a: Seq[Double],b:Seq[Double]) = assertEquals(a.map(_.toString),b.map(_.toString))
   test("toSegment") {
     withTempTaskSystem { implicit tsc =>

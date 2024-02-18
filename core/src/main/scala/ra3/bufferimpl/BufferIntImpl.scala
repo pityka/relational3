@@ -51,4 +51,5 @@ private[ra3] trait BufferIntImpl { self: BufferInt =>
 
 
   def sumGroups(partitionMap: BufferInt, numGroups: Int): BufferType
+  def makeStatistic() : StatisticInt
 }

@@ -6,10 +6,46 @@ import java.nio.ByteOrder
 import tasks.{TaskSystemComponents, SharedFile}
 
 private[ra3] trait BufferLongImpl { self: BufferLong =>
-  
-def elementAsCharSequence(i: Int): CharSequence = if (isMissing(i)) "NA" else values(i).toString
 
-    def partition(numPartitions: Int, map: BufferInt): Vector[BufferType] = {
+
+  def makeStatistic() = {
+    var i = 0
+    val n = length
+    var hasMissing = false
+    var countNonMissing = 0
+    var min = Long.MaxValue
+    var max = Long.MinValue
+    val set = scala.collection.mutable.Set.empty[Long]
+    while (i < n) {
+      if (isMissing(i)) {
+        hasMissing = true
+      } else {
+        countNonMissing += 1
+        val v = values(i)
+        if (v < min) {
+          min = v
+        }
+        if (v > max) {
+          max = v
+        }
+        if (set.size < 256 && !set.contains(v)) {
+          set.+=(v)
+        }
+      }
+      i += 1
+    }
+    StatisticLong(
+      hasMissing = hasMissing,
+      minMax = if (countNonMissing > 0) Some((min, max)) else None,
+      lowCardinalityNonMissingSet = if (set.size <= 255) Some(set.toSet) else None ,
+      countNonMissing
+    )
+  }
+
+  def elementAsCharSequence(i: Int): CharSequence =
+    if (isMissing(i)) "NA" else values(i).toString
+
+  def partition(numPartitions: Int, map: BufferInt): Vector[BufferType] = {
     assert(length == map.length)
     val growableBuffers =
       Vector.fill(numPartitions)(org.saddle.Buffer.empty[Long])
@@ -67,14 +103,14 @@ def elementAsCharSequence(i: Int): CharSequence = if (isMissing(i)) "NA" else va
   ): BufferInt = {
     import org.saddle._
     val c = other.values(0)
-    if (c == BufferLong.MissingValue) BufferInt.empty 
+    if (c == BufferLong.MissingValue) BufferInt.empty
     else {
-    val idx =
-      if (lessThan)
-        values.toVec.find(_ <= c)
-      else values.toVec.find(_ >= c)
+      val idx =
+        if (lessThan)
+          values.toVec.find(_ <= c)
+        else values.toVec.find(_ >= c)
 
-    BufferInt(idx.toArray)
+      BufferInt(idx.toArray)
     }
   }
 
@@ -150,7 +186,7 @@ def elementAsCharSequence(i: Int): CharSequence = if (isMissing(i)) "NA" else va
         case "right" => org.saddle.index.RightJoin
         case "outer" => org.saddle.index.OuterJoin
       },
-      forceProperSemantics=true
+      forceProperSemantics = true
     )
     (reindexer.lTake.map(BufferInt(_)), reindexer.rTake.map(BufferInt(_)))
   }
@@ -209,7 +245,7 @@ def elementAsCharSequence(i: Int): CharSequence = if (isMissing(i)) "NA" else va
 
   }
 
-    def elementwise_printf(s: String): BufferString = {
+  def elementwise_printf(s: String): BufferString = {
     var i = 0
     val n = self.length
     val r = Array.ofDim[CharSequence](n)
@@ -232,19 +268,20 @@ def elementAsCharSequence(i: Int): CharSequence = if (isMissing(i)) "NA" else va
     }
     BufferInt(r)
   }
-   def elementwise_toDouble: BufferDouble = {
+  def elementwise_toDouble: BufferDouble = {
     var i = 0
     val n = self.length
     val r = Array.ofDim[Double](n)
 
     while (i < n) {
-      r(i) = if (isMissing(i)) BufferDouble.MissingValue else self.values(i).toDouble
+      r(i) =
+        if (isMissing(i)) BufferDouble.MissingValue else self.values(i).toDouble
       i += 1
     }
     BufferDouble(r)
   }
 
-   def countInGroups(partitionMap: BufferInt, numGroups: Int): BufferInt = {
+  def countInGroups(partitionMap: BufferInt, numGroups: Int): BufferInt = {
     val ar = Array.fill[Double](numGroups)(Double.NaN)
     var i = 0
     val n = partitionMap.length
@@ -277,7 +314,7 @@ def elementAsCharSequence(i: Int): CharSequence = if (isMissing(i)) "NA" else va
 
   }
 
-   def hasMissingInGroup(partitionMap: BufferInt, numGroups: Int): BufferInt = {
+  def hasMissingInGroup(partitionMap: BufferInt, numGroups: Int): BufferInt = {
     val ar = Array.fill[Int](numGroups)(0)
     var i = 0
     val n = partitionMap.length
@@ -291,25 +328,36 @@ def elementAsCharSequence(i: Int): CharSequence = if (isMissing(i)) "NA" else va
     BufferInt(ar)
 
   }
- def elementwise_eq(other: BufferType): BufferInt = {
+  def elementwise_eq(other: BufferType): BufferInt = {
     assert(other.length == self.length)
     var i = 0
     val n = self.length
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (!isMissing(i) && !other.isMissing(i) && self.values(i) == other.values(i)) 1 else 0
+      r(i) =
+        if (
+          !isMissing(i) && !other.isMissing(i) && self.values(i) == other
+            .values(i)
+        ) 1
+        else 0
       i += 1
     }
     BufferInt(r)
   }
- def elementwise_eq(other: Long): BufferInt = {
+  def elementwise_eq(other: Long): BufferInt = {
     var i = 0
     val n = self.length
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (!isMissing(i) && other != BufferLong.MissingValue && self.values(i) == other) 1 else 0
+      r(i) =
+        if (
+          !isMissing(i) && other != BufferLong.MissingValue && self.values(
+            i
+          ) == other
+        ) 1
+        else 0
       i += 1
     }
     BufferInt(r)
