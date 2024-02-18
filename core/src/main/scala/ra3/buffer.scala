@@ -145,8 +145,6 @@ sealed trait Buffer { self =>
     */
   def broadcast(numElems: Int): BufferType
 
-  def minMax: Option[(Elem, Elem)]
-
   def countNonMissing: Long = {
     var i = 0
     var s = 0
@@ -158,6 +156,7 @@ sealed trait Buffer { self =>
     s.toLong
   }
 
+  def nonMissingMinMax: Option[(Elem,Elem)]
 }
 
 object BufferDouble {

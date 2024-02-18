@@ -77,7 +77,7 @@ object ColumnTag {
 
     val ordering = implicitly[Ordering[Elem]]
     def pair(a: SegmentType, b: SegmentType): SegmentPairType = I32Pair(a, b)
-    val emptySegment: SegmentType = SegmentInt(None, 0, None)
+    val emptySegment: SegmentType = SegmentInt(None, 0, StatisticInt.empty)
 
   }
   object I64 extends ColumnTag {
@@ -112,7 +112,7 @@ object ColumnTag {
 
     val ordering = implicitly[Ordering[Elem]]
     def pair(a: SegmentType, b: SegmentType): SegmentPairType = I64Pair(a, b)
-    val emptySegment: SegmentType = SegmentLong(None, 0, None)
+    val emptySegment: SegmentType = SegmentLong(None, 0, StatisticLong.empty)
 
   }
   object Instant extends ColumnTag {
@@ -151,7 +151,7 @@ object ColumnTag {
     val ordering = implicitly[Ordering[Elem]]
     def pair(a: SegmentType, b: SegmentType): SegmentPairType =
       InstantPair(a, b)
-    val emptySegment: SegmentType = SegmentInstant(None, 0, None)
+    val emptySegment: SegmentType = SegmentInstant(None, 0, StatisticLong.empty)
 
   }
   object StringTag extends ColumnTag {
@@ -189,7 +189,7 @@ object ColumnTag {
 
     val ordering = CharSequenceOrdering
     def pair(a: SegmentType, b: SegmentType): SegmentPairType = StringPair(a, b)
-    val emptySegment: SegmentType = SegmentString(None, 0, None)
+    val emptySegment: SegmentType = SegmentString(None, 0, StatisticCharSequence.empty)
 
   }
   object F64 extends ColumnTag {
@@ -224,7 +224,7 @@ object ColumnTag {
       }).map(_.toVector)
         .map(this.makeColumn)
 
-    val emptySegment: SegmentType = SegmentDouble(None, 0, None)
+    val emptySegment: SegmentType = SegmentDouble(None, 0, StatisticDouble.empty)
   }
 }
 

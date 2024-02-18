@@ -21,18 +21,14 @@ object ReduceTable {
                 map = SegmentInt(
                   None,
                   partitionedTable.numRows.toInt,
-                  minMax = Some((0, 0))
+                  statistic =
+                    StatisticInt.constant(0, partitionedTable.numRows.toInt)
                 ),
                 numGroups = 1,
                 groupSizes = SegmentInt(
                   None,
                   1,
-                  Some(
-                    (
-                      partitionedTable.numRows.toInt,
-                      partitionedTable.numRows.toInt
-                    )
-                  )
+                  StatisticInt.constant(partitionedTable.numRows.toInt, 1)
                 )
               )
             )
@@ -61,12 +57,16 @@ object ReduceTable {
               partitionMeta = PartitionMeta(Nil, 0)
             ),
             Segment.GroupMap(
-              map = SegmentInt(None, self.numRows.toInt, minMax = Some((0, 0))),
+              map = SegmentInt(
+                None,
+                self.numRows.toInt,
+                statistic = StatisticInt.constant(0, self.numRows.toInt)
+              ),
               numGroups = 1,
               groupSizes = SegmentInt(
                 None,
                 1,
-                Some((self.numRows.toInt, self.numRows.toInt))
+                StatisticInt.constant(self.numRows.toInt, 1)
               )
             )
           )

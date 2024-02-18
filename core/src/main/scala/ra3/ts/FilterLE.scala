@@ -28,7 +28,12 @@ object FilterInequality {
     task(
       FilterInequality(comparison, cutoff, input, outputPath, lessThan)
     )(
-      ResourceRequest(cpu = (1, 1), memory = ra3.Utils.guessMemoryUsageInMB(input), scratch = 0, gpu = 0)
+      ResourceRequest(
+        cpu = (1, 1),
+        memory = ra3.Utils.guessMemoryUsageInMB(input),
+        scratch = 0,
+        gpu = 0
+      )
     ).map(_.as(input))
   }
 
@@ -39,24 +44,33 @@ object FilterInequality {
       outputPath: LogicalPath,
       lessThan: Boolean
   )(implicit tsc: TaskSystemComponents) = {
-    val cutoffAsSegment  = cutoff.as(comparison)
-    val nonEmpty = cutoffAsSegment.buffer.map(_.toSeq.head).map{ cutoffValue =>
-      comparison.minMax.map{ case (min,max) =>
-          comparison.tag.ordering.gteq(cutoffValue,min) || comparison.tag.ordering.lteq(cutoffValue,max)
-        }.getOrElse(true)  
+    val cutoffAsSegment = cutoff.as(comparison)
+    val nonEmpty = cutoffAsSegment.buffer.map(_.toSeq.head).map { cutoffValue =>
+      comparison.nonMissingMinMax
+        .map { case (min, max) =>
+          if (lessThan) {
+            comparison.tag.ordering.gteq(cutoffValue, min)
+
+          } else {
+            comparison.tag.ordering.lteq(cutoffValue, max)
+          }
+        }
+        .getOrElse(true)
     }
-    nonEmpty.flatMap{nonEmpty =>
-      if (nonEmpty) 
-    IO.both(IO.both(cutoffAsSegment.buffer, comparison.buffer), input.buffer).flatMap {
-      case ((cutoff, comparisonBuffer), inputBuffer) =>
-        inputBuffer
-          .filterInEquality[
-            comparison.BufferType
-          ](comparisonBuffer, cutoff , lessThan)
-          .toSegment(outputPath)
+    nonEmpty.flatMap { nonEmpty =>
+      if (nonEmpty)
+        IO.both(
+          IO.both(cutoffAsSegment.buffer, comparison.buffer),
+          input.buffer
+        ).flatMap { case ((cutoff, comparisonBuffer), inputBuffer) =>
+          inputBuffer
+            .filterInEquality[
+              comparison.BufferType
+            ](comparisonBuffer, cutoff, lessThan)
+            .toSegment(outputPath)
+        }
+      else IO.pure(input.tag.emptySegment)
     }
-     else IO.pure(input.tag.emptySegment)
-  }
   }
 
   implicit val codec: JsonValueCodec[FilterInequality] = JsonCodecMaker.make

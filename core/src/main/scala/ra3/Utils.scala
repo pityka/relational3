@@ -163,6 +163,24 @@ private[ra3] object Utils {
           }
     }
 
+    val charSequenceCodec: JsonValueCodec[CharSequence] =
+    new JsonValueCodec[CharSequence] {
+      override def decodeValue(in: JsonReader, default: CharSequence): String =
+        if (in.isNextToken('"')) {
+            in.rollbackToken()
+            in.readString(null)
+          } else {
+            in.decodeError("expected string")
+          }
+
+      override def encodeValue(
+          x: CharSequence,
+          out: JsonWriter
+      ): Unit = out.writeVal(x.toString)
+
+      override val nullValue: CharSequence = null
+    }
+
 
 
 }

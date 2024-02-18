@@ -11,6 +11,7 @@ import org.saddle.scalar.ScalarTagLong
 private[ra3] object CharSequenceOrdering
     extends scala.math.Ordering[CharSequence] { self =>
 
+
   def compare(x: CharSequence, y: CharSequence): Int =
     if (x == BufferString.missing && y == BufferString.missing) 0
     else if (x == BufferString.missing) -1
@@ -21,6 +22,7 @@ private[ra3] object CharSequenceOrdering
 }
 
 private[ra3] trait BufferStringImpl { self: BufferString =>
+      def nonMissingMinMax = makeStatistic().nonMissingMinMax
 
   def makeStatistic() = {
     var i = 0
@@ -50,7 +52,7 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
     }
     StatisticCharSequence(
       hasMissing = hasMissing,
-      minMax = if (countNonMissing > 0) Some((min.get, max.get)) else None,
+      nonMissingMinMax = if (countNonMissing > 0) Some((min.get, max.get)) else None,
       lowCardinalityNonMissingSet = if (set.size <= 255) Some(set.toSet) else None ,
       countNonMissing
     )
@@ -300,21 +302,11 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
 
   }
 
-  def minMax = {
-    if (values.length > 0)
-      Some(
-        (
-          values.min(CharSequenceOrdering).toString,
-          values.max(CharSequenceOrdering).toString
-        )
-      )
-    else None
-  }
 
   override def toSegment(
       name: LogicalPath
   )(implicit tsc: TaskSystemComponents): IO[SegmentString] = {
-    if (values.length == 0) IO.pure(SegmentString(None, 0, None))
+    if (values.length == 0) IO.pure(SegmentString(None, 0, StatisticCharSequence.empty))
     else
       IO {
         val byteSize = values.map(v => (v.length * 2L) + 4).sum
@@ -342,11 +334,10 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
           fs2.Stream.chunk(fs2.Chunk.byteBuffer(bbCompressed))
         }
       }.flatMap { stream =>
-        val minmax: Option[(String, String)] = minMax
 
         SharedFile
           .apply(stream, name.toString)
-          .map(sf => SegmentString(Some(sf), values.length, minmax))
+          .map(sf => SegmentString(Some(sf), values.length, self.makeStatistic()))
       }
 
   }

@@ -6,7 +6,7 @@ import java.nio.ByteOrder
 import tasks.{TaskSystemComponents, SharedFile}
 
 private[ra3] trait BufferLongImpl { self: BufferLong =>
-
+def nonMissingMinMax = makeStatistic().nonMissingMinMax
 
   def makeStatistic() = {
     var i = 0
@@ -36,7 +36,7 @@ private[ra3] trait BufferLongImpl { self: BufferLong =>
     }
     StatisticLong(
       hasMissing = hasMissing,
-      minMax = if (countNonMissing > 0) Some((min, max)) else None,
+      nonMissingMinMax = if (countNonMissing > 0) Some((min, max)) else None,
       lowCardinalityNonMissingSet = if (set.size <= 255) Some(set.toSet) else None ,
       countNonMissing
     )
@@ -208,12 +208,7 @@ private[ra3] trait BufferLongImpl { self: BufferLong =>
     scala.util.hashing.byteswap64(values(l))
   }
 
-  def minMax = if (values.length == 0) None
-  else {
-    Some(
-      (values.min, values.max)
-    )
-  }
+  
   def firstInGroup(partitionMap: BufferInt, numGroups: Int): BufferType = {
     assert(partitionMap.length == length)
     val ar = Array.fill(numGroups)(Long.MinValue)
@@ -229,7 +224,7 @@ private[ra3] trait BufferLongImpl { self: BufferLong =>
   override def toSegment(
       name: LogicalPath
   )(implicit tsc: TaskSystemComponents): IO[SegmentLong] = {
-    if (values.length == 0) IO.pure(SegmentLong(None, 0, None))
+    if (values.length == 0) IO.pure(SegmentLong(None, 0, StatisticLong.empty))
     else
       IO {
         val bb =
@@ -237,10 +232,9 @@ private[ra3] trait BufferLongImpl { self: BufferLong =>
         bb.asLongBuffer().put(values)
         fs2.Stream.chunk(fs2.Chunk.byteBuffer(Utils.compress(bb)))
       }.flatMap { stream =>
-        val minmax = minMax
         SharedFile
           .apply(stream, name.toString)
-          .map(sf => SegmentLong(Some(sf), values.length, minmax))
+          .map(sf => SegmentLong(Some(sf), values.length, self.makeStatistic()))
       }
 
   }

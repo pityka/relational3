@@ -8,7 +8,7 @@ class LongBufferSuite extends munit.FunSuite with WithTempTaskSystem {
       val st = BufferLong(s: _*).makeStatistic()
       assertEquals(st.hasMissing, true)
       assertEquals(st.countNonMissing, 5)
-      assertEquals(st.minMax, Some(-1L -> 3L))
+      assertEquals(st.nonMissingMinMax, Some(-1L -> 3L))
       assertEquals(st.lowCardinalityNonMissingSet, Some(Set(0L, 1L, 2L, 3L, -1L)))
 
   }
@@ -17,7 +17,7 @@ class LongBufferSuite extends munit.FunSuite with WithTempTaskSystem {
       val st = BufferLong(s: _*).makeStatistic()
       assertEquals(st.hasMissing, false)
       assertEquals(st.countNonMissing, 256)
-      assertEquals(st.minMax, Some(0L -> 255L))
+      assertEquals(st.nonMissingMinMax, Some(0L -> 255L))
       assertEquals(st.lowCardinalityNonMissingSet, None)
 
   }
@@ -30,7 +30,9 @@ class LongBufferSuite extends munit.FunSuite with WithTempTaskSystem {
         .unsafeRunSync()
       assertEquals(segment.buffer.unsafeRunSync().toSeq, s)
       assertEquals(segment.numElems, 6)
-      assertEquals(segment.minMax.get, (Long.MinValue, 3L))
+      assertEquals(segment.nonMissingMinMax.get, (-1L, 3L))
+      assertEquals(segment.statistic.hasMissing, true)
+      assertEquals(segment.statistic.countNonMissing, 5)
     }
   }
   test("findInequalityVsHead") {

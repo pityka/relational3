@@ -3,13 +3,13 @@ import cats.effect.IO
 import ra3._
 import tasks.{TaskSystemComponents}
 private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
-
+def nonMissingMinMax = makeStatistic().nonMissingMinMax
   def makeStatistic() = {
     
    
     StatisticInt(
       hasMissing = if (value == Int.MinValue) true else false,
-      minMax = if (value == Int.MinValue) None else Some((value,value)),
+      nonMissingMinMax = if (value == Int.MinValue) None else Some((value,value)),
       lowCardinalityNonMissingSet = if (value == Int.MinValue) None else Some(Set(value)),
       countNonMissing = if (value == Int.MinValue) 0 else length
     )
@@ -176,23 +176,16 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
     scala.util.hashing.byteswap32(value).toLong
   }
 
-  def minMax = if (length == 0) None
-  else {
-    Some(
-      (value, value)
-    )
-  }
+  
 
   override def toSegment(
       name: LogicalPath
   )(implicit tsc: TaskSystemComponents): IO[SegmentInt] = {
-    if (values.length == 0) IO.pure(SegmentInt(None, 0, None))
+    if (values.length == 0) IO.pure(SegmentInt(None, 0, StatisticInt.empty))
     else
       IO.pure {
 
-        val minmax =
-          minMax
-        SegmentInt(None, values.length, minmax)
+        SegmentInt(None, values.length, self.makeStatistic())
       }
 
   }

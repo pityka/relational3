@@ -8,7 +8,7 @@ class DoubleBufferSuite extends munit.FunSuite with WithTempTaskSystem {
       val st = BufferDouble(s: _*).makeStatistic()
       assertEquals(st.hasMissing, true)
       assertEquals(st.countNonMissing, 5)
-      assertEquals(st.minMax, Some(-1d -> 3d))
+      assertEquals(st.nonMissingMinMax, Some(-1d -> 3d))
       assertEquals(st.lowCardinalityNonMissingSet, Some(Set(0d, 1d, 2d, 3d, -1d)))
 
   }
@@ -17,7 +17,7 @@ class DoubleBufferSuite extends munit.FunSuite with WithTempTaskSystem {
       val st = BufferDouble(s: _*).makeStatistic()
       assertEquals(st.hasMissing, false)
       assertEquals(st.countNonMissing, 256)
-      assertEquals(st.minMax, Some(0d -> 255d))
+      assertEquals(st.nonMissingMinMax, Some(0d -> 255d))
       assertEquals(st.lowCardinalityNonMissingSet, None)
 
   }
@@ -31,7 +31,9 @@ class DoubleBufferSuite extends munit.FunSuite with WithTempTaskSystem {
         .unsafeRunSync()
       assertEqualDoubleSeq(segment.buffer.unsafeRunSync().toSeq, s)
       assertEquals(segment.numElems, 6)
-      assertEquals(segment.minMax.get.toString, (Double.NaN, 3d).toString)
+      assertEquals(segment.nonMissingMinMax.get, (-1d, 3d))
+      assertEquals(segment.statistic.hasMissing, true)
+      assertEquals(segment.statistic.countNonMissing, 5)
     }
   }
   test("findInequalityVsHead") {

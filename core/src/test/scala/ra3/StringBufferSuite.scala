@@ -9,7 +9,7 @@ class StringBufferSuite extends munit.FunSuite with WithTempTaskSystem {
       val st = BufferString(s.toArray).makeStatistic()
       assertEquals(st.hasMissing, true)
       assertEquals(st.countNonMissing, 5)
-      assertEquals(st.minMax, Some("0" -> "4"))
+      assertEquals(st.nonMissingMinMax, Some("0" -> "4"))
       assertEquals(st.lowCardinalityNonMissingSet, Some(Set[CharSequence]("0","1","2","3","4")))
 
   }
@@ -18,7 +18,7 @@ class StringBufferSuite extends munit.FunSuite with WithTempTaskSystem {
       val st = BufferString(s: _*).makeStatistic()
       assertEquals(st.hasMissing, false)
       assertEquals(st.countNonMissing, 256)
-      assertEquals(st.minMax, Some("0" -> "99"))
+      assertEquals(st.nonMissingMinMax, Some("0" -> "99"))
       assertEquals(st.lowCardinalityNonMissingSet, None)
   }
   test("toSegment") {
@@ -30,7 +30,9 @@ class StringBufferSuite extends munit.FunSuite with WithTempTaskSystem {
         .unsafeRunSync()
       assertEquals(segment.buffer.unsafeRunSync().toSeq.map(_.toString), s)
       assertEquals(segment.numElems, 7)
-      assertEquals(segment.minMax.get, (s"${Char.MinValue}", "3"))
+      assertEquals(segment.nonMissingMinMax.get, ("", "3"))
+      assertEquals(segment.statistic.hasMissing, true)
+      assertEquals(segment.statistic.countNonMissing, 6)
     }
   }
   test("findInequalityVsHead") {

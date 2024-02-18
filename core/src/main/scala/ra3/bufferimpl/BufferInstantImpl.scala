@@ -7,6 +7,8 @@ import tasks.{TaskSystemComponents, SharedFile}
 
 private[ra3] trait BufferInstantImpl { self: BufferInstant =>
 
+  def nonMissingMinMax = makeStatistic().nonMissingMinMax
+
   def makeStatistic() = {
     var i = 0
     val n = length
@@ -35,7 +37,7 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
     }
     StatisticLong(
       hasMissing = hasMissing,
-      minMax = if (countNonMissing > 0) Some((min, max)) else None,
+      nonMissingMinMax = if (countNonMissing > 0) Some((min, max)) else None,
       lowCardinalityNonMissingSet = if (set.size <= 255) Some(set.toSet) else None ,
       countNonMissing
     )
@@ -201,16 +203,11 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
   override def hashOf(l: Int): Long = {
     scala.util.hashing.byteswap64(values(l))
   }
-  def minMax = if (values.length == 0) None
-  else {
-    Some(
-      (values.min, values.max)
-    )
-  }
+
   override def toSegment(
       name: LogicalPath
   )(implicit tsc: TaskSystemComponents): IO[SegmentInstant] = {
-    if (values.length == 0) IO.pure(SegmentInstant(None, 0, None))
+    if (values.length == 0) IO.pure(SegmentInstant(None, 0, StatisticLong.empty))
     else
       IO {
         val bb =
@@ -218,10 +215,9 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
         bb.asLongBuffer().put(values)
         fs2.Stream.chunk(fs2.Chunk.byteBuffer(Utils.compress(bb)))
       }.flatMap { stream =>
-        val minmax = minMax
         SharedFile
           .apply(stream, name.toString)
-          .map(sf => SegmentInstant(Some(sf), values.length, minmax))
+          .map(sf => SegmentInstant(Some(sf), values.length, self.makeStatistic()))
       }
 
   }

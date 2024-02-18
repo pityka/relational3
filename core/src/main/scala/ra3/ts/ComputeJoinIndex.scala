@@ -38,8 +38,8 @@ object ComputeJoinIndex {
   )(implicit tsc: TaskSystemComponents) = {
     def emptyOverlap() = {
       val rightC = right.as(left)
-      val rMM = rightC.minMax
-      val lMM = left.minMax
+      val rMM = rightC.nonMissingMinMax
+      val lMM = left.nonMissingMinMax
       if (rMM.isDefined && lMM.isDefined) {
         val rMin = rMM.get._1
         val rMax = rMM.get._2
@@ -94,8 +94,8 @@ object ComputeJoinIndex {
   )(implicit tsc: TaskSystemComponents): IO[Seq[Option[SegmentInt]]] = {
     def emptyOverlap(right: Buffer, left: Column) = {
       val rightC = right.as(left.tag)
-      val rMM = rightC.minMax
-      val lMM = left.minMax
+      val rMM = rightC.nonMissingMinMax
+      val lMM = left.nonMissingMinMax
       if (rMM.isDefined && lMM.isDefined) {
         val rMin = rMM.get._1
         val rMax = rMM.get._2

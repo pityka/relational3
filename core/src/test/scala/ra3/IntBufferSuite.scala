@@ -8,7 +8,7 @@ class IntBufferSuite extends munit.FunSuite with WithTempTaskSystem {
       val st = BufferInt(s: _*).asInstanceOf[BufferIntInArray].makeStatistic()
       assertEquals(st.hasMissing, true)
       assertEquals(st.countNonMissing, 5)
-      assertEquals(st.minMax, Some(-1 -> 3))
+      assertEquals(st.nonMissingMinMax, Some(-1 -> 3))
       assertEquals(st.lowCardinalityNonMissingSet, Some(Set(0, 1, 2, 3, -1)))
 
   }
@@ -17,7 +17,7 @@ class IntBufferSuite extends munit.FunSuite with WithTempTaskSystem {
       val st = BufferInt(s: _*).asInstanceOf[BufferIntInArray].makeStatistic()
       assertEquals(st.hasMissing, false)
       assertEquals(st.countNonMissing, 256)
-      assertEquals(st.minMax, Some(0 -> 255))
+      assertEquals(st.nonMissingMinMax, Some(0 -> 255))
       assertEquals(st.lowCardinalityNonMissingSet, None)
 
   }
@@ -30,7 +30,9 @@ class IntBufferSuite extends munit.FunSuite with WithTempTaskSystem {
         .unsafeRunSync()
       assertEquals(segment.buffer.unsafeRunSync().toSeq, s)
       assertEquals(segment.numElems, 6)
-      assertEquals(segment.minMax.get, (Int.MinValue, 3))
+      assertEquals(segment.nonMissingMinMax.get, (-1, 3))
+      assertEquals(segment.statistic.hasMissing, true)
+      assertEquals(segment.statistic.countNonMissing, 5)
     }
   }
   test("toSegment empty") {
@@ -42,7 +44,7 @@ class IntBufferSuite extends munit.FunSuite with WithTempTaskSystem {
       assertEquals(BufferInt(s: _*), BufferIntConstant(Int.MinValue, 0))
       assertEquals(segment.buffer.unsafeRunSync().toSeq, s)
       assertEquals(segment.numElems, 0)
-      assertEquals(segment.minMax, None)
+      assertEquals(segment.nonMissingMinMax, None)
       assert(segment.sf.isEmpty)
     }
   }
@@ -55,7 +57,7 @@ class IntBufferSuite extends munit.FunSuite with WithTempTaskSystem {
       assertEquals(BufferInt(s: _*), BufferIntConstant(1, 6))
       assertEquals(segment.buffer.unsafeRunSync().toSeq, s)
       assertEquals(segment.numElems, 6)
-      assertEquals(segment.minMax.get, (1, 1))
+      assertEquals(segment.nonMissingMinMax.get, (1, 1))
       assert(segment.sf.isEmpty)
     }
   }

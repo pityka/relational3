@@ -6,6 +6,7 @@ import java.nio.ByteOrder
 import tasks.{TaskSystemComponents, SharedFile}
 private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
 
+  def nonMissingMinMax = makeStatistic().nonMissingMinMax
   def makeStatistic() = {
     var i = 0
     val n = length
@@ -34,7 +35,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
     }
     StatisticDouble(
       hasMissing = hasMissing,
-      minMax = if (countNonMissing > 0) Some((min, max)) else None,
+      nonMissingMinMax = if (countNonMissing > 0) Some((min, max)) else None,
       lowCardinalityNonMissingSet = if (set.size <= 255) Some(set.toSet) else None ,
       countNonMissing
     )
@@ -306,16 +307,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
     scala.util.hashing.byteswap64(java.lang.Double.doubleToLongBits(values(l)))
   }
 
-  def minMax = if (values.length == 0) None
-  else {
-    import org.saddle._
-    Some(
-      (
-        if (values.toVec.hasNA) Double.NaN else values.toVec.min2,
-        values.toVec.max.get
-      )
-    )
-  }
+  
 
   def firstInGroup(partitionMap: BufferInt, numGroups: Int): BufferType = {
     assert(partitionMap.length == length)
@@ -333,7 +325,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
   override def toSegment(name: LogicalPath)(implicit
       tsc: TaskSystemComponents
   ): IO[SegmentDouble] =
-    if (values.length == 0) IO.pure(SegmentDouble(None, 0, None))
+    if (values.length == 0) IO.pure(SegmentDouble(None, 0, StatisticDouble.empty))
     else
       IO {
 
@@ -342,11 +334,11 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
         bb.asDoubleBuffer().put(values)
         fs2.Stream.chunk(fs2.Chunk.byteBuffer(Utils.compress(bb)))
       }.flatMap { stream =>
-        val minmax = self.minMax
+        
 
         SharedFile
           .apply(stream, name.toString)
-          .map(sf => SegmentDouble(Some(sf), values.length, minmax))
+          .map(sf => SegmentDouble(Some(sf), values.length, self.makeStatistic()))
       }
 
   def elementwise_eq(other: BufferType): BufferInt = {

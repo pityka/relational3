@@ -185,7 +185,7 @@ private[lang] object Op2 {
     def op(a: DI32, b: Int)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
         a <- bufferIfNeededWithPrecondition(a)((segment: SegmentInt) =>
-          segment.minMax match {
+          segment.nonMissingMinMax match {
             case None             => true
             case Some((min, max)) => if (b < min || b > max) false else true
           }
@@ -219,7 +219,7 @@ private[lang] object Op2 {
     def op(a: DI32, b: Int)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
         a <- bufferIfNeededWithPrecondition(a)((segment: SegmentInt) =>
-          segment.minMax match {
+          segment.nonMissingMinMax match {
             case None           => true
             case Some((min, _)) => if (b < min) false else true
           }
@@ -235,7 +235,7 @@ private[lang] object Op2 {
     def op(a: DI32, b: Int)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
         a <- bufferIfNeededWithPrecondition(a)((segment: SegmentInt) =>
-          segment.minMax match {
+          segment.nonMissingMinMax match {
             case None           => true
             case Some((min, _)) => if (b <= min) false else true
           }
@@ -269,7 +269,7 @@ private[lang] object Op2 {
     def op(a: DI32, b: Int)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
         a <- bufferIfNeededWithPrecondition(a)((segment: SegmentInt) =>
-          segment.minMax match {
+          segment.nonMissingMinMax match {
             case None           => true
             case Some((_, max)) => if (b > max) false else true
           }
@@ -285,7 +285,7 @@ private[lang] object Op2 {
     def op(a: DI32, b: Int)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
         a <- bufferIfNeededWithPrecondition(a)((segment: SegmentInt) =>
-          segment.minMax match {
+          segment.nonMissingMinMax match {
             case None           => true
             case Some((_, max)) => if (b >= max) false else true
           }
@@ -301,7 +301,7 @@ private[lang] object Op2 {
     def op(a: DStr, b: String)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
         a <- bufferIfNeededWithPrecondition(a)((segment: SegmentString) =>
-          segment.minMax match {
+          segment.nonMissingMinMax match {
             case None => true
             case Some((min, max)) =>
               if (CSOrdering.lt(b, min) || CSOrdering.gt(b, max)) false
@@ -328,7 +328,7 @@ private[lang] object Op2 {
     ): IO[DI32] = {
       for {
         a <- bufferIfNeededWithPrecondition(a)((segment: SegmentString) =>
-          segment.minMax match {
+          segment.nonMissingMinMax match {
             case None => true
             case Some((min, max)) =>
               if (b.forall(b => CSOrdering.lt(b, min) || CSOrdering.gt(b, max)))
@@ -349,7 +349,7 @@ private[lang] object Op2 {
     ): IO[DI32] = {
       for {
         a <- bufferIfNeededWithPrecondition(a)((segment: SegmentInt) =>
-          segment.minMax match {
+          segment.nonMissingMinMax match {
             case None => true
             case Some((min, max)) =>
               if (b.forall(b => b < min || b > max)) false else true
@@ -368,7 +368,7 @@ private[lang] object Op2 {
     ): IO[DI32] = {
       for {
         a <- bufferIfNeededWithPrecondition(a)((segment: SegmentDouble) =>
-          segment.minMax match {
+          segment.nonMissingMinMax match {
             case None => true
             case Some((min, max)) =>
               if (b.forall(b => b < min || b > max)) false else true
@@ -445,7 +445,7 @@ private[lang] object Op2 {
     def op(a: DF64, b: Double)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
         a <- bufferIfNeededWithPrecondition(a)((segment: SegmentDouble) =>
-          segment.minMax match {
+          segment.nonMissingMinMax match {
             case None           => true
             case Some((min, _)) => if (b < min) false else true
           }
@@ -472,7 +472,7 @@ private[lang] object Op2 {
     def op(a: DF64, b: Double)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
         a <- bufferIfNeededWithPrecondition(a)((segment: SegmentDouble) =>
-          segment.minMax match {
+          segment.nonMissingMinMax match {
             case None           => true
             case Some((min, _)) => if (b <= min) false else true
           }
@@ -497,7 +497,7 @@ private[lang] object Op2 {
     def op(a: DF64, b: Double)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
         a <- bufferIfNeededWithPrecondition(a)((segment: SegmentDouble) =>
-          segment.minMax match {
+          segment.nonMissingMinMax match {
             case None           => true
             case Some((_, max)) => if (b > max) false else true
           }
@@ -522,7 +522,7 @@ private[lang] object Op2 {
     def op(a: DF64, b: Double)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
         a <- bufferIfNeededWithPrecondition(a)((segment: SegmentDouble) =>
-          segment.minMax match {
+          segment.nonMissingMinMax match {
             case None           => true
             case Some((_, max)) => if (b >= max) false else true
           }
@@ -547,7 +547,7 @@ private[lang] object Op2 {
     def op(a: DF64, b: Double)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
         a <- bufferIfNeededWithPrecondition(a)((segment: SegmentDouble) =>
-          segment.minMax match {
+          segment.nonMissingMinMax match {
             case None             => true
             case Some((min, max)) => if (b < min || b > max) false else true
           }
@@ -868,7 +868,7 @@ private[lang] object Op2 {
     def op(a: DI64, b: Long)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
         a <- bufferIfNeededWithPrecondition(a)((segment: SegmentLong) =>
-          segment.minMax match {
+          segment.nonMissingMinMax match {
             case None             => true
             case Some((min, max)) => if (b < min || b > max) false else true
           }

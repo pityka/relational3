@@ -30,9 +30,8 @@ sealed trait Segment { self =>
   }
   def tag: ColumnTagType
   def buffer(implicit tsc: TaskSystemComponents): IO[BufferType]
-  // def statistics: IO[Option[Statistic[Elem]]]
   def numElems: Int
-  def minMax: Option[(Elem, Elem)]
+  def nonMissingMinMax: Option[(Elem, Elem)]
 
   def as(c: Column) = this.asInstanceOf[c.SegmentType]
   def as(c: Segment) = this.asInstanceOf[c.SegmentType]
@@ -107,7 +106,7 @@ case class StringPair(a: SegmentString, b: SegmentString) extends SegmentPair {
 final case class SegmentDouble(
     sf: Option[SharedFile],
     numElems: Int,
-    minMax: Option[(Double, Double)]
+    statistic: StatisticDouble
 ) extends Segment {
   type Elem = Double
   type BufferType = BufferDouble
@@ -116,11 +115,12 @@ final case class SegmentDouble(
   type ColumnTagType = ColumnTag.F64.type
   val tag = ColumnTag.F64
 
+  def nonMissingMinMax: Option[(Double, Double)] = statistic.nonMissingMinMax
+
   override def buffer(implicit tsc: TaskSystemComponents) =
     sf match {
-      case None if minMax.isDefined =>
-        assert(minMax.get._1 == minMax.get._2)
-        IO.pure(BufferDouble.constant(value = minMax.get._1, length = numElems))
+      case None if statistic.constantValue.isDefined =>
+        IO.pure(BufferDouble.constant(value = statistic.constantValue.get, length = numElems))
       case None => IO.pure(BufferDouble(Array.empty[Double]))
       case Some(sf) =>
         sf.bytes.map { byteVector =>
@@ -140,7 +140,7 @@ final case class SegmentDouble(
 final case class SegmentInt(
     sf: Option[SharedFile],
     numElems: Int,
-    minMax: Option[(Int, Int)]
+    statistic: StatisticInt
 ) extends Segment {
 
   type Elem = Int
@@ -150,13 +150,13 @@ final case class SegmentInt(
   type ColumnTagType = ColumnTag.I32.type
   val tag = ColumnTag.I32
 
-  // override def pair(other: this.type) = I32Pair(this,other)
+    def nonMissingMinMax= statistic.nonMissingMinMax
+
 
   override def buffer(implicit tsc: TaskSystemComponents): IO[BufferInt] = {
     sf match {
-      case None if minMax.isDefined =>
-        assert(minMax.get._1 == minMax.get._2)
-        IO.pure(BufferInt.constant(value = minMax.get._1, length = numElems))
+      case None if statistic.constantValue.isDefined =>
+        IO.pure(BufferInt.constant(value = statistic.constantValue.get, length = numElems))
 
       case None =>
         assert(numElems == 0)
@@ -177,14 +177,16 @@ final case class SegmentInt(
   }
 
   def isConstant(i: Int) =
-    sf.isEmpty && minMax.isDefined && minMax.get._1 == minMax.get._2 && minMax.get._1 == i
+    sf.isEmpty && statistic.constantValue.exists(_ == i)
 
 }
 final case class SegmentLong(
     sf: Option[SharedFile],
     numElems: Int,
-    minMax: Option[(Long, Long)]
+    statistic: StatisticLong
 ) extends Segment {
+
+  def nonMissingMinMax= statistic.nonMissingMinMax
 
   type Elem = Long
   type BufferType = BufferLong
@@ -195,9 +197,8 @@ final case class SegmentLong(
 
   override def buffer(implicit tsc: TaskSystemComponents): IO[BufferLong] = {
     sf match {
-      case None if minMax.isDefined =>
-        assert(minMax.get._1 == minMax.get._2)
-        IO.pure(BufferLong.constant(value = minMax.get._1, length = numElems))
+      case None if statistic.constantValue.isDefined =>
+        IO.pure(BufferLong.constant(value = statistic.constantValue.get, length = numElems))
       case None => IO.pure(BufferLong(Array.emptyLongArray))
       case Some(value) =>
         value.bytes.map { byteVector =>
@@ -218,8 +219,10 @@ final case class SegmentLong(
 final case class SegmentInstant(
     sf: Option[SharedFile],
     numElems: Int,
-    minMax: Option[(Long, Long)]
+    statistic: StatisticLong
 ) extends Segment {
+
+  def nonMissingMinMax= statistic.nonMissingMinMax
 
   type Elem = Long
   type BufferType = BufferInstant
@@ -230,11 +233,8 @@ final case class SegmentInstant(
 
   override def buffer(implicit tsc: TaskSystemComponents): IO[BufferType] = {
     sf match {
-      case None if minMax.isDefined =>
-        assert(minMax.get._1 == minMax.get._2)
-        IO.pure(
-          BufferInstant.constant(value = minMax.get._1, length = numElems)
-        )
+     case None if statistic.constantValue.isDefined =>
+        IO.pure(BufferInstant.constant(value = statistic.constantValue.get, length = numElems))
       case None => IO.pure(BufferInstant(Array.emptyLongArray))
       case Some(value) =>
         value.bytes.map { byteVector =>
@@ -254,8 +254,11 @@ final case class SegmentInstant(
 final case class SegmentString(
     sf: Option[SharedFile],
     numElems: Int,
-    minMax: Option[(String, String)]
+    statistic: StatisticCharSequence
 ) extends Segment {
+
+
+  def nonMissingMinMax= statistic.nonMissingMinMax
 
   type Elem = CharSequence
   type BufferType = BufferString
@@ -266,9 +269,8 @@ final case class SegmentString(
 
   override def buffer(implicit tsc: TaskSystemComponents): IO[BufferType] = {
     sf match {
-      case None if minMax.isDefined =>
-        assert(minMax.get._1 == minMax.get._2)
-        IO.pure(BufferString.constant(value = minMax.get._1, length = numElems))
+      case None if statistic.constantValue.isDefined =>
+        IO.pure(BufferString.constant(value = statistic.constantValue.get.toString, length = numElems))
       case None => IO.pure(BufferString(Array.empty[CharSequence]))
       case Some(value) =>
         value.bytes.map { byteVector =>

@@ -6,6 +6,7 @@ import java.nio.ByteOrder
 import tasks.{TaskSystemComponents, SharedFile}
 private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
 
+  def nonMissingMinMax = makeStatistic().nonMissingMinMax 
   def makeStatistic() = {
     var i = 0
     val n = length
@@ -34,7 +35,7 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
     }
     StatisticInt(
       hasMissing = hasMissing,
-      minMax = if (countNonMissing > 0) Some((min, max)) else None,
+      nonMissingMinMax = if (countNonMissing > 0) Some((min, max)) else None,
       lowCardinalityNonMissingSet = if (set.size <= 255) Some(set.toSet) else None ,
       countNonMissing
     )
@@ -223,17 +224,12 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
     scala.util.hashing.byteswap32(values(l)).toLong
   }
 
-  def minMax = if (values.length == 0) None
-  else {
-    Some(
-      (values.min, values.max)
-    )
-  }
+  
 
   override def toSegment(
       name: LogicalPath
   )(implicit tsc: TaskSystemComponents): IO[SegmentInt] = {
-    if (values.length == 0) IO.pure(SegmentInt(None, 0, None))
+    if (values.length == 0) IO.pure(SegmentInt(None, 0, StatisticInt.empty))
     else
       IO {
         val bb =
@@ -241,11 +237,9 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
         bb.asIntBuffer().put(values)
         fs2.Stream.chunk(fs2.Chunk.byteBuffer(Utils.compress(bb)))
       }.flatMap { stream =>
-        val minmax =
-          minMax
         SharedFile
           .apply(stream, name.toString)
-          .map(sf => SegmentInt(Some(sf), values.length, minmax))
+          .map(sf => SegmentInt(Some(sf), values.length, self.makeStatistic()))
       }
 
   }

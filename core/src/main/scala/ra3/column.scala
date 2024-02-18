@@ -15,8 +15,8 @@ object Column {
   case class Int32Column(segments: Vector[SegmentInt])
       extends Column
       with I32ColumnImpl {
-    def minMax: Option[(Int, Int)] = {
-      val s = segments.flatMap(_.minMax.toSeq)
+    def nonMissingMinMax: Option[(Int, Int)] = {
+      val s = segments.flatMap(_.nonMissingMinMax.toSeq)
       if (s.isEmpty) None
       else Some((s.map(_._1).min, s.map(_._2).max))
     }
@@ -32,8 +32,8 @@ object Column {
     def tag = ColumnTag.I32
   }
   case class I64Column(segments: Vector[SegmentLong]) extends Column {
-    def minMax: Option[(Long, Long)] = {
-      val s = segments.flatMap(_.minMax.toSeq)
+    def nonMissingMinMax: Option[(Long, Long)] = {
+      val s = segments.flatMap(_.nonMissingMinMax.toSeq)
       if (s.isEmpty) None
       else Some((s.map(_._1).min, s.map(_._2).max))
     }
@@ -49,8 +49,8 @@ object Column {
     def tag = ColumnTag.I64
   }
   case class InstantColumn(segments: Vector[SegmentInstant]) extends Column {
-    def minMax: Option[(Long, Long)] = {
-      val s = segments.flatMap(_.minMax.toSeq)
+    def nonMissingMinMax: Option[(Long, Long)] = {
+      val s = segments.flatMap(_.nonMissingMinMax.toSeq)
       if (s.isEmpty) None
       else Some((s.map(_._1).min, s.map(_._2).max))
     }
@@ -68,14 +68,14 @@ object Column {
   case class StringColumn(segments: Vector[SegmentString])
       extends Column
       with StringColumnImpl {
-    def minMax: Option[(String, String)] = {
-      val s = segments.flatMap(_.minMax.toSeq)
+    def nonMissingMinMax: Option[(String, String)] = {
+      val s = segments.flatMap(_.nonMissingMinMax.toSeq)
       if (s.isEmpty) None
       else
         Some(
           (
-            s.map(_._1).min(CharSequenceOrdering),
-            s.map(_._2).max(CharSequenceOrdering)
+            s.map(_._1).min(CharSequenceOrdering).toString,
+            s.map(_._2).max(CharSequenceOrdering).toString
           )
         )
     }
@@ -93,8 +93,8 @@ object Column {
   case class F64Column(segments: Vector[SegmentDouble])
       extends Column
       with F64ColumnImpl {
-    def minMax: Option[(Double, Double)] = {
-      val s = segments.flatMap(_.minMax.toSeq)
+    def nonMissingMinMax: Option[(Double, Double)] = {
+      val s = segments.flatMap(_.nonMissingMinMax.toSeq)
       if (s.isEmpty) None
       else Some((s.map(_._1).min, s.map(_._2).max))
     }
@@ -139,7 +139,7 @@ sealed trait Column { self =>
   def segments: Vector[SegmentType]
   def numElems = segments.map(_.numElems).sum
   def ++(other: ColumnType): ColumnType
-  def minMax: Option[(Elem, Elem)]
+  def nonMissingMinMax: Option[(Elem, Elem)]
 
   override def toString =
     s"$tag\tN_segments=${segments.size}\tN_elem=${segments.map(_.numElems).sum}"
