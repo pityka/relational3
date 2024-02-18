@@ -11,7 +11,6 @@ import org.saddle.scalar.ScalarTagLong
 private[ra3] object CharSequenceOrdering
     extends scala.math.Ordering[CharSequence] { self =>
 
-
   def compare(x: CharSequence, y: CharSequence): Int =
     if (x == BufferString.missing && y == BufferString.missing) 0
     else if (x == BufferString.missing) -1
@@ -22,7 +21,7 @@ private[ra3] object CharSequenceOrdering
 }
 
 private[ra3] trait BufferStringImpl { self: BufferString =>
-      def nonMissingMinMax = makeStatistic().nonMissingMinMax
+  def nonMissingMinMax = makeStatistic().nonMissingMinMax
 
   def makeStatistic() = {
     var i = 0
@@ -32,28 +31,37 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
     var min = Option.empty[CharSequence]
     var max = Option.empty[CharSequence]
     val set = scala.collection.mutable.Set.empty[CharSequence]
+    val setBF = scala.collection.mutable.Set.empty[CharSequence]
     while (i < n) {
       if (isMissing(i)) {
         hasMissing = true
       } else {
         countNonMissing += 1
         val v = values(i)
-        if (min.isEmpty || CharSequenceOrdering.lt(v ,min.get)) {
+        if (min.isEmpty || CharSequenceOrdering.lt(v, min.get)) {
           min = Some(v)
         }
-        if (max.isEmpty || CharSequenceOrdering.gt(v , max.get)) {
+        if (max.isEmpty || CharSequenceOrdering.gt(v, max.get)) {
           max = Some(v)
         }
         if (set.size < 256 && !set.contains(v)) {
           set.+=(v)
         }
+        if (setBF.size < 16384 && !setBF.contains(v)) {
+          setBF.add(v)
+        }
       }
       i += 1
     }
+        val bloomFilter = BloomFilter.makeFromCharSequence(4096,2,setBF)
+
     StatisticCharSequence(
       hasMissing = hasMissing,
-      nonMissingMinMax = if (countNonMissing > 0) Some((min.get, max.get)) else None,
-      lowCardinalityNonMissingSet = if (set.size <= 255) Some(set.toSet) else None ,
+      nonMissingMinMax =
+        if (countNonMissing > 0) Some((min.get, max.get)) else None,
+      lowCardinalityNonMissingSet =
+        if (set.size <= 255) Some(set.toSet) else None,
+        bloomFilter = Some(bloomFilter)
     )
   }
 
@@ -301,11 +309,11 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
 
   }
 
-
   override def toSegment(
       name: LogicalPath
   )(implicit tsc: TaskSystemComponents): IO[SegmentString] = {
-    if (values.length == 0) IO.pure(SegmentString(None, 0, StatisticCharSequence.empty))
+    if (values.length == 0)
+      IO.pure(SegmentString(None, 0, StatisticCharSequence.empty))
     else
       IO {
         val byteSize = values.map(v => (v.length * 2L) + 4).sum
@@ -333,10 +341,11 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
           fs2.Stream.chunk(fs2.Chunk.byteBuffer(bbCompressed))
         }
       }.flatMap { stream =>
-
         SharedFile
           .apply(stream, name.toString)
-          .map(sf => SegmentString(Some(sf), values.length, self.makeStatistic()))
+          .map(sf =>
+            SegmentString(Some(sf), values.length, self.makeStatistic())
+          )
       }
 
   }

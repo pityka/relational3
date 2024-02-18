@@ -39,6 +39,7 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
       hasMissing = hasMissing,
       nonMissingMinMax = if (countNonMissing > 0) Some((min, max)) else None,
       lowCardinalityNonMissingSet = if (set.size <= 255) Some(set.toSet) else None ,
+      bloomFilter = None
     )
   }
 

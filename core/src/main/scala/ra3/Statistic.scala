@@ -54,7 +54,8 @@ object StatisticInt {
 case class StatisticLong(
     hasMissing: Boolean,
     nonMissingMinMax: Option[(Long, Long)],
-    lowCardinalityNonMissingSet: Option[Set[Long]]
+    lowCardinalityNonMissingSet: Option[Set[Long]],
+    bloomFilter: Option[BloomFilter]
 ) {
   def mightLtEq(i: Long): Boolean = {
     if (i == BufferLong.MissingValue) false
@@ -82,7 +83,10 @@ case class StatisticLong(
     else {
       lowCardinalityNonMissingSet match {
         case None =>
-          nonMissingMinMax.exists { case (min, max) => i >= min && i <= max }
+          nonMissingMinMax.exists { case (min, max) =>
+            val inRange = i >= min && i <= max
+            inRange && bloomFilter.map(_.mightContainLong(i)).getOrElse(true)
+          }
         case Some(set) => set.contains(i)
       }
     }
@@ -96,7 +100,7 @@ case class StatisticLong(
 }
 
 object StatisticLong {
-  val empty = StatisticLong(false, None, None)
+  val empty = StatisticLong(false, None, None, None)
   implicit val segmentCodec: JsonValueCodec[StatisticLong] = JsonCodecMaker.make
 }
 
@@ -153,10 +157,11 @@ object StatisticDouble {
 case class StatisticCharSequence(
     hasMissing: Boolean,
     nonMissingMinMax: Option[(CharSequence, CharSequence)],
-    lowCardinalityNonMissingSet: Option[Set[CharSequence]]
+    lowCardinalityNonMissingSet: Option[Set[CharSequence]],
+    bloomFilter: Option[BloomFilter]
 ) {
   import ra3.bufferimpl.{CharSequenceOrdering => CSO}
-  
+
   def mightLtEq(i: CharSequence): Boolean = {
     if (i == BufferString.MissingValue) false
     else nonMissingMinMax.exists { case (min, _) => CSO.gteq(i, min) }
@@ -183,8 +188,12 @@ case class StatisticCharSequence(
     lowCardinalityNonMissingSet match {
       case None =>
         nonMissingMinMax.exists { case (min, max) =>
-          ra3.bufferimpl.CharSequenceOrdering
+          val inRange = ra3.bufferimpl.CharSequenceOrdering
             .gteq(i, min) && ra3.bufferimpl.CharSequenceOrdering.lteq(i, max)
+          inRange && bloomFilter
+            .map(_.mightContainCharSequence(i))
+            .getOrElse(true)
+
         }
       case Some(set) => set.contains(i)
     }
@@ -197,7 +206,7 @@ case class StatisticCharSequence(
   }
 }
 object StatisticCharSequence {
-  val empty = StatisticCharSequence(false, None, None)
+  val empty = StatisticCharSequence(false, None, None, None)
 
   implicit val cs: JsonValueCodec[CharSequence] = ra3.Utils.charSequenceCodec
   implicit val segmentCodec: JsonValueCodec[StatisticCharSequence] =

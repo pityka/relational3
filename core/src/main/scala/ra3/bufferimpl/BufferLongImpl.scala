@@ -16,6 +16,7 @@ def nonMissingMinMax = makeStatistic().nonMissingMinMax
     var min = Long.MaxValue
     var max = Long.MinValue
     val set = scala.collection.mutable.Set.empty[Long]
+    val setBF = scala.collection.mutable.LongMap.empty[AnyRef]
     while (i < n) {
       if (isMissing(i)) {
         hasMissing = true
@@ -31,13 +32,18 @@ def nonMissingMinMax = makeStatistic().nonMissingMinMax
         if (set.size < 256 && !set.contains(v)) {
           set.+=(v)
         }
+        if (setBF.size < 16384 && !setBF.contains(v)) {
+          setBF.update(v,null)
+        }
       }
       i += 1
     }
+    val bloomFilter = BloomFilter.makeFromLongs(4096,2,setBF.keySet)
     StatisticLong(
       hasMissing = hasMissing,
       nonMissingMinMax = if (countNonMissing > 0) Some((min, max)) else None,
       lowCardinalityNonMissingSet = if (set.size <= 255) Some(set.toSet) else None ,
+      bloomFilter = Some(bloomFilter)
     )
   }
 
