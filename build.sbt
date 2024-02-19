@@ -98,6 +98,11 @@ lazy val akkaProvided = List(
   "com.typesafe.akka" %% "akka-remote" % akkaVersion % Provided
 )
 
+lazy val specs = List(
+  ("org.specs2" %% "specs2-core" % "4.14.1-cross" % "test"),
+  ("org.specs2" %% "specs2-scalacheck" % "4.14.1-cross" % "test")
+)
+
 lazy val root = project
   .in(file("."))
   .settings(commonSettings: _*)
@@ -120,7 +125,7 @@ lazy val core = project
       "io.github.pityka" %% "tasks-core" % "3.0.0-M7",
       "de.lhns" %% "fs2-compress-gzip" % "1.0.0",
       "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % "2.13.31" % "compile-internal"
-    ) ++ akkaProvided
+    ) ++ akkaProvided ++ specs
   )
 lazy val prototype = project
   .in(file("prototype"))

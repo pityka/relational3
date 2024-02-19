@@ -254,7 +254,7 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
         if (v == BufferString.MissingValue) null else v.toString
       )
     )
-    val reindexer = new (org.saddle.index.JoinerImpl[String]).join(
+    val reindexer = new (ra3.join.JoinerImpl[String]).join(
       left = idx1,
       right = idx2,
       how = how match {
@@ -263,7 +263,6 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
         case "right" => org.saddle.index.RightJoin
         case "outer" => org.saddle.index.OuterJoin
       },
-      forceProperSemantics = true
     )
     (reindexer.lTake.map(BufferInt(_)), reindexer.rTake.map(BufferInt(_)))
   }

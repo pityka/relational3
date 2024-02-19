@@ -76,8 +76,8 @@ class LongBufferSuite extends munit.FunSuite with WithTempTaskSystem {
       BufferLong(0, 0, Long.MinValue, Long.MinValue, 1, 1, 99),
       "outer"
     )
-    assertEquals(a.get.toSeq, Seq(0, 0, 1, 1, 2, 2, 3, -1))
-    assertEquals(b.get.toSeq, Seq(0, 1, 2, 3, 4, 5, -1, 6))
+    assertEquals(a.get.toSeq, Seq(0, 0, 1, 2, 2, 3, -1, -1 ,-1))
+    assertEquals(b.get.toSeq, Seq(0, 1, -1, 4, 5, -1, 2,3,6))
   }
 
   test("mergeNonMissing") {

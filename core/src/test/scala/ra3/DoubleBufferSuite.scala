@@ -77,8 +77,8 @@ class DoubleBufferSuite extends munit.FunSuite with WithTempTaskSystem {
       BufferDouble(0d, 0d, Double.NaN, Double.NaN, 1d, 1d, 99d),
       "outer"
     )
-    assertEquals(a.get.toSeq, Seq(0, 0, 1, 1, 2, 2, 3, -1))
-    assertEquals(b.get.toSeq, Seq(0, 1, 2, 3, 4, 5, -1, 6))
+    assertEquals(a.get.toSeq, Seq(0, 0, 1, 2, 2, 3, -1, -1 ,-1))
+    assertEquals(b.get.toSeq, Seq(0, 1, -1, 4, 5, -1, 2,3,6))
   }
 
   test("mergeNonMissing") {

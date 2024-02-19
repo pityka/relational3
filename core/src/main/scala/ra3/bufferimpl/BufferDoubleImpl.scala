@@ -269,7 +269,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
     import org.saddle._
     val idx1 = Index(values)
     val idx2 = Index(other.asBufferType.values)
-    val reindexer = new (org.saddle.index.JoinerImpl[Double]).join(
+    val reindexer = new (ra3.join.JoinerImpl[Double]).join(
       left = idx1,
       right = idx2,
       how = how match {
@@ -278,7 +278,6 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
         case "right" => org.saddle.index.RightJoin
         case "outer" => org.saddle.index.OuterJoin
       },
-      forceProperSemantics = true
     )
     (reindexer.lTake.map(BufferInt(_)), reindexer.rTake.map(BufferInt(_)))
   }

@@ -182,7 +182,7 @@ def nonMissingMinMax = makeStatistic().nonMissingMinMax
   ): (Option[BufferInt], Option[BufferInt]) = {
     val idx1 = Index(values)
     val idx2 = Index(other.values)
-    val reindexer = new (org.saddle.index.JoinerImpl[Long]).join(
+    val reindexer = new (ra3.join.JoinerImpl[Long]).join(
       left = idx1,
       right = idx2,
       how = how match {
@@ -191,7 +191,6 @@ def nonMissingMinMax = makeStatistic().nonMissingMinMax
         case "right" => org.saddle.index.RightJoin
         case "outer" => org.saddle.index.OuterJoin
       },
-      forceProperSemantics = true
     )
     (reindexer.lTake.map(BufferInt(_)), reindexer.rTake.map(BufferInt(_)))
   }

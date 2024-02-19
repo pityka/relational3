@@ -17,7 +17,7 @@ Missing value (null) semantics
 - missing value is sorted below non missing values
 - direct literal or column comparison with a missing value always returns false (like Double.NaN)
 - filter for missing values is possible with explicit isMissing (like sql is null)
-- NOT TRUE at the moment: joins do not join on missing values i.e.: 
+- joins do not join on missing values i.e.: 
 - -  inner join does not return missing values in the join column
 - - outer join returns one row for each missing value row, with nothing joined from other tables (ie all missing)
 - group by on missing treats missing as an other (single) group
