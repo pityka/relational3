@@ -103,4 +103,45 @@ class LongBufferSuite extends munit.FunSuite with WithTempTaskSystem {
     )
   }
 
+  test("statistic mightEq") {
+    1 to 1000 foreach{ _ =>
+      val ar = org.saddle.array.randLong(10000)  
+      val b = BufferLong(ar)
+      val st = b.makeStatistic()
+      assert(ar.forall(l => st.mightEq(l)))
+    }
+  }
+  test("statistic mightLt") {
+    1 to 1000 foreach{ _ =>
+      val ar = org.saddle.array.randLong(10000)  
+      val b = BufferLong(ar)
+      val st = b.makeStatistic()
+      assert(ar.forall(l => st.mightLt(l+1)))
+    }
+  }
+  test("statistic mightLtEq") {
+    1 to 1000 foreach{ _ =>
+      val ar = org.saddle.array.randLong(10000)  
+      val b = BufferLong(ar)
+      val st = b.makeStatistic()
+      assert(ar.forall(l => st.mightLtEq(l)))
+    }
+  }
+  test("statistic mightGtEq") {
+    1 to 1000 foreach{ _ =>
+      val ar = org.saddle.array.randLong(10000)  
+      val b = BufferLong(ar)
+      val st = b.makeStatistic()
+      assert(ar.forall(l => st.mightGtEq(l)))
+    }
+  }
+  test("statistic mightGt") {
+    1 to 1000 foreach{ _ =>
+      val ar = org.saddle.array.randLong(10000)  
+      val b = BufferLong(ar)
+      val st = b.makeStatistic()
+      assert(ar.forall(l => st.mightGt(l-1)))
+    }
+  }
+
 }
