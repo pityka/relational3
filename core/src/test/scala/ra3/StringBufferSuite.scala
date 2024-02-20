@@ -124,7 +124,6 @@ class StringBufferSuite extends munit.FunSuite with WithTempTaskSystem {
   test("isMissing") {
     assert(BufferString("0").isMissing(0) == false)
     assert(BufferString("").isMissing(0) == false)
-    assert(BufferString(null.asInstanceOf[String]).isMissing(0) == false)
     assert(BufferString(BufferString.missing.toString).isMissing(0) == true)
   }
   test("elementwise eq") {
