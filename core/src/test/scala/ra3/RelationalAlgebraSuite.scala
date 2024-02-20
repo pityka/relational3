@@ -117,6 +117,30 @@ trait WithTempTaskSystem {
       .toOption
       .get
   }
+  def csvStringToDoubleTable(
+      name: String,
+      csv: String,
+      numCols: Int,
+      segmentLength: Int
+  )(implicit
+      tsc: TaskSystemComponents
+  ) = {
+    val channel =
+      Channels.newChannel(new ByteArrayInputStream(csv.getBytes()))
+
+    ra3.csv
+      .readHeterogeneousFromCSVChannel(
+        name,
+        List(
+          0 until (numCols) map (i => (i, ColumnTag.F64, None)): _*
+        ),
+        channel = channel,
+        header = true,
+        maxSegmentLength = segmentLength
+      )
+      .toOption
+      .get
+  }
   def csvStringToLongTable(
       name: String,
       csv: String,

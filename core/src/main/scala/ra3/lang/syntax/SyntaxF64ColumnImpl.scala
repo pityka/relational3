@@ -15,10 +15,10 @@ trait SyntaxF64ColumnImpl {
     Expr.makeOp2(ops.Op2.ColumnSubtractOpDD)(arg0, arg1)
   
   def <=(arg1: F64ColumnExpr) = Expr.makeOp2(ops.Op2.ColumnLtEqOpDD)(arg0, arg1)
-  def <=(arg1: Double) = Expr.makeOp2(ops.Op2.ColumnGtEqOpDcD)(arg0, arg1)
+  def <=(arg1: Double) = Expr.makeOp2(ops.Op2.ColumnLtEqOpDcD)(arg0, arg1)
   
   def <(arg1: F64ColumnExpr) = Expr.makeOp2(ops.Op2.ColumnLtOpDD)(arg0, arg1)
-  def <(arg1: Double) = Expr.makeOp2(ops.Op2.ColumnGtOpDcD)(arg0, arg1)
+  def <(arg1: Double) = Expr.makeOp2(ops.Op2.ColumnLtOpDcD)(arg0, arg1)
 
   def ===(arg1: F64ColumnExpr) = Expr.makeOp2(ops.Op2.ColumnEqOpDD)(arg0, arg1)
   def ===(arg1: Double) = Expr.makeOp2(ops.Op2.ColumnEqOpDcD)(arg0, arg1)
@@ -28,6 +28,9 @@ trait SyntaxF64ColumnImpl {
   def >=(arg1: Double) = Expr.makeOp2(ops.Op2.ColumnGtEqOpDcD)(arg0, arg1)
   def >(arg1: F64ColumnExpr) = Expr.makeOp2(ops.Op2.ColumnGtOpDD)(arg0, arg1)
   def >(arg1: Double) = Expr.makeOp2(ops.Op2.ColumnGtOpDcD)(arg0, arg1)
+
+  def containedIn(arg1: Set[Double]) =
+    Expr.makeOp2(ops.Op2.ColumnContainedInOpDcDSet)(arg0, arg1)
 
   def printf(arg1: String) =
     Expr.makeOp2(ops.Op2.ColumnPrintfOpDcStr)(arg0, arg1)
