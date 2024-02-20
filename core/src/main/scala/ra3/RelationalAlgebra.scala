@@ -89,12 +89,12 @@ trait RelationalAlgebra { self: Table =>
       )
     }
   }
-   def query(
+   def in0(
       body: ra3.tablelang.TableExpr.Ident => ra3.tablelang.TableExpr
   ): ra3.tablelang.TableExpr =
     ra3.lang.local(ra3.tablelang.TableExpr.Const(this))(body)
 
-  def schema[T0: NotNothing](
+  def in[T0: NotNothing](
       body: (TableExpr.Ident, ra3.lang.DelayedIdent[T0]) => TableExpr
   ): TableExpr = {
     local(TableExpr.Const(self)) { t =>
@@ -103,7 +103,7 @@ trait RelationalAlgebra { self: Table =>
       }
     }
   }
-  def schema[T0: NotNothing, T1: NotNothing](
+  def in[T0: NotNothing, T1: NotNothing](
       body: (
           TableExpr.Ident,
           ra3.lang.DelayedIdent[T0],
@@ -116,7 +116,7 @@ trait RelationalAlgebra { self: Table =>
       }
     }
   }
-  def schema[T0: NotNothing, T1: NotNothing, T2: NotNothing](
+  def in[T0: NotNothing, T1: NotNothing, T2: NotNothing](
       body: (
           TableExpr.Ident,
           ra3.lang.DelayedIdent[T0],
@@ -130,7 +130,7 @@ trait RelationalAlgebra { self: Table =>
       }
     }
   }
-  def schema[T0: NotNothing, T1: NotNothing, T2: NotNothing, T3: NotNothing](
+  def in[T0: NotNothing, T1: NotNothing, T2: NotNothing, T3: NotNothing](
       body: (
           TableExpr.Ident,
           ra3.lang.DelayedIdent[T0],
@@ -145,7 +145,7 @@ trait RelationalAlgebra { self: Table =>
       }
     }
   }
-  def schema[T0: NotNothing, T1: NotNothing, T2: NotNothing, T3: NotNothing, T4:NotNothing](
+  def in[T0: NotNothing, T1: NotNothing, T2: NotNothing, T3: NotNothing, T4:NotNothing](
       body: (
           TableExpr.Ident,
           ra3.lang.DelayedIdent[T0],
@@ -161,17 +161,7 @@ trait RelationalAlgebra { self: Table =>
       }
     }
   }
-  // def query(
-  //     query: TableReference => ra3.lang.Query
-  // )(implicit tsc: TaskSystemComponents): IO[Table] = {
-  //   val tRef = TableReference(
-  //     uniqueId = uniqueId,
-  //     colTags = columns.map(_.tag),
-  //     colNames = colNames
-  //   )
-  //   ra3.SimpleQuery.simpleQuery(self, query(tRef))
-
-  // }
+ 
 
   def rfilterInEquality(
       columnIdx: Int,

@@ -24,7 +24,7 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
           p: (DelayedIdent[DF64], DelayedIdent[DF64]) => I32ColumnExpr
       )(p2: (Vec[Double], Vec[Double]) => Array[Int]) = {
         val less = ra3Table
-          .schema[DF64, DF64] { (tab, col0, col1) =>
+          .in[DF64, DF64] { (tab, col0, col1) =>
             tab.query(
               ra3.lang
                 .select(ra3.lang.star)
@@ -128,7 +128,7 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
         )
         (frame.mapValues(_.toString), csv)
       }
-      val ra3Table = csvStringToStringTable("table", tableCsv, 2, 3).schema[DStr,DStr]{ (tab,col0,col1) =>
+      val ra3Table = csvStringToStringTable("table", tableCsv, 2, 3).in[DStr,DStr]{ (tab,col0,col1) =>
         tab.query(ra3.lang.select(
           col0.matchAndReplace("NA",MissingString) as "V0",
           col1.matchAndReplace("NA",MissingString) as "V1",
@@ -138,7 +138,7 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
           p: (DelayedIdent[DStr], DelayedIdent[DStr]) => I32ColumnExpr
       )(p2: (Vec[String], Vec[String]) => Array[Int]) = {
         val less = ra3Table
-          .schema[DStr, DStr] { (tab, col0, col1) =>
+          .in[DStr, DStr] { (tab, col0, col1) =>
             tab.query(
               ra3.lang
                 .select(ra3.lang.star)
@@ -248,7 +248,7 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
           p: (DelayedIdent[DI32], DelayedIdent[DI32]) => I32ColumnExpr
       )(p2: (Vec[Int], Vec[Int]) => Array[Int]) = {
         val less = ra3Table
-          .schema[DI32, DI32] { (tab, col0, col1) =>
+          .in[DI32, DI32] { (tab, col0, col1) =>
             tab.query(
               ra3.lang
                 .select(ra3.lang.star)
@@ -355,7 +355,7 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
       import ra3.lang.{global => _, _}
       val less =
         ra3.lang
-          .schema[DStr, DStr](ra3Table) { case (t, col0, _) =>
+          .let[DStr, DStr](ra3Table) { case (t, col0, _) =>
             t.query(
               ra3.lang
                 .select(ra3.lang.star)

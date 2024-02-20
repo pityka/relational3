@@ -33,7 +33,7 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
           case "V1" => "value"
         }
 
-      val result = schema[DStr, DF64](table) { case (_, station, value) =>
+      val result = let[DStr, DF64](table) { case (_, station, value) =>
         station.groupBy(
             select(
               station.first as "station",
@@ -119,7 +119,7 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
           case "V1" => "value"
         }
 
-      val result = schema[DStr, DF64](table) { case (table, station, _) =>
+      val result = let[DStr, DF64](table) { case (table, station, _) =>
         table.query(select(star).where(station === "Skopje"))
           
       }.evaluate
@@ -189,7 +189,7 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
           case "V1" => "value"
         }
 
-      val result = schema[DStr, DF64](table) { case (table, station, _) =>
+      val result = let[DStr, DF64](table) { case (table, station, _) =>
         station.groupBy(
             select(
               station.first as "station",

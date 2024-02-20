@@ -23,7 +23,7 @@ class QuerySuite extends munit.FunSuite with WithTempTaskSystem {
       val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
 
       val result = ra3Table
-        .schema[DI32] { (table, col0) =>
+        .in[DI32] { (table, col0) =>
           table.query(ra3.lang.select(ra3.lang.star).where(col0 === 0))
         }
         .evaluate
@@ -52,7 +52,7 @@ class QuerySuite extends munit.FunSuite with WithTempTaskSystem {
       val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
 
       val result = ra3Table
-        .schema[DI32] { (table, col0) =>
+        .in[DI32] { (table, col0) =>
           table.query(
             ra3.lang.select(ra3.lang.star).where(col0.containedIn(Set(0, 1)))
           )
@@ -83,7 +83,7 @@ class QuerySuite extends munit.FunSuite with WithTempTaskSystem {
       val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
 
       val result = ra3Table
-        .schema[DI32] { (table, col0) =>
+        .in[DI32] { (table, col0) =>
             table.query(ra3.lang.select(ra3.lang.star).where(col0 >= 0))
           }.evaluate
         
@@ -112,7 +112,7 @@ class QuerySuite extends munit.FunSuite with WithTempTaskSystem {
       val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
 
       val result = ra3Table
-        .schema[DI32] { (table, col0) =>
+        .in[DI32] { (table, col0) =>
             table.query(ra3.lang.select(ra3.lang.star).where(col0 <= 0))
           
         }.evaluate

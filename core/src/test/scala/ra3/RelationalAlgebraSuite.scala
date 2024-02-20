@@ -330,7 +330,7 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
 
       val result = ra3Table
-        .query { table =>
+        .in0 { table =>
           table.query(ra3.lang.select(ra3.lang.star))
         }.evaluate
         .unsafeRunSync()
@@ -357,7 +357,7 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
 
       val less = ra3Table
-        .schema[DI32,DI32] { (table,col0, col1) =>
+        .in[DI32,DI32] { (table,col0, col1) =>
             table.count(ra3.lang
               .select(col1 as "b", col1, ra3.lang.star)
               .where(col0.tap("col0") <= 0))
@@ -386,7 +386,7 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
 
       val less = ra3Table
-        .schema[DI32,DI32] { (table,col0, col1) =>
+        .in[DI32,DI32] { (table,col0, col1) =>
             table.query(ra3.lang
               .select(col1 as "b", col1, ra3.lang.star)
               .where(col0.tap("col0") <= 0))
@@ -419,7 +419,7 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
 
       import ra3.lang._
       import cats.effect.unsafe.implicits.global
-      val less2 = schema[DI32,DI32](ra3Table) { (t1,v0,v1) =>
+      val less2 = let[DI32,DI32](ra3Table) { (t1,v0,v1) =>
           t1.query(
             ra3.lang
               .select(v1 as "b", v1.unnamed, ra3.lang.star)
@@ -591,8 +591,8 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
   //     partitionLimit: Int,
   //     maxSegmentsToBufferAtOnce: Int
 
-      val result = tableA.query{ tableA =>
-        tableB.query{ tableB =>
+      val result = tableA.in0{ tableA =>
+        tableB.in0{ tableB =>
           tableA.useColumn[DI32](3){ aCol3 =>
               tableB.useColumn[DI32](3) {bCol3 =>
                 aCol3.join.outer(bCol3).withPartitionBase(3).withPartitionLimit(0).withMaxSegmentsBufferingAtOnce(2).elementwise(ra3.lang.select(ra3.lang.star))
@@ -679,8 +679,8 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       assertEquals(toFrame(tableB), tF2.resetRowIndex)
 
       val result = 
-        tableA.query{ tableA =>
-        tableB.query{ tableB =>
+        tableA.in0{ tableA =>
+        tableB.in0{ tableB =>
           tableA.useColumns[DI32,DI32](0,3){ (aCol0,aCol3) =>
               tableB.useColumn[DI32](3) {bCol3 =>
                 aCol3.join.inner(bCol3).withPartitionBase(3).withPartitionLimit(11).withMaxSegmentsBufferingAtOnce(2).elementwise(ra3.lang.select(aCol0,ra3.lang.star))
@@ -770,8 +770,8 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       assertEquals(toFrame(tableB), tF2.resetRowIndex)
 
       val result = 
-         tableA.query{ tableA =>
-        tableB.query{ tableB =>
+         tableA.in0{ tableA =>
+        tableB.in0{ tableB =>
           tableA.useColumns[DI32,DI32](0,3){ (aCol0,aCol3) =>
               tableB.useColumn[DI32](3) {bCol3 =>
                 aCol3.join.inner(bCol3).withPartitionBase(3).withPartitionLimit(0).withMaxSegmentsBufferingAtOnce(2).elementwise(ra3.lang.select(aCol0,ra3.lang.star))
@@ -857,8 +857,8 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       assertEquals(toFrame(tableA), tF.resetRowIndex)
       assertEquals(toFrame(tableB), tF2.resetRowIndex)
 
-      val result =  tableA.query{ tableA =>
-        tableB.query{ tableB =>
+      val result =  tableA.in0{ tableA =>
+        tableB.in0{ tableB =>
           tableA.useColumns[DI32,DI32](0,3){ (aCol0,aCol3) =>
               tableB.useColumn[DI32](3) {bCol3 =>
                 aCol3.join.inner(bCol3).withPartitionBase(3).withPartitionLimit(0).withMaxSegmentsBufferingAtOnce(2).elementwise(ra3.lang.select(ra3.lang.star))
@@ -942,8 +942,8 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       assertEquals(toFrame(tableA), tF.resetRowIndex)
       assertEquals(toFrame(tableB), tF2.resetRowIndex)
 
-      val result = tableA.query{ tableA =>
-        tableB.query{ tableB =>
+      val result = tableA.in0{ tableA =>
+        tableB.in0{ tableB =>
           tableA.useColumns[DI32,DI32](0,3){ (aCol0,aCol3) =>
               tableB.useColumn[DI32](3) {bCol3 =>
                 aCol3.join.inner(bCol3).withPartitionBase(3).withPartitionLimit(0).withMaxSegmentsBufferingAtOnce(2).elementwise(ra3.lang.select(ra3.lang.star))
@@ -1043,9 +1043,9 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       assertEquals(toFrame(tableC), tF3.resetRowIndex)
 
       val result = 
-        tableA.query{ tableA =>
-        tableB.query{ tableB =>
-        tableC.query{ tableC =>
+        tableA.in0{ tableA =>
+        tableB.in0{ tableB =>
+        tableC.in0{ tableC =>
           tableA.useColumns[DI32,DI32](0,3){ (aCol0,aCol3) =>
               tableB.useColumn[DI32](3) {bCol3 =>
               tableC.useColumn[DI32](3) {cCol3 =>
@@ -1134,8 +1134,8 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       assertEquals(toFrame(tableA), tF.resetRowIndex)
       assertEquals(toFrame(tableB), tF2.resetRowIndex)
 
-      val result = tableA.query{ tableA =>
-        tableB.query{ tableB =>
+      val result = tableA.in0{ tableA =>
+        tableB.in0{ tableB =>
           tableA.useColumns[DI32,DI32](0,3){ (aCol0,aCol3) =>
               tableB.useColumn[DI32](3) {bCol3 =>
                 aCol3.join.inner(bCol3).withPartitionBase(3).withPartitionLimit(0).withMaxSegmentsBufferingAtOnce(2).elementwise(ra3.lang.select(ra3.lang.star).where(aCol0 <= 0))
@@ -1219,8 +1219,8 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       assertEquals(toFrame(tableA), tF.resetRowIndex)
       assertEquals(toFrame(tableB), tF2.resetRowIndex)
 
-      val result = tableA.query{ tableA =>
-        tableB.query{ tableB =>
+      val result = tableA.in0{ tableA =>
+        tableB.in0{ tableB =>
           tableA.useColumns[DI32,DI32](0,3){ (aCol0,aCol3) =>
               tableB.useColumn[DI32](3) {bCol3 =>
                 aCol3.join.left(bCol3).withPartitionBase(3).withPartitionLimit(0).withMaxSegmentsBufferingAtOnce(2).elementwise(ra3.lang.select(ra3.lang.star))
@@ -1303,8 +1303,8 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       assertEquals(toFrame(tableA), tF.resetRowIndex)
       assertEquals(toFrame(tableB), tF2.resetRowIndex)
 
-      val result = tableA.query{ tableA =>
-        tableB.query{ tableB =>
+      val result = tableA.in0{ tableA =>
+        tableB.in0{ tableB =>
           tableA.useColumns[DI32,DI32](0,3){ (aCol0,aCol3) =>
               tableB.useColumn[DI32](3) {bCol3 =>
                 aCol3.join.right(bCol3).withPartitionBase(3).withPartitionLimit(0).withMaxSegmentsBufferingAtOnce(2).elementwise(ra3.lang.select(ra3.lang.star))
@@ -1400,7 +1400,7 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
 
 
       val result = toFrame(
-        tableA.schema[DI32,DI32,DI32,DI32]( (_,c1,c2,c3,c4) =>
+        tableA.in[DI32,DI32,DI32,DI32]( (_,c1,c2,c3,c4) =>
             c4.groupBy.withPartitionBase(3).withPartitionLimit(0).withMaxSegmentsBufferingAtOnce(2)
             .apply(
               ra3.lang.select(c1.sum, c2.sum, c3.sum, c4.sum as "V4")
@@ -1446,7 +1446,7 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
 
 
       val result = toLongFrame(
-        tableA.schema[DI32,DI32,DI32,DI32]( (_,c1,c2,c3,c4) =>
+        tableA.in[DI32,DI32,DI32,DI32]( (_,c1,c2,c3,c4) =>
             c4.groupBy.withPartitionBase(3).withPartitionLimit(0).withMaxSegmentsBufferingAtOnce(2)
             .apply(
               ra3.lang.select(c1.sum, c2.sum, c3.sum, c4.sum as "V4")
@@ -1494,7 +1494,7 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       println(tableA)
 
       val result = toFrame(
-        tableA.schema[DI32,DI32,DI32,DI32]( (table,c1,c2,c3,c4) =>
+        tableA.in[DI32,DI32,DI32,DI32]( (table,c1,c2,c3,c4) =>
           table.reduce(
                     ra3.lang.select(c1.sum, c2.sum, c3.sum, c4.sum as "V4"))
             
@@ -1655,8 +1655,8 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       assertEquals(toFrame(tableA), tF.resetRowIndex)
       assertEquals(toFrame(tableB), tF2.resetRowIndex)
 
-      val joined = tableA.query{ tableA =>
-        tableB.query{ tableB =>
+      val joined = tableA.in0{ tableA =>
+        tableB.in0{ tableB =>
           tableA.useColumns[DI32,DI32](0,3){ (aCol0,aCol3) =>
               tableB.useColumn[DI32](3) {bCol3 =>
                 aCol3.join.inner(bCol3).withPartitionBase(3).withPartitionLimit(0).withMaxSegmentsBufferingAtOnce(2).elementwise(ra3.lang.select(ra3.lang.star))
@@ -1744,8 +1744,8 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       assertEquals(toFrame(tableA), tF.resetRowIndex)
       assertEquals(toFrame(tableB), tF2.resetRowIndex)
 
-      val joined = tableA.query{ tableA =>
-        tableB.query{ tableB =>
+      val joined = tableA.in0{ tableA =>
+        tableB.in0{ tableB =>
           tableA.useColumns[DI32,DI32](0,3){ (aCol0,aCol3) =>
               tableB.useColumn[DI32](3) {bCol3 =>
                 aCol3.join.inner(bCol3).withPartitionBase(3).withPartitionLimit(6).withMaxSegmentsBufferingAtOnce(2).elementwise(ra3.lang.select(ra3.lang.star))
@@ -1766,8 +1766,8 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
         .map(_.toHomogeneousFrame(I32))
         .reduce(_ concat _)
 
-      val joined2 = tableA.query{ tableA =>
-        tableB.query{ tableB =>
+      val joined2 = tableA.in0{ tableA =>
+        tableB.in0{ tableB =>
           tableA.useColumns[DI32,DI32](0,3){ (aCol0,aCol3) =>
               tableB.useColumn[DI32](3) {bCol3 =>
                 aCol3.join.inner(bCol3).withPartitionBase(3).withPartitionLimit(6).withMaxSegmentsBufferingAtOnce(2).elementwise(ra3.lang.select(ra3.lang.star))
@@ -1861,8 +1861,8 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       val pre = tableB.prePartition(List(3, 0), 3, 0,2).unsafeRunSync()
       println(pre)
 
-      val joined = tableA.query{ tableA =>
-        pre.query{ tableB =>
+      val joined = tableA.in0{ tableA =>
+        pre.in0{ tableB =>
           tableA.useColumns[DI32,DI32](0,3){ (aCol0,aCol3) =>
               tableB.useColumn[DI32](3) {bCol3 =>
                 aCol3.join.inner(bCol3).withPartitionBase(3).withPartitionLimit(6).withMaxSegmentsBufferingAtOnce(2).elementwise(ra3.lang.select(ra3.lang.star))
@@ -1883,8 +1883,8 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
         .map(_.toHomogeneousFrame(I32))
         .reduce(_ concat _)
 
-      val joined2 = tableA.query{ tableA =>
-        tableB.query{ tableB =>
+      val joined2 = tableA.in0{ tableA =>
+        tableB.in0{ tableB =>
           tableA.useColumns[DI32,DI32](0,3){ (aCol0,aCol3) =>
               tableB.useColumn[DI32](3) {bCol3 =>
                 aCol3.join.inner(bCol3).withPartitionBase(3).withPartitionLimit(6).withMaxSegmentsBufferingAtOnce(2).elementwise(ra3.lang.select(ra3.lang.star))

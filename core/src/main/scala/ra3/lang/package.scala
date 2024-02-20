@@ -217,7 +217,7 @@ package object lang {
       body: TableExpr.Ident => TableExpr
   ): TableExpr =
     local(TableExpr.Const(assigned))(body)
-  def schema[T0: NotNothing](assigned: ra3.Table)(
+  def let[T0: NotNothing](assigned: ra3.Table)(
       body: (TableExpr.Ident, ra3.lang.DelayedIdent[T0]) => TableExpr
   ): TableExpr = {
     local(TableExpr.Const(assigned)) { t =>
@@ -226,7 +226,7 @@ package object lang {
       }
     }
   }
-  def schema[T0: NotNothing, T1: NotNothing](assigned: ra3.Table)(
+  def let[T0: NotNothing, T1: NotNothing](assigned: ra3.Table)(
       body: (
           TableExpr.Ident,
           ra3.lang.DelayedIdent[T0],
@@ -239,7 +239,7 @@ package object lang {
       }
     }
   }
-  def schema[T0: NotNothing, T1: NotNothing, T2: NotNothing](
+  def let[T0: NotNothing, T1: NotNothing, T2: NotNothing](
       assigned: ra3.Table
   )(
       body: (
@@ -255,7 +255,7 @@ package object lang {
       }
     }
   }
-  def schema[T0: NotNothing, T1: NotNothing, T2: NotNothing, T3: NotNothing](
+  def let[T0: NotNothing, T1: NotNothing, T2: NotNothing, T3: NotNothing](
       assigned: ra3.Table
   )(
       body: (
