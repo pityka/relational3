@@ -97,6 +97,8 @@ private[ra3] object BloomFilter {
 
 private[ra3] case class BloomFilter(bitset: BitSet, numHashes: Int) {
 
+  override def toString = "BloomFilter"
+
   private val hf = com.google.common.hash.Hashing.murmur3_128()
 
   private val numBits = bitset.capacity

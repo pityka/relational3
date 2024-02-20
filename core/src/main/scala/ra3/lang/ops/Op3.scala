@@ -14,6 +14,19 @@ private[lang] sealed trait Op3 {
 
 private[lang] object Op3 {
 
+   case object StringMatchAndReplaceOp extends Op3 {
+    type A0 = DStr
+    type A1 = String
+    type A2 = String
+    type T = DStr
+    def op(a: DStr, b: String, c: String)(implicit
+        tsc: TaskSystemComponents
+    ): IO[DStr] =
+      for {
+        a <- bufferIfNeeded(a)
+      } yield Left(a.elementwise_matches_replace(b,c))
+  }
+
   sealed trait Op3III extends Op3 {
     type A0 = Int
     type A1 = Int

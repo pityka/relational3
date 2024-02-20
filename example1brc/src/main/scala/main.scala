@@ -220,12 +220,25 @@ object main extends App {
               )
               .all
           }
+      import ra3.tablelang._
+      import ra3.lang._
+      case class TypedTableSchema(
+          table: TableExpr,
+          rowId: ra3.lang.DelayedIdent[DStr],
+          customer: ra3.lang.DelayedIdent[DStr],
+          value: ra3.lang.DelayedIdent[DF64]
+      )
+
+      def mySchema(a: Table)(f: TypedTableSchema => ra3.tablelang.TableExpr) =
+        schema[DStr, DStr, DF64](a) { case (t, c0, c1, c2) =>
+          f(TypedTableSchema(t, c0, c1, c2))
+        }
 
       val (show, table) =
-        schema[DStr, DStr, DF64](tableA) { case (_, _, customerA, priceA) =>
+        mySchema(tableA) { case tableASchema =>
           schema[DStr, DStr, DF64](tableB) { case (_, _, customerB, priceB) =>
-            groupByCustomer(customerA, priceA).in[DStr, DF64] {
-              case (_, customerA, meanpriceA) =>
+            groupByCustomer(tableASchema.customer, tableASchema.value)
+              .in[DStr, DF64] { case (_, customerA, meanpriceA) =>
                 groupByCustomer(customerB, priceB).in[DStr, DF64] {
                   case (_, customerB, meanpriceB) =>
                     customerA.join
@@ -233,7 +246,7 @@ object main extends App {
                       .withPartitionBase(256)
                       .elementwise(select(customerA, meanpriceA, meanpriceB))
                 }
-            }
+              }
 
           }
         }.evaluate

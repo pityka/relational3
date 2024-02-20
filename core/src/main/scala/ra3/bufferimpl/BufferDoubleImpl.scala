@@ -346,7 +346,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (self.values(i) == other.values(i)) 1 else 0
+      r(i) = if (isMissing(i) || other.isMissing(i)) BufferInt.MissingValue else if (self.values(i) == other.values(i)) 1 else 0
       i += 1
     }
     BufferInt(r)
@@ -358,7 +358,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (self.values(i) > other.values(i)) 1 else 0
+      r(i) = if (isMissing(i) || other.isMissing(i)) BufferInt.MissingValue else if (self.values(i) > other.values(i)) 1 else 0
       i += 1
     }
     BufferInt(r)
@@ -370,7 +370,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (self.values(i) >= other.values(i)) 1 else 0
+      r(i) = if (isMissing(i) || other.isMissing(i)) BufferInt.MissingValue else if (self.values(i) >= other.values(i)) 1 else 0
       i += 1
     }
     BufferInt(r)
@@ -382,7 +382,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (self.values(i) < other.values(i)) 1 else 0
+      r(i) = if (isMissing(i) || other.isMissing(i)) BufferInt.MissingValue else if (self.values(i) < other.values(i)) 1 else 0
       i += 1
     }
     BufferInt(r)
@@ -394,7 +394,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (self.values(i) <= other.values(i)) 1 else 0
+      r(i) = if (isMissing(i) || other.isMissing(i)) BufferInt.MissingValue else if (self.values(i) <= other.values(i)) 1 else 0
       i += 1
     }
     BufferInt(r)
@@ -405,7 +405,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (self.values(i) <= other) 1 else 0
+      r(i) = if (isMissing(i) || other.isNaN) BufferInt.MissingValue else if (self.values(i) <= other) 1 else 0
       i += 1
     }
     BufferInt(r)
@@ -416,7 +416,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (self.values(i) >= other) 1 else 0
+      r(i) = if (isMissing(i) || other.isNaN) BufferInt.MissingValue else if (self.values(i) >= other) 1 else 0
       i += 1
     }
     BufferInt(r)
@@ -427,7 +427,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (self.values(i) > other) 1 else 0
+      r(i) = if (isMissing(i) || other.isNaN) BufferInt.MissingValue else if (self.values(i) > other) 1 else 0
       i += 1
     }
     BufferInt(r)
@@ -438,7 +438,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (self.values(i) < other) 1 else 0
+      r(i) = if (isMissing(i) || other.isNaN) BufferInt.MissingValue else if (self.values(i) < other) 1 else 0
       i += 1
     }
     BufferInt(r)
@@ -449,7 +449,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (self.values(i) == other) 1 else 0
+      r(i) = if (isMissing(i) || other.isNaN) BufferInt.MissingValue else if (self.values(i) == other) 1 else 0
       i += 1
     }
     BufferInt(r)
@@ -460,7 +460,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (self.values(i) != other) 1 else 0
+      r(i) = if (isMissing(i) || other.isNaN) BufferInt.MissingValue else if (self.values(i) != other) 1 else 0
       i += 1
     }
     BufferInt(r)
@@ -472,7 +472,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (self.values(i) != other.values(i)) 1 else 0
+      r(i) = if (isMissing(i) || other.isMissing(i)) BufferInt.MissingValue else if (self.values(i) != other.values(i)) 1 else 0
       i += 1
     }
     BufferInt(r)
@@ -485,7 +485,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (self.values(i) == other.values(i)) 1 else 0
+      r(i) = if (isMissing(i) || other.isMissing(i)) BufferInt.MissingValue else if (self.values(i) == other.values(i)) 1 else 0
       i += 1
     }
     BufferInt(r)
@@ -497,7 +497,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (self.values(i) > other.values(i)) 1 else 0
+      r(i) = if (isMissing(i) || other.isMissing(i)) BufferInt.MissingValue else if (self.values(i) > other.values(i)) 1 else 0
       i += 1
     }
     BufferInt(r)
@@ -509,7 +509,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (self.values(i) >= other.values(i)) 1 else 0
+      r(i) = if (isMissing(i) || other.isMissing(i)) BufferInt.MissingValue else if (self.values(i) >= other.values(i)) 1 else 0
       i += 1
     }
     BufferInt(r)
@@ -521,7 +521,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (self.values(i) < other.values(i)) 1 else 0
+      r(i) = if (isMissing(i) || other.isMissing(i)) BufferInt.MissingValue else if (self.values(i) < other.values(i)) 1 else 0
       i += 1
     }
     BufferInt(r)
@@ -533,7 +533,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (self.values(i) <= other.values(i)) 1 else 0
+      r(i) = if (isMissing(i) || other.isMissing(i)) BufferInt.MissingValue else if (self.values(i) <= other.values(i)) 1 else 0
       i += 1
     }
     BufferInt(r)
@@ -545,7 +545,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (self.values(i) != other.values(i)) 1 else 0
+      r(i) = if (isMissing(i) || other.isMissing(i)) BufferInt.MissingValue else if (self.values(i) != other.values(i)) 1 else 0
       i += 1
     }
     BufferInt(r)
@@ -641,7 +641,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (other.contains(self.values(i))) 1 else 0
+      r(i) = if (isMissing(i)) BufferInt.MissingValue else if (other.contains(self.values(i))) 1 else 0
       i += 1
     }
     BufferInt(r)

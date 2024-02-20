@@ -78,6 +78,11 @@ private[lang] object Op2 {
     type A1 = String
     type T = ra3.lang.DI32
   }
+  sealed trait ColumnOp2StrStrI extends Op2 {
+    type A0 = ra3.lang.DStr
+    type A1 = ra3.lang.DStr
+    type T = ra3.lang.DI32
+  }
   sealed trait ColumnOp2LCStrStr extends Op2 {
     type A0 = ra3.lang.DI64
     type A1 = String
@@ -825,6 +830,120 @@ private[lang] object Op2 {
         case Left(numEl) =>
           Left(BufferInt.constant(0, numEl))
       })
+    }
+  }
+
+// 
+
+  case object ColumnLtEqOpStrStr extends ColumnOp2StrStrI {
+    def op(a: DStr, b: DStr)(implicit tsc: TaskSystemComponents): IO[DI32] = {
+      for {
+        a <- bufferIfNeeded(a)
+        b <- bufferIfNeeded(b)
+      } yield Left(a.elementwise_lteq(b))
+
+    }
+  }
+  case object ColumnLtEqOpStrcStr extends ColumnOp2StrCStrI {
+    def op(a: DStr, b: String)(implicit tsc: TaskSystemComponents): IO[DI32] = {
+      for {
+        a <- bufferIfNeededWithPrecondition(a)((segment: SegmentString) =>
+          segment.statistic.mightLtEq(b)
+        )
+      } yield (a match {
+        case Right(a) => Left(a.elementwise_lteq(b))
+        case Left(numEl) =>
+          Left(BufferInt.constant(0, numEl))
+      })
+    }
+
+  }
+  case object ColumnGtEqOpStrStr extends ColumnOp2StrStrI {
+    def op(a: DStr, b: DStr)(implicit tsc: TaskSystemComponents): IO[DI32] = {
+      for {
+        a <- bufferIfNeeded(a)
+        b <- bufferIfNeeded(b)
+      } yield Left(a.elementwise_gteq(b))
+
+    }
+  }
+  case object ColumnGtEqOpStrcStr extends ColumnOp2StrCStrI {
+    def op(a: DStr, b: String)(implicit tsc: TaskSystemComponents): IO[DI32] = {
+      for {
+        a <- bufferIfNeededWithPrecondition(a)((segment: SegmentString) =>
+          segment.statistic.mightGtEq(b)
+        )
+      } yield (a match {
+        case Right(a) => Left(a.elementwise_gteq(b))
+        case Left(numEl) =>
+          Left(BufferInt.constant(0, numEl))
+      })
+    }
+
+  }
+  case object ColumnLtOpStrStr extends ColumnOp2StrStrI {
+    def op(a: DStr, b: DStr)(implicit tsc: TaskSystemComponents): IO[DI32] = {
+      for {
+        a <- bufferIfNeeded(a)
+        b <- bufferIfNeeded(b)
+      } yield Left(a.elementwise_lt(b))
+
+    }
+  }
+  case object ColumnLtOpStrcStr extends ColumnOp2StrCStrI {
+    def op(a: DStr, b: String)(implicit tsc: TaskSystemComponents): IO[DI32] = {
+      for {
+        a <- bufferIfNeededWithPrecondition(a)((segment: SegmentString) =>
+          segment.statistic.mightLt(b)
+        )
+      } yield (a match {
+        case Right(a) => Left(a.elementwise_lt(b))
+        case Left(numEl) =>
+          Left(BufferInt.constant(0, numEl))
+      })
+    }
+
+  }
+  case object ColumnGtOpStrStr extends ColumnOp2StrStrI {
+    def op(a: DStr, b: DStr)(implicit tsc: TaskSystemComponents): IO[DI32] = {
+      for {
+        a <- bufferIfNeeded(a)
+        b <- bufferIfNeeded(b)
+      } yield Left(a.elementwise_gt(b))
+
+    }
+  }
+  case object ColumnGtOpStrcStr extends ColumnOp2StrCStrI {
+    def op(a: DStr, b: String)(implicit tsc: TaskSystemComponents): IO[DI32] = {
+      for {
+        a <- bufferIfNeededWithPrecondition(a)((segment: SegmentString) =>
+          segment.statistic.mightGt(b)
+        )
+      } yield (a match {
+        case Right(a) => Left(a.elementwise_gt(b))
+        case Left(numEl) =>
+          Left(BufferInt.constant(0, numEl))
+      })
+    }
+
+  }
+
+  case object ColumnEqOpStrStr extends ColumnOp2StrStrI {
+    def op(a: DStr, b: DStr)(implicit tsc: TaskSystemComponents): IO[DI32] = {
+      for {
+        a <- bufferIfNeeded(a)
+        b <- bufferIfNeeded(b)
+      } yield Left(a.elementwise_eq(b))
+
+    }
+  }
+  case object ColumnNEqOpStrStr extends ColumnOp2StrStrI {
+    def op(a: DStr, b: DStr)(implicit tsc: TaskSystemComponents): IO[DI32] = {
+      for {
+        a <- bufferIfNeeded(a)
+        b <- bufferIfNeeded(b)
+      } yield Left(a.elementwise_neq(b))
+
     }
   }
 

@@ -1,6 +1,7 @@
 import tasks._
 
 package object ra3 extends ColumnTags {
+  val MissingString = BufferString.MissingValue.toString
   def importCsv(
       file: SharedFile,
       name: String,

@@ -159,6 +159,20 @@ private[lang] object Op1 {
           Left(BufferInt.constant(0, numEl))
       })
   }
+  case object ColumnIsMissingOpStr extends ColumnOp1StrI {
+    def op(
+        a: ra3.lang.DStr
+    )(implicit tsc: TaskSystemComponents) =
+      for {
+        a <- bufferIfNeededWithPrecondition(a)((segment: SegmentString) =>
+          segment.statistic.hasMissing
+        )
+      } yield (a match {
+        case Right(a) => Left(a.elementwise_isMissing)
+        case Left(numEl) =>
+          Left(BufferInt.constant(0, numEl))
+      })
+  }
   case object ColumnAbsOpD extends ColumnOp1DD {
     def op(
         a: ra3.lang.DF64

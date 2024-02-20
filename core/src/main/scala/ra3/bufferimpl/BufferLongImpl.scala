@@ -334,8 +334,8 @@ def nonMissingMinMax = makeStatistic().nonMissingMinMax
 
     while (i < n) {
       r(i) =
-        if (
-          !isMissing(i) && !other.isMissing(i) && self.values(i) == other
+        if (isMissing(i) || other.isMissing(i)) BufferInt.MissingValue else if (
+         self.values(i) == other
             .values(i)
         ) 1
         else 0
@@ -350,8 +350,8 @@ def nonMissingMinMax = makeStatistic().nonMissingMinMax
 
     while (i < n) {
       r(i) =
-        if (
-          !isMissing(i) && other != BufferLong.MissingValue && self.values(
+        if (isMissing(i) || other == BufferLong.MissingValue) BufferInt.MissingValue else if (
+          self.values(
             i
           ) == other
         ) 1

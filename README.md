@@ -5,9 +5,9 @@ Introduction
 ============
 RA3 implements relational algebra styles queries on disk backed tabular datasets.
 
-- Paritioned joins and groupings
+- Partitioned joins and groupings
 - Inner, left, right and full outer joins
-- Projections and filters. Fully expressive, type safe query language in projections and filters. 
+- Projections and filters. Type safe query language in projections and filters. 
 - Selection of top K elements 
 - Data import and export to and from csv.
 
@@ -23,6 +23,6 @@ Missing value (null) semantics
 - group by on missing treats missing as an other (single) group
 - count distinct in groups do not count missing values
 - min/max in groups do not count missing values
-- all elementwise operations, except predicates propagate missing value i.e. if either of their input is missing the result is missing
-- predicates evaluate to false
+- all elementwise operations, including predicates propagate missing value i.e. if either of their input is missing the result is missing, except for the isMissing oeprator
+- logic operators follow 3 values logic (https://en.wikipedia.org/wiki/Three-valued_logic#Kleene_and_Priest_logics)
 - printf etc formats missing into a non missing string

@@ -3,14 +3,15 @@ import cats.effect.IO
 import ra3._
 import tasks.{TaskSystemComponents}
 private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
-def nonMissingMinMax = makeStatistic().nonMissingMinMax
+  def nonMissingMinMax = makeStatistic().nonMissingMinMax
   def makeStatistic() = {
-    
-   
+
     StatisticInt(
       hasMissing = if (value == Int.MinValue) true else false,
-      nonMissingMinMax = if (value == Int.MinValue) None else Some((value,value)),
-      lowCardinalityNonMissingSet = if (value == Int.MinValue) None else Some(Set(value)),
+      nonMissingMinMax =
+        if (value == Int.MinValue) None else Some((value, value)),
+      lowCardinalityNonMissingSet =
+        if (value == Int.MinValue) None else Some(Set(value))
     )
   }
 
@@ -148,7 +149,7 @@ def nonMissingMinMax = makeStatistic().nonMissingMinMax
         case "left"  => org.saddle.index.LeftJoin
         case "right" => org.saddle.index.RightJoin
         case "outer" => org.saddle.index.OuterJoin
-      },
+      }
     )
     (reindexer.lTake.map(BufferInt(_)), reindexer.rTake.map(BufferInt(_)))
   }
@@ -173,8 +174,6 @@ def nonMissingMinMax = makeStatistic().nonMissingMinMax
   override def hashOf(l: Int): Long = {
     scala.util.hashing.byteswap32(value).toLong
   }
-
-  
 
   override def toSegment(
       name: LogicalPath
@@ -255,9 +254,8 @@ def nonMissingMinMax = makeStatistic().nonMissingMinMax
     val r = Array.ofDim[Int](n)
     while (i < n) {
       r(i) =
-        if (
-          !isMissing(i) && !other
-            .isMissing(i) && self.value > 0 && other.raw(i) > 0
+        if (isMissing(i) || other.isMissing(i))
+          BufferInt.MissingValue else if (self.value > 0 && other.raw(i) > 0
         ) 1
         else 0
       i += 1
@@ -271,9 +269,9 @@ def nonMissingMinMax = makeStatistic().nonMissingMinMax
     val r = Array.ofDim[Int](n)
     while (i < n) {
       r(i) =
-        if (
-          !isMissing(i) && !other
-            .isMissing(i) && self.value > 0 || other.raw(i) > 0
+        if (isMissing(i) || other.isMissing(i))
+          BufferInt.MissingValue else  if (
+          self.value > 0 || other.raw(i) > 0
         ) 1
         else 0
       i += 1
@@ -288,7 +286,8 @@ def nonMissingMinMax = makeStatistic().nonMissingMinMax
     val r = Array.ofDim[Int](n)
     while (i < n) {
       r(i) =
-        if (!isMissing(i) && !other.isMissing(i) && self.value == other.raw(i))
+        if (isMissing(i) || other.isMissing(i))
+          BufferInt.MissingValue else  if (self.value == other.raw(i))
           1
         else 0
       i += 1
@@ -302,7 +301,8 @@ def nonMissingMinMax = makeStatistic().nonMissingMinMax
     val r = Array.ofDim[Int](n)
     while (i < n) {
       r(i) =
-        if (!isMissing(i) && !other.isMissing(i) && self.value > other.raw(i)) 1
+        if (isMissing(i) || other.isMissing(i))
+          BufferInt.MissingValue else if ( self.value > other.raw(i)) 1
         else 0
       i += 1
     }
@@ -315,7 +315,8 @@ def nonMissingMinMax = makeStatistic().nonMissingMinMax
     val r = Array.ofDim[Int](n)
     while (i < n) {
       r(i) =
-        if (!isMissing(i) && !other.isMissing(i) && self.value >= other.raw(i))
+        if (isMissing(i) || other.isMissing(i))
+          BufferInt.MissingValue else if ( self.value >= other.raw(i))
           1
         else 0
       i += 1
@@ -329,7 +330,8 @@ def nonMissingMinMax = makeStatistic().nonMissingMinMax
     val r = Array.ofDim[Int](n)
     while (i < n) {
       r(i) =
-        if (!isMissing(i) && !other.isMissing(i) && self.value < other.raw(i)) 1
+        if (isMissing(i) || other.isMissing(i))
+          BufferInt.MissingValue else if (self.value < other.raw(i)) 1
         else 0
       i += 1
     }
@@ -342,7 +344,8 @@ def nonMissingMinMax = makeStatistic().nonMissingMinMax
     val r = Array.ofDim[Int](n)
     while (i < n) {
       r(i) =
-        if (!isMissing(i) && !other.isMissing(i) && self.value <= other.raw(i))
+        if (isMissing(i) || other.isMissing(i))
+          BufferInt.MissingValue else if ( self.value <= other.raw(i))
           1
         else 0
       i += 1
@@ -352,7 +355,8 @@ def nonMissingMinMax = makeStatistic().nonMissingMinMax
   def elementwise_lteq(other: Double): BufferInt = {
 
     BufferInt.constant(
-      if (!isMissing(0) && self.value <= other) 1 else 0,
+      if (isMissing(0) || other.isNaN)
+          BufferInt.MissingValue else if (self.value <= other) 1 else 0,
       length
     )
   }
@@ -363,7 +367,8 @@ def nonMissingMinMax = makeStatistic().nonMissingMinMax
     val r = Array.ofDim[Int](n)
     while (i < n) {
       r(i) =
-        if (!isMissing(i) && !other.isMissing(i) && self.value != other.raw(i))
+        if (isMissing(i) || other.isMissing(i))
+          BufferInt.MissingValue else  if ( self.value != other.raw(i))
           1
         else 0
       i += 1
@@ -372,7 +377,8 @@ def nonMissingMinMax = makeStatistic().nonMissingMinMax
   }
   def elementwise_neq(other: Double): BufferInt = {
     BufferInt.constant(
-      if (!isMissing(0) && self.value != other) 1 else 0,
+      if (isMissing(0) || other.isNaN)
+          BufferInt.MissingValue else if ( self.value != other) 1 else 0,
       length
     )
   }
@@ -383,14 +389,16 @@ def nonMissingMinMax = makeStatistic().nonMissingMinMax
     val n = self.length
     val r = Array.ofDim[Int](n)
     while (i < n) {
-      r(i) = if (!isMissing(i) && self.value == other.values(i)) 1 else 0
+      r(i) = if (isMissing(i) || other.isMissing(i))
+          BufferInt.MissingValue else  if ( self.value == other.values(i)) 1 else 0
       i += 1
     }
     BufferInt(r)
   }
   def elementwise_eq(other: Double): BufferInt = {
     BufferInt.constant(
-      if (!isMissing(0) && self.value == other) 1 else 0,
+      if (isMissing(0) || other.isNaN)
+          BufferInt.MissingValue else if ( self.value == other) 1 else 0,
       length
     )
   }
@@ -400,14 +408,16 @@ def nonMissingMinMax = makeStatistic().nonMissingMinMax
     val n = self.length
     val r = Array.ofDim[Int](n)
     while (i < n) {
-      r(i) = if (!isMissing(i) && self.value > other.values(i)) 1 else 0
+      r(i) = if (isMissing(i) || other.isMissing(i))
+          BufferInt.MissingValue else if ( self.value > other.values(i)) 1 else 0
       i += 1
     }
     BufferInt(r)
   }
   def elementwise_gt(other: Double): BufferInt = {
     BufferInt.constant(
-      if (!isMissing(0) && self.value > other) 1 else 0,
+      if (isMissing(0) || other.isNaN)
+          BufferInt.MissingValue else if (self.value > other) 1 else 0,
       length
     )
   }
@@ -417,14 +427,16 @@ def nonMissingMinMax = makeStatistic().nonMissingMinMax
     val n = self.length
     val r = Array.ofDim[Int](n)
     while (i < n) {
-      r(i) = if (!isMissing(i) && self.value >= other.values(i)) 1 else 0
+      r(i) = if (isMissing(i) || other.isMissing(i))
+          BufferInt.MissingValue else  if (self.value >= other.values(i)) 1 else 0
       i += 1
     }
     BufferInt(r)
   }
   def elementwise_gteq(other: Double): BufferInt = {
     BufferInt.constant(
-      if (!isMissing(0) && self.value >= other) 1 else 0,
+      if (isMissing(0) || other.isNaN)
+          BufferInt.MissingValue else  if (self.value >= other) 1 else 0,
       length
     )
   }
@@ -434,14 +446,16 @@ def nonMissingMinMax = makeStatistic().nonMissingMinMax
     val n = self.length
     val r = Array.ofDim[Int](n)
     while (i < n) {
-      r(i) = if (!isMissing(i) && self.value < other.values(i)) 1 else 0
+      r(i) = if (isMissing(i) || other.isMissing(i))
+          BufferInt.MissingValue else  if (self.value < other.values(i)) 1 else 0
       i += 1
     }
     BufferInt(r)
   }
   def elementwise_lt(other: Double): BufferInt = {
     BufferInt.constant(
-      if (!isMissing(0) && self.value < other) 1 else 0,
+      if (isMissing(0) || other.isNaN)
+          BufferInt.MissingValue else if (self.value < other) 1 else 0,
       length
     )
   }
@@ -451,7 +465,8 @@ def nonMissingMinMax = makeStatistic().nonMissingMinMax
     val n = self.length
     val r = Array.ofDim[Int](n)
     while (i < n) {
-      r(i) = if (!isMissing(i) && self.value <= other.values(i)) 1 else 0
+      r(i) = if (isMissing(i) || other.isMissing(i))
+          BufferInt.MissingValue else if ( self.value <= other.values(i)) 1 else 0
       i += 1
     }
     BufferInt(r)
@@ -464,8 +479,9 @@ def nonMissingMinMax = makeStatistic().nonMissingMinMax
     val r = Array.ofDim[Int](n)
     while (i < n) {
       r(i) =
-        if (
-          !isMissing(i) && !other.isMissing(i) && self.value != other.values(i)
+        if (isMissing(i) || other.isMissing(i))
+          BufferInt.MissingValue else if (
+          self.value != other.values(i)
         ) 1
         else 0
       i += 1
@@ -497,12 +513,16 @@ def nonMissingMinMax = makeStatistic().nonMissingMinMax
   def elementwise_not: BufferInt = {
     val n = self.length
 
-    val r = if (self.value > 0) 0 else 1
+    val r =
+      if (self.value == BufferInt.MissingValue) BufferInt.MissingValue
+      else if (self.value > 0) 0
+      else 1
     BufferInt.constant(r, n)
   }
   def elementwise_containedIn(s: Set[Int]): BufferInt = {
     val n = self.length
-    val t = if (value != Int.MinValue && s.contains(value)) 1 else 0
+    val t = if (isMissing(0))
+          BufferInt.MissingValue else  if (s.contains(value)) 1 else 0
 
     BufferInt.constant(t, n)
   }
@@ -563,25 +583,31 @@ def nonMissingMinMax = makeStatistic().nonMissingMinMax
   }
 
   def elementwise_eq(other: Int): ra3.BufferInt =
-    BufferIntConstant(if (value == other) 1 else 0, length)
+    BufferIntConstant(if (isMissing(0) || other == BufferInt.MissingValue)
+          BufferInt.MissingValue else  if (value == other) 1 else 0, length)
 
   def elementwise_gt(other: Int): ra3.BufferInt =
-    BufferIntConstant(if (value > other) 1 else 0, length)
+    BufferIntConstant(if (isMissing(0) || other == BufferInt.MissingValue)
+          BufferInt.MissingValue else if (value > other) 1 else 0, length)
 
   def elementwise_gteq(other: Int): ra3.BufferInt =
-    BufferIntConstant(if (value >= other) 1 else 0, length)
+    BufferIntConstant(if (isMissing(0) || other == BufferInt.MissingValue)
+          BufferInt.MissingValue else if (value >= other) 1 else 0, length)
 
   def elementwise_isMissing: ra3.BufferInt =
     BufferIntConstant(if (isMissing(0)) 1 else 0, length)
 
   def elementwise_lt(other: Int): ra3.BufferInt =
-    BufferIntConstant(if (value < other) 1 else 0, length)
+    BufferIntConstant(if (isMissing(0) || other == BufferInt.MissingValue)
+          BufferInt.MissingValue else if (value < other) 1 else 0, length)
 
   def elementwise_lteq(other: Int): ra3.BufferInt =
-    BufferIntConstant(if (value <= other) 1 else 0, length)
+    BufferIntConstant(if (isMissing(0) || other == BufferInt.MissingValue)
+          BufferInt.MissingValue else if (value <= other) 1 else 0, length)
 
   def elementwise_neq(other: Int): ra3.BufferInt =
-    BufferIntConstant(if (value != other) 1 else 0, length)
+    BufferIntConstant(if (isMissing(0) || other == BufferInt.MissingValue)
+          BufferInt.MissingValue else if (value != other) 1 else 0, length)
 
   def elementwise_printf(s: String): ra3.BufferString = {
     BufferString.constant(s.format(value), length)
