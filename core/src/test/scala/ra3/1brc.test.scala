@@ -16,8 +16,8 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
         .readHeterogeneousFromCSVChannel(
           "1brc",
           List(
-            (0, ColumnTag.StringTag, None),
-            (1, ColumnTag.F64, None)
+            (0, ColumnTag.StringTag, None, None),
+            (1, ColumnTag.F64, None, None)
             // 0 until (numCols) map (i => (i, ColumnTag.I32, None)): _*
           ),
           channel = channel,
@@ -33,7 +33,7 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
           case "V1" => "value"
         }
 
-      val result = let[DStr, DF64](table) { case (_, station, value) =>
+      val result = let[DStr, DF64](table) { case ( station, value) =>
         station.groupBy(
             select(
               station.first as "station",
@@ -41,7 +41,7 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
               value.count as "count"
             )
           ).partial
-          .in[DStr, DF64, DF64] { (_, station, sum, count) =>
+          .in[DStr, DF64, DF64] { ( station, sum, count) =>
             station.groupBy(
               select(
                 station.first,
@@ -102,8 +102,8 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
         .readHeterogeneousFromCSVChannel(
           "1brc",
           List(
-            (0, ColumnTag.StringTag, None),
-            (1, ColumnTag.F64, None)
+            (0, ColumnTag.StringTag, None, None),
+            (1, ColumnTag.F64, None, None)
             // 0 until (numCols) map (i => (i, ColumnTag.I32, None)): _*
           ),
           channel = channel,
@@ -119,8 +119,8 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
           case "V1" => "value"
         }
 
-      val result = let[DStr, DF64](table) { case (table, station, _) =>
-        table.query(select(star).where(station === "Skopje"))
+      val result = let[DStr, DF64](table) { case ( station, _) =>
+        query(select(star).where(station === "Skopje"))
           
       }.evaluate
         .unsafeRunSync()
@@ -172,8 +172,8 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
         .readHeterogeneousFromCSVChannel(
           "1brc",
           List(
-            (0, ColumnTag.StringTag, None),
-            (1, ColumnTag.F64, None)
+            (0, ColumnTag.StringTag, None, None),
+            (1, ColumnTag.F64, None, None)
             // 0 until (numCols) map (i => (i, ColumnTag.I32, None)): _*
           ),
           channel = channel,
@@ -189,13 +189,13 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
           case "V1" => "value"
         }
 
-      val result = let[DStr, DF64](table) { case (table, station, _) =>
+      val result = let[DStr, DF64](table) { case (station, _) =>
         station.groupBy(
             select(
               station.first as "station",
             )
           ).all
-          .in[DStr, DF64, DF64] { (_, station, sum, count) =>
+          .in[DStr, DF64, DF64] { ( station, sum, count) =>
             station.groupBy(
               select(
                 station.first
@@ -231,6 +231,7 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
         .colAt(0)
         .mapValues(_.toDouble)
         .index.toSeq.distinct.sorted
+
 
       
       assert(table.numRows == 1000000)

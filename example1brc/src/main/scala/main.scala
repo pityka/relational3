@@ -7,7 +7,6 @@ import org.saddle._
 import cats.effect.IO
 import com.typesafe.config.ConfigFactory
 import scala.util.Random
-import ra3.ts.ImportCsv
 object main extends App {
 
   scribe
@@ -37,10 +36,10 @@ object main extends App {
               .readHeterogeneousFromCSVChannel(
                 name,
                 List(
-                  (0, ColumnTag.StringTag, None),
-                  (1, ColumnTag.StringTag, None),
-                  (2, ColumnTag.StringTag, None),
-                  (3, ColumnTag.F64, None)
+                  (0, ColumnTag.StringTag, None,None),
+                  (1, ColumnTag.StringTag, None,None),
+                  (2, ColumnTag.StringTag, None,None),
+                  (3, ColumnTag.F64, None,None)
                 ),
                 channel = channel,
                 header = false,
@@ -169,9 +168,9 @@ object main extends App {
               sf,
               sf.name,
               List(
-                (0, ColumnTag.StringTag, None),
-                (1, ColumnTag.StringTag, None),
-                (2, ColumnTag.F64, None)
+                StrColumn(0),
+                StrColumn(1),
+                F64Column(2)
               ),
               maxSegmentLength = segmentSize,
               recordSeparator = "\n",
@@ -188,9 +187,9 @@ object main extends App {
               sf,
               sf.name,
               List(
-                (0, ColumnTag.StringTag, None),
-                (1, ColumnTag.StringTag, None),
-                (2, ColumnTag.F64, None)
+                 StrColumn(0),
+                StrColumn(1),
+                F64Column(2)
               ),
               maxSegmentLength = segmentSize,
               recordSeparator = "\n",
@@ -213,34 +212,32 @@ object main extends App {
         customer.groupBy
           .apply(select(customer.first, price.sum, price.count))
           .partial
-          .in[DStr, DF64, DF64] { case (_, customer, sum, count) =>
+          .in[DStr, DF64, DF64] { case (customer, sum, count) =>
             customer
               .groupBy(
                 select(customer.first, (sum.sum / count.sum))
               )
               .all
           }
-      import ra3.tablelang._
       import ra3.lang._
       case class TypedTablelet(
-          table: TableExpr,
           rowId: ra3.lang.DelayedIdent[DStr],
           customer: ra3.lang.DelayedIdent[DStr],
           value: ra3.lang.DelayedIdent[DF64]
       )
 
       def mylet(a: Table)(f: TypedTablelet => ra3.tablelang.TableExpr) =
-        let[DStr, DStr, DF64](a) { case (t, c0, c1, c2) =>
-          f(TypedTablelet(t, c0, c1, c2))
+        let[DStr, DStr, DF64](a) { case ( c0, c1, c2) =>
+          f(TypedTablelet( c0, c1, c2))
         }
 
       val (show, table) =
         mylet(tableA) { case tableAlet =>
-          let[DStr, DStr, DF64](tableB) { case (_, _, customerB, priceB) =>
+          let[DStr, DStr, DF64](tableB) { case ( _, customerB, priceB) =>
             groupByCustomer(tableAlet.customer, tableAlet.value)
-              .in[DStr, DF64] { case (_, customerA, meanpriceA) =>
+              .in[DStr, DF64] { case ( customerA, meanpriceA) =>
                 groupByCustomer(customerB, priceB).in[DStr, DF64] {
-                  case (_, customerB, meanpriceB) =>
+                  case ( customerB, meanpriceB) =>
                     customerA.join
                       .inner(customerB)
                       .withPartitionBase(256)
@@ -287,16 +284,16 @@ object main extends App {
       println(tableA.showSample(nrows = 1000).unsafeRunSync())
 
       val (show, table) = let[DStr, DStr, DStr, DF64](tableA) {
-        case (_, uuid, customer, category, price) =>
+        case ( uuid, customer, category, price) =>
           category.groupBy
             .apply(select(category.first, price.mean))
             .all
-            .in[DStr, DF64] { case (uniqueCategoriesTable, category, _) =>
-              uniqueCategoriesTable.query(
+            .in[DStr, DF64] { case ( category, _) =>
+              query(
                 select(star).where(category.matches("aa."))
               )
             }
-            .in[DStr, DF64] { case (_, aaCategories, _) =>
+            .in[DStr, DF64] { case (aaCategories, _) =>
               category.join
                 .inner(aaCategories)
                 .elementwise(
@@ -305,7 +302,6 @@ object main extends App {
             }
             .in[DStr, DStr, DStr, DF64] {
               case (
-                    _,
                     _,
                     filteredCustomer,
                     filteredCategory,
@@ -324,7 +320,7 @@ object main extends App {
                   .partial
             }
             .in[DStr, DStr, DF64, DF64] {
-              case (_, customer, category, sum, count) =>
+              case (customer, category, sum, count) =>
                 customer.groupBy
                   .by(category)
                   .apply(
@@ -363,8 +359,8 @@ object main extends App {
               .readHeterogeneousFromCSVChannel(
                 "1brctable",
                 List(
-                  (0, ColumnTag.StringTag, None),
-                  (1, ColumnTag.F64, None)
+                  (0, ColumnTag.StringTag, None,None),
+                  (1, ColumnTag.F64, None,None)
                   // 0 until (numCols) map (i => (i, ColumnTag.I32, None)): _*
                 ),
                 channel = channel,
@@ -422,7 +418,7 @@ object main extends App {
         .colAt(0)
     )
 
-    val result = let[DStr, DF64](table) { (_, station, value) =>
+    val result = let[DStr, DF64](table) { ( station, value) =>
       station.groupBy
         .apply(
           select(
@@ -432,7 +428,7 @@ object main extends App {
           )
         )
         .partial
-        .in[DStr, DF64, DF64] { (_, station, sum, count) =>
+        .in[DStr, DF64, DF64] { ( station, sum, count) =>
           station.groupBy
             .apply(
               select(

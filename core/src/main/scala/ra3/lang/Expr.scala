@@ -43,6 +43,7 @@ sealed trait Expr { self =>
   // utilities for analysis of the tree
   private[lang] def tags: Set[KeyTag]
   private[ra3] def columnKeys: Set[ColumnKey]
+  private[ra3] def referredTables: Set[ra3.tablelang.TableExpr.Ident]
   private[lang] def replace(
       map: Map[KeyTag, Int],
       map2: Map[ra3.tablelang.KeyTag, Int]
@@ -59,6 +60,8 @@ private[ra3] object Expr {
     JsonCodecMaker.make(CodecMakerConfig.withAllowRecursiveTypes(true))
 
   case object Star extends Expr {
+
+    def referredTables = Set.empty
     type T = ColumnSpec
     def evalWith(env: Map[Key, Value[_]])(implicit
         tsc: TaskSystemComponents
@@ -70,6 +73,8 @@ private[ra3] object Expr {
     def replaceDelayed(map: DelayedTableSchema) = this
   }
   case class LitStrSet(s: Set[String]) extends Expr {
+
+    def referredTables = Set.empty
     type T = Set[String]
     def evalWith(env: Map[Key, Value[_]])(implicit
         tsc: TaskSystemComponents
@@ -81,6 +86,8 @@ private[ra3] object Expr {
     def replaceDelayed(map: DelayedTableSchema) = this
   }
   case class LitStr(s: String) extends Expr {
+
+    def referredTables = Set.empty
     type T = String
     def evalWith(env: Map[Key, Value[_]])(implicit
         tsc: TaskSystemComponents
@@ -92,6 +99,8 @@ private[ra3] object Expr {
     def replaceDelayed(map: DelayedTableSchema) = this
   }
   case class LitNum(s: Int) extends Expr {
+
+    def referredTables = Set.empty
     type T = Int
     def evalWith(env: Map[Key, Value[_]])(implicit
         tsc: TaskSystemComponents
@@ -103,6 +112,8 @@ private[ra3] object Expr {
     def replaceDelayed(map: DelayedTableSchema) = this
   }
   case class LitF64(s: Double) extends Expr {
+
+    def referredTables = Set.empty
     type T = Double
     def evalWith(env: Map[Key, Value[_]])(implicit
         tsc: TaskSystemComponents
@@ -114,6 +125,8 @@ private[ra3] object Expr {
     def replaceDelayed(map: DelayedTableSchema) = this
   }
    case class LitF64Set(s: Set[Double]) extends Expr {
+
+    def referredTables = Set.empty
     type T = Set[Double]
     def evalWith(env: Map[Key, Value[_]])(implicit
         tsc: TaskSystemComponents
@@ -125,6 +138,8 @@ private[ra3] object Expr {
     def replaceDelayed(map: DelayedTableSchema) = this
   }
    case class LitI32Set(s: Set[Int]) extends Expr {
+
+    def referredTables = Set.empty
     type T = Set[Int]
     def evalWith(env: Map[Key, Value[_]])(implicit
         tsc: TaskSystemComponents
@@ -137,6 +152,8 @@ private[ra3] object Expr {
   }
 
   case class LitI64(s: Long) extends Expr {
+
+    def referredTables = Set.empty
     type T = Long
     def evalWith(env: Map[Key, Value[_]])(implicit
         tsc: TaskSystemComponents
@@ -151,10 +168,13 @@ private[ra3] object Expr {
 
   case class DelayedIdent(private[ra3] val name: Delayed) extends Expr {
 
+    def referredTables = Set(tableIdent)
+
     def join = ra3.lang.Join(this)
     def groupBy = ra3.lang.GroupBy(this)
 
     private[ra3] def tableIdent = ra3.tablelang.TableExpr.Ident(name.table)
+    def table = tableIdent
 
     private[ra3] def evalWith(env: Map[Key, Value[_]])(implicit
         tsc: TaskSystemComponents
@@ -179,6 +199,12 @@ private[ra3] object Expr {
     }
   }
   case class Ident(name: Key) extends Expr {
+
+    def referredTables = name match {
+      
+      case Delayed(table, _) => Set(ra3.tablelang.TableExpr.Ident(table))
+      case _ => Set.empty
+    }
 
     def evalWith(env: Map[Key, Value[_]])(implicit
         tsc: TaskSystemComponents
@@ -214,6 +240,7 @@ private[ra3] object Expr {
   case class BuiltInOp1(arg0: Expr, op: ops.Op1) extends Expr {
     type T = op.T
 
+    def referredTables =arg0.referredTables
     val tags: Set[KeyTag] = arg0.tags
     val columnKeys: Set[ColumnKey] = arg0.columnKeys
     def replace(i: Map[KeyTag, Int], i2: Map[ra3.tablelang.KeyTag, Int]): Expr =
@@ -232,6 +259,8 @@ private[ra3] object Expr {
   }
   case class BuiltInOp2(arg0: Expr, arg1: Expr, op: ops.Op2) extends Expr {
     type T = op.T
+
+    def referredTables =arg0.referredTables ++ arg1.referredTables
 
     val tags: Set[KeyTag] = arg0.tags ++ arg1.tags
     val columnKeys: Set[ColumnKey] = arg0.columnKeys ++ arg1.columnKeys
@@ -254,6 +283,8 @@ private[ra3] object Expr {
   case class BuiltInOp3(arg0: Expr, arg1: Expr, arg2: Expr, op: ops.Op3)
       extends Expr {
     type T = op.T
+
+    def referredTables =arg0.referredTables ++ arg1.referredTables ++ arg2.referredTables
 
     val tags: Set[KeyTag] = arg0.tags ++ arg1.tags ++ arg2.tags
     val columnKeys: Set[ColumnKey] =
@@ -285,6 +316,8 @@ private[ra3] object Expr {
   }
   case class BuiltInOpStar(args: Seq[Expr], op: ops.OpStar) extends Expr {
     type T = op.T
+
+    def referredTables =args.flatMap(_.referredTables).toSet
 
     val tags: Set[KeyTag] = args.flatMap(_.tags).toSet
     val columnKeys: Set[ColumnKey] =
@@ -328,6 +361,8 @@ private[ra3] object Expr {
   case class Local(name: Key, assigned: Expr, body: Expr) extends Expr {
     self =>
     type T = body.T
+
+    def referredTables =assigned.referredTables ++ body.referredTables
 
     val tags: Set[KeyTag] = name match {
       case TagKey(s) => Set(s) ++ assigned.tags ++ body.tags

@@ -170,7 +170,9 @@ object ColumnTag {
     type ColumnType = Column.StringColumn
     type SegmentType = SegmentString
     type SegmentPairType = StringPair
-    def makeBuffer(elems: Array[CharSequence]): BufferType = BufferString(elems)
+    def makeBuffer(elems: Array[CharSequence]): BufferType = {
+      BufferString(elems)
+    }
     def makeBufferFromSeq(elems: Elem*): BufferType = BufferString(
       elems.toArray
     )

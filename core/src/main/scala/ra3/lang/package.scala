@@ -4,6 +4,8 @@ import tasks.TaskSystemComponents
 import ra3.tablelang.TableExpr
 package object lang {
 
+  
+
   type Query = ra3.lang.Expr { type T <: ra3.lang.ReturnValue }
   type IntExpr = Expr { type T = Int }
   type StrExpr = Expr { type T = String }
@@ -39,6 +41,8 @@ package object lang {
 
   type GenericExpr[T0] = Expr { type T = T0 }
   type DelayedIdent[T0] = Expr.DelayedIdent { type T = T0 }
+
+  
 
   implicit class SyntaxExpr[T0](a: Expr { type T = T0 })
       extends syntax.SyntaxExprImpl[T0] {
@@ -159,6 +163,52 @@ package object lang {
     Expr.makeOpStar(ops.MkSelect)(args: _*)
   }
 
+  def query(prg: ra3.lang.Query) = {
+    val tables = prg.referredTables
+    require(
+      tables.size == 1,
+      s"0 or more than 1 tables referenced in this query $prg"
+    )
+    ra3.tablelang.TableExpr.SimpleQuery(tables.head, prg)
+  }
+  def count(prg: ra3.lang.Query) = {
+    val tables = prg.referredTables
+    require(
+      tables.size == 1,
+      s"0 or more than 1 tables referenced in this query $prg"
+    )
+    ra3.tablelang.TableExpr.SimpleQueryCount(tables.head, prg)
+  }
+
+  def reduce(
+      prg: ra3.lang.Query
+  ) = {
+    val tables = prg.referredTables
+
+    require(
+      tables.size == 1,
+      s"0 or more than 1 tables referenced in this query $prg"
+    )
+    ra3.tablelang.TableExpr.ReduceTable(
+      arg0 = tables.head,
+      groupwise = prg
+    )
+  }
+  def partialReduce(
+      prg: ra3.lang.Query
+  ) = {
+    val tables = prg.referredTables
+
+    require(
+      tables.size == 1,
+      s"0 or more than 1 tables referenced in this query $prg"
+    )
+    ra3.tablelang.TableExpr.FullTablePartialReduce(
+      arg0 = tables.head,
+      groupwise = prg
+    )
+  }
+
   private[ra3] def evaluate(expr: Expr)(implicit
       tsc: TaskSystemComponents
   ): IO[Value[expr.T]] = expr.evalWith(Map.empty)
@@ -185,12 +235,14 @@ package object lang {
       C
   ](
       arg: Either[B, Seq[S]]
-  )(prec: S => Boolean)(implicit tsc: TaskSystemComponents): IO[Either[Int,B]] =
+  )(
+      prec: S => Boolean
+  )(implicit tsc: TaskSystemComponents): IO[Either[Int, B]] =
     arg match {
       case Left(b) => IO.pure(Right(b))
       case Right(s) =>
         if (s.exists(prec))
-        ra3.Utils.bufferMultiple(s).map(Right(_))
+          ra3.Utils.bufferMultiple(s).map(Right(_))
         else IO.pure(Left(s.map(_.numElems).sum))
     }
 
@@ -217,25 +269,28 @@ package object lang {
       body: TableExpr.Ident => TableExpr
   ): TableExpr =
     local(TableExpr.Const(assigned))(body)
+  def let0(assigned: ra3.Table)(
+      body: TableExpr.Ident => TableExpr
+  ): TableExpr =
+    local(TableExpr.Const(assigned))(body)
   def let[T0: NotNothing](assigned: ra3.Table)(
-      body: (TableExpr.Ident, ra3.lang.DelayedIdent[T0]) => TableExpr
+      body: ( ra3.lang.DelayedIdent[T0]) => TableExpr
   ): TableExpr = {
     local(TableExpr.Const(assigned)) { t =>
       t.useColumn[T0](0) { c0 =>
-        body(t, c0)
+        body( c0)
       }
     }
   }
   def let[T0: NotNothing, T1: NotNothing](assigned: ra3.Table)(
       body: (
-          TableExpr.Ident,
           ra3.lang.DelayedIdent[T0],
           ra3.lang.DelayedIdent[T1]
       ) => TableExpr
   ): TableExpr = {
     local(TableExpr.Const(assigned)) { t =>
       t.useColumns[T0, T1](0, 1) { case (c0, c1) =>
-        body(t, c0, c1)
+        body( c0, c1)
       }
     }
   }
@@ -243,7 +298,6 @@ package object lang {
       assigned: ra3.Table
   )(
       body: (
-          TableExpr.Ident,
           ra3.lang.DelayedIdent[T0],
           ra3.lang.DelayedIdent[T1],
           ra3.lang.DelayedIdent[T2]
@@ -251,7 +305,7 @@ package object lang {
   ): TableExpr = {
     local(TableExpr.Const(assigned)) { t =>
       t.useColumns[T0, T1, T2](0, 1, 2) { case (c0, c1, c2) =>
-        body(t, c0, c1, c2)
+        body( c0, c1, c2)
       }
     }
   }
@@ -259,7 +313,6 @@ package object lang {
       assigned: ra3.Table
   )(
       body: (
-          TableExpr.Ident,
           ra3.lang.DelayedIdent[T0],
           ra3.lang.DelayedIdent[T1],
           ra3.lang.DelayedIdent[T2],
@@ -268,7 +321,7 @@ package object lang {
   ): TableExpr = {
     local(TableExpr.Const(assigned)) { t =>
       t.useColumns[T0, T1, T2, T3](0, 1, 2, 3) { case (c0, c1, c2, c3) =>
-        body(t, c0, c1, c2, c3)
+        body(c0, c1, c2, c3)
       }
     }
   }
@@ -281,7 +334,7 @@ package object lang {
       private val prg: Option[ra3.lang.Query],
       private val partitionBase: Option[Int],
       private val partitionLimit: Option[Int],
-      private val maxSegmentsToBufferAtOnce: Option[Int],
+      private val maxSegmentsToBufferAtOnce: Option[Int]
   ) {
 
     def by(n: Expr.DelayedIdent) = {
@@ -289,13 +342,12 @@ package object lang {
       copy(others = others :+ n)
     }
 
-
     def withPartitionBase(num: Int) = copy(partitionBase = Some(num))
     def withPartitionLimit(num: Int) = copy(partitionLimit = Some(num))
     def withMaxSegmentsBufferingAtOnce(num: Int) =
       copy(maxSegmentsToBufferAtOnce = Some(num))
     def apply(q: ra3.lang.Query) = copy(prg = Some(q))
-    def all = 
+    def all =
       ra3.tablelang.TableExpr.GroupThenReduce(
         first,
         others,
@@ -304,20 +356,20 @@ package object lang {
         partitionLimit.getOrElse(10_000_000),
         maxSegmentsToBufferAtOnce.getOrElse(10)
       )
-    def partial = 
+    def partial =
       ra3.tablelang.TableExpr.GroupPartialThenReduce(
         first,
         others,
         prg.getOrElse(ra3.lang.select(ra3.lang.star))
       )
     def count = ra3.tablelang.TableExpr.GroupThenCount(
-        first,
-        others,
-        prg.getOrElse(ra3.lang.select(ra3.lang.star)),
-        partitionBase.getOrElse(128),
-        partitionLimit.getOrElse(10_000_000),
-        maxSegmentsToBufferAtOnce.getOrElse(10)
-      )
+      first,
+      others,
+      prg.getOrElse(ra3.lang.select(ra3.lang.star)),
+      partitionBase.getOrElse(128),
+      partitionLimit.getOrElse(10_000_000),
+      maxSegmentsToBufferAtOnce.getOrElse(10)
+    )
 
   }
   implicit def convertJoinBuilder(j: JoinBuilderSyntax): TableExpr = j.done
@@ -410,30 +462,28 @@ package object lang {
       local(a)(i => body(i))
 
     def in[T0: NotNothing](
-        body: (TableExpr.Ident, ra3.lang.DelayedIdent[T0]) => TableExpr
+        body: (ra3.lang.DelayedIdent[T0]) => TableExpr
     ): TableExpr = {
       local(a) { t =>
         t.useColumn[T0](0) { c0 =>
-          body(t, c0)
+          body(c0)
         }
       }
     }
     def in[T0: NotNothing, T1: NotNothing](
         body: (
-            TableExpr.Ident,
             ra3.lang.DelayedIdent[T0],
             ra3.lang.DelayedIdent[T1]
         ) => TableExpr
     ): TableExpr = {
       local(a) { t =>
         t.useColumns[T0, T1](0, 1) { case (c0, c1) =>
-          body(t, c0, c1)
+          body(c0, c1)
         }
       }
     }
     def in[T0: NotNothing, T1: NotNothing, T2: NotNothing](
         body: (
-            TableExpr.Ident,
             ra3.lang.DelayedIdent[T0],
             ra3.lang.DelayedIdent[T1],
             ra3.lang.DelayedIdent[T2]
@@ -441,13 +491,12 @@ package object lang {
     ): TableExpr = {
       local(a) { t =>
         t.useColumns[T0, T1, T2](0, 1, 2) { case (c0, c1, c2) =>
-          body(t, c0, c1, c2)
+          body(c0, c1, c2)
         }
       }
     }
     def in[T0: NotNothing, T1: NotNothing, T2: NotNothing, T3: NotNothing](
         body: (
-            TableExpr.Ident,
             ra3.lang.DelayedIdent[T0],
             ra3.lang.DelayedIdent[T1],
             ra3.lang.DelayedIdent[T2],
@@ -456,7 +505,7 @@ package object lang {
     ): TableExpr = {
       local(a) { t =>
         t.useColumns[T0, T1, T2, T3](0, 1, 2, 3) { case (c0, c1, c2, c3) =>
-          body(t, c0, c1, c2, c3)
+          body(c0, c1, c2, c3)
         }
       }
     }
@@ -602,20 +651,20 @@ package object lang {
         T1: NotNothing,
         T2: NotNothing,
         T3: NotNothing,
-        T4: NotNothing,
+        T4: NotNothing
     ](
         n1: Int,
         n2: Int,
         n3: Int,
         n4: Int,
-        n5: Int,
+        n5: Int
     )(
         body: (
             ra3.lang.DelayedIdent[T0],
             ra3.lang.DelayedIdent[T1],
             ra3.lang.DelayedIdent[T2],
             ra3.lang.DelayedIdent[T3],
-            ra3.lang.DelayedIdent[T4],
+            ra3.lang.DelayedIdent[T4]
         ) => TableExpr
     ) = {
       val d1 = Expr.DelayedIdent(ra3.lang.Delayed(a.key, Right(n1))).cast[T0]

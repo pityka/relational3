@@ -95,30 +95,28 @@ trait RelationalAlgebra { self: Table =>
     ra3.lang.local(ra3.tablelang.TableExpr.Const(this))(body)
 
   def in[T0: NotNothing](
-      body: (TableExpr.Ident, ra3.lang.DelayedIdent[T0]) => TableExpr
+      body: ( ra3.lang.DelayedIdent[T0]) => TableExpr
   ): TableExpr = {
     local(TableExpr.Const(self)) { t =>
       t.useColumn[T0](0) { c0 =>
-        body(t, c0)
+        body(c0)
       }
     }
   }
   def in[T0: NotNothing, T1: NotNothing](
       body: (
-          TableExpr.Ident,
           ra3.lang.DelayedIdent[T0],
           ra3.lang.DelayedIdent[T1]
       ) => TableExpr
   ): TableExpr = {
     local(TableExpr.Const(self)) { t =>
       t.useColumns[T0, T1](0, 1) { case (c0, c1) =>
-        body(t, c0, c1)
+        body( c0, c1)
       }
     }
   }
   def in[T0: NotNothing, T1: NotNothing, T2: NotNothing](
       body: (
-          TableExpr.Ident,
           ra3.lang.DelayedIdent[T0],
           ra3.lang.DelayedIdent[T1],
           ra3.lang.DelayedIdent[T2]
@@ -126,13 +124,12 @@ trait RelationalAlgebra { self: Table =>
   ): TableExpr = {
     local(TableExpr.Const(self)) { t =>
       t.useColumns[T0, T1, T2](0, 1, 2) { case (c0, c1, c2) =>
-        body(t, c0, c1, c2)
+        body(c0, c1, c2)
       }
     }
   }
   def in[T0: NotNothing, T1: NotNothing, T2: NotNothing, T3: NotNothing](
       body: (
-          TableExpr.Ident,
           ra3.lang.DelayedIdent[T0],
           ra3.lang.DelayedIdent[T1],
           ra3.lang.DelayedIdent[T2],
@@ -141,13 +138,12 @@ trait RelationalAlgebra { self: Table =>
   ): TableExpr = {
     local(TableExpr.Const(self)) { t =>
       t.useColumns[T0, T1, T2, T3](0, 1, 2, 3) { case (c0, c1, c2, c3) =>
-        body(t, c0, c1, c2, c3)
+        body( c0, c1, c2, c3)
       }
     }
   }
   def in[T0: NotNothing, T1: NotNothing, T2: NotNothing, T3: NotNothing, T4:NotNothing](
       body: (
-          TableExpr.Ident,
           ra3.lang.DelayedIdent[T0],
           ra3.lang.DelayedIdent[T1],
           ra3.lang.DelayedIdent[T2],
@@ -157,7 +153,7 @@ trait RelationalAlgebra { self: Table =>
   ): TableExpr = {
     local(TableExpr.Const(self)) { t =>
       t.useColumns[T0, T1, T2, T3,T4](0, 1, 2, 3,4) { case (c0, c1, c2, c3,c4) =>
-        body(t, c0, c1, c2, c3,c4)
+        body( c0, c1, c2, c3,c4)
       }
     }
   }
@@ -305,101 +301,6 @@ trait RelationalAlgebra { self: Table =>
       )
     }
 
-  // /**   - Partition both tables by join column
-  //   *   - For each partition of both input tables
-  //   *   - Buffer the partition completely (all segments, all columns)
-  //   *   - Join buffered tables in memory, use saddle's Index?
-  //   *   - concat joined partitions
-  //   * @param other
-  //   * @param how
-  //   * @return
-  //   */
-  // def equijoin(
-  //     other: Table,
-  //     joinColumnSelf: Int,
-  //     joinColumnOther: Int,
-  //     how: String,
-  //     partitionBase: Int,
-  //     partitionLimit: Int,
-  //     maxSegmentsToBufferAtOnce: Int
-  // )(query: (TableReference, TableReference) => ra3.lang.Expr {
-  //   type T <: ra3.lang.ReturnValue
-  // })(implicit tsc: TaskSystemComponents) = {
-
-  //   assert(
-  //     self.columns(joinColumnSelf).tag == other
-  //       .columns(joinColumnOther)
-  //       .tag
-  //   )
-  //   val tRefSelf = TableReference(
-  //     uniqueId = self.uniqueId,
-  //     colTags = self.columns.map(_.tag),
-  //     colNames = self.colNames
-  //   )
-  //   val tRefOther = TableReference(
-  //     uniqueId = other.uniqueId,
-  //     colTags = other.columns.map(_.tag),
-  //     colNames = other.colNames
-  //   )
-  //   val program = query(tRefSelf, tRefOther)
-  //   Equijoin.equijoinTwo(
-  //     self,
-  //     other,
-  //     joinColumnSelf,
-  //     joinColumnOther,
-  //     how,
-  //     partitionBase,
-  //     partitionLimit,
-  //     maxSegmentsToBufferAtOnce,
-  //     program
-  //   )
-  // }
-
-  // def equijoinMultiple(
-  //     joinColumnSelf: Int,
-  //     others: Seq[(Table, Int, String, Int)],
-  //     partitionBase: Int,
-  //     partitionLimit: Int
-  // )(query: Seq[TableReference] => ra3.lang.Expr {
-  //   type T <: ra3.lang.ReturnValue
-  // })(implicit tsc: TaskSystemComponents) = {
-
-  //   assert(
-  //     others
-  //       .map(v => v._1.columns(v._2).tag)
-  //       .forall(tag => tag == self.columns(joinColumnSelf).tag)
-  //   )
-
-  //   val tRefSelf = TableReference(
-  //     uniqueId = self.uniqueId,
-  //     colTags = self.columns.map(_.tag),
-  //     colNames = self.colNames
-  //   )
-  //   val tRefOther = others.map(_._1).map { other =>
-  //     TableReference(
-  //       uniqueId = other.uniqueId,
-  //       colTags = other.columns.map(_.tag),
-  //       colNames = other.colNames
-  //     )
-  //   }
-  //   val program = query(tRefSelf +: tRefOther)
-  //   Equijoin.equijoinMultiple(
-  //     self,
-  //     joinColumnSelf,
-  //     others,
-  //     partitionBase,
-  //     partitionLimit,
-  //     program
-  //   )
-  // }
-
-  // def reduceTable(query: TableReference => ra3.lang.Expr {
-  //   type T <: ra3.lang.ReturnValue
-  // })(implicit tsc: TaskSystemComponents) = {
-  //   ReduceTable
-  //     .formSingleGroup(self)
-  //     .flatMap(singleGroup => singleGroup.reduceGroups(query))
-  // }
 
   /** Group by which return group locations
     *

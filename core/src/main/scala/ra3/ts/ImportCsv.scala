@@ -12,7 +12,7 @@ import java.nio.charset.CodingErrorAction
 case class ImportCsv(
     file: SharedFile,
     name: String,
-    columns: Seq[(Int, ColumnTag, Option[ImportCsv.InstantFormat])],
+    columns: Seq[(Int, ColumnTag, Option[ImportCsv.InstantFormat], Option[String])],
     recordSeparator: String,
     fieldSeparator: Char,
     header: Boolean,
@@ -41,7 +41,7 @@ object ImportCsv {
   def queue(
       file: SharedFile,
       name: String,
-      columns: Seq[(Int, ColumnTag, Option[ImportCsv.InstantFormat])],
+      columns: Seq[(Int, ColumnTag, Option[ImportCsv.InstantFormat], Option[String])],
       recordSeparator: String,
       fieldSeparator: Char,
       header: Boolean,
@@ -82,7 +82,7 @@ object ImportCsv {
   private def doit(
       file: SharedFile,
       name: String,
-      columns: Seq[(Int, ColumnTag, Option[InstantFormat])],
+      columns: Seq[(Int, ColumnTag, Option[InstantFormat],Option[CharSequence])],
       recordSeparator: String,
       fieldSeparator: Char,
       header: Boolean,
@@ -139,7 +139,8 @@ object ImportCsv {
                   case Some(LocalDateTimeAtUTC(s)) =>
                     Some(ra3.InstantParser.LocalDateTimeAtUTC(s))
                   case None => None
-                }
+                },
+                v._4
               )
             ),
             channel = channel,

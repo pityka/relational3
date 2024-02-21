@@ -156,6 +156,7 @@ private[ra3] object TableExpr {
       elementwise: ra3.lang.Expr
   ) extends TableExpr {
 
+
     val tags: Set[KeyTag] = arg0.tags
     def replace(i: Map[KeyTag, Int]): TableExpr = {
 

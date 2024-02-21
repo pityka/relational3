@@ -11,15 +11,29 @@ import org.saddle.scalar.ScalarTagLong
 private[ra3] object CharSequenceOrdering
     extends scala.math.Ordering[CharSequence] { self =>
 
-      private val missing = BufferString.missing
-   def isMissing(x: CharSequence) = {
+      def charSeqEquals(x: CharSequence, y: CharSequence) = {
+    if (x.length() != y.length) false
+    else {
+      var i = 0
+      val n = x.length
+      var b = true
+      while (i < n && b) {
+        b = (x.charAt(i) == y.charAt(i))
+
+        i += 1
+      }
+      b
+    }}
+
+  private val missing = BufferString.missing
+  def isMissing(x: CharSequence) = {
     if (x.length() != missing.length) false
     else {
       var i = 0
       val n = x.length
       var b = true
       while (i < n && b) {
-          b = (x.charAt(i) == missing.charAt(i))
+        b = (x.charAt(i) == missing.charAt(i))
 
         i += 1
       }
@@ -263,7 +277,9 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
   ): (Option[BufferInt], Option[BufferInt]) = {
     import org.saddle.{Buffer => _, _}
     val idx1 = Index(
-      values.map(v => if (CharSequenceOrdering.isMissing(v)) null else v.toString)
+      values.map(v =>
+        if (CharSequenceOrdering.isMissing(v)) null else v.toString
+      )
     )
     val idx2 = Index(
       other.values.map(v =>
@@ -579,7 +595,6 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
     val n = self.length
     val r = Array.ofDim[Int](n)
 
-
     while (i < n) {
       r(i) =
         if (isMissing(i) || CharSequenceOrdering.isMissing(other))
@@ -798,10 +813,10 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
     val n = self.length
     val r = Array.ofDim[Int](n)
 
-
     while (i < n) {
       r(i) =
-        if (isMissing(i) || CharSequenceOrdering.isMissing(other)) BufferInt.MissingValue
+        if (isMissing(i) || CharSequenceOrdering.isMissing(other))
+          BufferInt.MissingValue
         else if (
           CharSequenceOrdering.lteq(
             self.values(i),
@@ -818,10 +833,10 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
     val n = self.length
     val r = Array.ofDim[Int](n)
 
-
     while (i < n) {
       r(i) =
-        if (isMissing(i) || CharSequenceOrdering.isMissing(other)) BufferInt.MissingValue
+        if (isMissing(i) || CharSequenceOrdering.isMissing(other))
+          BufferInt.MissingValue
         else if (
           CharSequenceOrdering.lt(
             self.values(i),
@@ -838,10 +853,10 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
     val n = self.length
     val r = Array.ofDim[Int](n)
 
-
     while (i < n) {
       r(i) =
-        if (isMissing(i) || CharSequenceOrdering.isMissing(other)) BufferInt.MissingValue
+        if (isMissing(i) || CharSequenceOrdering.isMissing(other))
+          BufferInt.MissingValue
         else if (
           CharSequenceOrdering.gt(
             self.values(i),
@@ -858,10 +873,10 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
     val n = self.length
     val r = Array.ofDim[Int](n)
 
-
     while (i < n) {
       r(i) =
-        if (isMissing(i) || CharSequenceOrdering.isMissing(other)) BufferInt.MissingValue
+        if (isMissing(i) || CharSequenceOrdering.isMissing(other))
+          BufferInt.MissingValue
         else if (
           CharSequenceOrdering.gteq(
             self.values(i),

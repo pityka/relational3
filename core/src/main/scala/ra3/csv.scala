@@ -23,11 +23,15 @@ object InstantParser {
       java.time.Instant.parse(cs).toEpochMilli()
     }
   }
-  case class LocalDateTimeAtUTC(s:String) extends InstantParser {
+  case class LocalDateTimeAtUTC(s: String) extends InstantParser {
     val fmt = java.time.format.DateTimeFormatter.ofPattern(s)
-    def read(buff: Array[Char], start: Int, until: Int): Long =  {
+    def read(buff: Array[Char], start: Int, until: Int): Long = {
       val cs = new CharArraySubSeq(buff, start, until)
-      java.time.LocalDateTime.parse(cs,fmt).atZone(java.time.ZoneOffset.UTC).toInstant().toEpochMilli()
+      java.time.LocalDateTime
+        .parse(cs, fmt)
+        .atZone(java.time.ZoneOffset.UTC)
+        .toInstant()
+        .toEpochMilli()
     }
   }
 
@@ -37,7 +41,9 @@ object csv {
 
   def readHeterogeneousFromCSVFile(
       name: String,
-      columnTypes: Seq[(Int, ColumnTag, Option[InstantParser])],
+      columnTypes: Seq[
+        (Int, ColumnTag, Option[InstantParser], Option[CharSequence])
+      ],
       file: File,
       charset: CharsetDecoder = org.saddle.io.csv.makeAsciiSilentCharsetDecoder,
       fieldSeparator: Char = ',',
@@ -70,7 +76,9 @@ object csv {
   }
   def readHeterogeneousFromCSVChannel(
       name: String,
-      columnTypes: Seq[(Int, ColumnTag, Option[InstantParser])],
+      columnTypes: Seq[
+        (Int, ColumnTag, Option[InstantParser], Option[CharSequence])
+      ],
       channel: ReadableByteChannel,
       charset: CharsetDecoder = org.saddle.io.csv.makeAsciiSilentCharsetDecoder,
       fieldSeparator: Char = ',',
@@ -128,7 +136,7 @@ object csv {
         } else {
           val columns =
             callback.segments.zip(sortedColumnTypes).zipWithIndex map {
-              case ((b, (_, tpe, _)), idx) =>
+              case ((b, (_, tpe, _, _)), idx) =>
                 val segments = b.toVector
                 val column = tpe.makeColumn(segments.map(_.as(tpe)))
 
@@ -156,13 +164,15 @@ object csv {
       name: String,
       maxLines: Long,
       header: Boolean,
-      columnTypes: Array[(Int, ColumnTag, Option[InstantParser])],
+      columnTypes: Array[
+        (Int, ColumnTag, Option[InstantParser], Option[CharSequence])
+      ],
       maxSegmentLength: Int
   )(implicit tsc: TaskSystemComponents)
       extends Callback {
 
     val locs = columnTypes.map(_._1)
-    private val locsIdx : org.saddle.Index[Int] = org.saddle.Index(locs)
+    private val locsIdx: org.saddle.Index[Int] = org.saddle.Index(locs)
 
     val headerFields = scala.collection.mutable.ArrayBuffer[String]()
     val allHeaderFields = scala.collection.mutable.ArrayBuffer[String]()
@@ -173,7 +183,7 @@ object csv {
     def allocateBuffers() = columnTypes.map { ct =>
       ct._2 match {
         case I32       => org.saddle.Buffer.empty[Int]
-        case StringTag => org.saddle.Buffer.empty[String]
+        case StringTag => org.saddle.Buffer.empty[CharSequence]
         case Instant   => org.saddle.Buffer.empty[Long]
         case I64       => org.saddle.Buffer.empty[Long]
         case F64       => org.saddle.Buffer.empty[Double]
@@ -185,6 +195,7 @@ object csv {
 
     val types: Array[ColumnTag] = columnTypes.map(_._2)
     val parsers: Array[Option[InstantParser]] = columnTypes.map(_._3)
+    val stringMissingValues: Array[Option[CharSequence]] = columnTypes.map(_._4)
 
     val segments: Vector[ArrayBuffer[Segment]] =
       types.map(_ => ArrayBuffer.empty[Segment]).toVector
@@ -211,9 +222,19 @@ object csv {
             .asInstanceOf[org.saddle.Buffer[Long]]
             .+=(org.saddle.scalar.ScalarTagLong.parse(s, from, to))
         case StringTag =>
+          val v = String.valueOf(s, from, to-from)
+          val v2 =
+            if (
+              stringMissingValues(
+                buf
+              ).isDefined && ra3.bufferimpl.CharSequenceOrdering.charSeqEquals(v,
+                stringMissingValues(buf).get
+              )
+            ) BufferString.MissingValue
+            else v
           bufdata(buf)
-            .asInstanceOf[org.saddle.Buffer[String]]
-            .+=(String.valueOf(s, from, to - from))
+            .asInstanceOf[org.saddle.Buffer[CharSequence]]
+            .+=(v2)
       }
 
     }

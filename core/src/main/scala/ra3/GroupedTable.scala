@@ -78,21 +78,7 @@ case class GroupedTable(
 
   }
 
-  // // the where clause in the query will act as HAVING in sql
-  // def reduceGroups(
-  //     query: TableReference => ra3.lang.Expr { type T <: ra3.lang.ReturnValue }
-  // )(implicit
-  //     tsc: TaskSystemComponents
-  // ) = {
-  //   val tRef = TableReference(
-  //     uniqueId = uniqueId,
-  //     colTags = partitions.head._1.columns.map(_.tag),
-  //     colNames = colNames
-  //   )
-  //   val program = query(tRef)
-  //   GroupedTable.reduceGroups(this,program)
-
-  // }
+  
 }
 
 object GroupedTable {

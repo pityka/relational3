@@ -42,6 +42,10 @@ sealed trait Buffer { self =>
   /** given the bounds on BufferType this should never fail */
   def asBufferType = this.asInstanceOf[BufferType]
 
+  /** Returns the items in the buffer as a Seq
+   * 
+   * Missing values are encoded onto the same value as used internally
+   */
   def toSeq: Seq[Elem]
 
   def elementAsCharSequence(i: Int): CharSequence 

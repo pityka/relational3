@@ -12,11 +12,11 @@ class CSVSuite extends munit.FunSuite with WithTempTaskSystem {
         "heterogeneouscsvtest",
         csvText,
         List(
-          (0, ColumnTag.I32, None),
-          (1, ColumnTag.F64, None),
-          (2, ColumnTag.Instant, None),
-          (3, ColumnTag.I64, None),
-          (4, ColumnTag.StringTag, None)
+          (0, ColumnTag.I32, None, None),
+          (1, ColumnTag.F64, None, None),
+          (2, ColumnTag.Instant, None, None),
+          (3, ColumnTag.I64, None, None),
+          (4, ColumnTag.StringTag, None, None)
         ),
         100
       )
@@ -78,10 +78,10 @@ class CSVSuite extends munit.FunSuite with WithTempTaskSystem {
         "heterogeneouscsvtest",
         csvText,
         List(
-          (1, ColumnTag.F64, None),
-          (2, ColumnTag.Instant, None),
-          (3, ColumnTag.I64, None),
-          (4, ColumnTag.StringTag, None)
+          (1, ColumnTag.F64, None, None),
+          (2, ColumnTag.Instant, None, None),
+          (3, ColumnTag.I64, None, None),
+          (4, ColumnTag.StringTag, None, None)
         ),
         100
       )
@@ -111,16 +111,16 @@ class CSVSuite extends munit.FunSuite with WithTempTaskSystem {
     val csvText = """hint,hfloat,htime,hbool,htext
 1,NaN,2020-01-01T00:00:00Z,1,"something, something"
 2,2.5,2021-01-01T00:00:00Z,0,"something,"
-2,3.0,2021-01-01T00:00:00Z,0,"a,""""
+2,3.0,2021-01-01T00:00:00Z,0,"NA""""
     withTempTaskSystem { implicit tsc =>
       val table = csvStringToHeterogeneousTable(
         "heterogeneouscsvtest",
         csvText,
         List(
-          (1, ColumnTag.F64, None),
-          (2, ColumnTag.Instant, None),
-          (3, ColumnTag.I64, None),
-          (4, ColumnTag.StringTag, None)
+          (1, ColumnTag.F64, None, None),
+          (2, ColumnTag.Instant, None, None),
+          (3, ColumnTag.I64, None, None),
+          (4, ColumnTag.StringTag, None, Some("NA"))
         ),
         100
       )
@@ -141,7 +141,7 @@ class CSVSuite extends munit.FunSuite with WithTempTaskSystem {
           .values
           .toSeq
           .map(_.toString),
-        Seq("something, something", "something,", "a,")
+        Seq("something, something", "something,", "\u0000")
       )
 
     }
