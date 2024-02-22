@@ -1,19 +1,19 @@
-RA3: Scala library for queries on large tabular datasets
-========================================================
+# RA3: Scala library for queries on large tabular datasets
 
-Introduction
-============
-RA3 implements relational algebra styles queries on disk backed tabular datasets.
 
-- Partitioned joins and groupings
-- Inner, left, right and full outer joins
-- Projections and filters. Type safe query language in projections and filters. 
+RA3 implements queries on large tabular datasets.
+
+- Partitioned joins and groupings.
+- Inner, left, right and full outer joins.
+- Projections and filters. 
 - Selection of top K elements 
 - Data import and export to and from csv.
 
+## Documentation
 
-Missing value (null) semantics
-==============================
+
+### Missing value (null) semantics
+
 - missing value is sorted below non missing values
 - direct literal or column comparison with a missing value always returns false (like Double.NaN)
 - filter for missing values is possible with explicit isMissing (like sql is null)
