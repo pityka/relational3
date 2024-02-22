@@ -20,7 +20,7 @@ private[ra3] class BloomFilterBuilder(
 
 private[ra3] object BloomFilter {
 
-    def hashLong(
+  def hashLong(
       l: Long,
       numHashes: Int,
       h: HashFunction,
@@ -29,7 +29,7 @@ private[ra3] object BloomFilter {
   ) = {
     deriveMultipleHashes(h.hashLong(l).asLong, numHashes, bitset, numBits)
   }
-   def hashString(
+  def hashString(
       l: CharSequence,
       numHashes: Int,
       h: HashFunction,
@@ -86,7 +86,11 @@ private[ra3] object BloomFilter {
     }
     builder.toBloomFilter
   }
-  def makeFromCharSequence(numBits: Int, numHashes: Int, items: Iterable[CharSequence]) = {
+  def makeFromCharSequence(
+      numBits: Int,
+      numHashes: Int,
+      items: Iterable[CharSequence]
+  ) = {
     val builder = new BloomFilterBuilder(numBits, numHashes)
     items.foreach { l =>
       builder.addCharSequence(l)

@@ -255,8 +255,8 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
     while (i < n) {
       r(i) =
         if (isMissing(i) || other.isMissing(i))
-          BufferInt.MissingValue else if (self.value > 0 && other.raw(i) > 0
-        ) 1
+          BufferInt.MissingValue
+        else if (self.value > 0 && other.raw(i) > 0) 1
         else 0
       i += 1
     }
@@ -270,9 +270,8 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
     while (i < n) {
       r(i) =
         if (isMissing(i) || other.isMissing(i))
-          BufferInt.MissingValue else  if (
-          self.value > 0 || other.raw(i) > 0
-        ) 1
+          BufferInt.MissingValue
+        else if (self.value > 0 || other.raw(i) > 0) 1
         else 0
       i += 1
     }
@@ -287,7 +286,8 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
     while (i < n) {
       r(i) =
         if (isMissing(i) || other.isMissing(i))
-          BufferInt.MissingValue else  if (self.value == other.raw(i))
+          BufferInt.MissingValue
+        else if (self.value == other.raw(i))
           1
         else 0
       i += 1
@@ -302,7 +302,8 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
     while (i < n) {
       r(i) =
         if (isMissing(i) || other.isMissing(i))
-          BufferInt.MissingValue else if ( self.value > other.raw(i)) 1
+          BufferInt.MissingValue
+        else if (self.value > other.raw(i)) 1
         else 0
       i += 1
     }
@@ -316,7 +317,8 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
     while (i < n) {
       r(i) =
         if (isMissing(i) || other.isMissing(i))
-          BufferInt.MissingValue else if ( self.value >= other.raw(i))
+          BufferInt.MissingValue
+        else if (self.value >= other.raw(i))
           1
         else 0
       i += 1
@@ -331,7 +333,8 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
     while (i < n) {
       r(i) =
         if (isMissing(i) || other.isMissing(i))
-          BufferInt.MissingValue else if (self.value < other.raw(i)) 1
+          BufferInt.MissingValue
+        else if (self.value < other.raw(i)) 1
         else 0
       i += 1
     }
@@ -345,7 +348,8 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
     while (i < n) {
       r(i) =
         if (isMissing(i) || other.isMissing(i))
-          BufferInt.MissingValue else if ( self.value <= other.raw(i))
+          BufferInt.MissingValue
+        else if (self.value <= other.raw(i))
           1
         else 0
       i += 1
@@ -356,7 +360,9 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
 
     BufferInt.constant(
       if (isMissing(0) || other.isNaN)
-          BufferInt.MissingValue else if (self.value <= other) 1 else 0,
+        BufferInt.MissingValue
+      else if (self.value <= other) 1
+      else 0,
       length
     )
   }
@@ -368,7 +374,8 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
     while (i < n) {
       r(i) =
         if (isMissing(i) || other.isMissing(i))
-          BufferInt.MissingValue else  if ( self.value != other.raw(i))
+          BufferInt.MissingValue
+        else if (self.value != other.raw(i))
           1
         else 0
       i += 1
@@ -378,7 +385,9 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
   def elementwise_neq(other: Double): BufferInt = {
     BufferInt.constant(
       if (isMissing(0) || other.isNaN)
-          BufferInt.MissingValue else if ( self.value != other) 1 else 0,
+        BufferInt.MissingValue
+      else if (self.value != other) 1
+      else 0,
       length
     )
   }
@@ -389,8 +398,11 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
     val n = self.length
     val r = Array.ofDim[Int](n)
     while (i < n) {
-      r(i) = if (isMissing(i) || other.isMissing(i))
-          BufferInt.MissingValue else  if ( self.value == other.values(i)) 1 else 0
+      r(i) =
+        if (isMissing(i) || other.isMissing(i))
+          BufferInt.MissingValue
+        else if (self.value == other.values(i)) 1
+        else 0
       i += 1
     }
     BufferInt(r)
@@ -398,7 +410,9 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
   def elementwise_eq(other: Double): BufferInt = {
     BufferInt.constant(
       if (isMissing(0) || other.isNaN)
-          BufferInt.MissingValue else if ( self.value == other) 1 else 0,
+        BufferInt.MissingValue
+      else if (self.value == other) 1
+      else 0,
       length
     )
   }
@@ -408,8 +422,11 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
     val n = self.length
     val r = Array.ofDim[Int](n)
     while (i < n) {
-      r(i) = if (isMissing(i) || other.isMissing(i))
-          BufferInt.MissingValue else if ( self.value > other.values(i)) 1 else 0
+      r(i) =
+        if (isMissing(i) || other.isMissing(i))
+          BufferInt.MissingValue
+        else if (self.value > other.values(i)) 1
+        else 0
       i += 1
     }
     BufferInt(r)
@@ -417,7 +434,9 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
   def elementwise_gt(other: Double): BufferInt = {
     BufferInt.constant(
       if (isMissing(0) || other.isNaN)
-          BufferInt.MissingValue else if (self.value > other) 1 else 0,
+        BufferInt.MissingValue
+      else if (self.value > other) 1
+      else 0,
       length
     )
   }
@@ -427,8 +446,11 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
     val n = self.length
     val r = Array.ofDim[Int](n)
     while (i < n) {
-      r(i) = if (isMissing(i) || other.isMissing(i))
-          BufferInt.MissingValue else  if (self.value >= other.values(i)) 1 else 0
+      r(i) =
+        if (isMissing(i) || other.isMissing(i))
+          BufferInt.MissingValue
+        else if (self.value >= other.values(i)) 1
+        else 0
       i += 1
     }
     BufferInt(r)
@@ -436,7 +458,9 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
   def elementwise_gteq(other: Double): BufferInt = {
     BufferInt.constant(
       if (isMissing(0) || other.isNaN)
-          BufferInt.MissingValue else  if (self.value >= other) 1 else 0,
+        BufferInt.MissingValue
+      else if (self.value >= other) 1
+      else 0,
       length
     )
   }
@@ -446,8 +470,11 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
     val n = self.length
     val r = Array.ofDim[Int](n)
     while (i < n) {
-      r(i) = if (isMissing(i) || other.isMissing(i))
-          BufferInt.MissingValue else  if (self.value < other.values(i)) 1 else 0
+      r(i) =
+        if (isMissing(i) || other.isMissing(i))
+          BufferInt.MissingValue
+        else if (self.value < other.values(i)) 1
+        else 0
       i += 1
     }
     BufferInt(r)
@@ -455,7 +482,9 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
   def elementwise_lt(other: Double): BufferInt = {
     BufferInt.constant(
       if (isMissing(0) || other.isNaN)
-          BufferInt.MissingValue else if (self.value < other) 1 else 0,
+        BufferInt.MissingValue
+      else if (self.value < other) 1
+      else 0,
       length
     )
   }
@@ -465,8 +494,11 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
     val n = self.length
     val r = Array.ofDim[Int](n)
     while (i < n) {
-      r(i) = if (isMissing(i) || other.isMissing(i))
-          BufferInt.MissingValue else if ( self.value <= other.values(i)) 1 else 0
+      r(i) =
+        if (isMissing(i) || other.isMissing(i))
+          BufferInt.MissingValue
+        else if (self.value <= other.values(i)) 1
+        else 0
       i += 1
     }
     BufferInt(r)
@@ -480,9 +512,8 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
     while (i < n) {
       r(i) =
         if (isMissing(i) || other.isMissing(i))
-          BufferInt.MissingValue else if (
-          self.value != other.values(i)
-        ) 1
+          BufferInt.MissingValue
+        else if (self.value != other.values(i)) 1
         else 0
       i += 1
     }
@@ -521,8 +552,11 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
   }
   def elementwise_containedIn(s: Set[Int]): BufferInt = {
     val n = self.length
-    val t = if (isMissing(0))
-          BufferInt.MissingValue else  if (s.contains(value)) 1 else 0
+    val t =
+      if (isMissing(0))
+        BufferInt.MissingValue
+      else if (s.contains(value)) 1
+      else 0
 
     BufferInt.constant(t, n)
   }
@@ -583,34 +617,213 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
   }
 
   def elementwise_eq(other: Int): ra3.BufferInt =
-    BufferIntConstant(if (isMissing(0) || other == BufferInt.MissingValue)
-          BufferInt.MissingValue else  if (value == other) 1 else 0, length)
+    BufferIntConstant(
+      if (isMissing(0) || other == BufferInt.MissingValue)
+        BufferInt.MissingValue
+      else if (value == other) 1
+      else 0,
+      length
+    )
 
   def elementwise_gt(other: Int): ra3.BufferInt =
-    BufferIntConstant(if (isMissing(0) || other == BufferInt.MissingValue)
-          BufferInt.MissingValue else if (value > other) 1 else 0, length)
+    BufferIntConstant(
+      if (isMissing(0) || other == BufferInt.MissingValue)
+        BufferInt.MissingValue
+      else if (value > other) 1
+      else 0,
+      length
+    )
 
   def elementwise_gteq(other: Int): ra3.BufferInt =
-    BufferIntConstant(if (isMissing(0) || other == BufferInt.MissingValue)
-          BufferInt.MissingValue else if (value >= other) 1 else 0, length)
+    BufferIntConstant(
+      if (isMissing(0) || other == BufferInt.MissingValue)
+        BufferInt.MissingValue
+      else if (value >= other) 1
+      else 0,
+      length
+    )
 
   def elementwise_isMissing: ra3.BufferInt =
     BufferIntConstant(if (isMissing(0)) 1 else 0, length)
 
   def elementwise_lt(other: Int): ra3.BufferInt =
-    BufferIntConstant(if (isMissing(0) || other == BufferInt.MissingValue)
-          BufferInt.MissingValue else if (value < other) 1 else 0, length)
+    BufferIntConstant(
+      if (isMissing(0) || other == BufferInt.MissingValue)
+        BufferInt.MissingValue
+      else if (value < other) 1
+      else 0,
+      length
+    )
 
   def elementwise_lteq(other: Int): ra3.BufferInt =
-    BufferIntConstant(if (isMissing(0) || other == BufferInt.MissingValue)
-          BufferInt.MissingValue else if (value <= other) 1 else 0, length)
+    BufferIntConstant(
+      if (isMissing(0) || other == BufferInt.MissingValue)
+        BufferInt.MissingValue
+      else if (value <= other) 1
+      else 0,
+      length
+    )
 
   def elementwise_neq(other: Int): ra3.BufferInt =
-    BufferIntConstant(if (isMissing(0) || other == BufferInt.MissingValue)
-          BufferInt.MissingValue else if (value != other) 1 else 0, length)
+    BufferIntConstant(
+      if (isMissing(0) || other == BufferInt.MissingValue)
+        BufferInt.MissingValue
+      else if (value != other) 1
+      else 0,
+      length
+    )
 
   def elementwise_printf(s: String): ra3.BufferString = {
     BufferString.constant(s.format(value), length)
+  }
+
+  def elementwise_choose(t: BufferInt, f: BufferInt): BufferInt = {
+    assert(t.length == length)
+    assert(f.length == length)
+
+    if (isMissing(0)) BufferInt.constant(BufferInt.MissingValue, length)
+    else if (value > 0) t
+    else f
+  }
+
+  def elementwise_choose(t: Int, f: BufferInt): BufferInt = {
+    assert(f.length == length)
+
+    if (isMissing(0)) BufferInt.constant(BufferInt.MissingValue, length)
+    else if (value > 0) BufferInt.constant(t, length)
+    else f
+  }
+
+  def elementwise_choose(t: BufferInt, f: Int): BufferInt = {
+    assert(t.length == length)
+
+    if (isMissing(0)) BufferInt.constant(BufferInt.MissingValue, length)
+    else if (value > 0) t
+    else BufferInt.constant(f, length)
+  }
+
+  def elementwise_choose(t: Int, f: Int): BufferInt = {
+
+    if (isMissing(0)) BufferInt.constant(BufferInt.MissingValue, length)
+    else if (value > 0) BufferInt.constant(t, length)
+    else BufferInt.constant(f, length)
+  }
+  def elementwise_choose(t: BufferDouble, f: BufferDouble): BufferDouble = {
+    assert(t.length == length)
+    assert(f.length == length)
+
+    if (isMissing(0)) BufferDouble.constant(BufferDouble.MissingValue, length)
+    else if (value > 0) t
+    else f
+  }
+  def elementwise_choose(t: Double, f: BufferDouble): BufferDouble = {
+    assert(f.length == length)
+
+    if (isMissing(0)) BufferDouble.constant(BufferDouble.MissingValue, length)
+    else if (value > 0) BufferDouble.constant(t, length)
+    else f
+  }
+  def elementwise_choose(t: BufferDouble, f: Double): BufferDouble = {
+    assert(t.length == length)
+
+    if (isMissing(0)) BufferDouble.constant(BufferDouble.MissingValue, length)
+    else if (value > 0) t
+    else BufferDouble.constant(f, length)
+  }
+  def elementwise_choose(t: Double, f: Double): BufferDouble = {
+
+    if (isMissing(0)) BufferDouble.constant(BufferDouble.MissingValue, length)
+    else if (value > 0) BufferDouble.constant(t, length)
+    else BufferDouble.constant(f, length)
+  }
+
+  def elementwise_choose(t: BufferLong, f: BufferLong): BufferLong = {
+    assert(t.length == length)
+    assert(f.length == length)
+
+    if (isMissing(0)) BufferLong.constant(BufferLong.MissingValue, length)
+    else if (value > 0) t
+    else f
+  }
+  def elementwise_choose(t: Long, f: BufferLong): BufferLong = {
+    assert(f.length == length)
+
+    if (isMissing(0)) BufferLong.constant(BufferLong.MissingValue, length)
+    else if (value > 0) BufferLong.constant(t, length)
+    else f
+  }
+  def elementwise_choose(t: BufferLong, f: Long): BufferLong = {
+    assert(t.length == length)
+
+    if (isMissing(0)) BufferLong.constant(BufferLong.MissingValue, length)
+    else if (value > 0) t
+    else BufferLong.constant(f, length)
+  }
+  def elementwise_choose(t: Long, f: Long): BufferLong = {
+
+    if (isMissing(0)) BufferLong.constant(BufferLong.MissingValue, length)
+    else if (value > 0) BufferLong.constant(t, length)
+    else BufferLong.constant(f, length)
+  }
+  def elementwise_choose(t: BufferString, f: BufferString): BufferString = {
+    assert(t.length == length)
+    assert(f.length == length)
+
+    if (isMissing(0))
+      BufferString.constant(BufferString.MissingValue.toString, length)
+    else if (value > 0) t
+    else f
+  }
+  def elementwise_choose(t: String, f: BufferString): BufferString = {
+    assert(f.length == length)
+
+    if (isMissing(0))
+      BufferString.constant(BufferString.MissingValue.toString, length)
+    else if (value > 0) BufferString.constant(t, length)
+    else f
+  }
+  def elementwise_choose(t: BufferString, f: String): BufferString = {
+    assert(t.length == length)
+
+    if (isMissing(0))
+      BufferString.constant(BufferString.MissingValue.toString, length)
+    else if (value > 0) t
+    else BufferString.constant(f, length)
+  }
+  def elementwise_choose(t: String, f: String): BufferString = {
+
+    if (isMissing(0))
+      BufferString.constant(BufferString.MissingValue.toString, length)
+    else if (value > 0) BufferString.constant(t, length)
+    else BufferString.constant(f, length)
+  }
+  def elementwise_choose(t: BufferInstant, f: BufferInstant): BufferInstant = {
+    assert(t.length == length)
+    assert(f.length == length)
+
+    if (isMissing(0)) BufferInstant.constant(BufferInstant.MissingValue, length)
+    else if (value > 0) t
+    else f
+  }
+  def elementwise_choose(t: Long, f: BufferInstant): BufferInstant = {
+    assert(f.length == length)
+
+    if (isMissing(0)) BufferInstant.constant(BufferInstant.MissingValue, length)
+    else if (value > 0) BufferInstant.constant(t, length)
+    else f
+  }
+  def elementwise_choose(t: BufferInstant, f: Long): BufferInstant = {
+    assert(t.length == length)
+
+    if (isMissing(0)) BufferInstant.constant(BufferInstant.MissingValue, length)
+    else if (value > 0) t
+    else BufferInstant.constant(f, length)
+  }
+  def elementwise_choose_inst(t: Long, f: Long): BufferInstant = {
+
+    if (isMissing(0)) BufferInstant.constant(BufferInstant.MissingValue, length)
+    else if (value > 0) BufferInstant.constant(t, length)
+    else BufferInstant.constant(f, length)
   }
 
 }

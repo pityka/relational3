@@ -10,7 +10,7 @@ import de.lhns.fs2.compress.GzipCompressor
 import java.nio.CharBuffer
 import java.nio.charset.StandardCharsets
 
-case class ExportCsv(
+private[ra3] case class ExportCsv(
     segments: Seq[Segment],
     columnSeparator: Char,
     quoteChar: Char,
@@ -19,7 +19,7 @@ case class ExportCsv(
     outputSegmentIndex: Int,
     compression: Option[ExportCsv.CompressionFormat]
 )
-object ExportCsv {
+private[ra3] object ExportCsv {
   sealed trait CompressionFormat
   case object Gzip extends CompressionFormat
 
@@ -84,41 +84,42 @@ object ExportCsv {
     assert(segments.nonEmpty)
     IO.parSequenceN(32)(segments.map(_.buffer)).map(_.toVector).flatMap {
       buffers =>
-        IO{val numRows = segments.head.numElems
-        val numCols = buffers.length
-        assert(segments.forall(_.numElems == numRows))
-        val sb = new StringBuilder
-        0 until numRows foreach { rowIdx =>
-          0 until numCols foreach { colIdx =>
-            sb.append(quote(buffers(colIdx).elementAsCharSequence(rowIdx)))
-            if (colIdx == numCols - 1) {
-              sb.append(recordSeparator)
-            } else sb.append(columnSeparatorStr)
+        IO {
+          val numRows = segments.head.numElems
+          val numCols = buffers.length
+          assert(segments.forall(_.numElems == numRows))
+          val sb = new StringBuilder
+          0 until numRows foreach { rowIdx =>
+            0 until numCols foreach { colIdx =>
+              sb.append(quote(buffers(colIdx).elementAsCharSequence(rowIdx)))
+              if (colIdx == numCols - 1) {
+                sb.append(recordSeparator)
+              } else sb.append(columnSeparatorStr)
+            }
           }
-        }
 
-        val bytes = StandardCharsets.UTF_8.encode(CharBuffer.wrap(sb))
+          val bytes = StandardCharsets.UTF_8.encode(CharBuffer.wrap(sb))
 
-        val uncompressedStream = fs2.Stream.chunk(fs2.Chunk.byteBuffer(bytes))
+          val uncompressedStream = fs2.Stream.chunk(fs2.Chunk.byteBuffer(bytes))
 
-        val stream = compression match {
-          case None => uncompressedStream
-          case Some(Gzip) =>
-            implicit val c: GzipCompressor[IO] =
-              GzipCompressor.make()
-            uncompressedStream.through(GzipCompressor[IO].compress)
-        }
+          val stream = compression match {
+            case None => uncompressedStream
+            case Some(Gzip) =>
+              implicit val c: GzipCompressor[IO] =
+                GzipCompressor.make()
+              uncompressedStream.through(GzipCompressor[IO].compress)
+          }
 
-        val suf = compression match {
-          case None => ""
-          case Some(Gzip) => ".gz"
-        }
-        
-        SharedFile.apply(
-          stream,
-          s"${outputName}/csv/$outputSegmentIndex.csv$suf"
-        )
-      }.flatten
+          val suf = compression match {
+            case None       => ""
+            case Some(Gzip) => ".gz"
+          }
+
+          SharedFile.apply(
+            stream,
+            s"${outputName}/csv/$outputSegmentIndex.csv$suf"
+          )
+        }.flatten
     }
 
   }

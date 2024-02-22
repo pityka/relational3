@@ -11,7 +11,7 @@
   * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
   * License for the specific language governing permissions and limitations
   * under the License.
-  * 
+  *
   * Changes: removed index field
   */
 package ra3.join
@@ -78,7 +78,7 @@ package ra3.join
   *   ixer.lTake.map(x => v.take(x)) getOrElse v
   * }}}
   */
-trait ReIndexer[T] {
+private[ra3] trait ReIndexer[T] {
 
   /** Offsets into left index corresponding to new index
     */
@@ -88,13 +88,12 @@ trait ReIndexer[T] {
     */
   def rTake: Option[Array[Int]]
 
-
   /** Return ReIndexer with lTake and rTake swapped
     */
   def swap: ReIndexer[T] = ReIndexer(rTake, lTake)
 }
 
-object ReIndexer {
+private[ra3] object ReIndexer {
 
   /** Factory to produce a new [[org.saddle.index.ReIndexer]] instance
     * @param lft

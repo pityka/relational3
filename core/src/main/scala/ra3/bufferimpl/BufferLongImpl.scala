@@ -6,7 +6,7 @@ import java.nio.ByteOrder
 import tasks.{TaskSystemComponents, SharedFile}
 
 private[ra3] trait BufferLongImpl { self: BufferLong =>
-def nonMissingMinMax = makeStatistic().nonMissingMinMax
+  def nonMissingMinMax = makeStatistic().nonMissingMinMax
 
   def makeStatistic() = {
     var i = 0
@@ -33,16 +33,17 @@ def nonMissingMinMax = makeStatistic().nonMissingMinMax
           set.+=(v)
         }
         if (setBF.size < 16384 && !setBF.contains(v)) {
-          setBF.update(v,null)
+          setBF.update(v, null)
         }
       }
       i += 1
     }
-    val bloomFilter = BloomFilter.makeFromLongs(4096,2,setBF.keySet)
+    val bloomFilter = BloomFilter.makeFromLongs(4096, 2, setBF.keySet)
     StatisticLong(
       hasMissing = hasMissing,
       nonMissingMinMax = if (countNonMissing > 0) Some((min, max)) else None,
-      lowCardinalityNonMissingSet = if (set.size <= 255) Some(set.toSet) else None ,
+      lowCardinalityNonMissingSet =
+        if (set.size <= 255) Some(set.toSet) else None,
       bloomFilter = Some(bloomFilter)
     )
   }
@@ -190,7 +191,7 @@ def nonMissingMinMax = makeStatistic().nonMissingMinMax
         case "left"  => org.saddle.index.LeftJoin
         case "right" => org.saddle.index.RightJoin
         case "outer" => org.saddle.index.OuterJoin
-      },
+      }
     )
     (reindexer.lTake.map(BufferInt(_)), reindexer.rTake.map(BufferInt(_)))
   }
@@ -212,7 +213,6 @@ def nonMissingMinMax = makeStatistic().nonMissingMinMax
     scala.util.hashing.byteswap64(values(l))
   }
 
-  
   def firstInGroup(partitionMap: BufferInt, numGroups: Int): BufferType = {
     assert(partitionMap.length == length)
     val ar = Array.fill(numGroups)(Long.MinValue)
@@ -278,6 +278,10 @@ def nonMissingMinMax = makeStatistic().nonMissingMinMax
     }
     BufferDouble(r)
   }
+  def elementwise_toInstantEpochMilli: BufferInstant = {
+    val copy = values.clone()
+    BufferInstant(copy)
+  }
 
   def countInGroups(partitionMap: BufferInt, numGroups: Int): BufferInt = {
     val ar = Array.fill[Double](numGroups)(Double.NaN)
@@ -334,8 +338,9 @@ def nonMissingMinMax = makeStatistic().nonMissingMinMax
 
     while (i < n) {
       r(i) =
-        if (isMissing(i) || other.isMissing(i)) BufferInt.MissingValue else if (
-         self.values(i) == other
+        if (isMissing(i) || other.isMissing(i)) BufferInt.MissingValue
+        else if (
+          self.values(i) == other
             .values(i)
         ) 1
         else 0
@@ -350,7 +355,9 @@ def nonMissingMinMax = makeStatistic().nonMissingMinMax
 
     while (i < n) {
       r(i) =
-        if (isMissing(i) || other == BufferLong.MissingValue) BufferInt.MissingValue else if (
+        if (isMissing(i) || other == BufferLong.MissingValue)
+          BufferInt.MissingValue
+        else if (
           self.values(
             i
           ) == other

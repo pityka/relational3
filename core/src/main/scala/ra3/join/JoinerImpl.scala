@@ -26,7 +26,7 @@ import org.saddle.Buffer
 /** Concrete implementation of Joiner instance which is specialized on basic
   * types.
   */
-class JoinerImpl[@spec(Int, Long, Double) T: ST] {
+private[ra3] class JoinerImpl[@spec(Int, Long, Double) T: ST] {
 
   /** Perform database joins
     *

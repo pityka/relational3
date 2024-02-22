@@ -8,15 +8,12 @@ import com.github.plokhotnyuk.jsoniter_scala.core._
 import cats.effect.IO
 import ra3.lang.ReturnValue
 
-
-case class SimpleQueryCount(
+private[ra3] case class SimpleQueryCount(
     input: Seq[SegmentWithName],
     predicate: ra3.lang.Expr,
     groupMap: Option[(SegmentInt, Int)]
 )
-object SimpleQueryCount {
-
-  
+private[ra3] object SimpleQueryCount {
 
   def doit(
       input: Seq[SegmentWithName],
@@ -24,7 +21,10 @@ object SimpleQueryCount {
       groupMap: Option[(SegmentInt, Int)]
   )(implicit tsc: TaskSystemComponents): IO[Int] = {
     scribe.debug(
-      s"SimpleQueryCount task on ${input.groupBy(_.tableUniqueId).toSeq.map(s => (s._1, s._2.map(v => (v.columnName, v.segment.size))))} with $predicate . Grouping: $groupMap"
+      s"SimpleQueryCount task on ${input
+          .groupBy(_.tableUniqueId)
+          .toSeq
+          .map(s => (s._1, s._2.map(v => (v.columnName, v.segment.size))))} with $predicate . Grouping: $groupMap"
     )
     val neededColumns = predicate.columnKeys
     val numElems = {
@@ -61,7 +61,6 @@ object SimpleQueryCount {
         .evaluate(predicate, env)
         .map(_.v.asInstanceOf[ReturnValue])
         .flatMap { returnValue =>
-          
           val mask = returnValue.filter
 
           // If all items are dropped then we do not buffer segments from Star
@@ -79,15 +78,29 @@ object SimpleQueryCount {
             case _                                           => false
           }
 
-          scribe.debug(s"SQ program evaluation done projection: ${returnValue.projections} filter: ${returnValue.filter} maskIsEmpty=$maskIsEmpty maskIsComplete=$maskIsComplete")
+          scribe.debug(
+            s"SQ program evaluation done projection: ${returnValue.projections} filter: ${returnValue.filter} maskIsEmpty=$maskIsEmpty maskIsComplete=$maskIsComplete"
+          )
 
           if (maskIsEmpty) IO.pure(0)
-          else if (maskIsComplete) IO.pure(groupMapBuffer.map(_._1.toSeq.distinct.size).getOrElse(numElems))
-          else mask match {
-            case Some(Right(s)) => ra3.ts.SimpleQuery.bufferMultiple(s).map(_.positiveLocations.length)
-            case Some(Left(b)) => IO.pure(b.positiveLocations.length)
-            case None => IO.pure(groupMapBuffer.map(_._1.toSeq.distinct.size).getOrElse(numElems))
-          }
+          else if (maskIsComplete)
+            IO.pure(
+              groupMapBuffer.map(_._1.toSeq.distinct.size).getOrElse(numElems)
+            )
+          else
+            mask match {
+              case Some(Right(s)) =>
+                ra3.ts.SimpleQuery
+                  .bufferMultiple(s)
+                  .map(_.positiveLocations.length)
+              case Some(Left(b)) => IO.pure(b.positiveLocations.length)
+              case None =>
+                IO.pure(
+                  groupMapBuffer
+                    .map(_._1.toSeq.distinct.size)
+                    .getOrElse(numElems)
+                )
+            }
         }
 
     }
@@ -112,10 +125,9 @@ object SimpleQueryCount {
       )
     )
   implicit val codec: JsonValueCodec[SimpleQueryCount] = JsonCodecMaker.make
-  val task = Task[SimpleQueryCount, Long]("SimpleQueryCount", 1) {
-    case input =>
-      implicit ce =>
-        doit(input.input, input.predicate, input.groupMap).map(_.toLong)
+  val task = Task[SimpleQueryCount, Long]("SimpleQueryCount", 1) { case input =>
+    implicit ce =>
+      doit(input.input, input.predicate, input.groupMap).map(_.toLong)
 
   }
 }

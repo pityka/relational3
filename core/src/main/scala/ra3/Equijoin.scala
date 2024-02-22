@@ -1,7 +1,7 @@
 package ra3
 import cats.effect.IO
 import tasks.TaskSystemComponents
-object Equijoin {
+private[ra3] object Equijoin {
 
   def equijoinPlanner(
       self: Table,

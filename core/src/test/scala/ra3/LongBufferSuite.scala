@@ -4,22 +4,22 @@ import cats.effect.unsafe.implicits.global
 
 class LongBufferSuite extends munit.FunSuite with WithTempTaskSystem {
   test("makeStatistic") {
-      val s = Seq(0L, 1L, 2L, 3L, Long.MinValue, -1L)
-      val st = BufferLong(s: _*).makeStatistic()
-      assertEquals(st.hasMissing, true)
-      assertEquals(st.nonMissingMinMax, Some(-1L -> 3L))
-      assertEquals(st.lowCardinalityNonMissingSet, Some(Set(0L, 1L, 2L, 3L, -1L)))
+    val s = Seq(0L, 1L, 2L, 3L, Long.MinValue, -1L)
+    val st = BufferLong(s: _*).makeStatistic()
+    assertEquals(st.hasMissing, true)
+    assertEquals(st.nonMissingMinMax, Some(-1L -> 3L))
+    assertEquals(st.lowCardinalityNonMissingSet, Some(Set(0L, 1L, 2L, 3L, -1L)))
 
   }
   test("makeStatistic long") {
-      val s = Seq(0 until 256:_*).map(_.toLong)
-      val st = BufferLong(s: _*).makeStatistic()
-      assertEquals(st.hasMissing, false)
-      assertEquals(st.nonMissingMinMax, Some(0L -> 255L))
-      assertEquals(st.lowCardinalityNonMissingSet, None)
+    val s = Seq(0 until 256: _*).map(_.toLong)
+    val st = BufferLong(s: _*).makeStatistic()
+    assertEquals(st.hasMissing, false)
+    assertEquals(st.nonMissingMinMax, Some(0L -> 255L))
+    assertEquals(st.lowCardinalityNonMissingSet, None)
 
   }
-  
+
   test("toSegment") {
     withTempTaskSystem { implicit tsc =>
       val s = Seq(0L, 1L, 2L, 3L, Long.MinValue, -1L)
@@ -76,8 +76,8 @@ class LongBufferSuite extends munit.FunSuite with WithTempTaskSystem {
       BufferLong(0, 0, Long.MinValue, Long.MinValue, 1, 1, 99),
       "outer"
     )
-    assertEquals(a.get.toSeq, Seq(0, 0, 1, 2, 2, 3, -1, -1 ,-1))
-    assertEquals(b.get.toSeq, Seq(0, 1, -1, 4, 5, -1, 2,3,6))
+    assertEquals(a.get.toSeq, Seq(0, 0, 1, 2, 2, 3, -1, -1, -1))
+    assertEquals(b.get.toSeq, Seq(0, 1, -1, 4, 5, -1, 2, 3, 6))
   }
 
   test("mergeNonMissing") {
@@ -96,51 +96,51 @@ class LongBufferSuite extends munit.FunSuite with WithTempTaskSystem {
 
   test("sum groups") {
     assertEquals(
-      BufferLong(0, 0, 1, 1, 2, 2,Long.MinValue)
-        .sumGroups(BufferInt(0, 1, 0, 1, 0, 1,1), 2)
+      BufferLong(0, 0, 1, 1, 2, 2, Long.MinValue)
+        .sumGroups(BufferInt(0, 1, 0, 1, 0, 1, 1), 2)
         .toSeq,
       Seq(3L, 3L)
     )
   }
 
   test("statistic mightEq") {
-    1 to 1000 foreach{ _ =>
-      val ar = org.saddle.array.randLong(10000)  
+    1 to 1000 foreach { _ =>
+      val ar = org.saddle.array.randLong(10000)
       val b = BufferLong(ar)
       val st = b.makeStatistic()
       assert(ar.forall(l => st.mightEq(l)))
     }
   }
   test("statistic mightLt") {
-    1 to 1000 foreach{ _ =>
-      val ar = org.saddle.array.randLong(10000)  
+    1 to 1000 foreach { _ =>
+      val ar = org.saddle.array.randLong(10000)
       val b = BufferLong(ar)
       val st = b.makeStatistic()
-      assert(ar.forall(l => st.mightLt(l+1)))
+      assert(ar.forall(l => st.mightLt(l + 1)))
     }
   }
   test("statistic mightLtEq") {
-    1 to 1000 foreach{ _ =>
-      val ar = org.saddle.array.randLong(10000)  
+    1 to 1000 foreach { _ =>
+      val ar = org.saddle.array.randLong(10000)
       val b = BufferLong(ar)
       val st = b.makeStatistic()
       assert(ar.forall(l => st.mightLtEq(l)))
     }
   }
   test("statistic mightGtEq") {
-    1 to 1000 foreach{ _ =>
-      val ar = org.saddle.array.randLong(10000)  
+    1 to 1000 foreach { _ =>
+      val ar = org.saddle.array.randLong(10000)
       val b = BufferLong(ar)
       val st = b.makeStatistic()
       assert(ar.forall(l => st.mightGtEq(l)))
     }
   }
   test("statistic mightGt") {
-    1 to 1000 foreach{ _ =>
-      val ar = org.saddle.array.randLong(10000)  
+    1 to 1000 foreach { _ =>
+      val ar = org.saddle.array.randLong(10000)
       val b = BufferLong(ar)
       val st = b.makeStatistic()
-      assert(ar.forall(l => st.mightGt(l-1)))
+      assert(ar.forall(l => st.mightGt(l - 1)))
     }
   }
 

@@ -10,10 +10,10 @@ import bufferimpl.BufferLongImpl
 import bufferimpl.BufferStringImpl
 import bufferimpl.BufferIntArrayImpl
 
-sealed trait Location
-final case class Slice(start: Int, until: Int) extends Location
+private[ra3] sealed trait Location
+private[ra3] final case class Slice(start: Int, until: Int) extends Location
 
-sealed trait Buffer { self =>
+private[ra3] sealed trait Buffer { self =>
 
   type Elem
   type BufferType >: this.type <: Buffer
@@ -43,12 +43,12 @@ sealed trait Buffer { self =>
   def asBufferType = this.asInstanceOf[BufferType]
 
   /** Returns the items in the buffer as a Seq
-   * 
-   * Missing values are encoded onto the same value as used internally
-   */
+    *
+    * Missing values are encoded onto the same value as used internally
+    */
   def toSeq: Seq[Elem]
 
-  def elementAsCharSequence(i: Int): CharSequence 
+  def elementAsCharSequence(i: Int): CharSequence
 
   /** Returns locations at which this is <= or >= than the first element of
     * other
@@ -71,11 +71,10 @@ sealed trait Buffer { self =>
   /** negative indices yield NA values */
   def take(locs: Location): BufferType
 
-  /** partitions the buffer with the partition map supplied 
-   * Returns as many new buffers of various sizes as many distinct values in the map
-   * 
-  */
-  def partition(numPartitions: Int, map: BufferInt) : Vector[BufferType]
+  /** partitions the buffer with the partition map supplied Returns as many new
+    * buffers of various sizes as many distinct values in the map
+    */
+  def partition(numPartitions: Int, map: BufferInt): Vector[BufferType]
 
   /** returns indexes where value is positive (or positive length) */
   def positiveLocations: BufferInt
@@ -137,9 +136,8 @@ sealed trait Buffer { self =>
       tsc: TaskSystemComponents
   ): IO[SegmentType]
 
-
   /** Reduce the groups by taking the first element per group */
-  def firstInGroup(partitionMap: BufferInt, numGroups: Int): BufferType 
+  def firstInGroup(partitionMap: BufferInt, numGroups: Int): BufferType
 
   /** If this buffer has size numElems then return it If this buffer has size 1
     * then return a buffer with that element repeated numElem times Otherwise
@@ -160,17 +158,17 @@ sealed trait Buffer { self =>
     s.toLong
   }
 
-  def nonMissingMinMax: Option[(Elem,Elem)]
+  def nonMissingMinMax: Option[(Elem, Elem)]
 }
 
-object BufferDouble {
+private[ra3] object BufferDouble {
   val MissingValue = Double.NaN
   def apply(s: Double*): BufferDouble = BufferDouble(s.toArray)
   def constant(value: Double, length: Int): BufferDouble =
     BufferDouble(Array.fill[Double](length)(value))
 }
 
-final case class BufferDouble(values: Array[Double])
+private[ra3] final case class BufferDouble(values: Array[Double])
     extends Buffer
     with BufferDoubleImpl { self =>
 
@@ -184,7 +182,7 @@ final case class BufferDouble(values: Array[Double])
 
 }
 
-object BufferInt {
+private[ra3] object BufferInt {
   val MissingValue = Int.MinValue
   def apply(e: Int*): BufferInt = apply(e.toArray)
   def apply(e: Array[Int]): BufferInt = {
@@ -215,7 +213,10 @@ object BufferInt {
 
 }
 
-sealed trait BufferInt extends Buffer with Location with BufferIntImpl {
+private[ra3] sealed trait BufferInt
+    extends Buffer
+    with Location
+    with BufferIntImpl {
   type Elem = Int
   type BufferType = BufferInt
   type SegmentType = SegmentInt
@@ -229,7 +230,7 @@ sealed trait BufferInt extends Buffer with Location with BufferIntImpl {
 
 }
 
-final case class BufferIntConstant(value: Int, length: Int)
+private[ra3] final case class BufferIntConstant(value: Int, length: Int)
     extends BufferInt
     with BufferIntConstantImpl {
 
@@ -239,7 +240,7 @@ final case class BufferIntConstant(value: Int, length: Int)
 }
 
 /* Buffer of Int, missing is Int.MinValue */
-final case class BufferIntInArray(private val values0: Array[Int])
+private[ra3] final case class BufferIntInArray(private val values0: Array[Int])
     extends BufferInt
     with BufferIntArrayImpl { self =>
 
@@ -247,14 +248,14 @@ final case class BufferIntInArray(private val values0: Array[Int])
   def raw(i: Int): Int = values0(i)
 
 }
-object BufferLong {
+private[ra3] object BufferLong {
   val MissingValue = Long.MinValue
   def apply(s: Long*): BufferLong = BufferLong(s.toArray)
   def constant(value: Long, length: Int): BufferLong =
     BufferLong(Array.fill[Long](length)(value))
 }
 /* Buffer of Lng, missing is Long.MinValue */
-final case class BufferLong(private[ra3] val values: Array[Long])
+private[ra3] final case class BufferLong(private[ra3] val values: Array[Long])
     extends Buffer
     with BufferLongImpl { self =>
   type Elem = Long
@@ -266,15 +267,16 @@ final case class BufferLong(private[ra3] val values: Array[Long])
   def tag: ColumnTagType = ColumnTag.I64
 
 }
-object BufferInstant {
+private[ra3] object BufferInstant {
   val MissingValue = Long.MinValue
   def apply(s: Long*): BufferInstant = BufferInstant(s.toArray)
   def constant(value: Long, length: Int): BufferInstant =
     BufferInstant(Array.fill[Long](length)(value))
 }
 /* Buffer of Lng, missing is Long.MinValue */
-final case class BufferInstant(private[ra3] val values: Array[Long])
-    extends Buffer
+private[ra3] final case class BufferInstant(
+    private[ra3] val values: Array[Long]
+) extends Buffer
     with BufferInstantImpl { self =>
   type Elem = Long
   type BufferType = BufferInstant
@@ -285,7 +287,7 @@ final case class BufferInstant(private[ra3] val values: Array[Long])
   def tag: ColumnTagType = ColumnTag.Instant
 
 }
-object BufferString {
+private[ra3] object BufferString {
   def apply(s: String*): BufferString = BufferString(s.toArray[CharSequence])
   val missing: CharSequence = s"${Char.MinValue}"
   val MissingValue = missing
@@ -293,8 +295,9 @@ object BufferString {
     BufferString(Array.fill[CharSequence](length)(value))
 }
 /* Buffer of CharSequence, missing is null */
-final case class BufferString(private[ra3] val values: Array[CharSequence])
-    extends Buffer
+private[ra3] final case class BufferString(
+    private[ra3] val values: Array[CharSequence]
+) extends Buffer
     with BufferStringImpl { self =>
   type Elem = CharSequence
   type BufferType = BufferString
@@ -306,7 +309,7 @@ final case class BufferString(private[ra3] val values: Array[CharSequence])
 
 }
 
-object Buffer {
+private[ra3] object Buffer {
 
   /** Map of unique items
     *
@@ -341,7 +344,10 @@ object Buffer {
     } else {
       import org.saddle._
       import org.saddle.order._
-      assert(columns.map(_.map(_.length.toLong).sum).distinct.size == 1,s"Got columns of multiple lengths: ${columns.map(_.map(_.length.toLong).sum).distinct}")
+      assert(
+        columns.map(_.map(_.length.toLong).sum).distinct.size == 1,
+        s"Got columns of multiple lengths: ${columns.map(_.map(_.length.toLong).sum).distinct}"
+      )
       val buffers = columns.map(buffers => buffers.head.tag.cat(buffers: _*))
       val factorizedEachBuffer = buffers.map(_.groups.map.toSeq).toVector
       // from here this is very inefficient because allocates too much

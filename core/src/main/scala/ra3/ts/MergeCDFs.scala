@@ -7,31 +7,30 @@ import com.github.plokhotnyuk.jsoniter_scala.macros._
 import com.github.plokhotnyuk.jsoniter_scala.core._
 import cats.effect.IO
 
-case class MergeCDFs(
+private[ra3] case class MergeCDFs(
     inputs: Seq[(Segment, SegmentDouble)],
     outputPath: LogicalPath
 )
-object MergeCDFs {
+private[ra3] object MergeCDFs {
 
   private def doitUntyped(
       input: MergeCDFs
   )(implicit tsc: TaskSystemComponents) = {
     val tag = input.inputs.head._1.tag
-    val xs= input.inputs.map(_._1).map(_.as(tag))
+    val xs = input.inputs.map(_._1).map(_.as(tag))
     val ys = input.inputs.map(_._2)
     doit(tag)(
       xs zip ys,
       input.outputPath
-    )(tsc,tag.ordering)
+    )(tsc, tag.ordering)
   }
 
-  private def doit(
-       tag: ColumnTag)(
+  private def doit(tag: ColumnTag)(
       inputs: Seq[(tag.SegmentType, SegmentDouble)],
       outputPath: LogicalPath
   )(implicit
       tsc: TaskSystemComponents,
-      ordering: Ordering[tag.Elem],
+      ordering: Ordering[tag.Elem]
   ): IO[CDF] = {
     IO.parSequenceN(32)(inputs.map { case (x, y) =>
       IO.both(x.buffer, y.buffer)
@@ -42,7 +41,8 @@ object MergeCDFs {
             .map(v => (v._1.toSeq zip v._2.toSeq).toVector)
         )(ordering)
         .unzip
-      val xS = tag.makeBufferFromSeq(x:_*)
+      val xS = tag
+        .makeBufferFromSeq(x: _*)
         .toSegment(
           outputPath.appendToTable(".locations")
         )
@@ -68,7 +68,12 @@ object MergeCDFs {
       tsc: TaskSystemComponents
   ) =
     task(MergeCDFs(inputs, outputPath))(
-      ResourceRequest(cpu = (1, 1), memory = inputs.map(v => ra3.Utils.guessMemoryUsageInMB(v._1)*2).sum, scratch = 0, gpu = 0)
+      ResourceRequest(
+        cpu = (1, 1),
+        memory = inputs.map(v => ra3.Utils.guessMemoryUsageInMB(v._1) * 2).sum,
+        scratch = 0,
+        gpu = 0
+      )
     )
   implicit val codec: JsonValueCodec[MergeCDFs] = JsonCodecMaker.make
   implicit val code2: JsonValueCodec[CDF] =

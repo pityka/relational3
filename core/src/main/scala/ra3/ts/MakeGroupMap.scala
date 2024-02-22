@@ -7,11 +7,11 @@ import com.github.plokhotnyuk.jsoniter_scala.macros._
 import com.github.plokhotnyuk.jsoniter_scala.core._
 import cats.effect.IO
 
-case class MakeGroupMap(
+private[ra3] case class MakeGroupMap(
     input: Seq[Column],
     outputPath: LogicalPath
 )
-object MakeGroupMap {
+private[ra3] object MakeGroupMap {
 
   private def singleColumn(
       column: Column
@@ -62,7 +62,12 @@ object MakeGroupMap {
       tsc: TaskSystemComponents
   ) =
     task(MakeGroupMap(input, outputPath))(
-      ResourceRequest(cpu = (1, 1), memory = input.map(ra3.Utils.guessMemoryUsageInMB).sum * 8, scratch = 0, gpu = 0)
+      ResourceRequest(
+        cpu = (1, 1),
+        memory = input.map(ra3.Utils.guessMemoryUsageInMB).sum * 8,
+        scratch = 0,
+        gpu = 0
+      )
     ).map { case (map, numberOfGroups, sizes) =>
       (map, numberOfGroups, sizes)
     }

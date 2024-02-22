@@ -7,12 +7,12 @@ import com.github.plokhotnyuk.jsoniter_scala.macros._
 import com.github.plokhotnyuk.jsoniter_scala.core._
 import cats.effect.IO
 
-case class TakeIndex(
+private[ra3] case class TakeIndex(
     input: Segment,
     idx: SegmentInt,
     outputPath: LogicalPath
 )
-object TakeIndex {
+private[ra3] object TakeIndex {
   def queue(
       input: Segment,
       idx: SegmentInt,
@@ -21,7 +21,13 @@ object TakeIndex {
       tsc: TaskSystemComponents
   ): IO[input.SegmentType] =
     task(TakeIndex(input, idx, outputPath))(
-      ResourceRequest(cpu = (1, 1), memory = ra3.Utils.guessMemoryUsageInMB(input)+ra3.Utils.guessMemoryUsageInMB(idx), scratch = 0, gpu = 0)
+      ResourceRequest(
+        cpu = (1, 1),
+        memory = ra3.Utils.guessMemoryUsageInMB(input) + ra3.Utils
+          .guessMemoryUsageInMB(idx),
+        scratch = 0,
+        gpu = 0
+      )
     ).map(_.as(input))
   implicit val codec: JsonValueCodec[TakeIndex] = JsonCodecMaker.make
   implicit val codecOut: JsonValueCodec[Segment] = JsonCodecMaker.make

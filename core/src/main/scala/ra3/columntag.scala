@@ -191,7 +191,8 @@ object ColumnTag {
 
     val ordering = CharSequenceOrdering
     def pair(a: SegmentType, b: SegmentType): SegmentPairType = StringPair(a, b)
-    val emptySegment: SegmentType = SegmentString(None, 0, StatisticCharSequence.empty)
+    val emptySegment: SegmentType =
+      SegmentString(None, 0, StatisticCharSequence.empty)
 
   }
   object F64 extends ColumnTag {
@@ -226,14 +227,15 @@ object ColumnTag {
       }).map(_.toVector)
         .map(this.makeColumn)
 
-    val emptySegment: SegmentType = SegmentDouble(None, 0, StatisticDouble.empty)
+    val emptySegment: SegmentType =
+      SegmentDouble(None, 0, StatisticDouble.empty)
   }
 }
 
-trait ColumnTags {
-  type i32 =  ColumnTag.I32.type
-  type i64 =  ColumnTag.I64.type
-  type f64 =  ColumnTag.F64.type
-  type instant =  ColumnTag.Instant.type
-  type string =  ColumnTag.StringTag.type
-}
+// trait ColumnTags {
+//   type i32 =  ColumnTag.I32.type
+//   type i64 =  ColumnTag.I64.type
+//   type f64 =  ColumnTag.F64.type
+//   type instant =  ColumnTag.Instant.type
+//   type string =  ColumnTag.StringTag.type
+// }

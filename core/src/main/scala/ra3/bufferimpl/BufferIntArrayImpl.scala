@@ -868,4 +868,327 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
     }
     BufferInt(r)
   }
+
+  def elementwise_choose(t: BufferInt, f: BufferInt): BufferInt = {
+    assert(t.length == length)
+    assert(f.length == length)
+
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+    var i = 0
+    while (i < n) {
+      r(i) =
+        if (isMissing(i))
+          BufferInt.MissingValue
+        else if (raw(i) > 0) t.raw(i)
+        else f.raw(i)
+      i += 1
+    }
+    BufferInt(r)
+  }
+  def elementwise_choose(t: BufferInt, f: Int): BufferInt = {
+    assert(t.length == length)
+
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+    var i = 0
+    while (i < n) {
+      r(i) =
+        if (isMissing(i))
+          BufferInt.MissingValue
+        else if (raw(i) > 0) t.raw(i)
+        else f
+      i += 1
+    }
+    BufferInt(r)
+  }
+  def elementwise_choose(t: Int, f: Int): BufferInt = {
+
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+    var i = 0
+    while (i < n) {
+      r(i) =
+        if (isMissing(i))
+          BufferInt.MissingValue
+        else if (raw(i) > 0) t
+        else f
+      i += 1
+    }
+    BufferInt(r)
+  }
+  def elementwise_choose(t: Int, f: BufferInt): BufferInt = {
+    assert(f.length == length)
+
+    val n = self.length
+    val r = Array.ofDim[Int](n)
+    var i = 0
+    while (i < n) {
+      r(i) =
+        if (isMissing(i))
+          BufferInt.MissingValue
+        else if (raw(i) > 0) t
+        else f.raw(i)
+      i += 1
+    }
+    BufferInt(r)
+  }
+  def elementwise_choose(t: BufferDouble, f: BufferDouble): BufferDouble = {
+    assert(t.length == length)
+    assert(f.length == length)
+
+    val n = self.length
+    val r = Array.ofDim[Double](n)
+    var i = 0
+    while (i < n) {
+      r(i) =
+        if (isMissing(i))
+          BufferDouble.MissingValue
+        else if (raw(i) > 0) t.values(i)
+        else f.values(i)
+      i += 1
+    }
+    BufferDouble(r)
+  }
+  def elementwise_choose(t: Double, f: BufferDouble): BufferDouble = {
+    assert(f.length == length)
+
+    val n = self.length
+    val r = Array.ofDim[Double](n)
+    var i = 0
+    while (i < n) {
+      r(i) =
+        if (isMissing(i))
+          BufferDouble.MissingValue
+        else if (raw(i) > 0) t
+        else f.values(i)
+      i += 1
+    }
+    BufferDouble(r)
+  }
+  def elementwise_choose(t: BufferDouble, f: Double): BufferDouble = {
+    assert(t.length == length)
+
+    val n = self.length
+    val r = Array.ofDim[Double](n)
+    var i = 0
+    while (i < n) {
+      r(i) =
+        if (isMissing(i))
+          BufferDouble.MissingValue
+        else if (raw(i) > 0) t.values(i)
+        else f
+      i += 1
+    }
+    BufferDouble(r)
+  }
+  def elementwise_choose(t: Double, f: Double): BufferDouble = {
+    val n = self.length
+    val r = Array.ofDim[Double](n)
+    var i = 0
+    while (i < n) {
+      r(i) =
+        if (isMissing(i))
+          BufferDouble.MissingValue
+        else if (raw(i) > 0) t
+        else f
+      i += 1
+    }
+    BufferDouble(r)
+  }
+
+  def elementwise_choose(t: BufferLong, f: BufferLong): BufferLong = {
+    assert(t.length == length)
+    assert(f.length == length)
+
+    val n = self.length
+    val r = Array.ofDim[Long](n)
+    var i = 0
+    while (i < n) {
+      r(i) =
+        if (isMissing(i))
+          BufferLong.MissingValue
+        else if (raw(i) > 0) t.values(i)
+        else f.values(i)
+      i += 1
+    }
+    BufferLong(r)
+  }
+  def elementwise_choose(t: BufferLong, f: Long): BufferLong = {
+    assert(t.length == length)
+
+    val n = self.length
+    val r = Array.ofDim[Long](n)
+    var i = 0
+    while (i < n) {
+      r(i) =
+        if (isMissing(i))
+          BufferLong.MissingValue
+        else if (raw(i) > 0) t.values(i)
+        else f
+      i += 1
+    }
+    BufferLong(r)
+  }
+  def elementwise_choose(t: Long, f: BufferLong): BufferLong = {
+    assert(f.length == length)
+
+    val n = self.length
+    val r = Array.ofDim[Long](n)
+    var i = 0
+    while (i < n) {
+      r(i) =
+        if (isMissing(i))
+          BufferLong.MissingValue
+        else if (raw(i) > 0) t
+        else f.values(i)
+      i += 1
+    }
+    BufferLong(r)
+  }
+  def elementwise_choose(t: Long, f: Long): BufferLong = {
+
+    val n = self.length
+    val r = Array.ofDim[Long](n)
+    var i = 0
+    while (i < n) {
+      r(i) =
+        if (isMissing(i))
+          BufferLong.MissingValue
+        else if (raw(i) > 0) t
+        else f
+      i += 1
+    }
+    BufferLong(r)
+  }
+  def elementwise_choose(t: BufferInstant, f: BufferInstant): BufferInstant = {
+    assert(t.length == length)
+    assert(f.length == length)
+
+    val n = self.length
+    val r = Array.ofDim[Long](n)
+    var i = 0
+    while (i < n) {
+      r(i) =
+        if (isMissing(i))
+          BufferInstant.MissingValue
+        else if (raw(i) > 0) t.values(i)
+        else f.values(i)
+      i += 1
+    }
+    BufferInstant(r)
+  }
+  def elementwise_choose(t: Long, f: BufferInstant): BufferInstant = {
+    assert(f.length == length)
+
+    val n = self.length
+    val r = Array.ofDim[Long](n)
+    var i = 0
+    while (i < n) {
+      r(i) =
+        if (isMissing(i))
+          BufferInstant.MissingValue
+        else if (raw(i) > 0) t
+        else f.values(i)
+      i += 1
+    }
+    BufferInstant(r)
+  }
+  def elementwise_choose(t: BufferInstant, f: Long): BufferInstant = {
+    assert(t.length == length)
+
+    val n = self.length
+    val r = Array.ofDim[Long](n)
+    var i = 0
+    while (i < n) {
+      r(i) =
+        if (isMissing(i))
+          BufferInstant.MissingValue
+        else if (raw(i) > 0) t.values(i)
+        else f
+      i += 1
+    }
+    BufferInstant(r)
+  }
+  def elementwise_choose_inst(t: Long, f: Long): BufferInstant = {
+
+    val n = self.length
+    val r = Array.ofDim[Long](n)
+    var i = 0
+    while (i < n) {
+      r(i) =
+        if (isMissing(i))
+          BufferInstant.MissingValue
+        else if (raw(i) > 0) t
+        else f
+      i += 1
+    }
+    BufferInstant(r)
+  }
+
+  def elementwise_choose(t: BufferString, f: BufferString): BufferString = {
+    assert(t.length == length)
+    assert(f.length == length)
+
+    val n = self.length
+    val r = Array.ofDim[CharSequence](n)
+    var i = 0
+    while (i < n) {
+      r(i) =
+        if (isMissing(i))
+          BufferString.MissingValue
+        else if (raw(i) > 0) t.values(i)
+        else f.values(i)
+      i += 1
+    }
+    BufferString(r)
+  }
+
+  def elementwise_choose(t: String, f: BufferString): BufferString = {
+    assert(f.length == length)
+
+    val n = self.length
+    val r = Array.ofDim[CharSequence](n)
+    var i = 0
+    while (i < n) {
+      r(i) =
+        if (isMissing(i))
+          BufferString.MissingValue
+        else if (raw(i) > 0) t
+        else f.values(i)
+      i += 1
+    }
+    BufferString(r)
+  }
+  def elementwise_choose(t: BufferString, f: String): BufferString = {
+    assert(t.length == length)
+
+    val n = self.length
+    val r = Array.ofDim[CharSequence](n)
+    var i = 0
+    while (i < n) {
+      r(i) =
+        if (isMissing(i))
+          BufferString.MissingValue
+        else if (raw(i) > 0) t.values(i)
+        else f
+      i += 1
+    }
+    BufferString(r)
+  }
+  def elementwise_choose(t: String, f: String): BufferString = {
+
+    val n = self.length
+    val r = Array.ofDim[CharSequence](n)
+    var i = 0
+    while (i < n) {
+      r(i) =
+        if (isMissing(i))
+          BufferString.MissingValue
+        else if (raw(i) > 0) t
+        else f
+      i += 1
+    }
+    BufferString(r)
+  }
 }

@@ -2,7 +2,7 @@ package ra3
 import tasks._
 import cats.effect.IO
 import java.nio.ByteOrder
-sealed trait Segment { self =>
+private[ra3] sealed trait Segment { self =>
   type Elem
   type SegmentType >: this.type <: Segment {
     type Elem = self.Elem
@@ -39,7 +39,7 @@ sealed trait Segment { self =>
   def as(c: ColumnTag) = this.asInstanceOf[c.SegmentType]
 }
 
-object Segment {
+private[ra3] object Segment {
 
   case class GroupMap(
       map: SegmentInt,
@@ -49,13 +49,14 @@ object Segment {
 
   import com.github.plokhotnyuk.jsoniter_scala.core._
   import com.github.plokhotnyuk.jsoniter_scala.macros._
-  implicit val customCodecOfDouble: JsonValueCodec[Double] =Utils.customDoubleCodec
-    
+  implicit val customCodecOfDouble: JsonValueCodec[Double] =
+    Utils.customDoubleCodec
+
   implicit val segmentCodec: JsonValueCodec[Segment] = JsonCodecMaker.make
 
 }
 
-sealed trait SegmentPair { self =>
+private[ra3] sealed trait SegmentPair { self =>
   type SegmentPairType >: this.type <: SegmentPair
   type Elem
   type BufferType <: Buffer {
@@ -71,39 +72,43 @@ sealed trait SegmentPair { self =>
   def a: SegmentType
   def b: SegmentType
 }
-case class I32Pair(a: SegmentInt, b: SegmentInt) extends SegmentPair {
+private[ra3] case class I32Pair(a: SegmentInt, b: SegmentInt)
+    extends SegmentPair {
   type Elem = Int
   type BufferType = BufferInt
   type SegmentType = SegmentInt
   type ColumnType = Column.Int32Column
 }
-case class F64Pair(a: SegmentDouble, b: SegmentDouble) extends SegmentPair {
+private[ra3] case class F64Pair(a: SegmentDouble, b: SegmentDouble)
+    extends SegmentPair {
   type Elem = Double
   type BufferType = BufferDouble
   type SegmentType = SegmentDouble
   type ColumnType = Column.F64Column
 }
-case class I64Pair(a: SegmentLong, b: SegmentLong) extends SegmentPair {
+private[ra3] case class I64Pair(a: SegmentLong, b: SegmentLong)
+    extends SegmentPair {
   type Elem = Long
   type BufferType = BufferLong
   type SegmentType = SegmentLong
   type ColumnType = Column.I64Column
 }
-case class InstantPair(a: SegmentInstant, b: SegmentInstant)
+private[ra3] case class InstantPair(a: SegmentInstant, b: SegmentInstant)
     extends SegmentPair {
   type Elem = Long
   type BufferType = BufferInstant
   type SegmentType = SegmentInstant
   type ColumnType = Column.InstantColumn
 }
-case class StringPair(a: SegmentString, b: SegmentString) extends SegmentPair {
+private[ra3] case class StringPair(a: SegmentString, b: SegmentString)
+    extends SegmentPair {
   type Elem = CharSequence
   type BufferType = BufferString
   type SegmentType = SegmentString
   type ColumnType = Column.StringColumn
 }
 
-final case class SegmentDouble(
+private[ra3] final case class SegmentDouble(
     sf: Option[SharedFile],
     numElems: Int,
     statistic: StatisticDouble
@@ -120,7 +125,12 @@ final case class SegmentDouble(
   override def buffer(implicit tsc: TaskSystemComponents) =
     sf match {
       case None if statistic.constantValue.isDefined =>
-        IO.pure(BufferDouble.constant(value = statistic.constantValue.get, length = numElems))
+        IO.pure(
+          BufferDouble.constant(
+            value = statistic.constantValue.get,
+            length = numElems
+          )
+        )
       case None => IO.pure(BufferDouble(Array.empty[Double]))
       case Some(sf) =>
         sf.bytes.map { byteVector =>
@@ -137,7 +147,7 @@ final case class SegmentDouble(
 
 }
 
-final case class SegmentInt(
+private[ra3] final case class SegmentInt(
     sf: Option[SharedFile],
     numElems: Int,
     statistic: StatisticInt
@@ -150,13 +160,17 @@ final case class SegmentInt(
   type ColumnTagType = ColumnTag.I32.type
   val tag = ColumnTag.I32
 
-    def nonMissingMinMax= statistic.nonMissingMinMax
-
+  def nonMissingMinMax = statistic.nonMissingMinMax
 
   override def buffer(implicit tsc: TaskSystemComponents): IO[BufferInt] = {
     sf match {
       case None if statistic.constantValue.isDefined =>
-        IO.pure(BufferInt.constant(value = statistic.constantValue.get, length = numElems))
+        IO.pure(
+          BufferInt.constant(
+            value = statistic.constantValue.get,
+            length = numElems
+          )
+        )
 
       case None =>
         assert(numElems == 0)
@@ -180,13 +194,13 @@ final case class SegmentInt(
     sf.isEmpty && statistic.constantValue.exists(_ == i)
 
 }
-final case class SegmentLong(
+private[ra3] final case class SegmentLong(
     sf: Option[SharedFile],
     numElems: Int,
     statistic: StatisticLong
 ) extends Segment {
 
-  def nonMissingMinMax= statistic.nonMissingMinMax
+  def nonMissingMinMax = statistic.nonMissingMinMax
 
   type Elem = Long
   type BufferType = BufferLong
@@ -198,7 +212,12 @@ final case class SegmentLong(
   override def buffer(implicit tsc: TaskSystemComponents): IO[BufferLong] = {
     sf match {
       case None if statistic.constantValue.isDefined =>
-        IO.pure(BufferLong.constant(value = statistic.constantValue.get, length = numElems))
+        IO.pure(
+          BufferLong.constant(
+            value = statistic.constantValue.get,
+            length = numElems
+          )
+        )
       case None => IO.pure(BufferLong(Array.emptyLongArray))
       case Some(value) =>
         value.bytes.map { byteVector =>
@@ -216,13 +235,13 @@ final case class SegmentLong(
   }
 
 }
-final case class SegmentInstant(
+private[ra3] final case class SegmentInstant(
     sf: Option[SharedFile],
     numElems: Int,
     statistic: StatisticLong
 ) extends Segment {
 
-  def nonMissingMinMax= statistic.nonMissingMinMax
+  def nonMissingMinMax = statistic.nonMissingMinMax
 
   type Elem = Long
   type BufferType = BufferInstant
@@ -233,8 +252,13 @@ final case class SegmentInstant(
 
   override def buffer(implicit tsc: TaskSystemComponents): IO[BufferType] = {
     sf match {
-     case None if statistic.constantValue.isDefined =>
-        IO.pure(BufferInstant.constant(value = statistic.constantValue.get, length = numElems))
+      case None if statistic.constantValue.isDefined =>
+        IO.pure(
+          BufferInstant.constant(
+            value = statistic.constantValue.get,
+            length = numElems
+          )
+        )
       case None => IO.pure(BufferInstant(Array.emptyLongArray))
       case Some(value) =>
         value.bytes.map { byteVector =>
@@ -251,14 +275,13 @@ final case class SegmentInstant(
   }
 
 }
-final case class SegmentString(
+private[ra3] final case class SegmentString(
     sf: Option[SharedFile],
     numElems: Int,
     statistic: StatisticCharSequence
 ) extends Segment {
 
-
-  def nonMissingMinMax= statistic.nonMissingMinMax
+  def nonMissingMinMax = statistic.nonMissingMinMax
 
   type Elem = CharSequence
   type BufferType = BufferString
@@ -270,7 +293,12 @@ final case class SegmentString(
   override def buffer(implicit tsc: TaskSystemComponents): IO[BufferType] = {
     sf match {
       case None if statistic.constantValue.isDefined =>
-        IO.pure(BufferString.constant(value = statistic.constantValue.get.toString, length = numElems))
+        IO.pure(
+          BufferString.constant(
+            value = statistic.constantValue.get.toString,
+            length = numElems
+          )
+        )
       case None => IO.pure(BufferString(Array.empty[CharSequence]))
       case Some(value) =>
         value.bytes.map { byteVector =>

@@ -2,8 +2,12 @@ package ra3.lang.syntax
 import ra3.lang._
 import ra3.BufferInt
 
-trait SyntaxF64ColumnImpl {
+private[ra3] trait SyntaxF64ColumnImpl {
   protected def arg0: F64ColumnExpr
+  import scala.language.implicitConversions
+  implicit private def conversionF64Lit(a: Double): Expr.LitF64 = Expr.LitF64(a)
+  implicit private def conversionF64LitSet(a: Set[Double]): Expr.LitF64Set =
+    Expr.LitF64Set(a)
   def isMissing = Expr.makeOp1(ops.Op1.ColumnIsMissingOpD)(arg0)
   def abs = Expr.makeOp1(ops.Op1.ColumnAbsOpD)(arg0)
   def roundToDouble = Expr.makeOp1(ops.Op1.ColumnRoundToDoubleOpD)(arg0)
@@ -13,10 +17,10 @@ trait SyntaxF64ColumnImpl {
   def +(arg1: F64ColumnExpr) = Expr.makeOp2(ops.Op2.ColumnAddOpDD)(arg0, arg1)
   def -(arg1: F64ColumnExpr) =
     Expr.makeOp2(ops.Op2.ColumnSubtractOpDD)(arg0, arg1)
-  
+
   def <=(arg1: F64ColumnExpr) = Expr.makeOp2(ops.Op2.ColumnLtEqOpDD)(arg0, arg1)
   def <=(arg1: Double) = Expr.makeOp2(ops.Op2.ColumnLtEqOpDcD)(arg0, arg1)
-  
+
   def <(arg1: F64ColumnExpr) = Expr.makeOp2(ops.Op2.ColumnLtOpDD)(arg0, arg1)
   def <(arg1: Double) = Expr.makeOp2(ops.Op2.ColumnLtOpDcD)(arg0, arg1)
 
@@ -33,7 +37,7 @@ trait SyntaxF64ColumnImpl {
     Expr.makeOp2(ops.Op2.ColumnContainedInOpDcDSet)(arg0, arg1)
 
   def printf(arg1: String) =
-    Expr.makeOp2(ops.Op2.ColumnPrintfOpDcStr)(arg0, arg1)
+    Expr.makeOp2(ops.Op2.ColumnPrintfOpDcStr)(arg0, Expr.LitStr(arg1))
 
   def mean = Expr.makeOp3(ops.Op3.BufferMeanGroupsOpDI)(
     arg0,
@@ -75,8 +79,11 @@ trait SyntaxF64ColumnImpl {
     .BuiltInOp1(arg0, ops.Op1.MkUnnamedColumnSpecChunk)
     .asInstanceOf[Expr { type T = ColumnSpec }]
 
-  def as(arg1: Expr { type T = String }) = ra3.lang.Expr
-    .BuiltInOp2(arg0, arg1, ops.Op2.MkNamedColumnSpecChunk)
-    .asInstanceOf[Expr { type T = ColumnSpec }]
+  def as(arg1: Expr { type T = String }): Expr { type T = ColumnSpec } =
+    ra3.lang.Expr
+      .BuiltInOp2(arg0, arg1, ops.Op2.MkNamedColumnSpecChunk)
+      .asInstanceOf[Expr { type T = ColumnSpec }]
+
+  def as(arg1: String): Expr { type T = ColumnSpec } = as(Expr.LitStr(arg1))
 
 }

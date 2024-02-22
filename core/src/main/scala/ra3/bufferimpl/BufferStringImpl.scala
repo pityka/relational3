@@ -11,7 +11,7 @@ import org.saddle.scalar.ScalarTagLong
 private[ra3] object CharSequenceOrdering
     extends scala.math.Ordering[CharSequence] { self =>
 
-      def charSeqEquals(x: CharSequence, y: CharSequence) = {
+  def charSeqEquals(x: CharSequence, y: CharSequence) = {
     if (x.length() != y.length) false
     else {
       var i = 0
@@ -23,7 +23,8 @@ private[ra3] object CharSequenceOrdering
         i += 1
       }
       b
-    }}
+    }
+  }
 
   private val missing = BufferString.missing
   def isMissing(x: CharSequence) = {

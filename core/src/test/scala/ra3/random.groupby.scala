@@ -74,7 +74,6 @@
 //         )
 //         .unsafeRunSync()
 
-
 //       val table = schema[DStr, DI64](tableA) {
 //         case (_, _, customer) =>
 //           customer.groupBy.partial
@@ -96,7 +95,6 @@
 
 //       assert(table.numRows == 10000)
 //       assert(table.colAt(0).toVec.toSeq.sorted == (0 until 10000).toList)
-      
 
 //     }
 //   }

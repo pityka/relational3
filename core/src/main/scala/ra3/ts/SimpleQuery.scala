@@ -9,7 +9,7 @@ import cats.effect.IO
 import ra3.lang.ReturnValue
 import ra3.lang._
 
-case class SegmentWithName(
+private[ra3] case class SegmentWithName(
     segment: Seq[
       Segment
     ], // buffer and cat all of them, treat as one group
@@ -22,13 +22,13 @@ case class SegmentWithName(
         .map(s => (s.tag, s.numElems))})"
 }
 
-case class SimpleQuery(
+private[ra3] case class SimpleQuery(
     input: Seq[SegmentWithName],
     predicate: ra3.lang.Expr,
     outputPath: LogicalPath,
     groupMap: Option[(SegmentInt, Int)]
 )
-object SimpleQuery {
+private[ra3] object SimpleQuery {
 
   def bufferMultiple(s: Seq[Segment])(implicit tsc: TaskSystemComponents) = {
     val tag = s.head.tag
@@ -82,7 +82,6 @@ object SimpleQuery {
         .evaluate(predicate, env)
         .map(_.v.asInstanceOf[ReturnValue])
         .flatMap { returnValue =>
-          
           val mask = returnValue.filter
 
           // If all items are dropped then we do not buffer segments from Star
@@ -100,7 +99,9 @@ object SimpleQuery {
             case _                                           => false
           }
 
-          scribe.debug(s"SQ program evaluation done projection: ${returnValue.projections} filter: ${returnValue.filter} maskIsEmpty=$maskIsEmpty maskIsComplete=$maskIsComplete")
+          scribe.debug(
+            s"SQ program evaluation done projection: ${returnValue.projections} filter: ${returnValue.filter} maskIsEmpty=$maskIsEmpty maskIsComplete=$maskIsComplete"
+          )
 
           val selected: IO[List[NamedColumnSpec[_]]] = IO
             .parSequenceN(32)(returnValue.projections.zipWithIndex.map {

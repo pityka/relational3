@@ -2,8 +2,10 @@ package ra3.lang.ops
 
 import ra3.BufferInt
 import ra3.lang._
+import ra3._
 import tasks.TaskSystemComponents
 import cats.effect._
+import ra3.DInst
 private[lang] sealed trait Op3 {
   type A0
   type A1
@@ -14,7 +16,7 @@ private[lang] sealed trait Op3 {
 
 private[lang] object Op3 {
 
-   case object StringMatchAndReplaceOp extends Op3 {
+  case object StringMatchAndReplaceOp extends Op3 {
     type A0 = DStr
     type A1 = String
     type A2 = String
@@ -24,7 +26,7 @@ private[lang] object Op3 {
     ): IO[DStr] =
       for {
         a <- bufferIfNeeded(a)
-      } yield Left(a.elementwise_matches_replace(b,c))
+      } yield Left(a.elementwise_matches_replace(b, c))
   }
 
   sealed trait Op3III extends Op3 {
@@ -116,10 +118,257 @@ private[lang] object Op3 {
     } yield Left(a.firstInGroup(b, c))
   }
 
-  case object IfElse extends Op3III {
-    def op(a: Int, b: Int, c: Int)(implicit
+  case object IfElseI32 extends Op3 {
+    type A0 = DI32
+    type A1 = DI32
+    type A2 = DI32
+    type T = DI32
+    def op(a: DI32, b: DI32, c: DI32)(implicit
         tsc: TaskSystemComponents
-    ): IO[Int] = IO.pure(if (a > 0) b else c)
+    ): IO[DI32] = for {
+      a <- bufferIfNeeded(a)
+      b <- bufferIfNeeded(b)
+      c <- bufferIfNeeded(c)
+    } yield Left(a.elementwise_choose(b, c))
+  }
+  case object IfElseCI32 extends Op3 {
+    type A0 = DI32
+    type A1 = Int
+    type A2 = DI32
+    type T = DI32
+    def op(a: DI32, b: Int, c: DI32)(implicit
+        tsc: TaskSystemComponents
+    ): IO[DI32] = for {
+      a <- bufferIfNeeded(a)
+      c <- bufferIfNeeded(c)
+    } yield Left(a.elementwise_choose(b, c))
+  }
+  case object IfElseI32C extends Op3 {
+    type A0 = DI32
+    type A1 = DI32
+    type A2 = Int
+    type T = DI32
+    def op(a: DI32, b: DI32, c: Int)(implicit
+        tsc: TaskSystemComponents
+    ): IO[DI32] = for {
+      a <- bufferIfNeeded(a)
+      b <- bufferIfNeeded(b)
+    } yield Left(a.elementwise_choose(b, c))
+  }
+  case object IfElseI32CC extends Op3 {
+    type A0 = DI32
+    type A1 = Int
+    type A2 = Int
+    type T = DI32
+    def op(a: DI32, b: Int, c: Int)(implicit
+        tsc: TaskSystemComponents
+    ): IO[DI32] = for {
+      a <- bufferIfNeeded(a)
+    } yield Left(a.elementwise_choose(b, c))
+  }
+  case object IfElseI64 extends Op3 {
+    type A0 = DI32
+    type A1 = DI64
+    type A2 = DI64
+    type T = DI64
+    def op(a: DI32, b: DI64, c: DI64)(implicit
+        tsc: TaskSystemComponents
+    ): IO[DI64] = for {
+      a <- bufferIfNeeded(a)
+      b <- bufferIfNeeded(b)
+      c <- bufferIfNeeded(c)
+    } yield Left(a.elementwise_choose(b, c))
+  }
+  case object IfElseCI64 extends Op3 {
+    type A0 = DI32
+    type A1 = Long
+    type A2 = DI64
+    type T = DI64
+    def op(a: DI32, b: Long, c: DI64)(implicit
+        tsc: TaskSystemComponents
+    ): IO[DI64] = for {
+      a <- bufferIfNeeded(a)
+      c <- bufferIfNeeded(c)
+    } yield Left(a.elementwise_choose(b, c))
+  }
+  case object IfElseI64C extends Op3 {
+    type A0 = DI32
+    type A1 = DI64
+    type A2 = Long
+    type T = DI64
+    def op(a: DI32, b: DI64, c: Long)(implicit
+        tsc: TaskSystemComponents
+    ): IO[DI64] = for {
+      a <- bufferIfNeeded(a)
+      b <- bufferIfNeeded(b)
+    } yield Left(a.elementwise_choose(b, c))
+  }
+  case object IfElseI64CC extends Op3 {
+    type A0 = DI32
+    type A1 = Long
+    type A2 = Long
+    type T = DI64
+    def op(a: DI32, b: Long, c: Long)(implicit
+        tsc: TaskSystemComponents
+    ): IO[DI64] = for {
+      a <- bufferIfNeeded(a)
+    } yield Left(a.elementwise_choose(b, c))
+  }
+
+  case object IfElseF64 extends Op3 {
+    type A0 = DI32
+    type A1 = DF64
+    type A2 = DF64
+    type T = DF64
+    def op(a: DI32, b: DF64, c: DF64)(implicit
+        tsc: TaskSystemComponents
+    ): IO[DF64] = for {
+      a <- bufferIfNeeded(a)
+      b <- bufferIfNeeded(b)
+      c <- bufferIfNeeded(c)
+    } yield Left(a.elementwise_choose(b, c))
+  }
+
+  case object IfElseCF64 extends Op3 {
+    type A0 = DI32
+    type A1 = Double
+    type A2 = DF64
+    type T = DF64
+    def op(a: DI32, b: Double, c: DF64)(implicit
+        tsc: TaskSystemComponents
+    ): IO[DF64] = for {
+      a <- bufferIfNeeded(a)
+      c <- bufferIfNeeded(c)
+    } yield Left(a.elementwise_choose(b, c))
+  }
+
+  case object IfElseF64C extends Op3 {
+    type A0 = DI32
+    type A1 = DF64
+    type A2 = Double
+    type T = DF64
+    def op(a: DI32, b: DF64, c: Double)(implicit
+        tsc: TaskSystemComponents
+    ): IO[DF64] = for {
+      a <- bufferIfNeeded(a)
+      b <- bufferIfNeeded(b)
+    } yield Left(a.elementwise_choose(b, c))
+  }
+
+  case object IfElseF64CC extends Op3 {
+    type A0 = DI32
+    type A1 = Double
+    type A2 = Double
+    type T = DF64
+    def op(a: DI32, b: Double, c: Double)(implicit
+        tsc: TaskSystemComponents
+    ): IO[DF64] = for {
+      a <- bufferIfNeeded(a)
+    } yield Left(a.elementwise_choose(b, c))
+  }
+
+  case object IfElseInst extends Op3 {
+    type A0 = DI32
+    type A1 = DInst
+    type A2 = DInst
+    type T = DInst
+    def op(a: DI32, b: DInst, c: DInst)(implicit
+        tsc: TaskSystemComponents
+    ): IO[DInst] = for {
+      a <- bufferIfNeeded(a)
+      b <- bufferIfNeeded(b)
+      c <- bufferIfNeeded(c)
+    } yield Left(a.elementwise_choose(b, c))
+  }
+
+  case object IfElseCInst extends Op3 {
+    type A0 = DI32
+    type A1 = Long
+    type A2 = DInst
+    type T = DInst
+    def op(a: DI32, b: Long, c: DInst)(implicit
+        tsc: TaskSystemComponents
+    ): IO[DInst] = for {
+      a <- bufferIfNeeded(a)
+      c <- bufferIfNeeded(c)
+    } yield Left(a.elementwise_choose(b, c))
+  }
+
+  case object IfElseInstC extends Op3 {
+    type A0 = DI32
+    type A1 = DInst
+    type A2 = Long
+    type T = DInst
+    def op(a: DI32, b: DInst, c: Long)(implicit
+        tsc: TaskSystemComponents
+    ): IO[DInst] = for {
+      a <- bufferIfNeeded(a)
+      b <- bufferIfNeeded(b)
+    } yield Left(a.elementwise_choose(b, c))
+  }
+
+  case object IfElseInstCC extends Op3 {
+    type A0 = DI32
+    type A1 = Long
+    type A2 = Long
+    type T = DInst
+    def op(a: DI32, b: Long, c: Long)(implicit
+        tsc: TaskSystemComponents
+    ): IO[DInst] = for {
+      a <- bufferIfNeeded(a)
+    } yield Left(a.elementwise_choose_inst(b, c))
+  }
+
+  case object IfElseStr extends Op3 {
+    type A0 = DI32
+    type A1 = DStr
+    type A2 = DStr
+    type T = DStr
+    def op(a: DI32, b: DStr, c: DStr)(implicit
+        tsc: TaskSystemComponents
+    ): IO[DStr] = for {
+      a <- bufferIfNeeded(a)
+      b <- bufferIfNeeded(b)
+      c <- bufferIfNeeded(c)
+    } yield Left(a.elementwise_choose(b, c))
+  }
+
+  case object IfElseCStr extends Op3 {
+    type A0 = DI32
+    type A1 = String
+    type A2 = DStr
+    type T = DStr
+    def op(a: DI32, b: String, c: DStr)(implicit
+        tsc: TaskSystemComponents
+    ): IO[DStr] = for {
+      a <- bufferIfNeeded(a)
+      c <- bufferIfNeeded(c)
+    } yield Left(a.elementwise_choose(b, c))
+  }
+
+  case object IfElseStrC extends Op3 {
+    type A0 = DI32
+    type A1 = DStr
+    type A2 = String
+    type T = DStr
+    def op(a: DI32, b: DStr, c: String)(implicit
+        tsc: TaskSystemComponents
+    ): IO[DStr] = for {
+      a <- bufferIfNeeded(a)
+      b <- bufferIfNeeded(b)
+    } yield Left(a.elementwise_choose(b, c))
+  }
+
+  case object IfElseStrCC extends Op3 {
+    type A0 = DI32
+    type A1 = String
+    type A2 = String
+    type T = DStr
+    def op(a: DI32, b: String, c: String)(implicit
+        tsc: TaskSystemComponents
+    ): IO[DStr] = for {
+      a <- bufferIfNeeded(a)
+    } yield Left(a.elementwise_choose(b, c))
   }
 
   case object BufferMinGroupsOpD extends Op3 {
@@ -378,7 +627,7 @@ private[lang] object Op3 {
     } yield Left(a.firstInGroup(b, c))
   }
 
-   case object BufferCountInGroupsOpL extends Op3 {
+  case object BufferCountInGroupsOpL extends Op3 {
     type A0 = DI64
     type A1 = BufferInt
     type A2 = Int
@@ -401,7 +650,6 @@ private[lang] object Op3 {
     } yield Left(a.countDistinctInGroups(b, c))
   }
 
-
   case object BufferFirstGroupsOpL extends Op3 {
     type A0 = DI64
     type A1 = BufferInt
@@ -414,7 +662,7 @@ private[lang] object Op3 {
     } yield Left(a.firstInGroup(b, c))
   }
 
-   case object BufferHasMissingInGroupsOpL extends Op3 {
+  case object BufferHasMissingInGroupsOpL extends Op3 {
     type A0 = DI64
     type A1 = BufferInt
     type A2 = Int
@@ -425,6 +673,5 @@ private[lang] object Op3 {
       a <- bufferIfNeeded(a)
     } yield Left(a.hasMissingInGroup(b, c))
   }
-
 
 }

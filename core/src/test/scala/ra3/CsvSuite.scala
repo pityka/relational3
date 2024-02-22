@@ -86,7 +86,6 @@ class CSVSuite extends munit.FunSuite with WithTempTaskSystem {
         100
       )
 
-
       assertEquals(
         toFrame2(table.selectColumns(0).unsafeRunSync(), ColumnTag.F64)
           .colAt(0)
@@ -94,7 +93,6 @@ class CSVSuite extends munit.FunSuite with WithTempTaskSystem {
           .toSeq,
         Seq(1.5, 2.5, 3.0)
       )
-
 
       assertEquals(
         toFrame2(table.selectColumns(3).unsafeRunSync(), ColumnTag.StringTag)
@@ -125,15 +123,15 @@ class CSVSuite extends munit.FunSuite with WithTempTaskSystem {
         100
       )
 
-
       assertEquals(
         toFrame2(table.selectColumns(0).unsafeRunSync(), ColumnTag.F64)
           .colAt(0)
           .values
-          .toSeq.toList.toString,
+          .toSeq
+          .toList
+          .toString,
         List(Double.NaN, 2.5, 3.0).toString
       )
-
 
       assertEquals(
         toFrame2(table.selectColumns(3).unsafeRunSync(), ColumnTag.StringTag)

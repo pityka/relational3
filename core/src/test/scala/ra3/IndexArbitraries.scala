@@ -25,8 +25,6 @@ object IndexArbitraries {
     for {
       l <- Gen.choose(0, 20)
       lst <- Gen.listOfN(l, Gen.chooseNum(0, l))
-    } yield (lst++List(Int.MinValue,Int.MinValue)).toIndex
-
- 
+    } yield (lst ++ List(Int.MinValue, Int.MinValue)).toIndex
 
 }

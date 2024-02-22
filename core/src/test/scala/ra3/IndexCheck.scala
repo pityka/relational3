@@ -11,9 +11,9 @@
   * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
   * License for the specific language governing permissions and limitations
   * under the License.
-  * 
+  *
   * Changes:
-* - added tests for missing values
+  *   - added tests for missing values
   */
 package ra3
 
@@ -26,8 +26,6 @@ import org.saddle._
 class IndexCheck extends Specification with ScalaCheck {
   "Int Index Tests" in {
     implicit val arbIndex = Arbitrary(IndexArbitraries.indexIntWithDups)
-
-    
 
     "index joins work" in {
       forAll { (ix1: Index[Int], ix2: Index[Int]) =>
@@ -55,8 +53,6 @@ class IndexCheck extends Specification with ScalaCheck {
         all.foldLeft(true)((acc, v) => acc && v.isSuccess)
       }
     }
-
-   
 
   }
 

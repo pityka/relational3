@@ -9,10 +9,12 @@ import cats.effect.IO
 import java.nio.charset.StandardCharsets
 import java.nio.charset.CodingErrorAction
 
-case class ImportCsv(
+private[ra3] case class ImportCsv(
     file: SharedFile,
     name: String,
-    columns: Seq[(Int, ColumnTag, Option[ImportCsv.InstantFormat], Option[String])],
+    columns: Seq[
+      (Int, ColumnTag, Option[ImportCsv.InstantFormat], Option[String])
+    ],
     recordSeparator: String,
     fieldSeparator: Char,
     header: Boolean,
@@ -22,7 +24,7 @@ case class ImportCsv(
     bufferSize: Int,
     characterDecoder: ImportCsv.CharacterDecoder
 )
-object ImportCsv {
+private[ra3] object ImportCsv {
   sealed trait CompressionFormat
   case object Gzip extends CompressionFormat
 
@@ -41,7 +43,9 @@ object ImportCsv {
   def queue(
       file: SharedFile,
       name: String,
-      columns: Seq[(Int, ColumnTag, Option[ImportCsv.InstantFormat], Option[String])],
+      columns: Seq[
+        (Int, ColumnTag, Option[ImportCsv.InstantFormat], Option[String])
+      ],
       recordSeparator: String,
       fieldSeparator: Char,
       header: Boolean,
@@ -82,7 +86,9 @@ object ImportCsv {
   private def doit(
       file: SharedFile,
       name: String,
-      columns: Seq[(Int, ColumnTag, Option[InstantFormat],Option[CharSequence])],
+      columns: Seq[
+        (Int, ColumnTag, Option[InstantFormat], Option[CharSequence])
+      ],
       recordSeparator: String,
       fieldSeparator: Char,
       header: Boolean,
@@ -121,9 +127,9 @@ object ImportCsv {
     fs2.io.toInputStreamResource(rawStream).use { is =>
       IO {
         val is2 = compression match {
-          case None       => is
-          case Some(Gzip) => 
-            new ra3.commons.GzipCompressorInputStream(is,true)
+          case None => is
+          case Some(Gzip) =>
+            new ra3.commons.GzipCompressorInputStream(is, true)
             new java.util.zip.GZIPInputStream(is)
         }
         val channel = java.nio.channels.Channels.newChannel(is2)

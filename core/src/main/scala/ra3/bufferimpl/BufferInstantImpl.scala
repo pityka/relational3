@@ -38,14 +38,16 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
     StatisticLong(
       hasMissing = hasMissing,
       nonMissingMinMax = if (countNonMissing > 0) Some((min, max)) else None,
-      lowCardinalityNonMissingSet = if (set.size <= 255) Some(set.toSet) else None ,
+      lowCardinalityNonMissingSet =
+        if (set.size <= 255) Some(set.toSet) else None,
       bloomFilter = None
     )
   }
 
-  def elementAsCharSequence(i: Int): CharSequence = if (isMissing(i)) "NA" else java.time.Instant.ofEpochMilli(values(i)).toString
+  def elementAsCharSequence(i: Int): CharSequence = if (isMissing(i)) "NA"
+  else java.time.Instant.ofEpochMilli(values(i)).toString
 
-    def partition(numPartitions: Int, map: BufferInt): Vector[BufferType] = {
+  def partition(numPartitions: Int, map: BufferInt): Vector[BufferType] = {
     assert(length == map.length)
     val growableBuffers =
       Vector.fill(numPartitions)(org.saddle.Buffer.empty[Long])
@@ -77,7 +79,6 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
   override def toString =
     s"BufferInstant(n=${values.length}: ${values.take(5).mkString(", ")} ..})"
 
-
   def firstInGroup(partitionMap: BufferInt, numGroups: Int): BufferType = {
     assert(partitionMap.length == length)
     val ar = Array.fill(numGroups)(Long.MinValue)
@@ -100,14 +101,14 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
   ): BufferInt = {
     import org.saddle._
     val c = other.values(0)
-    if (c == Long.MinValue) BufferInt.empty 
+    if (c == Long.MinValue) BufferInt.empty
     else {
-    val idx =
-      if (lessThan)
-        values.toVec.find(_ <= c)
-      else values.toVec.find(_ >= c)
+      val idx =
+        if (lessThan)
+          values.toVec.find(_ <= c)
+        else values.toVec.find(_ >= c)
 
-    BufferInt(idx.toArray)
+      BufferInt(idx.toArray)
     }
   }
 
@@ -174,7 +175,7 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
   ): (Option[BufferInt], Option[BufferInt]) = {
     val idx1 = Index(values)
     val idx2 = Index(other.values)
-     val reindexer = new (ra3.join.JoinerImpl[Long]).join(
+    val reindexer = new (ra3.join.JoinerImpl[Long]).join(
       left = idx1,
       right = idx2,
       how = how match {
@@ -182,7 +183,7 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
         case "left"  => org.saddle.index.LeftJoin
         case "right" => org.saddle.index.RightJoin
         case "outer" => org.saddle.index.OuterJoin
-      },
+      }
     )
     (reindexer.lTake.map(BufferInt(_)), reindexer.rTake.map(BufferInt(_)))
   }
@@ -206,7 +207,8 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
   override def toSegment(
       name: LogicalPath
   )(implicit tsc: TaskSystemComponents): IO[SegmentInstant] = {
-    if (values.length == 0) IO.pure(SegmentInstant(None, 0, StatisticLong.empty))
+    if (values.length == 0)
+      IO.pure(SegmentInstant(None, 0, StatisticLong.empty))
     else
       IO {
         val bb =
@@ -216,7 +218,9 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
       }.flatMap { stream =>
         SharedFile
           .apply(stream, name.toString)
-          .map(sf => SegmentInstant(Some(sf), values.length, self.makeStatistic()))
+          .map(sf =>
+            SegmentInstant(Some(sf), values.length, self.makeStatistic())
+          )
       }
 
   }
@@ -261,7 +265,9 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
     val r = Array.ofDim[Int](n)
     val Z = java.time.ZoneId.of("Z")
     while (i < n) {
-      r(i) = if (isMissing(i)) BufferInt.MissingValue else java.time.Instant.ofEpochMilli(values(i)).atZone(Z).getYear()
+      r(i) =
+        if (isMissing(i)) BufferInt.MissingValue
+        else java.time.Instant.ofEpochMilli(values(i)).atZone(Z).getYear()
       i += 1
     }
     BufferInt(r)
@@ -272,7 +278,9 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
     val r = Array.ofDim[Int](n)
     val Z = java.time.ZoneId.of("Z")
     while (i < n) {
-      r(i) = if (isMissing(i)) BufferInt.MissingValue else java.time.Instant.ofEpochMilli(values(i)).atZone(Z).getMonthValue()
+      r(i) =
+        if (isMissing(i)) BufferInt.MissingValue
+        else java.time.Instant.ofEpochMilli(values(i)).atZone(Z).getMonthValue()
       i += 1
     }
     BufferInt(r)
@@ -283,7 +291,9 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
     val r = Array.ofDim[Int](n)
     val Z = java.time.ZoneId.of("Z")
     while (i < n) {
-      r(i) = if (isMissing(i)) BufferInt.MissingValue else java.time.Instant.ofEpochMilli(values(i)).atZone(Z).getDayOfMonth()
+      r(i) =
+        if (isMissing(i)) BufferInt.MissingValue
+        else java.time.Instant.ofEpochMilli(values(i)).atZone(Z).getDayOfMonth()
       i += 1
     }
     BufferInt(r)
@@ -294,7 +304,9 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
     val r = Array.ofDim[Int](n)
     val Z = java.time.ZoneId.of("Z")
     while (i < n) {
-      r(i) = if (isMissing(i)) BufferInt.MissingValue else java.time.Instant.ofEpochMilli(values(i)).atZone(Z).getHour()
+      r(i) =
+        if (isMissing(i)) BufferInt.MissingValue
+        else java.time.Instant.ofEpochMilli(values(i)).atZone(Z).getHour()
       i += 1
     }
     BufferInt(r)
@@ -305,7 +317,9 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
     val r = Array.ofDim[Int](n)
     val Z = java.time.ZoneId.of("Z")
     while (i < n) {
-      r(i) = if (isMissing(i)) BufferInt.MissingValue else java.time.Instant.ofEpochMilli(values(i)).atZone(Z).getMinute()
+      r(i) =
+        if (isMissing(i)) BufferInt.MissingValue
+        else java.time.Instant.ofEpochMilli(values(i)).atZone(Z).getMinute()
       i += 1
     }
     BufferInt(r)
@@ -316,7 +330,9 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
     val r = Array.ofDim[Int](n)
     val Z = java.time.ZoneId.of("Z")
     while (i < n) {
-      r(i) = if (isMissing(i)) BufferInt.MissingValue else java.time.Instant.ofEpochMilli(values(i)).atZone(Z).getSecond()
+      r(i) =
+        if (isMissing(i)) BufferInt.MissingValue
+        else java.time.Instant.ofEpochMilli(values(i)).atZone(Z).getSecond()
       i += 1
     }
     BufferInt(r)
@@ -327,7 +343,9 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
     val r = Array.ofDim[Int](n)
     val Z = java.time.ZoneId.of("Z")
     while (i < n) {
-      r(i) = if (isMissing(i)) BufferInt.MissingValue else  java.time.Instant.ofEpochMilli(values(i)).atZone(Z).getNano()
+      r(i) =
+        if (isMissing(i)) BufferInt.MissingValue
+        else java.time.Instant.ofEpochMilli(values(i)).atZone(Z).getNano()
       i += 1
     }
     BufferInt(r)
@@ -338,11 +356,14 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
     val r = Array.ofDim[Long](n)
     val Z = java.time.ZoneId.of("Z")
     while (i < n) {
-      r(i) = if (isMissing(i)) BufferInstant.MissingValue else  java.time.Instant.now
-        .atZone(Z)
-        .truncatedTo(java.time.temporal.ChronoUnit.YEARS)
-        .toInstant()
-        .toEpochMilli()
+      r(i) =
+        if (isMissing(i)) BufferInstant.MissingValue
+        else
+          java.time.Instant.now
+            .atZone(Z)
+            .truncatedTo(java.time.temporal.ChronoUnit.YEARS)
+            .toInstant()
+            .toEpochMilli()
       i += 1
     }
     BufferInstant(r)
@@ -353,11 +374,14 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
     val r = Array.ofDim[Long](n)
     val Z = java.time.ZoneId.of("Z")
     while (i < n) {
-      r(i) =  if (isMissing(i)) BufferInstant.MissingValue else  java.time.Instant.now
-        .atZone(Z)
-        .truncatedTo(java.time.temporal.ChronoUnit.MONTHS)
-        .toInstant()
-        .toEpochMilli()
+      r(i) =
+        if (isMissing(i)) BufferInstant.MissingValue
+        else
+          java.time.Instant.now
+            .atZone(Z)
+            .truncatedTo(java.time.temporal.ChronoUnit.MONTHS)
+            .toInstant()
+            .toEpochMilli()
       i += 1
     }
     BufferInstant(r)
@@ -368,11 +392,14 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
     val r = Array.ofDim[Long](n)
     val Z = java.time.ZoneId.of("Z")
     while (i < n) {
-      r(i) = if (isMissing(i)) BufferInstant.MissingValue else  java.time.Instant.now
-        .atZone(Z)
-        .truncatedTo(java.time.temporal.ChronoUnit.DAYS)
-        .toInstant()
-        .toEpochMilli()
+      r(i) =
+        if (isMissing(i)) BufferInstant.MissingValue
+        else
+          java.time.Instant.now
+            .atZone(Z)
+            .truncatedTo(java.time.temporal.ChronoUnit.DAYS)
+            .toInstant()
+            .toEpochMilli()
       i += 1
     }
     BufferInstant(r)
@@ -383,11 +410,14 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
     val r = Array.ofDim[Long](n)
     val Z = java.time.ZoneId.of("Z")
     while (i < n) {
-      r(i) = if (isMissing(i)) BufferInstant.MissingValue else  java.time.Instant.now
-        .atZone(Z)
-        .truncatedTo(java.time.temporal.ChronoUnit.HOURS)
-        .toInstant()
-        .toEpochMilli()
+      r(i) =
+        if (isMissing(i)) BufferInstant.MissingValue
+        else
+          java.time.Instant.now
+            .atZone(Z)
+            .truncatedTo(java.time.temporal.ChronoUnit.HOURS)
+            .toInstant()
+            .toEpochMilli()
       i += 1
     }
     BufferInstant(r)
@@ -398,11 +428,14 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
     val r = Array.ofDim[Long](n)
     val Z = java.time.ZoneId.of("Z")
     while (i < n) {
-      r(i) = if (isMissing(i)) BufferInstant.MissingValue else  java.time.Instant.now
-        .atZone(Z)
-        .truncatedTo(java.time.temporal.ChronoUnit.MINUTES)
-        .toInstant()
-        .toEpochMilli()
+      r(i) =
+        if (isMissing(i)) BufferInstant.MissingValue
+        else
+          java.time.Instant.now
+            .atZone(Z)
+            .truncatedTo(java.time.temporal.ChronoUnit.MINUTES)
+            .toInstant()
+            .toEpochMilli()
       i += 1
     }
     BufferInstant(r)
@@ -413,11 +446,14 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
     val r = Array.ofDim[Long](n)
     val Z = java.time.ZoneId.of("Z")
     while (i < n) {
-      r(i) = if (isMissing(i)) BufferInstant.MissingValue else java.time.Instant.now
-        .atZone(Z)
-        .truncatedTo(java.time.temporal.ChronoUnit.SECONDS)
-        .toInstant()
-        .toEpochMilli()
+      r(i) =
+        if (isMissing(i)) BufferInstant.MissingValue
+        else
+          java.time.Instant.now
+            .atZone(Z)
+            .truncatedTo(java.time.temporal.ChronoUnit.SECONDS)
+            .toInstant()
+            .toEpochMilli()
       i += 1
     }
     BufferInstant(r)
@@ -437,7 +473,7 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
     val n = self.length
     val r = Array.ofDim[Long](n)
     while (i < n) {
-      r(i) = if (isMissing(i)) BufferInstant.MissingValue else  values(i) - l
+      r(i) = if (isMissing(i)) BufferInstant.MissingValue else values(i) - l
       i += 1
     }
     BufferInstant(r)
@@ -450,7 +486,10 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (isMissing(i) || other.isMissing(i)) BufferInt.MissingValue else if ( self.values(i) <= other.values(i)) 1 else 0
+      r(i) =
+        if (isMissing(i) || other.isMissing(i)) BufferInt.MissingValue
+        else if (self.values(i) <= other.values(i)) 1
+        else 0
       i += 1
     }
     BufferInt(r)
@@ -462,7 +501,10 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (isMissing(i) || other.isMissing(i)) BufferInt.MissingValue else if (self.values(i) < other.values(i)) 1 else 0
+      r(i) =
+        if (isMissing(i) || other.isMissing(i)) BufferInt.MissingValue
+        else if (self.values(i) < other.values(i)) 1
+        else 0
       i += 1
     }
     BufferInt(r)
@@ -474,7 +516,10 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (isMissing(i) || other.isMissing(i)) BufferInt.MissingValue else if (self.values(i) > other.values(i)) 1 else 0
+      r(i) =
+        if (isMissing(i) || other.isMissing(i)) BufferInt.MissingValue
+        else if (self.values(i) > other.values(i)) 1
+        else 0
       i += 1
     }
     BufferInt(r)
@@ -486,7 +531,10 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (isMissing(i) || other.isMissing(i)) BufferInt.MissingValue else if ( self.values(i) >= other.values(i)) 1 else 0
+      r(i) =
+        if (isMissing(i) || other.isMissing(i)) BufferInt.MissingValue
+        else if (self.values(i) >= other.values(i)) 1
+        else 0
       i += 1
     }
     BufferInt(r)
@@ -498,7 +546,10 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (isMissing(i) || other.isMissing(i)) BufferInt.MissingValue else if (self.values(i) == other.values(i)) 1 else 0
+      r(i) =
+        if (isMissing(i) || other.isMissing(i)) BufferInt.MissingValue
+        else if (self.values(i) == other.values(i)) 1
+        else 0
       i += 1
     }
     BufferInt(r)
@@ -510,7 +561,10 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (isMissing(i) || other.isMissing(i)) BufferInt.MissingValue else if (self.values(i) != other.values(i)) 1 else 0
+      r(i) =
+        if (isMissing(i) || other.isMissing(i)) BufferInt.MissingValue
+        else if (self.values(i) != other.values(i)) 1
+        else 0
       i += 1
     }
     BufferInt(r)
@@ -524,7 +578,11 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (isMissing(i) || other == BufferInstant.MissingValue) BufferInt.MissingValue else if (self.values(i) <= other) 1 else 0
+      r(i) =
+        if (isMissing(i) || other == BufferInstant.MissingValue)
+          BufferInt.MissingValue
+        else if (self.values(i) <= other) 1
+        else 0
       i += 1
     }
     BufferInt(r)
@@ -535,7 +593,11 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (isMissing(i) || other == BufferInstant.MissingValue) BufferInt.MissingValue else if ( self.values(i) < other) 1 else 0
+      r(i) =
+        if (isMissing(i) || other == BufferInstant.MissingValue)
+          BufferInt.MissingValue
+        else if (self.values(i) < other) 1
+        else 0
       i += 1
     }
     BufferInt(r)
@@ -546,7 +608,11 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (isMissing(i) || other == BufferInstant.MissingValue) BufferInt.MissingValue else if (self.values(i) > other) 1 else 0
+      r(i) =
+        if (isMissing(i) || other == BufferInstant.MissingValue)
+          BufferInt.MissingValue
+        else if (self.values(i) > other) 1
+        else 0
       i += 1
     }
     BufferInt(r)
@@ -557,7 +623,11 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (isMissing(i) || other == BufferInstant.MissingValue) BufferInt.MissingValue else if (self.values(i) >= other) 1 else 0
+      r(i) =
+        if (isMissing(i) || other == BufferInstant.MissingValue)
+          BufferInt.MissingValue
+        else if (self.values(i) >= other) 1
+        else 0
       i += 1
     }
     BufferInt(r)
@@ -568,7 +638,11 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (isMissing(i) || other == BufferInstant.MissingValue) BufferInt.MissingValue else if (self.values(i) == other) 1 else 0
+      r(i) =
+        if (isMissing(i) || other == BufferInstant.MissingValue)
+          BufferInt.MissingValue
+        else if (self.values(i) == other) 1
+        else 0
       i += 1
     }
     BufferInt(r)
@@ -579,7 +653,11 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
     val r = Array.ofDim[Int](n)
 
     while (i < n) {
-      r(i) = if (isMissing(i) || other == BufferInstant.MissingValue) BufferInt.MissingValue else if (self.values(i) != other) 1 else 0
+      r(i) =
+        if (isMissing(i) || other == BufferInstant.MissingValue)
+          BufferInt.MissingValue
+        else if (self.values(i) != other) 1
+        else 0
       i += 1
     }
     BufferInt(r)
@@ -626,11 +704,10 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
     var i = 0
     val n = partitionMap.length
     while (i < n) {
-      
-        if (!isMissing(i)) {
+
+      if (!isMissing(i)) {
         ar(partitionMap.raw(i)).add(values(i))
-        }
-      
+      }
 
       i += 1
     }
@@ -644,7 +721,9 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
     val r = Array.ofDim[CharSequence](n)
 
     while (i < n) {
-      r(i) = if (isMissing(i)) BufferString.MissingValue else java.time.Instant.ofEpochMilli(values(i)).toString
+      r(i) =
+        if (isMissing(i)) BufferString.MissingValue
+        else java.time.Instant.ofEpochMilli(values(i)).toString
       i += 1
     }
     BufferString(r)

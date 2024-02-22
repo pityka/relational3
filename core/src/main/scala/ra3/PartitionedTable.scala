@@ -3,7 +3,7 @@ package ra3
 import cats.effect.IO
 import tasks.TaskSystemComponents
 
-case class PartitionMeta(
+private[ra3] case class PartitionMeta(
     columns: Seq[Int],
     partitionBase: Int
 ) {
@@ -31,7 +31,7 @@ case class PartitionMeta(
     )
 }
 
-case class PartitionedTable(
+private[ra3] case class PartitionedTable(
     columns: Vector[Column],
     partitionMeta: PartitionMeta
 ) {
@@ -78,7 +78,7 @@ case class PartitionedTable(
   }
 }
 
-object PartitionedTable {
+private[ra3] object PartitionedTable {
 
   def makeFakePartitionsFromEachSegment(self: Table): Seq[PartitionedTable] =
     (0 until self.columns.head.segments.size).toVector map { segmentIdx =>
@@ -152,7 +152,7 @@ object PartitionedTable {
             partitionsOfGroupsOfThisColumn =>
               assert(partitionsOfGroupsOfThisColumn.size == groups.size)
               // partition x groupOfSegments
-              val tp = partitionsOfGroupsOfThisColumn.transpose 
+              val tp = partitionsOfGroupsOfThisColumn.transpose
               assert(tp.size == numPartitions)
               // partition
               tp
@@ -165,10 +165,10 @@ object PartitionedTable {
         columns =>
           assert(columns.size == inputColumns.size)
           assert(columns.forall(x => x.size == numPartitions))
-          // partition x column 
+          // partition x column
           val transposed = columns.transpose
-          
-        assert(transposed.size == numPartitions)
+
+          assert(transposed.size == numPartitions)
           transposed.map { columns =>
             PartitionedTable(
               columns = columns.zipWithIndex.map { case (segments, columnIdx) =>

@@ -10,9 +10,8 @@ import com.github.plokhotnyuk.jsoniter_scala.core._
 import tasks._
 import bufferimpl.CharSequenceOrdering
 
-object Column {
-  case class Int32Column(segments: Vector[SegmentInt])
-      extends Column {
+private[ra3] object Column {
+  case class Int32Column(segments: Vector[SegmentInt]) extends Column {
     def nonMissingMinMax: Option[(Int, Int)] = {
       val s = segments.flatMap(_.nonMissingMinMax.toSeq)
       if (s.isEmpty) None
@@ -63,8 +62,7 @@ object Column {
     type ColumnTagType = ColumnTag.Instant.type
     def tag = ColumnTag.Instant
   }
-  case class StringColumn(segments: Vector[SegmentString])
-      extends Column {
+  case class StringColumn(segments: Vector[SegmentString]) extends Column {
     def nonMissingMinMax: Option[(String, String)] = {
       val s = segments.flatMap(_.nonMissingMinMax.toSeq)
       if (s.isEmpty) None
@@ -87,8 +85,7 @@ object Column {
     type ColumnTagType = ColumnTag.StringTag.type
     def tag = ColumnTag.StringTag
   }
-  case class F64Column(segments: Vector[SegmentDouble])
-      extends Column{
+  case class F64Column(segments: Vector[SegmentDouble]) extends Column {
     def nonMissingMinMax: Option[(Double, Double)] = {
       val s = segments.flatMap(_.nonMissingMinMax.toSeq)
       if (s.isEmpty) None
@@ -109,7 +106,7 @@ object Column {
 
 }
 
-sealed trait Column { self =>
+private[ra3] sealed trait Column { self =>
 
   type ColumnType >: this.type <: Column {
     type Elem = self.Elem
@@ -155,7 +152,8 @@ sealed trait Column { self =>
     assert(coverage <= 1d)
     val total = segments.map(_.numElems.toLong).sum
     val numPick = math.max(1, (coverage * total).toLong)
-    val shuffleSegments = new scala.util.Random(42).shuffle(segments.zipWithIndex)
+    val shuffleSegments =
+      new scala.util.Random(42).shuffle(segments.zipWithIndex)
     val cumulative = shuffleSegments
       .map(v => (v, v._1.numElems))
       .scanLeft(0)((a, b) => (a + b._2))
@@ -190,5 +188,4 @@ sealed trait Column { self =>
     }
   }
 
- 
 }

@@ -4,19 +4,19 @@ import cats.effect.unsafe.implicits.global
 
 class IntBufferSuite extends munit.FunSuite with WithTempTaskSystem {
   test("makeStatistic") {
-      val s = Seq(0, 1, 2, 3, Int.MinValue, -1)
-      val st = BufferInt(s: _*).asInstanceOf[BufferIntInArray].makeStatistic()
-      assertEquals(st.hasMissing, true)
-      assertEquals(st.nonMissingMinMax, Some(-1 -> 3))
-      assertEquals(st.lowCardinalityNonMissingSet, Some(Set(0, 1, 2, 3, -1)))
+    val s = Seq(0, 1, 2, 3, Int.MinValue, -1)
+    val st = BufferInt(s: _*).asInstanceOf[BufferIntInArray].makeStatistic()
+    assertEquals(st.hasMissing, true)
+    assertEquals(st.nonMissingMinMax, Some(-1 -> 3))
+    assertEquals(st.lowCardinalityNonMissingSet, Some(Set(0, 1, 2, 3, -1)))
 
   }
   test("makeStatistic long") {
-      val s = Seq(0 until 256:_*)
-      val st = BufferInt(s: _*).asInstanceOf[BufferIntInArray].makeStatistic()
-      assertEquals(st.hasMissing, false)
-      assertEquals(st.nonMissingMinMax, Some(0 -> 255))
-      assertEquals(st.lowCardinalityNonMissingSet, None)
+    val s = Seq(0 until 256: _*)
+    val st = BufferInt(s: _*).asInstanceOf[BufferIntInArray].makeStatistic()
+    assertEquals(st.hasMissing, false)
+    assertEquals(st.nonMissingMinMax, Some(0 -> 255))
+    assertEquals(st.lowCardinalityNonMissingSet, None)
 
   }
   test("toSegment") {
@@ -102,9 +102,9 @@ class IntBufferSuite extends munit.FunSuite with WithTempTaskSystem {
       BufferInt(0, 0, Int.MinValue, Int.MinValue, 1, 1, 99),
       "outer"
     )
-    
-    assertEquals(a.get.toSeq, Seq(0, 0, 1, 2, 2, 3, -1, -1 ,-1))
-    assertEquals(b.get.toSeq, Seq(0, 1, -1, 4, 5, -1, 2,3,6))
+
+    assertEquals(a.get.toSeq, Seq(0, 0, 1, 2, 2, 3, -1, -1, -1))
+    assertEquals(b.get.toSeq, Seq(0, 1, -1, 4, 5, -1, 2, 3, 6))
   }
 
   test("mergeNonMissing") {

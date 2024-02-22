@@ -2,7 +2,7 @@ package ra3
 import com.github.plokhotnyuk.jsoniter_scala.core._
 import com.github.plokhotnyuk.jsoniter_scala.macros._
 
-case class StatisticInt(
+private[ra3] case class StatisticInt(
     hasMissing: Boolean,
     nonMissingMinMax: Option[(Int, Int)],
     lowCardinalityNonMissingSet: Option[Set[Int]]
@@ -45,13 +45,13 @@ case class StatisticInt(
   }
 }
 
-object StatisticInt {
+private[ra3] object StatisticInt {
   def constant(i: Int) = StatisticInt(false, Some((i, i)), Some(Set(i)))
   val empty = StatisticInt(false, None, None)
   implicit val segmentCodec: JsonValueCodec[StatisticInt] = JsonCodecMaker.make
 }
 
-case class StatisticLong(
+private[ra3] case class StatisticLong(
     hasMissing: Boolean,
     nonMissingMinMax: Option[(Long, Long)],
     lowCardinalityNonMissingSet: Option[Set[Long]],
@@ -99,12 +99,12 @@ case class StatisticLong(
   }
 }
 
-object StatisticLong {
+private[ra3] object StatisticLong {
   val empty = StatisticLong(false, None, None, None)
   implicit val segmentCodec: JsonValueCodec[StatisticLong] = JsonCodecMaker.make
 }
 
-case class StatisticDouble(
+private[ra3] case class StatisticDouble(
     hasMissing: Boolean,
     nonMissingMinMax: Option[(Double, Double)],
     lowCardinalityNonMissingSet: Option[Set[Double]]
@@ -147,14 +147,14 @@ case class StatisticDouble(
   }
 }
 
-object StatisticDouble {
+private[ra3] object StatisticDouble {
   val empty = StatisticDouble(false, None, None)
   implicit val customCodecOfDouble: JsonValueCodec[Double] =
     Utils.customDoubleCodec
   implicit val segmentCodec: JsonValueCodec[StatisticDouble] =
     JsonCodecMaker.make
 }
-case class StatisticCharSequence(
+private[ra3] case class StatisticCharSequence(
     hasMissing: Boolean,
     nonMissingMinMax: Option[(CharSequence, CharSequence)],
     lowCardinalityNonMissingSet: Option[Set[CharSequence]],
@@ -205,7 +205,7 @@ case class StatisticCharSequence(
     case _                      => None
   }
 }
-object StatisticCharSequence {
+private[ra3] object StatisticCharSequence {
   val empty = StatisticCharSequence(false, None, None, None)
 
   implicit val cs: JsonValueCodec[CharSequence] = ra3.Utils.charSequenceCodec

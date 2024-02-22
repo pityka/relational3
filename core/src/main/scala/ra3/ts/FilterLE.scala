@@ -7,14 +7,14 @@ import com.github.plokhotnyuk.jsoniter_scala.macros._
 import com.github.plokhotnyuk.jsoniter_scala.core._
 import cats.effect.IO
 
-case class FilterInequality(
+private[ra3] case class FilterInequality(
     comparison: Segment,
     cutoff: Segment,
     input: Segment,
     outputPath: LogicalPath,
     lessThan: Boolean
 )
-object FilterInequality {
+private[ra3] object FilterInequality {
   def queue[S <: Segment { type SegmentType = S }](
       comparison: S,
       input: Segment,

@@ -7,18 +7,20 @@ import com.github.plokhotnyuk.jsoniter_scala.macros._
 import com.github.plokhotnyuk.jsoniter_scala.core._
 import cats.effect.IO
 
-case class TakePartition(
+private[ra3] case class TakePartition(
     inputSegmentsWithPartitionMaps: Seq[(Segment, SegmentInt)],
     numPartition: Int,
     outputPath: LogicalPath
 )
-object TakePartition {
+private[ra3] object TakePartition {
   def doit(
       inputSegmentsWithPartitionMaps: Seq[(Segment, SegmentInt)],
       numPartition: Int,
       outputPath: LogicalPath
   )(implicit tsc: TaskSystemComponents): IO[Vector[Segment]] = {
-    scribe.debug(s"Take $numPartition partitions from ${inputSegmentsWithPartitionMaps.size} segments of ${outputPath.table}/${outputPath.column} to $outputPath")
+    scribe.debug(
+      s"Take $numPartition partitions from ${inputSegmentsWithPartitionMaps.size} segments of ${outputPath.table}/${outputPath.column} to $outputPath"
+    )
     assert(outputPath.partition.isDefined)
     assert(outputPath.partition.get.numPartitions == numPartition)
     assert(inputSegmentsWithPartitionMaps.nonEmpty)
@@ -29,7 +31,8 @@ object TakePartition {
         alreadyDone.flatMap { alreadyDone =>
           IO.both(nextSegment.buffer, nextPartitionMap.buffer).map {
             case (bufferedSegment, bufferedPartitionMap) =>
-              val partitionsOfNextSegment = bufferedSegment.partition(numPartition,bufferedPartitionMap)
+              val partitionsOfNextSegment =
+                bufferedSegment.partition(numPartition, bufferedPartitionMap)
               assert(alreadyDone.size == partitionsOfNextSegment.size)
               (alreadyDone zip partitionsOfNextSegment).map { case (vec, buf) =>
                 vec.appended(buf)
@@ -50,7 +53,7 @@ object TakePartition {
               .toSegment(
                 outputPath.copy(
                   partition =
-                  Some(outputPath.partition.get.copy(partitionId = pIdx))
+                    Some(outputPath.partition.get.copy(partitionId = pIdx))
                 )
               )
 

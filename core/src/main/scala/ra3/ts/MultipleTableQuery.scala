@@ -15,13 +15,13 @@ import ra3.lang._
   * @param takes
   *   table unique id -> take index array from join , if None then take all
   */
-case class MultipleTableQuery(
+private[ra3] case class MultipleTableQuery(
     input: Seq[SegmentWithName],
     predicate: ra3.lang.Expr,
     outputPath: LogicalPath,
     takes: Seq[(String, Option[SegmentInt])]
 )
-object MultipleTableQuery {
+private[ra3] object MultipleTableQuery {
 
   def doit(
       input: Seq[SegmentWithName],

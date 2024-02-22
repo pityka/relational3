@@ -3,7 +3,6 @@ package ra3
 import tasks.TaskSystemComponents
 import cats.effect.unsafe.implicits.global
 import ColumnTag.I32
-import ra3.lang._
 
 class QuerySuite extends munit.FunSuite with WithTempTaskSystem {
 
@@ -24,7 +23,7 @@ class QuerySuite extends munit.FunSuite with WithTempTaskSystem {
 
       val result = ra3Table
         .in[DI32] { col0 =>
-          query(ra3.lang.select(ra3.lang.star).where(col0 === 0))
+          query(ra3.select(ra3.star).where(col0 === 0))
         }
         .evaluate
         .unsafeRunSync()
@@ -52,9 +51,9 @@ class QuerySuite extends munit.FunSuite with WithTempTaskSystem {
       val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
 
       val result = ra3Table
-        .in[DI32] {  col0 =>
+        .in[DI32] { col0 =>
           query(
-            ra3.lang.select(ra3.lang.star).where(col0.containedIn(Set(0, 1)))
+            ra3.select(ra3.star).where(col0.containedIn(Set(0, 1)))
           )
         }
         .evaluate
@@ -84,9 +83,9 @@ class QuerySuite extends munit.FunSuite with WithTempTaskSystem {
 
       val result = ra3Table
         .in[DI32] { col0 =>
-            query(ra3.lang.select(ra3.lang.star).where(col0 >= 0))
-          }.evaluate
-        
+          query(ra3.select(ra3.star).where(col0 >= 0))
+        }
+        .evaluate
         .unsafeRunSync()
 
       val takenF = (0 until 4)
@@ -113,9 +112,10 @@ class QuerySuite extends munit.FunSuite with WithTempTaskSystem {
 
       val result = ra3Table
         .in[DI32] { col0 =>
-            query(ra3.lang.select(ra3.lang.star).where(col0 <= 0))
-          
-        }.evaluate
+          query(ra3.select(ra3.star).where(col0 <= 0))
+
+        }
+        .evaluate
         .unsafeRunSync()
 
       val takenF = (0 until 4)

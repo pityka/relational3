@@ -5,7 +5,7 @@ import cats.effect.IO
 import com.github.plokhotnyuk.jsoniter_scala.core.JsonValueCodec
 import com.github.plokhotnyuk.jsoniter_scala.macros.JsonCodecMaker
 
-case class PartitionData(
+private[ra3] case class PartitionData(
     columns: Seq[Int],
     partitionBase: Int,
     partitionMapOverSegments: Vector[Int]
@@ -31,10 +31,10 @@ case class PartitionData(
 
 // Segments in the same table are aligned: each column holds the same number of segments of the same size
 case class Table(
-    columns: Vector[Column],
+    private[ra3] columns: Vector[Column],
     colNames: Vector[String],
-    uniqueId: String,
-    partitions: Option[PartitionData]
+    private[ra3] uniqueId: String,
+    private[ra3] partitions: Option[PartitionData]
 ) extends RelationalAlgebra {
   assert(columns.map(_.segments.map(_.numElems)).distinct.size == 1)
 
@@ -65,8 +65,9 @@ case class Table(
   ): IO[String] = {
     this.segmentation.zipWithIndex.find(_._1 > 0).map(_._2) match {
       case None => IO.pure("")
-      case Some(segmentIdx) => bufferSegment(segmentIdx).map(_.toStringFrame.stringify(nrows, ncols))
-    } 
+      case Some(segmentIdx) =>
+        bufferSegment(segmentIdx).map(_.toStringFrame.stringify(nrows, ncols))
+    }
   }
   def bufferSegment(
       idx: Int

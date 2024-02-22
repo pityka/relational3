@@ -7,12 +7,12 @@ import com.github.plokhotnyuk.jsoniter_scala.macros._
 import com.github.plokhotnyuk.jsoniter_scala.core._
 import cats.effect.IO
 
-case class EstimateCDF(
+private[ra3] case class EstimateCDF(
     input: Segment,
     numberOfPoints: Int,
     outputPath: LogicalPath
 )
-object EstimateCDF {
+private[ra3] object EstimateCDF {
   private def doit(
       input: Segment,
       n: Int,
@@ -20,7 +20,9 @@ object EstimateCDF {
   )(implicit
       tsc: TaskSystemComponents
   ) = {
-    scribe.debug(f"estimate cdf input=${input.tag}(numEl=${input.numElems}%,d) sampling points=$n%,d to $outputPath ")
+    scribe.debug(
+      f"estimate cdf input=${input.tag}(numEl=${input.numElems}%,d) sampling points=$n%,d to $outputPath "
+    )
     val bIn = input.buffer
     bIn.flatMap { case bIn =>
       val t = bIn.cdf(n)
@@ -39,7 +41,12 @@ object EstimateCDF {
       tsc: TaskSystemComponents
   ): IO[(input.SegmentType, SegmentDouble)] =
     task(EstimateCDF(input, numberOfPoints, outputPath))(
-      ResourceRequest(cpu = (1, 1), memory = ra3.Utils.guessMemoryUsageInMB(input), scratch = 0, gpu = 0)
+      ResourceRequest(
+        cpu = (1, 1),
+        memory = ra3.Utils.guessMemoryUsageInMB(input),
+        scratch = 0,
+        gpu = 0
+      )
     ).map(pair => (pair._1.as(input), pair._2))
   implicit val codec: JsonValueCodec[EstimateCDF] = JsonCodecMaker.make
   implicit val code2: JsonValueCodec[(Segment, SegmentDouble)] =

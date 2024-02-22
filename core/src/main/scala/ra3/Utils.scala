@@ -6,29 +6,29 @@ import cats.effect.IO
 import scodec.bits.ByteVector
 import java.nio.CharBuffer
 
-
 private[ra3] case class CharArraySubSeq(buff: Array[Char], start: Int, to: Int)
     extends CharSequence {
 
   override def toString = {
-    String.copyValueOf(buff,start,to-start)
+    String.copyValueOf(buff, start, to - start)
   }
 
   override def equals(other: Any): Boolean = other match {
-    case other: CharSequence if this.length == other.length => 
-      var b = true 
-      var i =  0
-      val n = length 
+    case other: CharSequence if this.length == other.length =>
+      var b = true
+      var i = 0
+      val n = length
       while (i < n && !b) {
-        b = (charAt(i) != other.charAt(i)) 
-        i+=1
+        b = (charAt(i) != other.charAt(i))
+        i += 1
       }
       b
-      case _ => 
-        false
+    case _ =>
+      false
   }
 
-  override def hashCode(): Int =  CharBuffer.wrap(buff,start,to-start).hashCode()
+  override def hashCode(): Int =
+    CharBuffer.wrap(buff, start, to - start).hashCode()
 
   override def length(): Int = to - start
 
@@ -60,11 +60,10 @@ private[ra3] object Utils {
     math.max(5, s.toLong * 64 / 1024 / 1024).toInt
   def guessMemoryUsageInMB(s: Segment) =
     math.max(5, s.numElems.toLong * 64 / 1024 / 1024).toInt
-  def guessMemoryUsageInMB(s: Column) =
-    {
-     val r = math.max(5, s.numElems.toLong * 64 / 1024 / 1024)
-     r.toInt
-    }
+  def guessMemoryUsageInMB(s: Column) = {
+    val r = math.max(5, s.numElems.toLong * 64 / 1024 / 1024)
+    r.toInt
+  }
   def writeFully(bb: ByteBuffer, channel: WritableByteChannel) = {
     bb.rewind
     while (bb.hasRemaining) {
@@ -105,7 +104,7 @@ private[ra3] object Utils {
       compressor.compress(ar, offs, len, compressed, 0, maxL)
     val t2 = System.nanoTime()
     scribe.debug(
-      f"zstd compression ratio: ${actualLength.toDouble / len} in ${(t2 - t1) * 1e-6}ms (${actualLength.toDouble/1024/1024}%.2f megabytes)"
+      f"zstd compression ratio: ${actualLength.toDouble / len} in ${(t2 - t1) * 1e-6}ms (${actualLength.toDouble / 1024 / 1024}%.2f megabytes)"
     )
     ByteBuffer.wrap(compressed, 0, actualLength)
 
@@ -136,42 +135,42 @@ private[ra3] object Utils {
   import com.github.plokhotnyuk.jsoniter_scala.core._
 
   val customDoubleCodec = new JsonValueCodec[Double] {
-      val nullValue: Double = 0.0f
+    val nullValue: Double = 0.0f
 
-      def decodeValue(in: JsonReader, default: Double): Double =
-        if (in.isNextToken('"')) {
-          in.rollbackToken()
-          val len = in.readStringAsCharBuf()
-          if (in.isCharBufEqualsTo(len, "NaN")) Double.NaN
-          else if (in.isCharBufEqualsTo(len, "Infinity"))
-            Double.PositiveInfinity
-          else if (in.isCharBufEqualsTo(len, "-Infinity"))
-            Double.NegativeInfinity
-          else in.decodeError("illegal double")
-        } else {
-          in.rollbackToken()
-          in.readDouble()
+    def decodeValue(in: JsonReader, default: Double): Double =
+      if (in.isNextToken('"')) {
+        in.rollbackToken()
+        val len = in.readStringAsCharBuf()
+        if (in.isCharBufEqualsTo(len, "NaN")) Double.NaN
+        else if (in.isCharBufEqualsTo(len, "Infinity"))
+          Double.PositiveInfinity
+        else if (in.isCharBufEqualsTo(len, "-Infinity"))
+          Double.NegativeInfinity
+        else in.decodeError("illegal double")
+      } else {
+        in.rollbackToken()
+        in.readDouble()
+      }
+
+    def encodeValue(x: Double, out: JsonWriter): _root_.scala.Unit =
+      if (_root_.java.lang.Double.isFinite(x)) out.writeVal(x)
+      else
+        out.writeNonEscapedAsciiVal {
+          if (x != x) "NaN"
+          else if (x >= 0) "Infinity"
+          else "-Infinity"
         }
+  }
 
-      def encodeValue(x: Double, out: JsonWriter): _root_.scala.Unit =
-        if (_root_.java.lang.Double.isFinite(x)) out.writeVal(x)
-        else
-          out.writeNonEscapedAsciiVal {
-            if (x != x) "NaN"
-            else if (x >= 0) "Infinity"
-            else "-Infinity"
-          }
-    }
-
-    val charSequenceCodec: JsonValueCodec[CharSequence] =
+  val charSequenceCodec: JsonValueCodec[CharSequence] =
     new JsonValueCodec[CharSequence] {
       override def decodeValue(in: JsonReader, default: CharSequence): String =
         if (in.isNextToken('"')) {
-            in.rollbackToken()
-            in.readString(null)
-          } else {
-            in.decodeError("expected string")
-          }
+          in.rollbackToken()
+          in.readString(null)
+        } else {
+          in.decodeError("expected string")
+        }
 
       override def encodeValue(
           x: CharSequence,
@@ -180,7 +179,5 @@ private[ra3] object Utils {
 
       override val nullValue: CharSequence = null
     }
-
-
 
 }

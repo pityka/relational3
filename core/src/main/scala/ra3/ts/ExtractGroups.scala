@@ -7,13 +7,13 @@ import com.github.plokhotnyuk.jsoniter_scala.macros._
 import com.github.plokhotnyuk.jsoniter_scala.core._
 import cats.effect.IO
 
-case class ExtractGroups(
+private[ra3] case class ExtractGroups(
     input: Seq[Segment],
     map: SegmentInt,
     numGroups: Int,
     outputPath: LogicalPath
 )
-object ExtractGroups {
+private[ra3] object ExtractGroups {
   def queue[S <: Segment { type SegmentType = S }](
       input: Seq[Segment],
       map: SegmentInt,
@@ -30,7 +30,12 @@ object ExtractGroups {
         outputPath = outputPath
       )
     )(
-      ResourceRequest(cpu = (1, 1), memory = input.map(ra3.Utils.guessMemoryUsageInMB).sum, scratch = 0, gpu = 0)
+      ResourceRequest(
+        cpu = (1, 1),
+        memory = input.map(ra3.Utils.guessMemoryUsageInMB).sum,
+        scratch = 0,
+        gpu = 0
+      )
     ).map(_.map(_.as[S]))
 
   private def doit(
@@ -43,7 +48,7 @@ object ExtractGroups {
     val tag = input.head.tag
     val bIn = IO
       .parSequenceN(32)(input.map(_.as(tag).buffer.map(_.asBufferType)))
-      .map( b=> tag.cat(b:_*))
+      .map(b => tag.cat(b: _*))
     IO.both(parts, bIn).flatMap { case (partitionMap, in) =>
       IO.parSequenceN(32)((0 until numGroups).toList.map { gIdx =>
         in

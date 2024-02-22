@@ -2,7 +2,7 @@ package ra3
 
 import tasks.TaskSystemComponents
 
-object ReduceTable {
+private[ra3] object ReduceTable {
   def formSingleGroupAsOnePartitionPerSegment(
       self: Table
   )(implicit tsc: TaskSystemComponents) = {
@@ -21,8 +21,7 @@ object ReduceTable {
                 map = SegmentInt(
                   None,
                   partitionedTable.numRows.toInt,
-                  statistic =
-                    StatisticInt.constant(0)
+                  statistic = StatisticInt.constant(0)
                 ),
                 numGroups = 1,
                 groupSizes = SegmentInt(

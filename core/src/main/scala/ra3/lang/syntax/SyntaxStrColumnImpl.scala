@@ -3,8 +3,13 @@ import ra3.lang._
 import ra3.BufferInt
 import ra3.lang.StrColumnExpr
 
-trait SyntaxStrColumnImpl {
+private[ra3] trait SyntaxStrColumnImpl {
   protected def arg0: StrColumnExpr
+  import scala.language.implicitConversions
+
+  implicit private def conversionStrLit(a: String): Expr.LitStr = Expr.LitStr(a)
+  implicit private def conversionStrSetLit(a: Set[String]): Expr.LitStrSet =
+    Expr.LitStrSet(a)
   def parseInt = Expr.makeOp1(ops.Op1.ColumnParseI32OpStr)(arg0)
   def toInt = Expr.makeOp1(ops.Op1.ColumnParseI32OpStr)(arg0)
   def parseDouble = Expr.makeOp1(ops.Op1.ColumnParseF64OpStr)(arg0)
@@ -16,8 +21,10 @@ trait SyntaxStrColumnImpl {
 
   def !==(arg1: String) = Expr.makeOp2(ops.Op2.ColumnNEqOpStrcStr)(arg0, arg1)
   def ===(arg1: String) = Expr.makeOp2(ops.Op2.ColumnEqOpStrcStr)(arg0, arg1)
-  def ===(arg1: StrColumnExpr) = Expr.makeOp2(ops.Op2.ColumnEqOpStrStr)(arg0, arg1)
-  def !==(arg1: StrColumnExpr) = Expr.makeOp2(ops.Op2.ColumnNEqOpStrStr)(arg0, arg1)
+  def ===(arg1: StrColumnExpr) =
+    Expr.makeOp2(ops.Op2.ColumnEqOpStrStr)(arg0, arg1)
+  def !==(arg1: StrColumnExpr) =
+    Expr.makeOp2(ops.Op2.ColumnNEqOpStrStr)(arg0, arg1)
   def matches(arg1: String) =
     Expr.makeOp2(ops.Op2.ColumnMatchesOpStrcStr)(arg0, arg1)
   def matchAndReplace(pattern: String, replace: String) =
@@ -56,8 +63,8 @@ trait SyntaxStrColumnImpl {
   def substring(start: Int, len: Int) =
     Expr.makeOp3(ops.Op3.BufferSubstringOpS)(
       arg0,
-      start,
-      len
+      Expr.LitNum(start),
+      Expr.LitNum(len)
     )
 
   def unnamed = ra3.lang.Expr
@@ -68,15 +75,20 @@ trait SyntaxStrColumnImpl {
     .BuiltInOp2(arg0, arg1, ops.Op2.MkNamedColumnSpecChunk)
     .asInstanceOf[Expr { type T = ColumnSpec }]
 
-  def <=(arg1: StrColumnExpr) = Expr.makeOp2(ops.Op2.ColumnLtEqOpStrStr)(arg0, arg1)
+  def as(arg1: String): Expr { type T = ColumnSpec } = as(Expr.LitStr(arg1))
+
+  def <=(arg1: StrColumnExpr) =
+    Expr.makeOp2(ops.Op2.ColumnLtEqOpStrStr)(arg0, arg1)
   def <=(arg1: String) = Expr.makeOp2(ops.Op2.ColumnLtEqOpStrcStr)(arg0, arg1)
-  def >=(arg1: StrColumnExpr) = Expr.makeOp2(ops.Op2.ColumnGtEqOpStrStr)(arg0, arg1)
+  def >=(arg1: StrColumnExpr) =
+    Expr.makeOp2(ops.Op2.ColumnGtEqOpStrStr)(arg0, arg1)
   def >=(arg1: String) = Expr.makeOp2(ops.Op2.ColumnGtEqOpStrcStr)(arg0, arg1)
 
-  def <(arg1: StrColumnExpr) = Expr.makeOp2(ops.Op2.ColumnLtOpStrStr)(arg0, arg1)
+  def <(arg1: StrColumnExpr) =
+    Expr.makeOp2(ops.Op2.ColumnLtOpStrStr)(arg0, arg1)
   def <(arg1: String) = Expr.makeOp2(ops.Op2.ColumnLtOpStrcStr)(arg0, arg1)
-  def >(arg1: StrColumnExpr) = Expr.makeOp2(ops.Op2.ColumnGtOpStrStr)(arg0, arg1)
+  def >(arg1: StrColumnExpr) =
+    Expr.makeOp2(ops.Op2.ColumnGtOpStrStr)(arg0, arg1)
   def >(arg1: String) = Expr.makeOp2(ops.Op2.ColumnGtOpStrcStr)(arg0, arg1)
-  
 
 }

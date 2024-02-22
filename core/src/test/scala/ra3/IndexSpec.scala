@@ -12,8 +12,7 @@
   * License for the specific language governing permissions and limitations
   * under the License.
   */
-  package ra3
-
+package ra3
 
 import org.specs2.mutable.Specification
 import org.saddle._

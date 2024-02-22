@@ -222,12 +222,13 @@ object csv {
             .asInstanceOf[org.saddle.Buffer[Long]]
             .+=(org.saddle.scalar.ScalarTagLong.parse(s, from, to))
         case StringTag =>
-          val v = String.valueOf(s, from, to-from)
+          val v = String.valueOf(s, from, to - from)
           val v2 =
             if (
               stringMissingValues(
                 buf
-              ).isDefined && ra3.bufferimpl.CharSequenceOrdering.charSeqEquals(v,
+              ).isDefined && ra3.bufferimpl.CharSequenceOrdering.charSeqEquals(
+                v,
                 stringMissingValues(buf).get
               )
             ) BufferString.MissingValue

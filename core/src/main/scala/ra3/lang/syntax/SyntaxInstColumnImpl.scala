@@ -2,8 +2,14 @@ package ra3.lang.syntax
 import ra3.lang._
 import ra3.BufferInt
 
-trait SyntaxInstColumnImpl {
+private[ra3] trait SyntaxInstColumnImpl {
   protected def arg0: InstColumnExpr
+  import scala.language.implicitConversions
+
+  implicit private def conversionStrLit(a: String): Expr.LitStr = Expr.LitStr(a)
+
+  implicit private def conversionIntLit(a: Int): Expr.LitNum = Expr.LitNum(a)
+  implicit private def conversionIntLit(a: Long): Expr.LitI64 = Expr.LitI64(a)
   def isMissing = Expr.makeOp1(ops.Op1.ColumnIsMissingOpInst)(arg0)
   def toDoubleEpochMillis = Expr.makeOp1(ops.Op1.ColumnToDoubleOpInst)(arg0)
   def toLongEpochMillis = Expr.makeOp1(ops.Op1.ColumnToLongOpInst)(arg0)
@@ -32,23 +38,29 @@ trait SyntaxInstColumnImpl {
   def <=(arg1: InstColumnExpr) =
     Expr.makeOp2(ops.Op2.ColumnLtEqOpInstInst)(arg0, arg1)
   def <=(arg1: String) = Expr.makeOp2(ops.Op2.ColumnLtEqOpInstcStr)(arg0, arg1)
+  def <=(arg1: Long) = Expr.makeOp2(ops.Op2.ColumnLtEqOpInstcL)(arg0, arg1)
   def >=(arg1: InstColumnExpr) =
     Expr.makeOp2(ops.Op2.ColumnGtEqOpInstInst)(arg0, arg1)
   def >=(arg1: String) = Expr.makeOp2(ops.Op2.ColumnGtEqOpInstcStr)(arg0, arg1)
+  def >=(arg1: Long) = Expr.makeOp2(ops.Op2.ColumnGtEqOpInstcL)(arg0, arg1)
 
   def <(arg1: InstColumnExpr) =
     Expr.makeOp2(ops.Op2.ColumnLtOpInstInst)(arg0, arg1)
   def <(arg1: String) = Expr.makeOp2(ops.Op2.ColumnLtOpInstcStr)(arg0, arg1)
+  def <(arg1: Long) = Expr.makeOp2(ops.Op2.ColumnLtOpInstcL)(arg0, arg1)
   def >(arg1: InstColumnExpr) =
     Expr.makeOp2(ops.Op2.ColumnGtOpInstInst)(arg0, arg1)
   def >(arg1: String) = Expr.makeOp2(ops.Op2.ColumnGtOpInstcStr)(arg0, arg1)
+  def >(arg1: Long) = Expr.makeOp2(ops.Op2.ColumnGtOpInstcL)(arg0, arg1)
 
   def ===(arg1: InstColumnExpr) =
     Expr.makeOp2(ops.Op2.ColumnEqOpInstInst)(arg0, arg1)
   def ===(arg1: String) = Expr.makeOp2(ops.Op2.ColumnEqOpInstcStr)(arg0, arg1)
+  def ===(arg1: Long) = Expr.makeOp2(ops.Op2.ColumnEqOpInstcL)(arg0, arg1)
   def !==(arg1: InstColumnExpr) =
     Expr.makeOp2(ops.Op2.ColumnNEqOpInstInst)(arg0, arg1)
   def !==(arg1: String) = Expr.makeOp2(ops.Op2.ColumnNEqOpInstcStr)(arg0, arg1)
+  def !==(arg1: Long) = Expr.makeOp2(ops.Op2.ColumnNEqOpInstcL)(arg0, arg1)
 
   def count = Expr.makeOp3(ops.Op3.BufferCountInGroupsOpInst)(
     arg0,
@@ -85,5 +97,5 @@ trait SyntaxInstColumnImpl {
   def as(arg1: Expr { type T = String }) = ra3.lang.Expr
     .BuiltInOp2(arg0, arg1, ops.Op2.MkNamedColumnSpecChunk)
     .asInstanceOf[Expr { type T = ColumnSpec }]
-
+  def as(arg1: String): Expr { type T = ColumnSpec } = as(Expr.LitStr(arg1))
 }

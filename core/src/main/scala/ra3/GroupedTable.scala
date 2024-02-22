@@ -3,7 +3,7 @@ package ra3
 import cats.effect.IO
 import tasks.{TaskSystemComponents}
 
-case class GroupedTable(
+private[ra3] case class GroupedTable(
     partitions: Seq[(PartitionedTable, Segment.GroupMap)],
     colNames: Vector[String],
     uniqueId: String
@@ -78,10 +78,9 @@ case class GroupedTable(
 
   }
 
-  
 }
 
-object GroupedTable {
+private[ra3] object GroupedTable {
   def reduceGroups(
       self: GroupedTable,
       program: ra3.lang.Expr { type T <: ra3.lang.ReturnValue }
@@ -153,23 +152,22 @@ object GroupedTable {
     )
     name.flatMap { name =>
       IO.parSequenceN(math.min(32, self.partitions.size))(
-        self.partitions.zipWithIndex.map {
-          case ((partition, groupMap), _) =>
-            ts.SimpleQueryCount
-              .queue(
-                input = (0 until columns).toVector.map { columnIdx =>
-                  ra3.ts.SegmentWithName(
-                    segment = partition
-                      .columns(columnIdx)
-                      .segments, // to be removed
-                    tableUniqueId = self.uniqueId,
-                    columnName = self.colNames(columnIdx),
-                    columnIdx = columnIdx
-                  )
-                },
-                predicate = program,
-                groupMap = Option((groupMap.map, groupMap.numGroups))
-              )
+        self.partitions.zipWithIndex.map { case ((partition, groupMap), _) =>
+          ts.SimpleQueryCount
+            .queue(
+              input = (0 until columns).toVector.map { columnIdx =>
+                ra3.ts.SegmentWithName(
+                  segment = partition
+                    .columns(columnIdx)
+                    .segments, // to be removed
+                  tableUniqueId = self.uniqueId,
+                  columnName = self.colNames(columnIdx),
+                  columnIdx = columnIdx
+                )
+              },
+              predicate = program,
+              groupMap = Option((groupMap.map, groupMap.numGroups))
+            )
 
         }
       ).map(_.map(_.toLong).foldLeft(0L)(_ + _))

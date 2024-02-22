@@ -5,6 +5,7 @@ import cats.effect.unsafe.implicits.global
 import ColumnTag.I32
 import ra3.lang._
 import ra3.MissingString
+import ra3.DInst
 class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
   test("test predicates of Double") {
     withTempTaskSystem { implicit ts =>
@@ -24,10 +25,10 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
           p: (DelayedIdent[DF64], DelayedIdent[DF64]) => I32ColumnExpr
       )(p2: (Vec[Double], Vec[Double]) => Array[Int]) = {
         val less = ra3Table
-          .in[DF64, DF64] { ( col0, col1) =>
+          .in[DF64, DF64] { (col0, col1) =>
             query(
-              ra3.lang
-                .select(ra3.lang.star)
+              ra3
+                .select(ra3.star)
                 .where(p(col0, col1))
             )
 
@@ -42,21 +43,21 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
             .resetRowIndex
             .setColIndex(Index("0", "1"))
 
-        assertEquals(takenF, expect,tag)
+        assertEquals(takenF, expect, tag)
       }
 
-      predicateTest("contains")((col0, _) => col0.containedIn(Set(0d, 7d)))((col0, _) =>
-        col0.find(i => Set(0d, 7d).contains(i)).toArray
+      predicateTest("contains")((col0, _) => col0.containedIn(Set(0d, 7d)))(
+        (col0, _) => col0.find(i => Set(0d, 7d).contains(i)).toArray
       )
       predicateTest("!==")((col0, _) => col0.!==(0))((col0, _) =>
         col0.find(i => i != 0).toArray
       )
-      
+
       predicateTest(">=")((col0, _) => col0.abs >= 9)((col0, _) =>
         col0.find(i => math.abs(i) >= 9).toArray
       )
       predicateTest("is missing")((col0, _) => col0.isMissing)((col0, _) =>
-        col0.toArray.zipWithIndex.filter(_._1.isNaN() ).map(_._2)
+        col0.toArray.zipWithIndex.filter(_._1.isNaN()).map(_._2)
       )
 
       predicateTest("!== not")((col0, _) => col0.!==(0).not)((col0, _) =>
@@ -78,39 +79,37 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
         col0.find(i => i > 5).toArray
       )
 
-       predicateTest("||")((col0, _) => col0 > 5 || col0 < 2)((col0, _) =>
+      predicateTest("||")((col0, _) => col0 > 5 || col0 < 2)((col0, _) =>
         col0.find(i => i > 5 || i < 2).toArray
       )
-       predicateTest("&&")((col0, col1) => col0 > 5 && col1 >= 18)((col0, col1) =>
-        (col0.find(i => i > 5 ).toSeq.toSet & col1.find(_ >= 18).toSeq.toSet).toArray
+      predicateTest("&&")((col0, col1) => col0 > 5 && col1 >= 18)(
+        (col0, col1) =>
+          (col0.find(i => i > 5).toSeq.toSet & col1
+            .find(_ >= 18)
+            .toSeq
+            .toSet).toArray
       )
-       predicateTest(">=")((col0, col1) => col0 >= col1)((col0, col1) =>
+      predicateTest(">=")((col0, col1) => col0 >= col1)((col0, col1) =>
         col0.zipMap(col1)(_ >= _).find(identity).toArray
       )
-       predicateTest(">")((col0, col1) => col0 > col1)((col0, col1) =>
+      predicateTest(">")((col0, col1) => col0 > col1)((col0, col1) =>
         col0.zipMap(col1)(_ > _).find(identity).toArray
       )
-       predicateTest("<=")((col0, col1) => col0 <= col1)((col0, col1) =>
+      predicateTest("<=")((col0, col1) => col0 <= col1)((col0, col1) =>
         col0.zipMap(col1)(_ <= _).find(identity).toArray
       )
-       predicateTest("<")((col0, col1) => col0 < col1)((col0, col1) =>
+      predicateTest("<")((col0, col1) => col0 < col1)((col0, col1) =>
         col0.zipMap(col1)(_ < _).find(identity).toArray
       )
-       predicateTest("===")((col0, col1) => col0 === col1)((col0, col1) =>
+      predicateTest("===")((col0, col1) => col0 === col1)((col0, col1) =>
         col0.zipMap(col1)(_ == _).find(identity).toArray
       )
-       predicateTest("!==")((col0, col1) => col0 !== col1)((col0, col1) =>
+      predicateTest("!==")((col0, col1) => col0 !== col1)((col0, col1) =>
         col0.zipMap(col1)(_ != _).find(identity).toArray
       )
-       predicateTest("===")((col0, _) => col0.roundToInt === 0)((col0, _) =>
+      predicateTest("===")((col0, _) => col0.roundToInt === 0)((col0, _) =>
         col0.find(i => i.toDouble == 0).toArray
       )
-
-
-      
-     
-        
-
 
     }
 
@@ -128,27 +127,35 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
         )
         (frame.mapValues(_.toString), csv)
       }
-      val ra3Table = csvStringToStringTable("table", tableCsv, 2, 3).in[DStr,DStr]{ (col0,col1) =>
-        query(ra3.lang.select(
-          col0.matchAndReplace("NA",MissingString) as "V0",
-          col1.matchAndReplace("NA",MissingString) as "V1",
-          ))  
-      }.evaluate.unsafeRunSync()
+      val ra3Table = csvStringToStringTable("table", tableCsv, 2, 3)
+        .in[DStr, DStr] { (col0, col1) =>
+          query(
+            ra3.select(
+              col0.matchAndReplace("NA", MissingString) as "V0",
+              col1.matchAndReplace("NA", MissingString) as "V1"
+            )
+          )
+        }
+        .evaluate
+        .unsafeRunSync()
       def predicateTest(tag: String)(
           p: (DelayedIdent[DStr], DelayedIdent[DStr]) => I32ColumnExpr
       )(p2: (Vec[String], Vec[String]) => Array[Int]) = {
         val less = ra3Table
-          .in[DStr, DStr] { ( col0, col1) =>
+          .in[DStr, DStr] { (col0, col1) =>
             query(
-              ra3.lang
-                .select(ra3.lang.star)
+              ra3
+                .select(ra3.star)
                 .where(p(col0, col1))
             )
 
           }
           .evaluate
           .unsafeRunSync()
-        val takenF = toFrame2(less, ColumnTag.StringTag).mapValues(_.toString).mapValues(x => if (x == MissingString) null else x).mapRowIndex(_ => "_")
+        val takenF = toFrame2(less, ColumnTag.StringTag)
+          .mapValues(_.toString)
+          .mapValues(x => if (x == MissingString) null else x)
+          .mapRowIndex(_ => "_")
 
         val expect =
           tableFrame
@@ -157,19 +164,16 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
             .setColIndex(Index("V0", "V1"))
             .mapRowIndex(_ => "_")
 
-        assertEquals(takenF, expect,tag)
+        assertEquals(takenF, expect, tag)
       }
 
-
-
-      predicateTest("contains")((col0, _) => col0.containedIn(Set("0", "7")))((col0, _) =>
-        col0.find(i => Set("0", "7").contains(i)).toArray
+      predicateTest("contains")((col0, _) => col0.containedIn(Set("0", "7")))(
+        (col0, _) => col0.find(i => Set("0", "7").contains(i)).toArray
       )
       predicateTest("!== 0")((col0, _) => col0.!==("0"))((col0, _) =>
         col0.find(i => i != "0").toArray
       )
-      
-      
+
       predicateTest("is missing")((col0, _) => col0.isMissing)((col0, _) =>
         col0.toArray.zipWithIndex.filter(_._1 == null).map(_._2)
       )
@@ -193,39 +197,242 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
         col0.find(i => i > "5").toArray
       )
 
-       predicateTest("||")((col0, _) => col0 > "5" || col0 < "2")((col0, _) =>
+      predicateTest("||")((col0, _) => col0 > "5" || col0 < "2")((col0, _) =>
         col0.find(i => i > "5" || i < "2").toArray
       )
-       predicateTest("&&")((col0, col1) => col0 > "5" && col1 >= "18")((col0, col1) =>
-        (col0.find(i => i > "5" ).toSeq.toSet & col1.find(_ >= "18").toSeq.toSet).toArray
+      predicateTest("&&")((col0, col1) => col0 > "5" && col1 >= "18")(
+        (col0, col1) =>
+          (col0.find(i => i > "5").toSeq.toSet & col1
+            .find(_ >= "18")
+            .toSeq
+            .toSet).toArray
       )
-       predicateTest(">=")((col0, col1) => col0 >= col1)((col0, col1) =>
+      predicateTest(">=")((col0, col1) => col0 >= col1)((col0, col1) =>
         col0.zipMap(col1)(_ >= _).find(identity).toArray
       )
-       predicateTest(">")((col0, col1) => col0 > col1)((col0, col1) =>
+      predicateTest(">")((col0, col1) => col0 > col1)((col0, col1) =>
         col0.zipMap(col1)(_ > _).find(identity).toArray
       )
-       predicateTest("<=")((col0, col1) => col0 <= col1)((col0, col1) =>
+      predicateTest("<=")((col0, col1) => col0 <= col1)((col0, col1) =>
         col0.zipMap(col1)(_ <= _).find(identity).toArray
       )
-       predicateTest("<")((col0, col1) => col0 < col1)((col0, col1) =>
+      predicateTest("<")((col0, col1) => col0 < col1)((col0, col1) =>
         col0.zipMap(col1)(_ < _).find(identity).toArray
       )
-       predicateTest("===")((col0, col1) => col0 === col1)((col0, col1) =>
+      predicateTest("===")((col0, col1) => col0 === col1)((col0, col1) =>
         col0.zipMap(col1)(_ == _).find(identity).toArray
       )
-       predicateTest("!== col")((col0, col1) => col0 !== col1)((col0, col1) =>
+      predicateTest("!== col")((col0, col1) => col0 !== col1)((col0, col1) =>
         col0.zipMap(col1)(_ != _).find(identity).toArray
       )
-       predicateTest("===")((col0, _) => col0.toDouble === 0d)((col0, _) =>
+      predicateTest("===")((col0, _) => col0.toDouble === 0d)((col0, _) =>
         col0.find(i => i.toDouble == 0d).toArray
       )
 
+    }
 
-      
-     
-        
+  }
+  test("test predicates of Long") {
+    withTempTaskSystem { implicit ts =>
+      val (tableFrame, tableCsv) = {
+        val frame = Frame(
+          Vec(0L, 1L, 2L, 3L, Long.MinValue, 5L, 6L, 700L, 8L, -9L),
+          Vec(10L, 1L, Long.MinValue, 13L, 14L, 15L, 16L, 17L, 18L, -19L)
+        )
+        val csv = new String(
+          org.saddle.csv.CsvWriter.writeFrameToArray(frame, withRowIx = false)
+        )
+        (frame, csv)
+      }
+      val ra3Table = csvStringToLongTable("table", tableCsv, 2, 3)
 
+      def predicateTest(tag: String)(
+          p: (DelayedIdent[DI64], DelayedIdent[DI64]) => I32ColumnExpr
+      )(p2: (Vec[Long], Vec[Long]) => Array[Int]) = {
+        val less = ra3Table
+          .in[DI64, DI64] { (col0, col1) =>
+            query(
+              ra3
+                .select(ra3.star)
+                .where(p(col0, col1))
+            )
+
+          }
+          .evaluate
+          .unsafeRunSync()
+        val takenF = toFrame2(less, ColumnTag.I64)
+
+        val expect =
+          tableFrame
+            .rowAt(p2(tableFrame.colAt(0).toVec, tableFrame.colAt(1).toVec))
+            .resetRowIndex
+            .setColIndex(Index("0", "1"))
+
+        assertEquals(takenF, expect, tag)
+      }
+
+      // predicateTest("contains")((col0, _) => col0.containedIn(Set(0, 7)))(
+      //   (col0, _) => col0.find(i => Set(0, 7).contains(i)).toArray
+      // )
+      // predicateTest("!==")((col0, _) => col0.!==(0))((col0, _) =>
+      //   col0.find(i => i != 0).toArray
+      // )
+
+      // predicateTest(">=")((col0, _) => col0.abs >= 9)((col0, _) =>
+      //   col0.find(i => math.abs(i) >= 9).toArray
+      // )
+      // predicateTest("is missing")((col0, _) => col0.isMissing)((col0, _) =>
+      //   col0.toArray.zipWithIndex.filter(_._1 == Int.MinValue).map(_._2)
+      // )
+
+      // predicateTest("!== not")((col0, _) => col0.!==(0).not)((col0, _) =>
+      //   col0.find(i => i == 0).toArray
+      // )
+      predicateTest("===")((col0, _) => col0.===(0))((col0, _) =>
+        col0.find(i => i == 0).toArray
+      )
+      // predicateTest(">=")((col0, _) => col0 >= 5)((col0, _) =>
+      //   col0.find(i => i >= 5).toArray
+      // )
+      // predicateTest("<=")((col0, _) => col0 <= 5)((col0, _) =>
+      //   col0.find(i => i <= 5).toArray
+      // )
+      // predicateTest("<")((col0, _) => col0 < 5)((col0, _) =>
+      //   col0.find(i => i < 5).toArray
+      // )
+      // predicateTest(">")((col0, _) => col0 > 5)((col0, _) =>
+      //   col0.find(i => i > 5).toArray
+      // )
+
+      // predicateTest("||")((col0, _) => col0 > 5 || col0 < 2)((col0, _) =>
+      //   col0.find(i => i > 5 || i < 2).toArray
+      // )
+      // predicateTest("&&")((col0, col1) => col0 > 5 && col1 >= 18)(
+      //   (col0, col1) =>
+      //     (col0.find(i => i > 5).toSeq.toSet & col1
+      //       .find(_ >= 18)
+      //       .toSeq
+      //       .toSet).toArray
+      // )
+      // predicateTest(">=")((col0, col1) => col0 >= col1)((col0, col1) =>
+      //   col0.zipMap(col1)(_ >= _).find(identity).toArray
+      // )
+      // predicateTest(">")((col0, col1) => col0 > col1)((col0, col1) =>
+      //   col0.zipMap(col1)(_ > _).find(identity).toArray
+      // )
+      // predicateTest("<=")((col0, col1) => col0 <= col1)((col0, col1) =>
+      //   col0.zipMap(col1)(_ <= _).find(identity).toArray
+      // )
+      // predicateTest("<")((col0, col1) => col0 < col1)((col0, col1) =>
+      //   col0.zipMap(col1)(_ < _).find(identity).toArray
+      // )
+      predicateTest("===")((col0, col1) => col0 === col1)((col0, col1) =>
+        col0.zipMap(col1)(_ == _).find(identity).toArray
+      )
+      // predicateTest("!==")((col0, col1) => col0 !== col1)((col0, col1) =>
+      //   col0.zipMap(col1)(_ != _).find(identity).toArray
+      // )
+      // predicateTest("===")((col0, _) => col0.toDouble === 0d)((col0, _) =>
+      //   col0.find(i => i.toDouble == 0d).toArray
+      // )
+
+    }
+
+  }
+  test("test predicates of Instant") {
+    withTempTaskSystem { implicit ts =>
+      val (tableFrame, tableCsv) = {
+        val frame = Frame(
+          Vec(0L, 1L, 2L, 3L, Long.MinValue, 5L, 6L, 700L, 8L, -9L),
+          Vec(10L, 1L, Long.MinValue, 13L, 14L, 15L, 16L, 17L, 18L, -19L)
+        )
+        val csv = new String(
+          org.saddle.csv.CsvWriter.writeFrameToArray(frame, withRowIx = false)
+        )
+        (frame, csv)
+      }
+      val ra3Table = csvStringToLongTable("table", tableCsv, 2, 3)
+
+      def predicateTest(tag: String)(
+          p: (GenericExpr[DInst], GenericExpr[DInst]) => I32ColumnExpr
+      )(p2: (Vec[Long], Vec[Long]) => Array[Int]) = {
+        val less = ra3Table
+          .in[DI64, DI64] { (col0, col1) =>
+            query(
+              ra3
+                .select(col0.toInstantEpochMilli, col1.toInstantEpochMilli)
+                .where(p(col0.toInstantEpochMilli, col1.toInstantEpochMilli))
+            )
+
+          }
+          .evaluate
+          .unsafeRunSync()
+        val takenF = toFrame2(less, ColumnTag.I64)
+
+        val expect =
+          tableFrame
+            .rowAt(p2(tableFrame.colAt(0).toVec, tableFrame.colAt(1).toVec))
+            .resetRowIndex
+            .setColIndex(Index("V0", "V1"))
+
+        assertEquals(takenF, expect, tag)
+      }
+
+      // predicateTest("contains")((col0, _) => col0.containedIn(Set(0, 7)))(
+      //   (col0, _) => col0.find(i => Set(0, 7).contains(i)).toArray
+      // )
+      predicateTest("!==")((col0, _) => col0.!==(0))((col0, _) =>
+        col0.find(i => i != 0).toArray
+      )
+
+      predicateTest(">=")((col0, _) => col0 >= 9)((col0, _) =>
+        col0.find(i => i >= 9).toArray
+      )
+      predicateTest("is missing")((col0, _) => col0.isMissing)((col0, _) =>
+        col0.toArray.zipWithIndex.filter(_._1 == Long.MinValue).map(_._2)
+      )
+
+      predicateTest("!== not")((col0, _) => col0.!==(0).not)((col0, _) =>
+        col0.find(i => i == 0).toArray
+      )
+      predicateTest("===")((col0, _) => col0.===(0L))((col0, _) =>
+        col0.find(i => i == 0).toArray
+      )
+      predicateTest(">=")((col0, _) => col0 >= 5)((col0, _) =>
+        col0.find(i => i >= 5).toArray
+      )
+      predicateTest("<=")((col0, _) => col0 <= 5)((col0, _) =>
+        col0.find(i => i <= 5).toArray
+      )
+      predicateTest("<")((col0, _) => col0 < 5)((col0, _) =>
+        col0.find(i => i < 5).toArray
+      )
+      predicateTest(">")((col0, _) => col0 > 5)((col0, _) =>
+        col0.find(i => i > 5).toArray
+      )
+
+   
+      predicateTest(">=")((col0, col1) => col0 >= col1)((col0, col1) =>
+        col0.zipMap(col1)(_ >= _).find(identity).toArray
+      )
+      predicateTest(">")((col0, col1) => col0 > col1)((col0, col1) =>
+        col0.zipMap(col1)(_ > _).find(identity).toArray
+      )
+      predicateTest("<=")((col0, col1) => col0 <= col1)((col0, col1) =>
+        col0.zipMap(col1)(_ <= _).find(identity).toArray
+      )
+      predicateTest("<")((col0, col1) => col0 < col1)((col0, col1) =>
+        col0.zipMap(col1)(_ < _).find(identity).toArray
+      )
+      predicateTest("===")((col0, col1) => col0 === col1)((col0, col1) =>
+        col0.zipMap(col1)(_ == _).find(identity).toArray
+      )
+      predicateTest("!==")((col0, col1) => col0 !== col1)((col0, col1) =>
+        col0.zipMap(col1)(_ != _).find(identity).toArray
+      )
+      // predicateTest("===")((col0, _) => col0.toDouble === 0d)((col0, _) =>
+      //   col0.find(i => i.toDouble == 0d).toArray
+      // )
 
     }
 
@@ -250,8 +457,8 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
         val less = ra3Table
           .in[DI32, DI32] { (col0, col1) =>
             query(
-              ra3.lang
-                .select(ra3.lang.star)
+              ra3
+                .select(ra3.star)
                 .where(p(col0, col1))
             )
 
@@ -266,16 +473,16 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
             .resetRowIndex
             .setColIndex(Index("0", "1"))
 
-        assertEquals(takenF, expect,tag)
+        assertEquals(takenF, expect, tag)
       }
 
-      predicateTest("contains")((col0, _) => col0.containedIn(Set(0, 7)))((col0, _) =>
-        col0.find(i => Set(0, 7).contains(i)).toArray
+      predicateTest("contains")((col0, _) => col0.containedIn(Set(0, 7)))(
+        (col0, _) => col0.find(i => Set(0, 7).contains(i)).toArray
       )
       predicateTest("!==")((col0, _) => col0.!==(0))((col0, _) =>
         col0.find(i => i != 0).toArray
       )
-      
+
       predicateTest(">=")((col0, _) => col0.abs >= 9)((col0, _) =>
         col0.find(i => math.abs(i) >= 9).toArray
       )
@@ -302,39 +509,37 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
         col0.find(i => i > 5).toArray
       )
 
-       predicateTest("||")((col0, _) => col0 > 5 || col0 < 2)((col0, _) =>
+      predicateTest("||")((col0, _) => col0 > 5 || col0 < 2)((col0, _) =>
         col0.find(i => i > 5 || i < 2).toArray
       )
-       predicateTest("&&")((col0, col1) => col0 > 5 && col1 >= 18)((col0, col1) =>
-        (col0.find(i => i > 5 ).toSeq.toSet & col1.find(_ >= 18).toSeq.toSet).toArray
+      predicateTest("&&")((col0, col1) => col0 > 5 && col1 >= 18)(
+        (col0, col1) =>
+          (col0.find(i => i > 5).toSeq.toSet & col1
+            .find(_ >= 18)
+            .toSeq
+            .toSet).toArray
       )
-       predicateTest(">=")((col0, col1) => col0 >= col1)((col0, col1) =>
+      predicateTest(">=")((col0, col1) => col0 >= col1)((col0, col1) =>
         col0.zipMap(col1)(_ >= _).find(identity).toArray
       )
-       predicateTest(">")((col0, col1) => col0 > col1)((col0, col1) =>
+      predicateTest(">")((col0, col1) => col0 > col1)((col0, col1) =>
         col0.zipMap(col1)(_ > _).find(identity).toArray
       )
-       predicateTest("<=")((col0, col1) => col0 <= col1)((col0, col1) =>
+      predicateTest("<=")((col0, col1) => col0 <= col1)((col0, col1) =>
         col0.zipMap(col1)(_ <= _).find(identity).toArray
       )
-       predicateTest("<")((col0, col1) => col0 < col1)((col0, col1) =>
+      predicateTest("<")((col0, col1) => col0 < col1)((col0, col1) =>
         col0.zipMap(col1)(_ < _).find(identity).toArray
       )
-       predicateTest("===")((col0, col1) => col0 === col1)((col0, col1) =>
+      predicateTest("===")((col0, col1) => col0 === col1)((col0, col1) =>
         col0.zipMap(col1)(_ == _).find(identity).toArray
       )
-       predicateTest("!==")((col0, col1) => col0 !== col1)((col0, col1) =>
+      predicateTest("!==")((col0, col1) => col0 !== col1)((col0, col1) =>
         col0.zipMap(col1)(_ != _).find(identity).toArray
       )
-       predicateTest("===")((col0, _) => col0.toDouble === 0d)((col0, _) =>
+      predicateTest("===")((col0, _) => col0.toDouble === 0d)((col0, _) =>
         col0.find(i => i.toDouble == 0d).toArray
       )
-
-
-      
-     
-        
-
 
     }
 
@@ -352,13 +557,12 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
         (frame, csv)
       }
       val ra3Table = csvStringToStringTable("table", tableCsv, 2, 3)
-      import ra3.lang.{global => _, _}
       val less =
-        ra3.lang
-          .let[DStr, DStr](ra3Table) { case ( col0, _) =>
+        ra3
+          .let[DStr, DStr](ra3Table) { case (col0, _) =>
             query(
-              ra3.lang
-                .select(ra3.lang.star)
+              ra3
+                .select(ra3.star)
                 .where(col0.tap("col0").containedIn(Set("1", "2")))
             )
           }
@@ -379,6 +583,43 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
           .resetRowIndex
           .setColIndex(Index("0", "1"))
           .mapValues(_.toString)
+
+      assertEquals(takenF, expect)
+    }
+
+  }
+  test("ifelse int") {
+    withTempTaskSystem { implicit ts =>
+      val (_, tableCsv) = {
+        val frame = Frame(
+          Vec(0, 1, 2, 3, 4, 5, 6, 7, 8, 9),
+          Vec(10, 11, 12, 13, 14, 15, 16, 17, 18, 19)
+        )
+        val csv = new String(
+          org.saddle.csv.CsvWriter.writeFrameToArray(frame, withRowIx = false)
+        )
+        (frame, csv)
+      }
+      val ra3Table = csvStringToTable("table", tableCsv, 2, 3)
+      val less =
+        ra3
+          .let[DI32, DI32](ra3Table) { case (col0, col1) =>
+            query(
+              ra3
+                .select(col0.ifelseI32(col0,col1))
+                
+            )
+          }
+          .evaluate
+          .unsafeRunSync()
+      val takenF = (0 until 4)
+        .map(i => less.bufferSegment(i).unsafeRunSync().toStringFrame)
+        .reduce(_ concat _)
+        .resetRowIndex
+        .filterIx(_.nonEmpty)
+
+      val expect =
+        Frame("V0" ->Vec(10,1, 2, 3, 4, 5, 6, 7, 8, 9).map(_.toString))
 
       assertEquals(takenF, expect)
     }

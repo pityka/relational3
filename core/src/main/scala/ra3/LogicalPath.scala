@@ -1,12 +1,12 @@
 package ra3
 
-case class PartitionPath(
+private[ra3] case class PartitionPath(
     partitionedOnColumns: Seq[Int],
     numPartitions: Int,
     partitionId: Int
 )
 
-case class LogicalPath(
+private[ra3] case class LogicalPath(
     table: String,
     partition: Option[PartitionPath],
     segment: Int,
@@ -18,7 +18,8 @@ case class LogicalPath(
       .map {
         case PartitionPath(by, pnum, pidx) if by.nonEmpty =>
           s"/partitions/by-${by.mkString("-")}/totalparts-$pnum/pidx-$pidx"
-        case PartitionPath(_, pnum, pidx) => s"/partitions/total-$pnum/pidx-$pidx"
+        case PartitionPath(_, pnum, pidx) =>
+          s"/partitions/total-$pnum/pidx-$pidx"
       }
       .getOrElse("")
     s"$table$part/segments/$segment/columns/$column"

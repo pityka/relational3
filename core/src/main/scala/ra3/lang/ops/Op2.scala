@@ -1,7 +1,7 @@
 package ra3.lang.ops
 import ra3._
 import ra3.lang._
-import ra3.lang.DI32
+import ra3.DI32
 import ra3.lang.ReturnValue
 import ra3.lang.bufferIfNeeded
 import tasks.TaskSystemComponents
@@ -63,117 +63,138 @@ private[lang] object Op2 {
     def op(a: A0, b: String)(implicit tsc: TaskSystemComponents) =
       IO.pure(NamedConstantI32(a, b))
   }
+  case object MkNamedConstantI64 extends Op2 {
+    type A0 = Long
+    type A1 = String
+    type T = NamedConstantI64
+    def op(a: A0, b: String)(implicit tsc: TaskSystemComponents) =
+      IO.pure(NamedConstantI64(a, b))
+  }
+  case object MkNamedConstantF64 extends Op2 {
+    type A0 = Double
+    type A1 = String
+    type T = NamedConstantF64
+    def op(a: A0, b: String)(implicit tsc: TaskSystemComponents) =
+      IO.pure(NamedConstantF64(a, b))
+  }
+  case object MkNamedConstantStr extends Op2 {
+    type A0 = String
+    type A1 = String
+    type T = NamedConstantString
+    def op(a: A0, b: String)(implicit tsc: TaskSystemComponents) =
+      IO.pure(NamedConstantString(a, b))
+  }
   sealed trait ColumnOp2III extends Op2 {
-    type A0 = ra3.lang.DI32
-    type A1 = ra3.lang.DI32
-    type T = ra3.lang.DI32
+    type A0 = ra3.DI32
+    type A1 = ra3.DI32
+    type T = ra3.DI32
   }
   sealed trait ColumnOp2ICII extends Op2 {
-    type A0 = ra3.lang.DI32
+    type A0 = ra3.DI32
     type A1 = Int
-    type T = ra3.lang.DI32
+    type T = ra3.DI32
   }
   sealed trait ColumnOp2StrCStrI extends Op2 {
-    type A0 = ra3.lang.DStr
+    type A0 = ra3.DStr
     type A1 = String
-    type T = ra3.lang.DI32
+    type T = ra3.DI32
   }
   sealed trait ColumnOp2StrStrI extends Op2 {
-    type A0 = ra3.lang.DStr
-    type A1 = ra3.lang.DStr
-    type T = ra3.lang.DI32
+    type A0 = ra3.DStr
+    type A1 = ra3.DStr
+    type T = ra3.DI32
   }
   sealed trait ColumnOp2LCStrStr extends Op2 {
-    type A0 = ra3.lang.DI64
+    type A0 = ra3.DI64
     type A1 = String
-    type T = ra3.lang.DStr
+    type T = ra3.DStr
   }
   sealed trait ColumnOp2StrCStrStr extends Op2 {
-    type A0 = ra3.lang.DStr
+    type A0 = ra3.DStr
     type A1 = String
-    type T = ra3.lang.DStr
+    type T = ra3.DStr
   }
   sealed trait ColumnOp2StrStrStr extends Op2 {
-    type A0 = ra3.lang.DStr
-    type A1 = ra3.lang.DStr
-    type T = ra3.lang.DStr
+    type A0 = ra3.DStr
+    type A1 = ra3.DStr
+    type T = ra3.DStr
   }
   sealed trait ColumnOp2StrCStrSetI extends Op2 {
-    type A0 = ra3.lang.DStr
+    type A0 = ra3.DStr
     type A1 = Set[String]
-    type T = ra3.lang.DI32
+    type T = ra3.DI32
   }
 
   sealed trait ColumnOp2ICISetI extends Op2 {
-    type A0 = ra3.lang.DI32
+    type A0 = ra3.DI32
     type A1 = Set[Int]
-    type T = ra3.lang.DI32
+    type T = ra3.DI32
   }
   sealed trait ColumnOp2DCDSetI extends Op2 {
-    type A0 = ra3.lang.DF64
+    type A0 = ra3.DF64
     type A1 = Set[Double]
-    type T = ra3.lang.DI32
+    type T = ra3.DI32
   }
   sealed trait ColumnOp2DDD extends Op2 {
-    type A0 = ra3.lang.DF64
-    type A1 = ra3.lang.DF64
-    type T = ra3.lang.DF64
+    type A0 = ra3.DF64
+    type A1 = ra3.DF64
+    type T = ra3.DF64
   }
   sealed trait ColumnOp2DDI extends Op2 {
-    type A0 = ra3.lang.DF64
-    type A1 = ra3.lang.DF64
-    type T = ra3.lang.DI32
+    type A0 = ra3.DF64
+    type A1 = ra3.DF64
+    type T = ra3.DI32
   }
   sealed trait ColumnOp2DcDI extends Op2 {
-    type A0 = ra3.lang.DF64
+    type A0 = ra3.DF64
     type A1 = Double
-    type T = ra3.lang.DI32
+    type T = ra3.DI32
   }
   sealed trait ColumnOp2DcStrStr extends Op2 {
-    type A0 = ra3.lang.DF64
+    type A0 = ra3.DF64
     type A1 = String
-    type T = ra3.lang.DStr
+    type T = ra3.DStr
   }
   sealed trait ColumnOp2IcStrStr extends Op2 {
-    type A0 = ra3.lang.DI32
+    type A0 = ra3.DI32
     type A1 = String
-    type T = ra3.lang.DStr
+    type T = ra3.DStr
   }
   sealed trait ColumnOp2InstcLInst extends Op2 {
-    type A0 = ra3.lang.DInst
+    type A0 = ra3.DInst
     type A1 = Long
-    type T = ra3.lang.DInst
+    type T = ra3.DInst
   }
   sealed trait ColumnOp2InstInstI extends Op2 {
-    type A0 = ra3.lang.DInst
-    type A1 = ra3.lang.DInst
-    type T = ra3.lang.DI32
+    type A0 = ra3.DInst
+    type A1 = ra3.DInst
+    type T = ra3.DI32
   }
   sealed trait ColumnOp2InstcLI extends Op2 {
-    type A0 = ra3.lang.DInst
+    type A0 = ra3.DInst
     type A1 = Long
-    type T = ra3.lang.DI32
+    type T = ra3.DI32
   }
   sealed trait ColumnOp2InstcStrI extends Op2 {
-    type A0 = ra3.lang.DInst
+    type A0 = ra3.DInst
     type A1 = String
-    type T = ra3.lang.DI32
+    type T = ra3.DI32
   }
 
   sealed trait ColumnOp2InstcIInst extends Op2 {
-    type A0 = ra3.lang.DInst
+    type A0 = ra3.DInst
     type A1 = Int
-    type T = ra3.lang.DInst
+    type T = ra3.DInst
   }
   sealed trait ColumnOp2LLI extends Op2 {
-    type A0 = ra3.lang.DI64
-    type A1 = ra3.lang.DI64
-    type T = ra3.lang.DI32
+    type A0 = ra3.DI64
+    type A1 = ra3.DI64
+    type T = ra3.DI32
   }
   sealed trait ColumnOp2LcLI extends Op2 {
-    type A0 = ra3.lang.DI64
+    type A0 = ra3.DI64
     type A1 = Long
-    type T = ra3.lang.DI32
+    type T = ra3.DI32
   }
 
   case object ColumnEqOpII extends ColumnOp2III {
@@ -756,6 +777,79 @@ private[lang] object Op2 {
     }
   }
 
+   case object ColumnLtEqOpInstcL extends ColumnOp2InstcLI {
+    def op(a: DInst, b: Long)(implicit
+        tsc: TaskSystemComponents
+    ): IO[DI32] = {
+      for {
+        a <- bufferIfNeeded(a)
+      } yield Left(
+        a.elementwise_lteq(b)
+      )
+
+    }
+  }
+   case object ColumnLtOpInstcL extends ColumnOp2InstcLI {
+    def op(a: DInst, b: Long)(implicit
+        tsc: TaskSystemComponents
+    ): IO[DI32] = {
+      for {
+        a <- bufferIfNeeded(a)
+      } yield Left(
+        a.elementwise_lt(b)
+      )
+
+    }
+  }
+   case object ColumnGtEqOpInstcL extends ColumnOp2InstcLI {
+    def op(a: DInst, b: Long)(implicit
+        tsc: TaskSystemComponents
+    ): IO[DI32] = {
+      for {
+        a <- bufferIfNeeded(a)
+      } yield Left(
+        a.elementwise_gteq(b)
+      )
+
+    }
+  }
+   case object ColumnGtOpInstcL extends ColumnOp2InstcLI {
+    def op(a: DInst, b: Long)(implicit
+        tsc: TaskSystemComponents
+    ): IO[DI32] = {
+      for {
+        a <- bufferIfNeeded(a)
+      } yield Left(
+        a.elementwise_gt(b)
+      )
+
+    }
+  }
+   case object ColumnEqOpInstcL extends ColumnOp2InstcLI {
+    def op(a: DInst, b: Long)(implicit
+        tsc: TaskSystemComponents
+    ): IO[DI32] = {
+      for {
+        a <- bufferIfNeeded(a)
+      } yield Left(
+        a.elementwise_eq(b)
+      )
+
+    }
+  }
+   case object ColumnNEqOpInstcL extends ColumnOp2InstcLI {
+    def op(a: DInst, b: Long)(implicit
+        tsc: TaskSystemComponents
+    ): IO[DI32] = {
+      for {
+        a <- bufferIfNeeded(a)
+      } yield Left(
+        a.elementwise_neq(b)
+      )
+
+    }
+  }
+
   case object ColumnNEqOpStrcStr extends ColumnOp2StrCStrI {
     def op(a: DStr, b: String)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
@@ -833,7 +927,7 @@ private[lang] object Op2 {
     }
   }
 
-// 
+//
 
   case object ColumnLtEqOpStrStr extends ColumnOp2StrStrI {
     def op(a: DStr, b: DStr)(implicit tsc: TaskSystemComponents): IO[DI32] = {
@@ -946,7 +1040,5 @@ private[lang] object Op2 {
 
     }
   }
-
-  
 
 }

@@ -7,12 +7,12 @@ import com.github.plokhotnyuk.jsoniter_scala.macros._
 import com.github.plokhotnyuk.jsoniter_scala.core._
 import cats.effect.IO
 
-case class MakeUniqueId(
+private[ra3] case class MakeUniqueId(
     parent: String,
     tag: String,
     aux: Seq[Column]
 )
-object MakeUniqueId {
+private[ra3] object MakeUniqueId {
   def queue0(
       tag: String,
       aux: Seq[Column]
@@ -54,7 +54,7 @@ object MakeUniqueId {
   ) =
     task(
       MakeUniqueId(
-        parent = parent1.uniqueId+"-"+parent2.uniqueId,
+        parent = parent1.uniqueId + "-" + parent2.uniqueId,
         tag = tag,
         aux = aux
       )
@@ -79,7 +79,7 @@ object MakeUniqueId {
     )
   implicit val codec: JsonValueCodec[MakeUniqueId] = JsonCodecMaker.make
   val task = Task[MakeUniqueId, String]("MakeUniqueId", 1) { case input =>
-    _ => 
+    _ =>
       scribe.debug(s"Make unique id for $input")
       IO.delay(java.util.UUID.randomUUID().toString)
 

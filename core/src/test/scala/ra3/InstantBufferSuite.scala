@@ -3,20 +3,20 @@ package ra3
 import cats.effect.unsafe.implicits.global
 
 class InstantBufferSuite extends munit.FunSuite with WithTempTaskSystem {
-    test("makeStatistic") {
-      val s = Seq(0L, 1L, 2L, 3L, Long.MinValue, -1L)
-      val st = BufferInstant(s: _*).makeStatistic()
-      assertEquals(st.hasMissing, true)
-      assertEquals(st.nonMissingMinMax, Some(-1L -> 3L))
-      assertEquals(st.lowCardinalityNonMissingSet, Some(Set(0L, 1L, 2L, 3L, -1L)))
+  test("makeStatistic") {
+    val s = Seq(0L, 1L, 2L, 3L, Long.MinValue, -1L)
+    val st = BufferInstant(s: _*).makeStatistic()
+    assertEquals(st.hasMissing, true)
+    assertEquals(st.nonMissingMinMax, Some(-1L -> 3L))
+    assertEquals(st.lowCardinalityNonMissingSet, Some(Set(0L, 1L, 2L, 3L, -1L)))
 
   }
   test("makeStatistic long") {
-      val s = Seq(0 until 256:_*).map(_.toLong)
-      val st = BufferInstant(s: _*).makeStatistic()
-      assertEquals(st.hasMissing, false)
-      assertEquals(st.nonMissingMinMax, Some(0L -> 255L))
-      assertEquals(st.lowCardinalityNonMissingSet, None)
+    val s = Seq(0 until 256: _*).map(_.toLong)
+    val st = BufferInstant(s: _*).makeStatistic()
+    assertEquals(st.hasMissing, false)
+    assertEquals(st.nonMissingMinMax, Some(0L -> 255L))
+    assertEquals(st.lowCardinalityNonMissingSet, None)
   }
 
   test("toSegment") {
@@ -75,8 +75,8 @@ class InstantBufferSuite extends munit.FunSuite with WithTempTaskSystem {
       BufferInstant(0, 0, Long.MinValue, Long.MinValue, 1, 1, 99),
       "outer"
     )
-    assertEquals(a.get.toSeq, Seq(0, 0, 1, 2, 2, 3, -1, -1 ,-1))
-    assertEquals(b.get.toSeq, Seq(0, 1, -1, 4, 5, -1, 2,3,6))
+    assertEquals(a.get.toSeq, Seq(0, 0, 1, 2, 2, 3, -1, -1, -1))
+    assertEquals(b.get.toSeq, Seq(0, 1, -1, 4, 5, -1, 2, 3, 6))
   }
 
   test("mergeNonMissing") {
@@ -92,7 +92,5 @@ class InstantBufferSuite extends munit.FunSuite with WithTempTaskSystem {
     assert(BufferInstant(0).isMissing(0) == false)
     assert(BufferInstant(Long.MinValue).isMissing(0) == true)
   }
-
-  
 
 }

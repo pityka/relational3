@@ -7,17 +7,22 @@ import com.github.plokhotnyuk.jsoniter_scala.macros._
 import com.github.plokhotnyuk.jsoniter_scala.core._
 import cats.effect.IO
 
-case class BufferColumnAndTakeIndex(
+private[ra3] case class BufferColumnAndTakeIndex(
     input: Column,
     idx: Option[SegmentInt],
     outputPath: LogicalPath
 )
-object BufferColumnAndTakeIndex {
+private[ra3] object BufferColumnAndTakeIndex {
   def queue(input: Column, idx: Option[SegmentInt], outputPath: LogicalPath)(
       implicit tsc: TaskSystemComponents
   ): IO[input.SegmentType] =
     task(BufferColumnAndTakeIndex(input, idx, outputPath))(
-      ResourceRequest(cpu = (1, 1), memory = ra3.Utils.guessMemoryUsageInMB(input), scratch = 0, gpu = 0)
+      ResourceRequest(
+        cpu = (1, 1),
+        memory = ra3.Utils.guessMemoryUsageInMB(input),
+        scratch = 0,
+        gpu = 0
+      )
     ).map(_.as(input))
 
   implicit val codec: JsonValueCodec[BufferColumnAndTakeIndex] =
@@ -32,14 +37,14 @@ object BufferColumnAndTakeIndex {
   )(implicit
       tsc: TaskSystemComponents
   ) = {
-    
+
     if (idx.isDefined && idx.get.numElems == 0) IO.pure(input.tag.emptySegment)
     else {
       val bufferedColumn = IO
         .parSequenceN(32)(
           input.segments.map(_.buffer)
         )
-        .map(b => input.tag.cat(b:_*))
+        .map(b => input.tag.cat(b: _*))
 
       val bufferedIdx =
         idx.map(_.buffer.map(Some(_))).getOrElse(IO.pure(None))

@@ -7,12 +7,12 @@ import com.github.plokhotnyuk.jsoniter_scala.macros._
 import com.github.plokhotnyuk.jsoniter_scala.core._
 import cats.effect.IO
 
-case class ComputeJoinIndex(
+private[ra3] case class ComputeJoinIndex(
     first: Column,
     rest: Seq[(Column, String, Int)], // col, how , index of against which one
     outputPath: LogicalPath
 )
-object ComputeJoinIndex {
+private[ra3] object ComputeJoinIndex {
   private def doit(
       first: Column,
       rest: Seq[(Column, String, Int)],
@@ -189,10 +189,10 @@ object ComputeJoinIndex {
         memory = (ra3.Utils.guessMemoryUsageInMB(first) + rest
           .map(_._1)
           .map(ra3.Utils.guessMemoryUsageInMB)
-          .sum) *  (first.tag match {
-            case x if x == ra3.ColumnTag.StringTag => 16 
-            case _ => 4
-          }),
+          .sum) * (first.tag match {
+          case x if x == ra3.ColumnTag.StringTag => 16
+          case _                                 => 4
+        }),
         scratch = 0,
         gpu = 0
       )

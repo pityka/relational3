@@ -5,7 +5,7 @@ import tasks.{TaskSystemComponents}
 import ra3.ts.ExportCsv
 import tablelang._
 import lang._
-trait RelationalAlgebra { self: Table =>
+private[ra3] trait RelationalAlgebra { self: Table =>
 
   /**   - For each aligned index segment, buffer it
     *   - For each column
@@ -89,13 +89,13 @@ trait RelationalAlgebra { self: Table =>
       )
     }
   }
-   def in0(
+  def in0(
       body: ra3.tablelang.TableExpr.Ident => ra3.tablelang.TableExpr
   ): ra3.tablelang.TableExpr =
     ra3.lang.local(ra3.tablelang.TableExpr.Const(this))(body)
 
   def in[T0: NotNothing](
-      body: ( ra3.lang.DelayedIdent[T0]) => TableExpr
+      body: (ra3.lang.DelayedIdent[T0]) => TableExpr
   ): TableExpr = {
     local(TableExpr.Const(self)) { t =>
       t.useColumn[T0](0) { c0 =>
@@ -111,7 +111,7 @@ trait RelationalAlgebra { self: Table =>
   ): TableExpr = {
     local(TableExpr.Const(self)) { t =>
       t.useColumns[T0, T1](0, 1) { case (c0, c1) =>
-        body( c0, c1)
+        body(c0, c1)
       }
     }
   }
@@ -138,26 +138,32 @@ trait RelationalAlgebra { self: Table =>
   ): TableExpr = {
     local(TableExpr.Const(self)) { t =>
       t.useColumns[T0, T1, T2, T3](0, 1, 2, 3) { case (c0, c1, c2, c3) =>
-        body( c0, c1, c2, c3)
+        body(c0, c1, c2, c3)
       }
     }
   }
-  def in[T0: NotNothing, T1: NotNothing, T2: NotNothing, T3: NotNothing, T4:NotNothing](
+  def in[
+      T0: NotNothing,
+      T1: NotNothing,
+      T2: NotNothing,
+      T3: NotNothing,
+      T4: NotNothing
+  ](
       body: (
           ra3.lang.DelayedIdent[T0],
           ra3.lang.DelayedIdent[T1],
           ra3.lang.DelayedIdent[T2],
           ra3.lang.DelayedIdent[T3],
-          ra3.lang.DelayedIdent[T4],
+          ra3.lang.DelayedIdent[T4]
       ) => TableExpr
   ): TableExpr = {
     local(TableExpr.Const(self)) { t =>
-      t.useColumns[T0, T1, T2, T3,T4](0, 1, 2, 3,4) { case (c0, c1, c2, c3,c4) =>
-        body( c0, c1, c2, c3,c4)
+      t.useColumns[T0, T1, T2, T3, T4](0, 1, 2, 3, 4) {
+        case (c0, c1, c2, c3, c4) =>
+          body(c0, c1, c2, c3, c4)
       }
     }
   }
- 
 
   def rfilterInEquality(
       columnIdx: Int,
@@ -301,7 +307,6 @@ trait RelationalAlgebra { self: Table =>
       )
     }
 
-
   /** Group by which return group locations
     *
     * Returns a triple for each input segment: group map, number of groups,
@@ -334,7 +339,11 @@ trait RelationalAlgebra { self: Table =>
           maxSegmentsToBufferAtOnce = maxSegmentsToBufferAtOnce
         )
         .flatMap { case partitions =>
-          scribe.info(f"Partitioning of $name done with ${partitions.size} partitions with sizes min=${partitions.map(_.numRows).min}%,2d max=${partitions.map(_.numRows).max}%,2d. Will find groups of each partition.")
+          scribe.info(
+            f"Partitioning of $name done with ${partitions.size} partitions with sizes min=${partitions
+                .map(_.numRows)
+                .min}%,2d max=${partitions.map(_.numRows).max}%,2d. Will find groups of each partition."
+          )
           val groupedPartitions =
             IO.parSequenceN(32)(partitions.zipWithIndex.map {
               case (partition, pIdx) =>
@@ -547,7 +556,9 @@ trait RelationalAlgebra { self: Table =>
       columnSeparator: Char = ',',
       quoteChar: Char = '"',
       recordSeparator: String = "\r\n",
-      compression: Option[ra3.ts.ExportCsv.CompressionFormat] = Some(ExportCsv.Gzip)
+      compression: Option[ra3.ts.ExportCsv.CompressionFormat] = Some(
+        ExportCsv.Gzip
+      )
   )(implicit tsc: TaskSystemComponents) = {
     IO.parSequenceN(32)((0 until self.segmentation.size).toList map {
       segmentIdx =>

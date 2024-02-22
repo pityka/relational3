@@ -1,6 +1,5 @@
 import cats.effect.unsafe.implicits.global
 import java.nio.channels.Channels
-import ra3.lang._
 import ra3._
 
 class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
@@ -33,21 +32,25 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
           case "V1" => "value"
         }
 
-      val result = let[DStr, DF64](table) { case ( station, value) =>
-        station.groupBy(
+      val result = let[DStr, DF64](table) { case (station, value) =>
+        station
+          .groupBy(
             select(
               station.first as "station",
               value.sum as "sum",
               value.count as "count"
             )
-          ).partial
-          .in[DStr, DF64, DF64] { ( station, sum, count) =>
-            station.groupBy(
-              select(
-                station.first,
-                sum.sum / count.sum
+          )
+          .partial
+          .in[DStr, DF64, DF64] { (station, sum, count) =>
+            station
+              .groupBy(
+                select(
+                  station.first,
+                  sum.sum / count.sum
+                )
               )
-            ).all
+              .all
 
           }
       }.evaluate
@@ -88,7 +91,7 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
       import org.saddle.ops.BinOps._
       assert((result - expected).values.toSeq.forall(v => math.abs(v) < 1e-3))
       assert(table.numRows == 1000000)
-      assertEquals(result.index.sorted , expected.index.sorted)
+      assertEquals(result.index.sorted, expected.index.sorted)
     }
   }
   test("1brc filter") {
@@ -119,9 +122,9 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
           case "V1" => "value"
         }
 
-      val result = let[DStr, DF64](table) { case ( station, _) =>
+      val result = let[DStr, DF64](table) { case (station, _) =>
         query(select(star).where(station === "Skopje"))
-          
+
       }.evaluate
         .unsafeRunSync()
         .bufferStream
@@ -150,7 +153,8 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
         .withRowIndex(0)
         .colAt(0)
         .mapValues(_.toDouble)
-        .filterIx(_ == "Skopje").sorted
+        .filterIx(_ == "Skopje")
+        .sorted
         .mapVec(_.roundTo(2))
 
       println(expected)
@@ -190,20 +194,24 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
         }
 
       val result = let[DStr, DF64](table) { case (station, _) =>
-        station.groupBy(
+        station
+          .groupBy(
             select(
-              station.first as "station",
+              station.first as "station"
             )
-          ).all
-          .in[DStr, DF64, DF64] { ( station, sum, count) =>
-            station.groupBy(
-              select(
-                station.first
+          )
+          .all
+          .in[DStr, DF64, DF64] { (station, _, _) =>
+            station
+              .groupBy(
+                select(
+                  station.first
+                )
               )
-            ).all
+              .all
 
           }
-          
+
       }.evaluate
         .unsafeRunSync()
         .bufferStream
@@ -213,10 +221,9 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
         .map(_.toStringFrame)
         .reduce(_ concat _)
         .colAt(0)
-        .toVec.toSeq.sorted
-        
-
-
+        .toVec
+        .toSeq
+        .sorted
 
       val expected = org.saddle.csv.CsvParser
         .parseFromChannel[String](
@@ -230,14 +237,14 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
         .withRowIndex(0)
         .colAt(0)
         .mapValues(_.toDouble)
-        .index.toSeq.distinct.sorted
+        .index
+        .toSeq
+        .distinct
+        .sorted
 
-
-      
       assert(table.numRows == 1000000)
       assert(result == expected)
     }
   }
-  
 
 }
