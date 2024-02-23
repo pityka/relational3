@@ -127,19 +127,7 @@ lazy val core = project
       "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % "2.13.31" % "compile-internal"
     ) ++ akkaProvided ++ specs
   )
-lazy val prototype = project
-  .in(file("prototype"))
-  .settings(commonSettings: _*)
-  .settings(
-    name := "ra3-prototype",
-    publish / skip := true,
-    publishArtifact := false,
-    libraryDependencies ++= List(
-      "io.github.pityka" %% "saddle-core" % "4.0.0-M11",
-      "io.github.pityka" %% "tasks-core" % "3.0.0-M6",
-      "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % "2.13.31" % "compile-internal"
-    )
-  )
+
 
 lazy val example1brc = project
   .in(file("example1brc"))
