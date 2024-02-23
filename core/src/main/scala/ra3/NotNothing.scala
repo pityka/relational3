@@ -1,5 +1,9 @@
 package ra3
 
+/** Scala hack to represent generic types which are not Nothing
+ * 
+ * This is a type class with two ambiguous instances predefined for Nothing 
+ */
 final class NotNothing[T]
 
 object NotNothing {

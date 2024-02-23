@@ -22,7 +22,7 @@
  * - removed unneeded members
  */
 
-package ra3.commons;
+package ra3;
 
 import java.io.OutputStream;
 import java.util.zip.Deflater;

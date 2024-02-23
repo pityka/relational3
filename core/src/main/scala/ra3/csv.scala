@@ -160,7 +160,7 @@ object csv {
     }
   }
 
-  class ColumnBufferCallback(
+ private class ColumnBufferCallback(
       name: String,
       maxLines: Long,
       header: Boolean,

@@ -4,36 +4,36 @@ import tasks.TaskSystemComponents
 import ra3.tablelang.TableExpr
 package object lang {
 
-  private[ra3] type Query = ra3.lang.Expr { type T <: ra3.lang.ReturnValue }
-  private[ra3] type IntExpr = Expr { type T = Int }
-  private[ra3] type StrExpr = Expr { type T = String }
-  private[ra3] type LongExpr = Expr { type T = Long }
-  private[ra3] type DoubleExpr = Expr { type T = Double }
+  type Query = ra3.lang.Expr { type T <: ra3.lang.ReturnValue }
+  type IntExpr = Expr { type T = Int }
+  type StrExpr = Expr { type T = String }
+  type LongExpr = Expr { type T = Long }
+  type DoubleExpr = Expr { type T = Double }
   private[ra3] type BufferExpr = Expr { type T <: Buffer }
 
-  private[ra3] type ColumnExpr = Expr {
+  type ColumnExpr = Expr {
     type T = Either[Buffer, Seq[Segment]]
   }
-  private[ra3] type I32ColumnExpr = Expr {
+  type I32ColumnExpr = Expr {
     type T = DI32
   }
-  private[ra3] type I64ColumnExpr = Expr {
+  type I64ColumnExpr = Expr {
     type T = DI64
   }
-  private[ra3] type F64ColumnExpr = Expr {
+  type F64ColumnExpr = Expr {
     type T = Either[BufferDouble, Seq[SegmentDouble]]
   }
-  private[ra3] type StrColumnExpr = Expr {
+  type StrColumnExpr = Expr {
     type T = Either[BufferString, Seq[SegmentString]]
   }
-  private[ra3] type InstColumnExpr = Expr {
+  type InstColumnExpr = Expr {
     type T = Either[BufferInstant, Seq[SegmentInstant]]
   }
 
   private[ra3] type ReturnExpr = Expr { type T = ReturnValue }
 
   private[ra3] type GenericExpr[T0] = Expr { type T = T0 }
-  private[ra3] type DelayedIdent[T0] = Expr.DelayedIdent { type T = T0 }
+  type DelayedIdent[T0] = Expr.DelayedIdent { type T = T0 }
 
   private[ra3] def global[T0](n: ColumnKey): Identifier[T0] = {
     val id = Expr.Ident(n).as[T0]

@@ -1598,6 +1598,60 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
     }
 
   }
+  test("top k with missing") {
+
+    withTempTaskSystem { implicit ts =>
+      val numCols = 3
+      val numRows = 10
+      val (tableFrame, tableCsv) = generateTable(numRows, numCols)
+      val colA = Seq(Seq(0, 0, 1), Seq(Int.MinValue, 2, 3), Seq(4, 5, 0), Seq(9))
+
+      val tF = {
+        val tmp = tableFrame.addCol(
+          Series(colA.flatten.toVec),
+          "V4",
+          org.saddle.index.InnerJoin
+        )
+        tmp.setRowIndex(Index(tmp.firstCol("V4").toVec.toArray))
+      }
+
+      val saddleResult = tF.sortedRows(3).rfilter(_.at(3).isDefined).head(2)
+      val saddleResultDesc = tF.sortedRows(3).rfilter(_.at(3).isDefined).tail(2)
+
+      val tableA = csvStringToTable("table", tableCsv, numCols, 3)
+        .addColumnFromSeq(I32, "V4")(colA.flatten)
+        .unsafeRunSync()
+
+      assertEquals(toFrame(tableA), tF.resetRowIndex)
+
+      val result = toFrame(
+        tableA
+          .topK(3, true, 3, 1.0, 5)
+          .unsafeRunSync()
+      )
+      val resultDesc = toFrame(
+        tableA
+          .topK(3, false, 3, 1.0, 5)
+          .unsafeRunSync()
+      )
+
+      assert(result.numRows <= 5)
+      assert(saddleResultDesc.numRows <= 5)
+      assert(result.colAt(3).toVec.toSeq.filter(_ == 0).size == 3)
+      assert(
+        (saddleResult.toRowSeq.map(_._2).toSet &~ result.toRowSeq
+          .map(_._2)
+          .toSet).isEmpty
+      )
+      assert(
+        (saddleResultDesc.toRowSeq.map(_._2).toSet &~ resultDesc.toRowSeq
+          .map(_._2)
+          .toSet).isEmpty
+      )
+
+    }
+
+  }
   test("top k") {
 
     withTempTaskSystem { implicit ts =>

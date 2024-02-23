@@ -20,7 +20,7 @@
  * - changed package name
  * - removed unneeded members
  */
-package ra3.commons;
+package ra3;
 
 import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
@@ -33,6 +33,11 @@ import java.util.zip.CRC32;
 import java.util.zip.DataFormatException;
 import java.util.zip.Deflater;
 import java.util.zip.Inflater;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.nio.file.LinkOption;
 
 
 /**
@@ -67,7 +72,7 @@ import java.util.zip.Inflater;
  *
  * @see "https://tools.ietf.org/html/rfc1952"
  */
- public class GzipCompressorInputStream extends CompressorInputStream {
+  class GzipCompressorInputStream extends CompressorInputStream {
 
     // Header flags
     // private static final int FTEXT = 0x01; // Uninteresting for us
@@ -366,4 +371,186 @@ import java.util.zip.Inflater;
 
         return size;
     }
+
+
+
+/**
+ * Utility code for the gzip compression format.
+ *
+ * @ThreadSafe
+ */
+class GzipUtils {
+
+    private static final FileNameUtil fileNameUtil;
+
+    static {
+        // using LinkedHashMap so .tgz is preferred over .taz as
+        // compressed extension of .tar as FileNameUtil will use the
+        // first one found
+        final Map<String, String> uncompressSuffix = new LinkedHashMap<>();
+        uncompressSuffix.put(".tgz", ".tar");
+        uncompressSuffix.put(".taz", ".tar");
+        uncompressSuffix.put(".svgz", ".svg");
+        uncompressSuffix.put(".cpgz", ".cpio");
+        uncompressSuffix.put(".wmz", ".wmf");
+        uncompressSuffix.put(".emz", ".emf");
+        uncompressSuffix.put(".gz", "");
+        uncompressSuffix.put(".z", "");
+        uncompressSuffix.put("-gz", "");
+        uncompressSuffix.put("-z", "");
+        uncompressSuffix.put("_z", "");
+        fileNameUtil = new FileNameUtil(uncompressSuffix, ".gz");
+    }
+
+    /**
+     * Encoding for file name and comments per the <a href="https://tools.ietf.org/html/rfc1952">GZIP File Format Specification</a>
+     */
+    static final Charset GZIP_ENCODING = StandardCharsets.ISO_8859_1;
+
+    /**
+     * Maps the given file name to the name that the file should have after compression with gzip. Common file types with custom suffixes for compressed
+     * versions are automatically detected and correctly mapped. For example the name "package.tar" is mapped to "package.tgz". If no custom mapping is
+     * applicable, then the default ".gz" suffix is appended to the file name.
+     *
+     * @param fileName name of a file
+     * @return name of the corresponding compressed file
+     * @deprecated Use {@link #getCompressedFileName(String)}.
+     */
+    @Deprecated
+    public static String getCompressedFilename(final String fileName) {
+        return fileNameUtil.getCompressedFileName(fileName);
+    }
+
+    /**
+     * Maps the given file name to the name that the file should have after compression with gzip. Common file types with custom suffixes for compressed
+     * versions are automatically detected and correctly mapped. For example the name "package.tar" is mapped to "package.tgz". If no custom mapping is
+     * applicable, then the default ".gz" suffix is appended to the file name.
+     *
+     * @param fileName name of a file
+     * @return name of the corresponding compressed file
+     * @since 1.25.0
+     */
+    public static String getCompressedFileName(final String fileName) {
+        return fileNameUtil.getCompressedFileName(fileName);
+    }
+
+    /**
+     * Maps the given name of a gzip-compressed file to the name that the file should have after uncompression. Commonly used file type specific suffixes like
+     * ".tgz" or ".svgz" are automatically detected and correctly mapped. For example the name "package.tgz" is mapped to "package.tar". And any file names with
+     * the generic ".gz" suffix (or any other generic gzip suffix) is mapped to a name without that suffix. If no gzip suffix is detected, then the file name is
+     * returned unmapped.
+     *
+     * @param fileName name of a file
+     * @return name of the corresponding uncompressed file
+     * @deprecated Use {@link #getUncompressedFileName(String)}.
+     */
+    @Deprecated
+    public static String getUncompressedFilename(final String fileName) {
+        return fileNameUtil.getUncompressedFileName(fileName);
+    }
+
+    /**
+     * Maps the given name of a gzip-compressed file to the name that the file should have after uncompression. Commonly used file type specific suffixes like
+     * ".tgz" or ".svgz" are automatically detected and correctly mapped. For example the name "package.tgz" is mapped to "package.tar". And any file names with
+     * the generic ".gz" suffix (or any other generic gzip suffix) is mapped to a name without that suffix. If no gzip suffix is detected, then the file name is
+     * returned unmapped.
+     *
+     * @param fileName name of a file
+     * @return name of the corresponding uncompressed file
+     * @since 1.25.0
+     */
+    public static String getUncompressedFileName(final String fileName) {
+        return fileNameUtil.getUncompressedFileName(fileName);
+    }
+
+    /**
+     * Detects common gzip suffixes in the given file name.
+     *
+     * @param fileName name of a file
+     * @return {@code true} if the file name has a common gzip suffix, {@code false} otherwise
+     * @deprecated Use {@link #isCompressedFileName(String)}.
+     */
+    @Deprecated
+    public static boolean isCompressedFilename(final String fileName) {
+        return fileNameUtil.isCompressedFileName(fileName);
+    }
+
+    /**
+     * Detects common gzip suffixes in the given file name.
+     *
+     * @param fileName name of a file
+     * @return {@code true} if the file name has a common gzip suffix, {@code false} otherwise
+     * @since 1.25.0
+     */
+    public static boolean isCompressedFileName(final String fileName) {
+        return fileNameUtil.isCompressedFileName(fileName);
+    }
+
+    /** Private constructor to prevent instantiation of this utility class. */
+    private GzipUtils() {
+    }
+
+}
+
+
+/**
+ * Utility functions.
+ *
+ * @Immutable (has mutable data but it is write-only).
+ */
+final class IOUtils {
+
+    private static final int COPY_BUF_SIZE = 8024;
+
+    /**
+     * Empty array of type {@link LinkOption}.
+     *
+     * @since 1.21
+     */
+    public static final LinkOption[] EMPTY_LINK_OPTIONS = {};
+
+    
+
+    /**
+     * Skips the given number of bytes by repeatedly invoking skip on the given input stream if necessary.
+     * <p>
+     * In a case where the stream's skip() method returns 0 before the requested number of bytes has been skip this implementation will fall back to using the
+     * read() method.
+     * </p>
+     * <p>
+     * This method will only skip less than the requested number of bytes if the end of the input stream has been reached.
+     * </p>
+     *
+     * @param input     stream to skip bytes in
+     * @param numToSkip the number of bytes to skip
+     * @return the number of bytes actually skipped
+     * @throws IOException on error
+     * @deprecated Use {@link org.apache.commons.io.IOUtils#skip(InputStream, long)}.
+     */
+    @Deprecated
+    public static long skip(final InputStream input, final long numToSkip) throws IOException {
+         if (numToSkip < 0) {
+            throw new IllegalArgumentException("Skip count must be non-negative, actual: " + numToSkip);
+        }
+        //
+        // No need to synchronize access to SCRATCH_BYTE_BUFFER_WO: We don't care if the buffer is written multiple
+        // times or in parallel since the data is ignored. We reuse the same buffer, if the buffer size were variable or read-write,
+        // we would need to synch or use a thread local to ensure some other thread safety.
+        //
+        long remain = numToSkip;
+        while (remain > 0) {
+            final byte[] skipBuffer = new byte[(int)Math.min(8192L,numToSkip)];
+            // See https://issues.apache.org/jira/browse/IO-203 for why we use read() rather than delegating to skip()
+            final long n = input.read(skipBuffer, 0, (int) Math.min(remain, skipBuffer.length));
+            if (n < 0) { // EOF
+                break;
+            }
+            remain -= n;
+        }
+        return numToSkip - remain;
+    }
+
+    
+
+}
 }

@@ -1,12 +1,13 @@
 package ra3.lang
 import ra3.tablelang.TableExpr
 
-object Join {
+private[ra3] object Join {
   def apply(a: Expr.DelayedIdent) =
     JoinBuilderSyntax(a, Vector.empty, None, None, None, None)
 }
 
-private[ra3] case class JoinBuilderSyntax(
+/** Builder pattern for joins. Exit the builder with the done method */
+case class JoinBuilderSyntax(
     private val first: Expr.DelayedIdent,
     private val others: Vector[
       (Expr.DelayedIdent, String, ra3.tablelang.Key)

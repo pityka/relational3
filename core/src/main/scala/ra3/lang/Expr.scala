@@ -45,7 +45,7 @@ private[ra3] sealed trait Expr { self =>
     replace(this.tags.toSeq.zipWithIndex.toMap, map2)
 
 }
-private[ra3] object Expr {
+object Expr {
 
   implicit class SyntaxExpr[T0](a: Expr { type T = T0 })
       extends ra3.lang.syntax.SyntaxExprImpl[T0] {
@@ -111,29 +111,29 @@ private[ra3] object Expr {
     protected def arg0 = Expr.LitStr(a)
     def lift = arg0
   }
-  implicit class SyntaxStrLitExpr(a: StrExpr)extends syntax.SyntaxStringImpl {
+  implicit class SyntaxStrLitExpr(a: StrExpr) extends syntax.SyntaxStringImpl {
     protected def arg0 = a
     def lift = arg0
   }
 
-  implicit class SyntaxLongLit(a: Long)extends syntax.SyntaxLongImpl {
+  implicit class SyntaxLongLit(a: Long) extends syntax.SyntaxLongImpl {
     protected def arg0 = Expr.LitI64(a)
     def lift = arg0
   }
-  implicit class SyntaxStrLongExpr(a: LongExpr)extends syntax.SyntaxLongImpl {
+  implicit class SyntaxStrLongExpr(a: LongExpr) extends syntax.SyntaxLongImpl {
     protected def arg0 = a
     def lift = arg0
   }
 
-  implicit class SyntaxDoubleLit(a: Double)extends syntax.SyntaxDoubleImpl {
+  implicit class SyntaxDoubleLit(a: Double) extends syntax.SyntaxDoubleImpl {
     protected def arg0 = Expr.LitF64(a)
     def lift = arg0
   }
-  implicit class SyntaxStrDoubleExpr(a: DoubleExpr)extends syntax.SyntaxDoubleImpl {
+  implicit class SyntaxStrDoubleExpr(a: DoubleExpr)
+      extends syntax.SyntaxDoubleImpl {
     protected def arg0 = a
     def lift = arg0
   }
-
 
   import scala.language.implicitConversions
   implicit def conversionDI32(
@@ -148,7 +148,7 @@ private[ra3] object Expr {
   ): Expr { type T = ColumnSpec } = a.unnamed
   implicit def conversionDInst(
       a: Expr { type T = DInst }
-  ): Expr { type T = ColumnSpec } =  a.unnamed
+  ): Expr { type T = ColumnSpec } = a.unnamed
 
   implicit def conversionStr(
       a: Expr { type T = DStr }
@@ -160,9 +160,9 @@ private[ra3] object Expr {
   implicit val codec: JsonValueCodec[Expr] =
     JsonCodecMaker.make(CodecMakerConfig.withAllowRecursiveTypes(true))
 
-  case object Star extends Expr {
+  private[ra3] case object Star extends Expr {
 
-    def referredTables = Set.empty
+    private[ra3] def referredTables = Set.empty
     type T = ColumnSpec
     def evalWith(env: Map[Key, Value[_]])(implicit
         tsc: TaskSystemComponents
@@ -173,9 +173,9 @@ private[ra3] object Expr {
       this
     def replaceDelayed(map: DelayedTableSchema) = this
   }
-  case class LitStrSet(s: Set[String]) extends Expr {
+  private[ra3] case class LitStrSet(s: Set[String]) extends Expr {
 
-    def referredTables = Set.empty
+    private[ra3] def referredTables = Set.empty
     type T = Set[String]
     def evalWith(env: Map[Key, Value[_]])(implicit
         tsc: TaskSystemComponents
@@ -186,9 +186,9 @@ private[ra3] object Expr {
       this
     def replaceDelayed(map: DelayedTableSchema) = this
   }
-  case class LitStr(s: String) extends Expr {
+  private[ra3] case class LitStr(s: String) extends Expr {
 
-    def referredTables = Set.empty
+    private[ra3] def referredTables = Set.empty
     type T = String
     def evalWith(env: Map[Key, Value[_]])(implicit
         tsc: TaskSystemComponents
@@ -199,9 +199,9 @@ private[ra3] object Expr {
       this
     def replaceDelayed(map: DelayedTableSchema) = this
   }
-  case class LitNum(s: Int) extends Expr {
+  private[ra3] case class LitNum(s: Int) extends Expr {
 
-    def referredTables = Set.empty
+    private[ra3] def referredTables = Set.empty
     type T = Int
     def evalWith(env: Map[Key, Value[_]])(implicit
         tsc: TaskSystemComponents
@@ -212,9 +212,9 @@ private[ra3] object Expr {
       this
     def replaceDelayed(map: DelayedTableSchema) = this
   }
-  case class LitF64(s: Double) extends Expr {
+  private[ra3] case class LitF64(s: Double) extends Expr {
 
-    def referredTables = Set.empty
+    private[ra3] def referredTables = Set.empty
     type T = Double
     def evalWith(env: Map[Key, Value[_]])(implicit
         tsc: TaskSystemComponents
@@ -225,9 +225,9 @@ private[ra3] object Expr {
       this
     def replaceDelayed(map: DelayedTableSchema) = this
   }
-  case class LitF64Set(s: Set[Double]) extends Expr {
+  private[ra3] case class LitF64Set(s: Set[Double]) extends Expr {
 
-    def referredTables = Set.empty
+    private[ra3] def referredTables = Set.empty
     type T = Set[Double]
     def evalWith(env: Map[Key, Value[_]])(implicit
         tsc: TaskSystemComponents
@@ -238,9 +238,9 @@ private[ra3] object Expr {
       this
     def replaceDelayed(map: DelayedTableSchema) = this
   }
-  case class LitI32Set(s: Set[Int]) extends Expr {
+  private[ra3] case class LitI32Set(s: Set[Int]) extends Expr {
 
-    def referredTables = Set.empty
+    private[ra3] def referredTables = Set.empty
     type T = Set[Int]
     def evalWith(env: Map[Key, Value[_]])(implicit
         tsc: TaskSystemComponents
@@ -252,9 +252,9 @@ private[ra3] object Expr {
     def replaceDelayed(map: DelayedTableSchema) = this
   }
 
-  case class LitI64(s: Long) extends Expr {
+  private[ra3] case class LitI64(s: Long) extends Expr {
 
-    def referredTables = Set.empty
+    private[ra3] def referredTables = Set.empty
     type T = Long
     def evalWith(env: Map[Key, Value[_]])(implicit
         tsc: TaskSystemComponents
@@ -266,11 +266,15 @@ private[ra3] object Expr {
     def replaceDelayed(map: DelayedTableSchema) = this
   }
 
-  case class DelayedIdent(private[ra3] val name: Delayed) extends Expr {
+  case class DelayedIdent private[ra3] (private[ra3] val name: Delayed)
+      extends Expr {
 
-    def referredTables = Set(tableIdent)
+    private[ra3] def referredTables = Set(tableIdent)
 
+    /** Join this column with an other column */
     def join = ra3.lang.Join(this)
+
+    /** group the table by this column */
     def groupBy = ra3.lang.GroupBy(this)
 
     private[ra3] def tableIdent = ra3.tablelang.TableExpr.Ident(name.table)
@@ -300,9 +304,9 @@ private[ra3] object Expr {
         case _          => this
       }
   }
-  case class Ident(name: Key) extends Expr {
+  private[ra3] case class Ident(name: Key) extends Expr {
 
-    def referredTables = name match {
+   private[ra3]  def referredTables = name match {
 
       case Delayed(table, _) => Set(ra3.tablelang.TableExpr.Ident(table))
       case _                 => Set.empty
@@ -339,10 +343,10 @@ private[ra3] object Expr {
     }
   }
 
-  case class BuiltInOp1(arg0: Expr, op: ops.Op1) extends Expr {
+  private[ra3] case class BuiltInOp1(arg0: Expr, op: ops.Op1) extends Expr {
     type T = op.T
 
-    def referredTables = arg0.referredTables
+    private[ra3] def referredTables = arg0.referredTables
     val tags: Set[KeyTag] = arg0.tags
     val columnKeys: Set[ColumnKey] = arg0.columnKeys
     def replace(i: Map[KeyTag, Int], i2: Map[ra3.tablelang.KeyTag, Int]): Expr =
@@ -359,10 +363,11 @@ private[ra3] object Expr {
         .flatMap(v => op.op(v.v).map(Value.Const(_)))
 
   }
-  case class BuiltInOp2(arg0: Expr, arg1: Expr, op: ops.Op2) extends Expr {
+  private[ra3] case class BuiltInOp2(arg0: Expr, arg1: Expr, op: ops.Op2)
+      extends Expr {
     type T = op.T
 
-    def referredTables = arg0.referredTables ++ arg1.referredTables
+    private[ra3] def referredTables = arg0.referredTables ++ arg1.referredTables
 
     val tags: Set[KeyTag] = arg0.tags ++ arg1.tags
     val columnKeys: Set[ColumnKey] = arg0.columnKeys ++ arg1.columnKeys
@@ -382,11 +387,15 @@ private[ra3] object Expr {
       } yield Value.Const(r)
 
   }
-  case class BuiltInOp3(arg0: Expr, arg1: Expr, arg2: Expr, op: ops.Op3)
-      extends Expr {
+  private[ra3] case class BuiltInOp3(
+      arg0: Expr,
+      arg1: Expr,
+      arg2: Expr,
+      op: ops.Op3
+  ) extends Expr {
     type T = op.T
 
-    def referredTables =
+    private[ra3] def referredTables =
       arg0.referredTables ++ arg1.referredTables ++ arg2.referredTables
 
     val tags: Set[KeyTag] = arg0.tags ++ arg1.tags ++ arg2.tags
@@ -417,10 +426,11 @@ private[ra3] object Expr {
       } yield Value.Const(r)
 
   }
-  case class BuiltInOpStar(args: Seq[Expr], op: ops.OpStar) extends Expr {
+  private[ra3] case class BuiltInOpStar(args: Seq[Expr], op: ops.OpStar)
+      extends Expr {
     type T = op.T
 
-    def referredTables = args.flatMap(_.referredTables).toSet
+    private[ra3] def referredTables = args.flatMap(_.referredTables).toSet
 
     val tags: Set[KeyTag] = args.flatMap(_.tags).toSet
     val columnKeys: Set[ColumnKey] =
@@ -440,32 +450,33 @@ private[ra3] object Expr {
 
   }
 
-  def makeOp3(op: ops.Op3)(
+  private[ra3] def makeOp3(op: ops.Op3)(
       arg0: Expr { type T = op.A0 },
       arg1: Expr { type T = op.A1 },
       arg2: Expr { type T = op.A2 }
   ): Expr { type T = op.T } =
     BuiltInOp3(arg0, arg1, arg2, op).asInstanceOf[Expr { type T = op.T }]
-  def makeOp2(op: ops.Op2)(
+  private[ra3] def makeOp2(op: ops.Op2)(
       arg0: Expr { type T = op.A0 },
       arg1: Expr { type T = op.A1 }
   ): Expr { type T = op.T } =
     BuiltInOp2(arg0, arg1, op).asInstanceOf[Expr { type T = op.T }]
 
-  def makeOp1(op: ops.Op1)(
+  private[ra3] def makeOp1(op: ops.Op1)(
       arg0: Expr { type T = op.A0 }
   ): Expr { type T = op.T } =
     BuiltInOp1(arg0, op).asInstanceOf[Expr { type T = op.T }]
-  def makeOpStar(op: ops.OpStar)(
+  private[ra3] def makeOpStar(op: ops.OpStar)(
       args: Expr { type T = op.A }*
   ): Expr { type T = op.T } =
     BuiltInOpStar(args, op).asInstanceOf[Expr { type T = op.T }]
 
-  case class Local(name: Key, assigned: Expr, body: Expr) extends Expr {
+  private[ra3] case class Local(name: Key, assigned: Expr, body: Expr)
+      extends Expr {
     self =>
     type T = body.T
 
-    def referredTables = assigned.referredTables ++ body.referredTables
+    private[ra3] def referredTables = assigned.referredTables ++ body.referredTables
 
     val tags: Set[KeyTag] = name match {
       case TagKey(s) => Set(s) ++ assigned.tags ++ body.tags

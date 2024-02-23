@@ -1,4 +1,3 @@
-import ra3._
 import tasks._
 import tasks.jsonitersupport._
 import cats.effect.unsafe.implicits.global
@@ -35,10 +34,10 @@ object main extends App {
               .readHeterogeneousFromCSVChannel(
                 name,
                 List(
-                  (0, ColumnTag.StringTag, None, None),
-                  (1, ColumnTag.StringTag, None, None),
-                  (2, ColumnTag.StringTag, None, None),
-                  (3, ColumnTag.F64, None, None)
+                  (0, ra3.ColumnTag.StringTag, None, None),
+                  (1, ra3.ColumnTag.StringTag, None, None),
+                  (2, ra3.ColumnTag.StringTag, None, None),
+                  (3, ra3.ColumnTag.F64, None, None)
                 ),
                 channel = channel,
                 header = false,
@@ -167,9 +166,9 @@ object main extends App {
               sf,
               sf.name,
               List(
-                StrColumn(0),
-                StrColumn(1),
-                F64Column(2)
+                ra3.CSVColumnDefinition.StrColumn(0),
+                ra3.CSVColumnDefinition.StrColumn(1),
+                ra3.CSVColumnDefinition.F64Column(2)
               ),
               maxSegmentLength = segmentSize,
               recordSeparator = "\n",
@@ -177,7 +176,7 @@ object main extends App {
               // compression = Some(ImportCsv.Gzip)
             )
         })
-        .flatMap(Table.concatenate(_: _*))
+        .flatMap(ra3.concatenate(_: _*))
         .unsafeRunSync()
       val tableB = IO
         .parSequenceN(32)(sfB.map { sf =>
@@ -186,9 +185,9 @@ object main extends App {
               sf,
               sf.name,
               List(
-                StrColumn(0),
-                StrColumn(1),
-                F64Column(2)
+                ra3.CSVColumnDefinition.StrColumn(0),
+                ra3.CSVColumnDefinition.StrColumn(1),
+                ra3.CSVColumnDefinition.F64Column(2)
               ),
               maxSegmentLength = segmentSize,
               recordSeparator = "\n",
@@ -196,7 +195,7 @@ object main extends App {
               // compression = Some(ImportCsv.Gzip)
             )
         })
-        .flatMap(Table.concatenate(_: _*))
+        .flatMap(ra3.Table.concatenate(_: _*))
         .unsafeRunSync()
 
       println(tableA)
@@ -205,43 +204,47 @@ object main extends App {
       println(tableB.showSample(nrows = 10).unsafeRunSync())
 
       def groupByCustomer(
-          customer: ColumnVariable[DStr],
-          price: ColumnVariable[DF64]
+          customer: ra3.ColumnVariable[ra3.DStr],
+          price: ra3.ColumnVariable[ra3.DF64]
       ) =
         customer.groupBy
-          .apply(select(customer.first, price.sum, price.count))
+          .apply(ra3.select(customer.first, price.sum, price.count))
           .partial
-          .in[DStr, DF64, DF64] { case (customer, sum, count) =>
+          .in[ra3.DStr, ra3.DF64, ra3.DF64] { case (customer, sum, count) =>
             customer
               .groupBy(
-                select(customer.first, (sum.sum / count.sum))
+                ra3.select(customer.first, (sum.sum / count.sum))
               )
               .all
           }
       case class TypedTablelet(
-          rowId: ColumnVariable[DStr],
-          customer: ColumnVariable[DStr],
-          value: ColumnVariable[DF64]
+          rowId: ra3.ColumnVariable[ra3.DStr],
+          customer: ra3.ColumnVariable[ra3.DStr],
+          value: ra3.ColumnVariable[ra3.DF64]
       )
 
-      def mylet(a: Table)(f: TypedTablelet => ra3.tablelang.TableExpr) =
-        let[DStr, DStr, DF64](a) { case (c0, c1, c2) =>
+      def mylet(a: ra3.Table)(f: TypedTablelet => ra3.tablelang.TableExpr) =
+        ra3.let[ra3.DStr, ra3.DStr, ra3.DF64](a) { case (c0, c1, c2) =>
           f(TypedTablelet(c0, c1, c2))
         }
 
       val (show, table) =
         mylet(tableA) { case tableAlet =>
-          let[DStr, DStr, DF64](tableB) { case (_, customerB, priceB) =>
-            groupByCustomer(tableAlet.customer, tableAlet.value)
-              .in[DStr, DF64] { case (customerA, meanpriceA) =>
-                groupByCustomer(customerB, priceB).in[DStr, DF64] {
-                  case (customerB, meanpriceB) =>
-                    customerA.join
-                      .inner(customerB)
-                      .withPartitionBase(256)
-                      .elementwise(select(customerA, meanpriceA, meanpriceB))
+          
+          ra3.let[ra3.DStr, ra3.DStr, ra3.DF64](tableB) {
+            case (_, customerB, priceB) =>
+              groupByCustomer(tableAlet.customer, tableAlet.value)
+                .in[ra3.DStr, ra3.DF64] { case (customerA, meanpriceA) =>
+                  groupByCustomer(customerB, priceB).in[ra3.DStr, ra3.DF64] {
+                    case (customerB, meanpriceB) =>
+                      customerA.join
+                        .inner(customerB)
+                        .withPartitionBase(256)
+                        .elementwise(
+                          ra3.select(customerA, meanpriceA, meanpriceB)
+                        )
+                  }
                 }
-              }
 
           }
         }.evaluate
@@ -281,57 +284,59 @@ object main extends App {
       println(tableA)
       println(tableA.showSample(nrows = 1000).unsafeRunSync())
 
-      val (show, table) = let[DStr, DStr, DStr, DF64](tableA) {
-        case (uuid, customer, category, price) =>
-          category.groupBy
-            .apply(select(category.first, price.mean))
-            .all
-            .in[DStr, DF64] { case (category, _) =>
-              query(
-                select(star).where(category.matches("aa."))
-              )
-            }
-            .in[DStr, DF64] { case (aaCategories, _) =>
-              category.join
-                .inner(aaCategories)
-                .elementwise(
-                  select(uuid, customer, category, price)
+      val (show, table) = ra3
+        .let[ra3.DStr, ra3.DStr, ra3.DStr, ra3.DF64](tableA) {
+          case (uuid, customer, category, price) =>
+            category.groupBy
+              .apply(ra3.select(category.first, price.mean))
+              .all
+              .in[ra3.DStr, ra3.DF64] { case (category, _) =>
+                ra3.query(
+                  ra3.select(ra3.star).where(category.matches("aa."))
                 )
-            }
-            .in[DStr, DStr, DStr, DF64] {
-              case (
-                    _,
-                    filteredCustomer,
-                    filteredCategory,
-                    filteredPrice
-                  ) =>
-                filteredCustomer.groupBy
-                  .by(filteredCategory)
-                  .apply(
-                    select(
-                      filteredCustomer.first,
-                      filteredCategory.first,
-                      filteredPrice.sum,
-                      filteredPrice.count
-                    )
+              }
+              .in[ra3.DStr, ra3.DF64] { case (aaCategories, _) =>
+                category.join
+                  .inner(aaCategories)
+                  .elementwise(
+                    ra3.select(uuid, customer, category, price)
                   )
-                  .partial
-            }
-            .in[DStr, DStr, DF64, DF64] {
-              case (customer, category, sum, count) =>
-                customer.groupBy
-                  .by(category)
-                  .apply(
-                    select(
-                      customer.first as "customer",
-                      category.first as "category",
-                      sum.sum / count.sum as "mean value"
+              }
+              .in[ra3.DStr, ra3.DStr, ra3.DStr, ra3.DF64] {
+                case (
+                      _,
+                      filteredCustomer,
+                      filteredCategory,
+                      filteredPrice
+                    ) =>
+                  filteredCustomer.groupBy
+                    .by(filteredCategory)
+                    .apply(
+                      ra3.select(
+                        filteredCustomer.first,
+                        filteredCategory.first,
+                        filteredPrice.sum,
+                        filteredPrice.count
+                      )
                     )
-                  )
-                  .all
-            }
+                    .partial
+              }
+              .in[ra3.DStr, ra3.DStr, ra3.DF64, ra3.DF64] {
+                case (customer, category, sum, count) =>
+                  customer.groupBy
+                    .by(category)
+                    .apply(
+                      ra3.select(
+                        customer.first as "customer",
+                        category.first as "category",
+                        sum.sum / count.sum as "mean value"
+                      )
+                    )
+                    .all
+              }
 
-      }.evaluate
+        }
+        .evaluate
         .flatMap(t => t.showSample(nrows = 10).map((_, t)))
         .unsafeRunSync()
 
@@ -357,8 +362,8 @@ object main extends App {
               .readHeterogeneousFromCSVChannel(
                 "1brctable",
                 List(
-                  (0, ColumnTag.StringTag, None, None),
-                  (1, ColumnTag.F64, None, None)
+                  (0, ra3.ColumnTag.StringTag, None, None),
+                  (1, ra3.ColumnTag.F64, None, None)
                   // 0 until (numCols) map (i => (i, ColumnTag.I32, None)): _*
                 ),
                 channel = channel,
@@ -416,28 +421,30 @@ object main extends App {
         .colAt(0)
     )
 
-    val result = let[DStr, DF64](table) { (station, value) =>
-      station.groupBy
-        .apply(
-          select(
-            station.first as "station",
-            value.sum as "sum",
-            value.count as "count"
-          )
-        )
-        .partial
-        .in[DStr, DF64, DF64] { (station, sum, count) =>
-          station.groupBy
-            .apply(
-              select(
-                station.first,
-                sum.sum / count.sum
-              )
+    val result = ra3
+      .let[ra3.DStr, ra3.DF64](table) { (station, value) =>
+        station.groupBy
+          .apply(
+            ra3.select(
+              station.first as "station",
+              value.sum as "sum",
+              value.count as "count"
             )
-            .all
+          )
+          .partial
+          .in[ra3.DStr, ra3.DF64, ra3.DF64] { (station, sum, count) =>
+            station.groupBy
+              .apply(
+                ra3.select(
+                  station.first,
+                  sum.sum / count.sum
+                )
+              )
+              .all
 
-        }
-    }.evaluate
+          }
+      }
+      .evaluate
       .unsafeRunSync()
 
     println(result)

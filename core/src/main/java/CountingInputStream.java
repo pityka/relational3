@@ -21,7 +21,7 @@
  * - removed public access modifier from the class
  * - removed unneeded members
  */
-package ra3.commons;
+package ra3;
 
 import java.io.FilterInputStream;
 import java.io.IOException;

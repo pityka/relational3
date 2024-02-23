@@ -1,9 +1,11 @@
 package ra3.lang
-object GroupBy {
+private[ra3] object GroupBy {
   def apply(a: Expr.DelayedIdent) =
     GroupBuilderSyntax(a, Vector.empty, None, None, None, None)
 }
-private[ra3] case class GroupBuilderSyntax(
+
+/** Builder pattern for group by clause. Exit the builder with the partial or the all method. */
+case class GroupBuilderSyntax(
     private val first: Expr.DelayedIdent,
     private val others: Vector[
       (Expr.DelayedIdent)

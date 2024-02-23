@@ -127,9 +127,10 @@ private[ra3] trait BufferLongImpl { self: BufferLong =>
       ((0 until (numPoints - 1)).map(i => i * (1d / (numPoints - 1))) ++ List(
         1d
       )).distinct
-    val sorted = org.saddle.array.sort[Long](values)
+      import org.saddle._
+    val sorted = org.saddle.array.sort[Long](values.toVec.dropNA.toArray)
     val cdf = percentiles.map { p =>
-      val idx = (p * (values.length - 1)).toInt
+      val idx = (p * (sorted.length - 1)).toInt
       (sorted(idx), p)
     }
 

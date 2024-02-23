@@ -10,11 +10,10 @@ class LanguageSuite extends munit.FunSuite with WithTempTaskSystem {
         ra3.lang.evaluate(expr, map).unsafeRunSync()
       val e: Expr =
         lang.global[Int](ColumnKey("hole", 0))((hole: IntExpr) =>
-          local(Expr.LitNum(1))((g1: IntExpr) => {
-            (hole: Expr.SyntaxIntExpr).+(g1)
-
-          }
-          // lang.local(Expr.LitNum(99 + 1))(g100 => (hole + g1 + g100 + g100 - Expr.LitNum(2)).asString)
+          local(Expr.LitNum(1))((g1: IntExpr) =>
+            lang.local(Expr.LitNum(99 + 1))(g100 =>
+              (hole ++ g1 ++ g100 ++ g100 - Expr.LitNum(2)).asString
+            )
           )
         )
       val e2: Expr =
@@ -43,8 +42,9 @@ class LanguageSuite extends munit.FunSuite with WithTempTaskSystem {
 
       val e3 = readFromString[Expr](writeToString(e.replaceTags(Map.empty)))
       val e4 = readFromString[Expr](writeToString(e2.replaceTags(Map.empty)))
-      assert(
-        writeToString(e.replaceTags(Map.empty)) == writeToString(
+      assertEquals(
+        writeToString(e.replaceTags(Map.empty)),
+        writeToString(
           e2.replaceTags(Map.empty)
         )
       )

@@ -5,6 +5,7 @@ import java.nio.channels.ReadableByteChannel
 import cats.effect.IO
 import scodec.bits.ByteVector
 import java.nio.CharBuffer
+import java.io.InputStream
 
 private[ra3] case class CharArraySubSeq(buff: Array[Char], start: Int, to: Int)
     extends CharSequence {
@@ -179,5 +180,7 @@ private[ra3] object Utils {
 
       override val nullValue: CharSequence = null
     }
+
+  def gzip(is: InputStream)  : InputStream = new GzipCompressorInputStream(is,true) 
 
 }

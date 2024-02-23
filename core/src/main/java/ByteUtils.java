@@ -20,7 +20,7 @@
  * - removed unneeded members
  */
 
-package ra3.commons;
+package ra3;
 
 import java.io.DataInput;
 import java.io.DataOutput;

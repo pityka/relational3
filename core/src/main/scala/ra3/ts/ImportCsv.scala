@@ -13,38 +13,25 @@ private[ra3] case class ImportCsv(
     file: SharedFile,
     name: String,
     columns: Seq[
-      (Int, ColumnTag, Option[ImportCsv.InstantFormat], Option[String])
+      (Int, ColumnTag, Option[InstantFormat], Option[String])
     ],
     recordSeparator: String,
     fieldSeparator: Char,
     header: Boolean,
     maxLines: Long,
     maxSegmentLength: Int,
-    compression: Option[ImportCsv.CompressionFormat],
+    compression: Option[CompressionFormat],
     bufferSize: Int,
-    characterDecoder: ImportCsv.CharacterDecoder
+    characterDecoder: CharacterDecoder
 )
 private[ra3] object ImportCsv {
-  sealed trait CompressionFormat
-  case object Gzip extends CompressionFormat
-
-  sealed trait InstantFormat
-  case object ISO extends InstantFormat
-  case class LocalDateTimeAtUTC(s: String) extends InstantFormat
-
-  sealed trait CharacterDecoder {
-    def silent: Boolean
-  }
-  case class UTF8(silent: Boolean) extends CharacterDecoder
-  case class ASCII(silent: Boolean) extends CharacterDecoder
-  case class ISO88591(silent: Boolean) extends CharacterDecoder
-  case class UTF16(silent: Boolean) extends CharacterDecoder
+  
 
   def queue(
       file: SharedFile,
       name: String,
       columns: Seq[
-        (Int, ColumnTag, Option[ImportCsv.InstantFormat], Option[String])
+        (Int, ColumnTag, Option[InstantFormat], Option[String])
       ],
       recordSeparator: String,
       fieldSeparator: Char,
@@ -103,16 +90,16 @@ private[ra3] object ImportCsv {
 
     val charset = {
       val c1 = characterDecoder match {
-        case ASCII(_) =>
+        case CharacterDecoder.ASCII(_) =>
           StandardCharsets.US_ASCII
             .newDecoder()
-        case (UTF8(_)) =>
+        case (CharacterDecoder.UTF8(_)) =>
           StandardCharsets.UTF_8
             .newDecoder()
-        case (ISO88591(_)) =>
+        case (CharacterDecoder.ISO88591(_)) =>
           StandardCharsets.ISO_8859_1
             .newDecoder()
-        case (UTF16(_)) =>
+        case (CharacterDecoder.UTF16(_)) =>
           StandardCharsets.UTF_16
             .newDecoder()
       }
@@ -128,9 +115,8 @@ private[ra3] object ImportCsv {
       IO {
         val is2 = compression match {
           case None => is
-          case Some(Gzip) =>
-            new ra3.commons.GzipCompressorInputStream(is, true)
-            new java.util.zip.GZIPInputStream(is)
+          case Some(CompressionFormat.Gzip) =>
+             Utils.gzip(is)            
         }
         val channel = java.nio.channels.Channels.newChannel(is2)
         val result = ra3.csv
@@ -141,8 +127,8 @@ private[ra3] object ImportCsv {
                 v._1,
                 v._2,
                 v._3 match {
-                  case Some(ISO) => Some(ra3.InstantParser.ISO)
-                  case Some(LocalDateTimeAtUTC(s)) =>
+                  case Some(InstantFormat.ISO) => Some(ra3.InstantParser.ISO)
+                  case Some(InstantFormat.LocalDateTimeAtUTC(s)) =>
                     Some(ra3.InstantParser.LocalDateTimeAtUTC(s))
                   case None => None
                 },

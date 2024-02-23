@@ -43,11 +43,7 @@ private[ra3] object CharSequenceOrdering
   }
 
   def compare(x: CharSequence, y: CharSequence): Int =
-    if (isMissing(x) && isMissing(y)) 0
-    else if (isMissing(x)) -1
-    else if (isMissing(y)) 1
-    else if (x eq y) 0
-    else CharSequence.compare(x, y)
+    CharSequence.compare(x, y)
 
 }
 
@@ -162,9 +158,9 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
         1d
       )).distinct
     val sorted =
-      values.sorted(CharSequenceOrdering) // values.sorted(CharSequenceOrderIng)
+      values.filterNot(_ == BufferString.MissingValue).sorted(CharSequenceOrdering)
     val cdf = percentiles.map { p =>
-      val idx = (p * (values.length - 1)).toInt
+      val idx = (p * (sorted.length - 1)).toInt
       (sorted(idx), p)
     }
 
