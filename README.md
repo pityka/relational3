@@ -12,37 +12,7 @@ RA3 implements queries on large tabular datasets.
 
 ## Documentation
 
-### Language imports
-There is no need to import anything to use ra3, except for saving keystrokes. 
-`import ra3._` imports no implicits into the scope. 
-All of the public api is reachable from the ra3 package.
-
-The API of ra3 is quite small:
-- import of CSV
-- export of CSV
-- an embedded query language with projection, filter, count, join, group-by table level operators and a set of column level operators
-
-
-
-### Configuration and runtime
-
-RA3 is built on top of tasks for its distributed runtime and storage abstraction.
-
-### Getting data into RA3
-
-RA3 can not query directly data in CSV or other formats. 
-Before use, data must be imported into RA3, at the moment it can only read CSV formatted files.
-See the scaladoc on the `ra3` package for the method which imports data from CSV.
-
-### Querying data
-
-RA3 uses an embedded query language, whose syntax tree is then serialized and executed in a distributed and checkpointed manner. 
-
-
-
-### Exporting 
-
-Data can be copied out to CSV format.
+For user facing documentation see the scaladoc of the ra3 package.
 
 ### Missing value (null) semantics
 
@@ -60,3 +30,21 @@ Data can be copied out to CSV format.
 - printf etc formats missing into a non missing string
 - Missing values are encoded as one of the values of the data type. As such these values can not be used for to encode their usual non-missing semantics: Double.NaN, Long.MinValue, Int.MinValue, "\u0001". 
 - ordering of missing values below or above other elements are unobservable in ra3 because there is no full table sort operation. The operation which selects the top-k elements will not return missing values.
+
+# Build and test
+
+`sbt test`
+
+# License
+
+licensed under the Apache License, Version 2.0 (the "License"); you may not
+use this file except in compliance with the License. You may obtain a copy
+of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+warranties OR CONDITIONS OF ANY KIND, either express or implied. See the
+license for the specific language governing permissions and limitations
+under the License.

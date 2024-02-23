@@ -53,6 +53,8 @@ import ra3.tablelang._
   * repartitioning (sharding / bucketizing) the needed columns for a given group
   * by or join operator such that all the keys needed to complete the operation
   * are in the same partition.
+  * 
+  * Language imports. You may choose to import everything from the ra3 package. It does not contain any implicits.
   */
 package object ra3 {
 
