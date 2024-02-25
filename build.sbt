@@ -129,11 +129,11 @@ lazy val core = project
   )
 
 
-lazy val example1brc = project
-  .in(file("example1brc"))
+lazy val example = project
+  .in(file("example"))
   .settings(commonSettings: _*)
   .settings(
-    name := "ra3-example1brc",
+    name := "ra3-example",
     publish / skip := true,
     publishArtifact := false,
     libraryDependencies ++= List(
