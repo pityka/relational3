@@ -341,20 +341,22 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
       name: LogicalPath
   )(implicit tsc: TaskSystemComponents): IO[SegmentString] = {
     if (values.length == 0)
-      IO.pure(SegmentString(None, 0, StatisticCharSequence.empty))
+      IO.pure(SegmentString(None, 0, 0L , StatisticCharSequence.empty))
     else
       IO {
         val byteSize = values.map(v => (v.length * 2L) + 4).sum
         if (byteSize > Int.MaxValue - 100)
-          fs2.Stream.raiseError[IO](
+          (fs2.Stream.raiseError[IO](
             new RuntimeException(
               "String buffers longer than what fits into an array not implemented"
             )
-          )
+          ),-1L)
         else {
           val bb =
             ByteBuffer.allocate(byteSize.toInt).order(ByteOrder.BIG_ENDIAN)
+          var numBytes = 0L 
           values.foreach { str =>
+            numBytes += str.length() * 2 + 40
             bb.putInt(str.length)
             var i = 0
             while (i < str.length) {
@@ -366,13 +368,13 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
 
           val bbCompressed = Utils.compress(bb)
 
-          fs2.Stream.chunk(fs2.Chunk.byteBuffer(bbCompressed))
+          (fs2.Stream.chunk(fs2.Chunk.byteBuffer(bbCompressed)),numBytes)
         }
-      }.flatMap { stream =>
+      }.flatMap { case (stream,numBytes) =>
         SharedFile
           .apply(stream, name.toString)
           .map(sf =>
-            SegmentString(Some(sf), values.length, self.makeStatistic())
+            SegmentString(Some(sf), values.length,numBytes, self.makeStatistic())
           )
       }
 

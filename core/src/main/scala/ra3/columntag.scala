@@ -192,7 +192,7 @@ object ColumnTag {
     val ordering = CharSequenceOrdering
     def pair(a: SegmentType, b: SegmentType): SegmentPairType = StringPair(a, b)
     val emptySegment: SegmentType =
-      SegmentString(None, 0, StatisticCharSequence.empty)
+      SegmentString(None, 0, 0L, StatisticCharSequence.empty)
 
   }
   object F64 extends ColumnTag {

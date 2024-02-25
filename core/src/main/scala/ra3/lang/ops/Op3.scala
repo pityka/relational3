@@ -6,7 +6,7 @@ import ra3._
 import tasks.TaskSystemComponents
 import cats.effect._
 import ra3.DInst
-private[lang] sealed trait Op3 {
+private[ra3] sealed trait Op3 {
   type A0
   type A1
   type A2
@@ -14,7 +14,7 @@ private[lang] sealed trait Op3 {
   def op(a: A0, b: A1, c: A2)(implicit tsc: TaskSystemComponents): IO[T]
 }
 
-private[lang] object Op3 {
+private[ra3] object Op3 {
 
   case object StringMatchAndReplaceOp extends Op3 {
     type A0 = DStr

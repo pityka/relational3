@@ -131,6 +131,7 @@ private[ra3] sealed trait Column { self =>
   def tag: ColumnTagType
   def segments: Vector[SegmentType]
   def numElems = segments.map(_.numElems).sum
+  def numBytes = segments.map(_.numBytes).sum
   def ++(other: ColumnType): ColumnType
   def nonMissingMinMax: Option[(Elem, Elem)]
 

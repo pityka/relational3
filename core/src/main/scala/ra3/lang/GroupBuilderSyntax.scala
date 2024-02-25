@@ -26,6 +26,7 @@ case class GroupBuilderSyntax(
   def withMaxSegmentsBufferingAtOnce(num: Int) =
     copy(maxSegmentsToBufferAtOnce = Some(num))
   def apply(q: ra3.lang.Query) = copy(prg = Some(q))
+  def reduce(q: ra3.lang.Query) = copy(prg = Some(q))
   def all =
     ra3.tablelang.TableExpr.GroupThenReduce(
       first,

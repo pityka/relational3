@@ -6,16 +6,17 @@ import ra3.lang.ReturnValue
 import ra3.lang.bufferIfNeeded
 import tasks.TaskSystemComponents
 import cats.effect.IO
-private[lang] sealed trait Op2 {
+private[ra3] sealed trait Op2 {
   type A0
   type A1
   type T
   def op(a: A0, b: A1)(implicit tsc: TaskSystemComponents): IO[T]
 }
 
-private[lang] object Op2 {
+private[ra3] object Op2 {
 
   object Tap extends Op2 {
+
     type A0
     type A1 = String
     type T = A0
@@ -35,6 +36,7 @@ private[lang] object Op2 {
       IO.pure(a :: b)
   }
   case object MkReturnWhere extends Op2 {
+
     type A0 = ra3.lang.ReturnValue
     type A1 = DI32
     type T = ReturnValue
@@ -50,6 +52,7 @@ private[lang] object Op2 {
 
   }
   case object MkNamedColumnSpecChunk extends Op2 {
+
     type A0 = Either[Buffer, Seq[Segment]]
     type A1 = String
     type T = NamedColumnChunk
@@ -57,6 +60,7 @@ private[lang] object Op2 {
       IO.pure(NamedColumnChunk(a, b))
   }
   case object MkNamedConstantI32 extends Op2 {
+
     type A0 = Int
     type A1 = String
     type T = NamedConstantI32
@@ -64,6 +68,7 @@ private[lang] object Op2 {
       IO.pure(NamedConstantI32(a, b))
   }
   case object MkNamedConstantI64 extends Op2 {
+
     type A0 = Long
     type A1 = String
     type T = NamedConstantI64
@@ -71,6 +76,7 @@ private[lang] object Op2 {
       IO.pure(NamedConstantI64(a, b))
   }
   case object MkNamedConstantF64 extends Op2 {
+
     type A0 = Double
     type A1 = String
     type T = NamedConstantF64
@@ -78,6 +84,7 @@ private[lang] object Op2 {
       IO.pure(NamedConstantF64(a, b))
   }
   case object MkNamedConstantStr extends Op2 {
+
     type A0 = String
     type A1 = String
     type T = NamedConstantString

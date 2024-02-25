@@ -137,6 +137,7 @@ lazy val example1brc = project
     publish / skip := true,
     publishArtifact := false,
     libraryDependencies ++= List(
+      "com.lihaoyi" %% "mainargs" % "0.6.2",
       "com.typesafe.akka" %% "akka-actor" % akkaVersion,
       "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
       "com.typesafe.akka" %% "akka-remote" % akkaVersion

@@ -28,7 +28,9 @@ import ra3.tablelang._
   * The query language builds an expression tree of type
   * [[ra3.tablelang.TableExpr]], which is evaluated with the
   * [[ra3.tablelang.TableExpr.evaluate]] into an IO[Table].
-  * [[ra3.tablelang.TableExpr]] is a serializable description the query.
+  * [[ra3.tablelang.TableExpr]] is a serializable description the query. The
+  * expression tree of the query may be printed in human readable form with
+  * [[ra3.tablelang.TableExpr.render]].
   *
   * The following table level operators are available in ra3:
   *   - simple query, i.e. element-wise filter and projection. Corresponds to
@@ -53,8 +55,9 @@ import ra3.tablelang._
   * repartitioning (sharding / bucketizing) the needed columns for a given group
   * by or join operator such that all the keys needed to complete the operation
   * are in the same partition.
-  * 
-  * Language imports. You may choose to import everything from the ra3 package. It does not contain any implicits.
+  *
+  * Language imports. You may choose to import everything from the ra3 package.
+  * It does not contain any implicits.
   */
 package object ra3 {
 
@@ -63,13 +66,14 @@ package object ra3 {
     */
   val MissingString = BufferString.MissingValue.toString
   type ColumnVariable[T] = ra3.lang.DelayedIdent[T]
-  type StrCol = ra3.lang.DelayedIdent[DStr]
-  type I32Col = ra3.lang.DelayedIdent[DI32]
-  type I64Col = ra3.lang.DelayedIdent[DI64]
-  type F64Col = ra3.lang.DelayedIdent[DF64]
-  type InstCol = ra3.lang.DelayedIdent[DInst]
+  type StrVar = ra3.lang.DelayedIdent[DStr]
+  type I32Var = ra3.lang.DelayedIdent[DI32]
+  type I64Var = ra3.lang.DelayedIdent[DI64]
+  type F64Var = ra3.lang.DelayedIdent[DF64]
+  type InstVar = ra3.lang.DelayedIdent[DInst]
 
   type TableVariable = ra3.tablelang.TableExpr.Ident
+  type TableExpr = ra3.tablelang.TableExpr
 
   /** Data type of I32 columns */
   type DI32 = Either[BufferInt, Seq[SegmentInt]]
@@ -172,6 +176,11 @@ package object ra3 {
     Expr.makeOpStar(ops.OpStar.MkSelect)(args: _*)
   }
 
+  def where(arg0: I32ColumnExpr): ReturnExpr =
+    Expr.makeOp1(ops.Op1.MkRawWhere)(arg0)
+  def filter(arg0: I32ColumnExpr): ReturnExpr =
+    where(arg0)
+
   /** Simple query consisting of elementwise (row-wise) projection and filter */
   def query(prg: ra3.lang.Query) = {
     val tables = prg.referredTables
@@ -257,9 +266,17 @@ package object ra3 {
       body: (ra3.lang.DelayedIdent[T0]) => TableExpr
   ): TableExpr = {
     local(TableExpr.Const(assigned)) { t =>
-      t.useColumn[T0](0) { c0 =>
-        body(c0)
-      }
+      body(t.apply[T0](0))
+
+    }
+  }
+
+  def let[T0: NotNothing](assigned: ra3.TableExpr)(
+      body: (ra3.lang.DelayedIdent[T0]) => TableExpr
+  ): TableExpr = {
+    local(assigned) { t =>
+      body(t.apply[T0](0))
+
     }
   }
 
@@ -276,7 +293,20 @@ package object ra3 {
       ) => TableExpr
   ): TableExpr = {
     local(TableExpr.Const(assigned)) { t =>
-      t.useColumns[T0, T1](0, 1) { case (c0, c1) =>
+      t.apply[T0, T1](0, 1) { case (c0, c1) =>
+        body(c0, c1)
+      }
+    }
+  }
+
+  def let[T0: NotNothing, T1: NotNothing](assigned: ra3.TableExpr)(
+      body: (
+          ra3.lang.DelayedIdent[T0],
+          ra3.lang.DelayedIdent[T1]
+      ) => TableExpr
+  ): TableExpr = {
+    local(assigned) { t =>
+      t.apply[T0, T1](0, 1) { case (c0, c1) =>
         body(c0, c1)
       }
     }
@@ -298,7 +328,23 @@ package object ra3 {
       ) => TableExpr
   ): TableExpr = {
     local(TableExpr.Const(assigned)) { t =>
-      t.useColumns[T0, T1, T2](0, 1, 2) { case (c0, c1, c2) =>
+      t.apply[T0, T1, T2](0, 1, 2) { case (c0, c1, c2) =>
+        body(c0, c1, c2)
+      }
+    }
+  }
+
+  def let[T0: NotNothing, T1: NotNothing, T2: NotNothing](
+      assigned: ra3.TableExpr
+  )(
+      body: (
+          ra3.lang.DelayedIdent[T0],
+          ra3.lang.DelayedIdent[T1],
+          ra3.lang.DelayedIdent[T2]
+      ) => TableExpr
+  ): TableExpr = {
+    local(assigned) { t =>
+      t.apply[T0, T1, T2](0, 1, 2) { case (c0, c1, c2) =>
         body(c0, c1, c2)
       }
     }
@@ -321,8 +367,79 @@ package object ra3 {
       ) => TableExpr
   ): TableExpr = {
     local(TableExpr.Const(assigned)) { t =>
-      t.useColumns[T0, T1, T2, T3](0, 1, 2, 3) { case (c0, c1, c2, c3) =>
+      t.apply[T0, T1, T2, T3](0, 1, 2, 3) { case (c0, c1, c2, c3) =>
         body(c0, c1, c2, c3)
+      }
+    }
+  }
+
+  def let[T0: NotNothing, T1: NotNothing, T2: NotNothing, T3: NotNothing](
+      assigned: ra3.TableExpr
+  )(
+      body: (
+          ra3.lang.DelayedIdent[T0],
+          ra3.lang.DelayedIdent[T1],
+          ra3.lang.DelayedIdent[T2],
+          ra3.lang.DelayedIdent[T3]
+      ) => TableExpr
+  ): TableExpr = {
+    local(assigned) { t =>
+      t.apply[T0, T1, T2, T3](0, 1, 2, 3) { case (c0, c1, c2, c3) =>
+        body(c0, c1, c2, c3)
+      }
+    }
+  }
+
+  /** Variable assigning let expression with column decomposition of 5 columns
+    *
+    * See the single column version for documentation.
+    *
+    * Decomposes the first 5 columns.
+    */
+  def let[
+      T0: NotNothing,
+      T1: NotNothing,
+      T2: NotNothing,
+      T3: NotNothing,
+      T4: NotNothing
+  ](
+      assigned: ra3.Table
+  )(
+      body: (
+          ra3.lang.DelayedIdent[T0],
+          ra3.lang.DelayedIdent[T1],
+          ra3.lang.DelayedIdent[T2],
+          ra3.lang.DelayedIdent[T3],
+          ra3.lang.DelayedIdent[T4]
+      ) => TableExpr
+  ): TableExpr = {
+    local(TableExpr.Const(assigned)) { t =>
+      t.apply[T0, T1, T2, T3, T4](0, 1, 2, 3, 4) { case (c0, c1, c2, c3, c4) =>
+        body(c0, c1, c2, c3, c4)
+      }
+    }
+  }
+
+  def let[
+      T0: NotNothing,
+      T1: NotNothing,
+      T2: NotNothing,
+      T3: NotNothing,
+      T4: NotNothing
+  ](
+      assigned: ra3.TableExpr
+  )(
+      body: (
+          ra3.lang.DelayedIdent[T0],
+          ra3.lang.DelayedIdent[T1],
+          ra3.lang.DelayedIdent[T2],
+          ra3.lang.DelayedIdent[T3],
+          ra3.lang.DelayedIdent[T4]
+      ) => TableExpr
+  ): TableExpr = {
+    local(assigned) { t =>
+      t.apply[T0, T1, T2, T3, T4](0, 1, 2, 3, 4) { case (c0, c1, c2, c3, c4) =>
+        body(c0, c1, c2, c3, c4)
       }
     }
   }
@@ -348,4 +465,5 @@ package object ra3 {
       Table(cols, all.head.colNames, name, None)
     }
   }
+  def render(q: TableExpr) = ">>\n" + Render.render(q.replaceTags(), 0) + "\n<<"
 }

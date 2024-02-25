@@ -7,6 +7,7 @@ import ra3.GroupedTable
 import ra3.lang.Expr
 import ra3.NotNothing
 
+
 private[ra3] class KeyTag
 private[ra3] sealed trait Key
 private[ra3] case class IntKey(s: Int) extends Key
@@ -32,6 +33,8 @@ private[ra3] case class DelayedTableSchema(
 
 sealed trait TableExpr { self =>
 
+  def render: String = Render.render(self,0)
+
   def evaluate(implicit
       tsc: TaskSystemComponents
   ): IO[ra3.Table] = evalWith(Map.empty).map(_.v)
@@ -50,231 +53,87 @@ sealed trait TableExpr { self =>
   private[ra3] def replaceTags() =
     replace(this.tags.toSeq.zipWithIndex.toMap)
 
+    
+  def in0(body: TableExpr.Ident => TableExpr): TableExpr =
+    ra3.lang.local(this)(i => body(i))
+
+  def in[T0: NotNothing](
+      body: (ra3.lang.DelayedIdent[T0]) => TableExpr
+  ): TableExpr = {
+    ra3.lang.local(this) { t =>
+      t.useColumn[T0](0) { c0 =>
+        body(c0)
+      }
+    }
+  }
+  def in[T0: NotNothing, T1: NotNothing](
+      body: (
+          ra3.lang.DelayedIdent[T0],
+          ra3.lang.DelayedIdent[T1]
+      ) => TableExpr
+  ): TableExpr = {
+    ra3.lang.local(this) { t =>
+      t.apply[T0, T1](0, 1) { case (c0, c1) =>
+        body(c0, c1)
+      }
+    }
+  }
+  def in[T0: NotNothing, T1: NotNothing, T2: NotNothing](
+      body: (
+          ra3.lang.DelayedIdent[T0],
+          ra3.lang.DelayedIdent[T1],
+          ra3.lang.DelayedIdent[T2]
+      ) => TableExpr
+  ): TableExpr = {
+    ra3.lang.local(this) { t =>
+      t.apply[T0, T1, T2](0, 1, 2) { case (c0, c1, c2) =>
+        body(c0, c1, c2)
+      }
+    }
+  }
+  def in[T0: NotNothing, T1: NotNothing, T2: NotNothing, T3: NotNothing](
+      body: (
+          ra3.lang.DelayedIdent[T0],
+          ra3.lang.DelayedIdent[T1],
+          ra3.lang.DelayedIdent[T2],
+          ra3.lang.DelayedIdent[T3]
+      ) => TableExpr
+  ): TableExpr = {
+    ra3.lang.local(this) { t =>
+      t.apply[T0, T1, T2, T3](0, 1, 2, 3) { case (c0, c1, c2, c3) =>
+        body(c0, c1, c2, c3)
+      }
+    }
+  }
+  def in[
+      T0: NotNothing,
+      T1: NotNothing,
+      T2: NotNothing,
+      T3: NotNothing,
+      T4: NotNothing
+  ](
+      body: (
+          ra3.lang.DelayedIdent[T0],
+          ra3.lang.DelayedIdent[T1],
+          ra3.lang.DelayedIdent[T2],
+          ra3.lang.DelayedIdent[T3],
+          ra3.lang.DelayedIdent[T4]
+      ) => TableExpr
+  ): TableExpr = {
+    ra3.lang.local(this) { t =>
+      t.apply[T0, T1, T2, T3, T4](0, 1, 2, 3, 4) { case (c0, c1, c2, c3, c4) =>
+        body(c0, c1, c2, c3, c4)
+      }
+    }
+  }
+
 }
 private[ra3] object TableExpr {
+
+
   import scala.language.implicitConversions
   implicit def convertJoinBuilder(j: ra3.lang.JoinBuilderSyntax): TableExpr =
     j.done
-
-  implicit class SyntaxTableExpr(a: TableExpr) {
-    def in0(body: TableExpr.Ident => TableExpr): TableExpr =
-      ra3.lang.local(a)(i => body(i))
-
-    def in[T0: NotNothing](
-        body: (ra3.lang.DelayedIdent[T0]) => TableExpr
-    ): TableExpr = {
-      ra3.lang.local(a) { t =>
-        t.useColumn[T0](0) { c0 =>
-          body(c0)
-        }
-      }
-    }
-    def in[T0: NotNothing, T1: NotNothing](
-        body: (
-            ra3.lang.DelayedIdent[T0],
-            ra3.lang.DelayedIdent[T1]
-        ) => TableExpr
-    ): TableExpr = {
-      ra3.lang.local(a) { t =>
-        t.useColumns[T0, T1](0, 1) { case (c0, c1) =>
-          body(c0, c1)
-        }
-      }
-    }
-    def in[T0: NotNothing, T1: NotNothing, T2: NotNothing](
-        body: (
-            ra3.lang.DelayedIdent[T0],
-            ra3.lang.DelayedIdent[T1],
-            ra3.lang.DelayedIdent[T2]
-        ) => TableExpr
-    ): TableExpr = {
-      ra3.lang.local(a) { t =>
-        t.useColumns[T0, T1, T2](0, 1, 2) { case (c0, c1, c2) =>
-          body(c0, c1, c2)
-        }
-      }
-    }
-    def in[T0: NotNothing, T1: NotNothing, T2: NotNothing, T3: NotNothing](
-        body: (
-            ra3.lang.DelayedIdent[T0],
-            ra3.lang.DelayedIdent[T1],
-            ra3.lang.DelayedIdent[T2],
-            ra3.lang.DelayedIdent[T3]
-        ) => TableExpr
-    ): TableExpr = {
-      ra3.lang.local(a) { t =>
-        t.useColumns[T0, T1, T2, T3](0, 1, 2, 3) { case (c0, c1, c2, c3) =>
-          body(c0, c1, c2, c3)
-        }
-      }
-    }
-  }
-
-  implicit class SyntaxTableExprIdent(a: TableExpr.Ident) {
-
-    def reduce(
-        prg: ra3.lang.Query
-    ) =
-      ra3.tablelang.TableExpr.ReduceTable(
-        arg0 = a,
-        groupwise = prg
-      )
-    def partialReduce(
-        prg: ra3.lang.Query
-    ) =
-      ra3.tablelang.TableExpr.FullTablePartialReduce(
-        arg0 = a,
-        groupwise = prg
-      )
-
-    def query(prg: ra3.lang.Query) =
-      ra3.tablelang.TableExpr.SimpleQuery(a, prg)
-    def count(prg: ra3.lang.Query) =
-      ra3.tablelang.TableExpr.SimpleQueryCount(a, prg)
-
-    @scala.annotation.nowarn
-    def useColumn[T0: NotNothing](
-        n1: String
-    )(
-        body: (
-            ra3.lang.DelayedIdent[T0]
-        ) => TableExpr
-    ) = {
-      val d1 = Expr.DelayedIdent(ra3.lang.Delayed(a.key, Left(n1))).cast[T0]
-      body(d1)
-    }
-    @scala.annotation.nowarn
-    def useColumn[T0: NotNothing](
-        n1: Int
-    )(
-        body: (
-            ra3.lang.DelayedIdent[T0]
-        ) => TableExpr
-    ) = {
-      val d1 = Expr.DelayedIdent(ra3.lang.Delayed(a.key, Right(n1))).cast[T0]
-      body(d1)
-    }
-
-    @scala.annotation.nowarn
-    def useColumns[T0: NotNothing, T1: NotNothing](
-        n1: String,
-        n2: String
-    )(
-        body: (
-            ra3.lang.DelayedIdent[T0],
-            ra3.lang.DelayedIdent[T1]
-        ) => TableExpr
-    ) = {
-      val d1 = Expr.DelayedIdent(ra3.lang.Delayed(a.key, Left(n1))).cast[T0]
-      val d2 = Expr.DelayedIdent(ra3.lang.Delayed(a.key, Left(n2))).cast[T1]
-      body(d1, d2)
-    }
-    @scala.annotation.nowarn
-    def useColumns[T0: NotNothing, T1: NotNothing, T2: NotNothing](
-        n1: String,
-        n2: String,
-        n3: String
-    )(
-        body: (
-            ra3.lang.DelayedIdent[T0],
-            ra3.lang.DelayedIdent[T1],
-            ra3.lang.DelayedIdent[T2]
-        ) => TableExpr
-    ) = {
-      val d1 = Expr.DelayedIdent(ra3.lang.Delayed(a.key, Left(n1))).cast[T0]
-      val d2 = Expr.DelayedIdent(ra3.lang.Delayed(a.key, Left(n2))).cast[T1]
-      val d3 = Expr.DelayedIdent(ra3.lang.Delayed(a.key, Left(n3))).cast[T2]
-      body(d1, d2, d3)
-    }
-    @scala.annotation.nowarn
-    def useColumns[T0: NotNothing, T1: NotNothing](
-        n1: Int,
-        n2: Int
-    )(
-        body: (
-            ra3.lang.DelayedIdent[T0],
-            ra3.lang.DelayedIdent[T1]
-        ) => TableExpr
-    ) = {
-      val d1 = Expr.DelayedIdent(ra3.lang.Delayed(a.key, Right(n1))).cast[T0]
-      val d2 = Expr.DelayedIdent(ra3.lang.Delayed(a.key, Right(n2))).cast[T1]
-      body(d1, d2)
-    }
-
-    @scala.annotation.nowarn
-    def useColumns[T0: NotNothing, T1: NotNothing, T2: NotNothing](
-        n1: Int,
-        n2: Int,
-        n3: Int
-    )(
-        body: (
-            ra3.lang.DelayedIdent[T0],
-            ra3.lang.DelayedIdent[T1],
-            ra3.lang.DelayedIdent[T2]
-        ) => TableExpr
-    ) = {
-      val d1 = Expr.DelayedIdent(ra3.lang.Delayed(a.key, Right(n1))).cast[T0]
-      val d2 = Expr.DelayedIdent(ra3.lang.Delayed(a.key, Right(n2))).cast[T1]
-      val d3 = Expr.DelayedIdent(ra3.lang.Delayed(a.key, Right(n3))).cast[T2]
-      body(d1, d2, d3)
-    }
-
-    @scala.annotation.nowarn
-    def useColumns[
-        T0: NotNothing,
-        T1: NotNothing,
-        T2: NotNothing,
-        T3: NotNothing
-    ](
-        n1: Int,
-        n2: Int,
-        n3: Int,
-        n4: Int
-    )(
-        body: (
-            ra3.lang.DelayedIdent[T0],
-            ra3.lang.DelayedIdent[T1],
-            ra3.lang.DelayedIdent[T2],
-            ra3.lang.DelayedIdent[T3]
-        ) => TableExpr
-    ) = {
-      val d1 = Expr.DelayedIdent(ra3.lang.Delayed(a.key, Right(n1))).cast[T0]
-      val d2 = Expr.DelayedIdent(ra3.lang.Delayed(a.key, Right(n2))).cast[T1]
-      val d3 = Expr.DelayedIdent(ra3.lang.Delayed(a.key, Right(n3))).cast[T2]
-      val d4 = Expr.DelayedIdent(ra3.lang.Delayed(a.key, Right(n4))).cast[T3]
-      body(d1, d2, d3, d4)
-    }
-    @scala.annotation.nowarn
-    def useColumns[
-        T0: NotNothing,
-        T1: NotNothing,
-        T2: NotNothing,
-        T3: NotNothing,
-        T4: NotNothing
-    ](
-        n1: Int,
-        n2: Int,
-        n3: Int,
-        n4: Int,
-        n5: Int
-    )(
-        body: (
-            ra3.lang.DelayedIdent[T0],
-            ra3.lang.DelayedIdent[T1],
-            ra3.lang.DelayedIdent[T2],
-            ra3.lang.DelayedIdent[T3],
-            ra3.lang.DelayedIdent[T4]
-        ) => TableExpr
-    ) = {
-      val d1 = Expr.DelayedIdent(ra3.lang.Delayed(a.key, Right(n1))).cast[T0]
-      val d2 = Expr.DelayedIdent(ra3.lang.Delayed(a.key, Right(n2))).cast[T1]
-      val d3 = Expr.DelayedIdent(ra3.lang.Delayed(a.key, Right(n3))).cast[T2]
-      val d4 = Expr.DelayedIdent(ra3.lang.Delayed(a.key, Right(n4))).cast[T3]
-      val d5 = Expr.DelayedIdent(ra3.lang.Delayed(a.key, Right(n5))).cast[T4]
-      body(d1, d2, d3, d4, d5)
-    }
-
-  }
 
   implicit val codec: JsonValueCodec[TableExpr] =
     JsonCodecMaker.make(CodecMakerConfig.withAllowRecursiveTypes(true))
@@ -307,6 +166,219 @@ private[ra3] object TableExpr {
       case TagKey(s) => Ident(IntKey(i(s)))
       case _         => this
     }
+
+    def tap(tag: String, size: Int = 50) = Tap(this,size,tag)
+
+    def reduce(
+        prg: ra3.lang.Query
+    ) =
+      ra3.tablelang.TableExpr.ReduceTable(
+        arg0 = this,
+        groupwise = prg
+      )
+    def partialReduce(
+        prg: ra3.lang.Query
+    ) =
+      ra3.tablelang.TableExpr.FullTablePartialReduce(
+        arg0 = this,
+        groupwise = prg
+      )
+
+    def query(prg: ra3.lang.Query) =
+      ra3.tablelang.TableExpr.SimpleQuery(this, prg)
+    def count(prg: ra3.lang.Query) =
+      ra3.tablelang.TableExpr.SimpleQueryCount(this, prg)
+
+    @scala.annotation.nowarn
+    def apply[T0: NotNothing](
+        n1: String
+    ) = {
+      Expr.DelayedIdent(ra3.lang.Delayed(this.key, Left(n1))).cast[T0]
+
+    }
+    @scala.annotation.nowarn
+    def apply[T0: NotNothing](
+        n1: Int
+    ) = {
+      Expr.DelayedIdent(ra3.lang.Delayed(this.key, Right(n1))).cast[T0]
+
+    }
+
+    @scala.annotation.nowarn
+    def useColumn[T0: NotNothing](
+        n1: String
+    )(
+        body: (
+            ra3.lang.DelayedIdent[T0]
+        ) => TableExpr
+    ) = {
+      val d1 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Left(n1))).cast[T0]
+      body(d1)
+    }
+    @scala.annotation.nowarn
+    def useColumn[T0: NotNothing](
+        n1: Int
+    )(
+        body: (
+            ra3.lang.DelayedIdent[T0]
+        ) => TableExpr
+    ) = {
+      val d1 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Right(n1))).cast[T0]
+      body(d1)
+    }
+
+    @scala.annotation.nowarn
+    def apply[T0: NotNothing, T1: NotNothing](
+        n1: String,
+        n2: String
+    )(
+        body: (
+            ra3.lang.DelayedIdent[T0],
+            ra3.lang.DelayedIdent[T1]
+        ) => TableExpr
+    ) = {
+      val d1 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Left(n1))).cast[T0]
+      val d2 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Left(n2))).cast[T1]
+      body(d1, d2)
+    }
+    @scala.annotation.nowarn
+    def apply[T0: NotNothing, T1: NotNothing, T2: NotNothing](
+        n1: String,
+        n2: String,
+        n3: String
+    )(
+        body: (
+            ra3.lang.DelayedIdent[T0],
+            ra3.lang.DelayedIdent[T1],
+            ra3.lang.DelayedIdent[T2]
+        ) => TableExpr
+    ) = {
+      val d1 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Left(n1))).cast[T0]
+      val d2 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Left(n2))).cast[T1]
+      val d3 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Left(n3))).cast[T2]
+      body(d1, d2, d3)
+    }
+    @scala.annotation.nowarn
+    def apply[T0: NotNothing, T1: NotNothing](
+        n1: Int,
+        n2: Int
+    )(
+        body: (
+            ra3.lang.DelayedIdent[T0],
+            ra3.lang.DelayedIdent[T1]
+        ) => TableExpr
+    ) = {
+      val d1 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Right(n1))).cast[T0]
+      val d2 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Right(n2))).cast[T1]
+      body(d1, d2)
+    }
+
+    @scala.annotation.nowarn
+    def apply[T0: NotNothing, T1: NotNothing, T2: NotNothing](
+        n1: Int,
+        n2: Int,
+        n3: Int
+    )(
+        body: (
+            ra3.lang.DelayedIdent[T0],
+            ra3.lang.DelayedIdent[T1],
+            ra3.lang.DelayedIdent[T2]
+        ) => TableExpr
+    ) = {
+      val d1 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Right(n1))).cast[T0]
+      val d2 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Right(n2))).cast[T1]
+      val d3 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Right(n3))).cast[T2]
+      body(d1, d2, d3)
+    }
+
+    @scala.annotation.nowarn
+    def apply[
+        T0: NotNothing,
+        T1: NotNothing,
+        T2: NotNothing,
+        T3: NotNothing
+    ](
+        n1: Int,
+        n2: Int,
+        n3: Int,
+        n4: Int
+    )(
+        body: (
+            ra3.lang.DelayedIdent[T0],
+            ra3.lang.DelayedIdent[T1],
+            ra3.lang.DelayedIdent[T2],
+            ra3.lang.DelayedIdent[T3]
+        ) => TableExpr
+    ) = {
+      val d1 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Right(n1))).cast[T0]
+      val d2 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Right(n2))).cast[T1]
+      val d3 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Right(n3))).cast[T2]
+      val d4 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Right(n4))).cast[T3]
+      body(d1, d2, d3, d4)
+    }
+    @scala.annotation.nowarn
+    def apply[
+        T0: NotNothing,
+        T1: NotNothing,
+        T2: NotNothing,
+        T3: NotNothing,
+        T4: NotNothing
+    ](
+        n1: Int,
+        n2: Int,
+        n3: Int,
+        n4: Int,
+        n5: Int
+    )(
+        body: (
+            ra3.lang.DelayedIdent[T0],
+            ra3.lang.DelayedIdent[T1],
+            ra3.lang.DelayedIdent[T2],
+            ra3.lang.DelayedIdent[T3],
+            ra3.lang.DelayedIdent[T4]
+        ) => TableExpr
+    ) = {
+      val d1 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Right(n1))).cast[T0]
+      val d2 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Right(n2))).cast[T1]
+      val d3 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Right(n3))).cast[T2]
+      val d4 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Right(n4))).cast[T3]
+      val d5 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Right(n5))).cast[T4]
+      body(d1, d2, d3, d4, d5)
+    }
+    @scala.annotation.nowarn
+    def apply[
+        T0: NotNothing,
+        T1: NotNothing,
+        T2: NotNothing,
+        T3: NotNothing,
+        T4: NotNothing,
+        T5: NotNothing
+    ](
+        n1: Int,
+        n2: Int,
+        n3: Int,
+        n4: Int,
+        n5: Int,
+        n6: Int
+    )(
+        body: (
+            ra3.lang.DelayedIdent[T0],
+            ra3.lang.DelayedIdent[T1],
+            ra3.lang.DelayedIdent[T2],
+            ra3.lang.DelayedIdent[T3],
+            ra3.lang.DelayedIdent[T4],
+            ra3.lang.DelayedIdent[T5]
+        ) => TableExpr
+    ) = {
+      val d1 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Right(n1))).cast[T0]
+      val d2 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Right(n2))).cast[T1]
+      val d3 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Right(n3))).cast[T2]
+      val d4 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Right(n4))).cast[T3]
+      val d5 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Right(n5))).cast[T4]
+      val d6 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Right(n6))).cast[T5]
+      body(d1, d2, d3, d4, d5, d6)
+    }
+
   }
 
   case class Local(name: Key, assigned: TableExpr, body: TableExpr)
@@ -410,6 +482,39 @@ private[ra3] object TableExpr {
                 .asInstanceOf[ra3.lang.Query]
             )
             .map(t => TableValue(t))
+
+        }
+
+    }
+  }
+  case class Tap(
+      arg0: TableExpr.Ident,
+      sampleSize: Int,
+      tag: String
+  ) extends TableExpr {
+
+    val tags: Set[KeyTag] = arg0.tags
+    def replace(i: Map[KeyTag, Int]): TableExpr = {
+
+      Tap(
+        arg0.replace(i).asInstanceOf[Ident],
+        sampleSize,
+        tag
+      )
+    }
+
+    def evalWith(
+        env: Map[Key, TableValue]
+    )(implicit tsc: TaskSystemComponents) = {
+      arg0
+        .evalWith(env)
+        .flatMap { case TableValue(table) =>
+          table.showSample(sampleSize).map { str =>
+            scribe.info(
+              f"Tapping $tag: \n $table \n $str"
+            )
+            TableValue(table)
+          }
 
         }
 

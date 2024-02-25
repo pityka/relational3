@@ -31,6 +31,7 @@ private[ra3] sealed trait Segment { self =>
   def tag: ColumnTagType
   def buffer(implicit tsc: TaskSystemComponents): IO[BufferType]
   def numElems: Int
+  def numBytes: Long
   def nonMissingMinMax: Option[(Elem, Elem)]
 
   def as(c: Column) = this.asInstanceOf[c.SegmentType]
@@ -113,6 +114,7 @@ private[ra3] final case class SegmentDouble(
     numElems: Int,
     statistic: StatisticDouble
 ) extends Segment {
+  def numBytes = numElems * 8
   type Elem = Double
   type BufferType = BufferDouble
   type SegmentType = SegmentDouble
@@ -152,7 +154,7 @@ private[ra3] final case class SegmentInt(
     numElems: Int,
     statistic: StatisticInt
 ) extends Segment {
-
+  def numBytes = numElems * 4
   type Elem = Int
   type BufferType = BufferInt
   type SegmentType = SegmentInt
@@ -199,6 +201,7 @@ private[ra3] final case class SegmentLong(
     numElems: Int,
     statistic: StatisticLong
 ) extends Segment {
+  def numBytes = numElems * 8
 
   def nonMissingMinMax = statistic.nonMissingMinMax
 
@@ -240,7 +243,7 @@ private[ra3] final case class SegmentInstant(
     numElems: Int,
     statistic: StatisticLong
 ) extends Segment {
-
+  def numBytes = numElems * 8
   def nonMissingMinMax = statistic.nonMissingMinMax
 
   type Elem = Long
@@ -278,9 +281,9 @@ private[ra3] final case class SegmentInstant(
 private[ra3] final case class SegmentString(
     sf: Option[SharedFile],
     numElems: Int,
+    numBytes: Long,
     statistic: StatisticCharSequence
 ) extends Segment {
-
   def nonMissingMinMax = statistic.nonMissingMinMax
 
   type Elem = CharSequence

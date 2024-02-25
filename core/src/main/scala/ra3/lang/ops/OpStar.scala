@@ -1,6 +1,6 @@
 package ra3.lang.ops
 
-private[lang] sealed trait OpStar {
+private[ra3] sealed trait OpStar {
   type A
   type T
   def op(a: A*): T

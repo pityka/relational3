@@ -3,7 +3,7 @@ import cats.effect.IO
 import tasks.TaskSystemComponents
 import ra3._
 import ra3.lang.bufferIfNeededWithPrecondition
-private[lang] sealed trait Op1 {
+private[ra3] sealed trait Op1 {
   type A0
   type T
 
@@ -22,12 +22,18 @@ private[lang] sealed trait Op1 {
   def op(a: A0)(implicit tsc: TaskSystemComponents): IO[T]
 }
 
-private[lang] object Op1 {
+private[ra3] object Op1 {
 
   object List1 extends Op1 {
     type A0
     type T = List[A0]
     def op(a: A0)(implicit tsc: TaskSystemComponents) = IO.pure(List(a))
+  }
+  case object MkRawWhere extends Op1 {
+    type A0 = ra3.DI32
+    type T = ra3.lang.ReturnValue
+    def op(a: A0)(implicit tsc: TaskSystemComponents) =
+      IO.pure(ra3.lang.ReturnValue(projections = List(ra3.lang.Star),filter = Some(a)))
   }
 
   case object MkUnnamedColumnSpecChunk extends Op1 {

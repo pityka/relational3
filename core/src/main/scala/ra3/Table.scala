@@ -57,6 +57,8 @@ case class Table(
     private[ra3] uniqueId: String,
     private[ra3] partitions: Option[PartitionData]
 ) extends RelationalAlgebra {
+
+  def lift = ra3.tablelang.TableExpr.Const(this)
   assert(columns.map(_.segments.map(_.numElems)).distinct.size == 1)
 
   def numCols = columns.size

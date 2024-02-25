@@ -1,6 +1,5 @@
 # RA3: Scala library for queries on large tabular datasets
 
-
 RA3 implements queries on large tabular datasets.
 
 - Partitioned joins and groupings.

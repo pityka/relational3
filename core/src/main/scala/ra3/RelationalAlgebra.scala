@@ -98,9 +98,7 @@ private[ra3] trait RelationalAlgebra { self: Table =>
       body: (ra3.lang.DelayedIdent[T0]) => TableExpr
   ): TableExpr = {
     local(TableExpr.Const(self)) { t =>
-      t.useColumn[T0](0) { c0 =>
-        body(c0)
-      }
+        body(t[T0](0))
     }
   }
   def in[T0: NotNothing, T1: NotNothing](
@@ -110,7 +108,7 @@ private[ra3] trait RelationalAlgebra { self: Table =>
       ) => TableExpr
   ): TableExpr = {
     local(TableExpr.Const(self)) { t =>
-      t.useColumns[T0, T1](0, 1) { case (c0, c1) =>
+      t.apply[T0, T1](0, 1) { case (c0, c1) =>
         body(c0, c1)
       }
     }
@@ -123,7 +121,7 @@ private[ra3] trait RelationalAlgebra { self: Table =>
       ) => TableExpr
   ): TableExpr = {
     local(TableExpr.Const(self)) { t =>
-      t.useColumns[T0, T1, T2](0, 1, 2) { case (c0, c1, c2) =>
+      t.apply[T0, T1, T2](0, 1, 2) { case (c0, c1, c2) =>
         body(c0, c1, c2)
       }
     }
@@ -137,7 +135,7 @@ private[ra3] trait RelationalAlgebra { self: Table =>
       ) => TableExpr
   ): TableExpr = {
     local(TableExpr.Const(self)) { t =>
-      t.useColumns[T0, T1, T2, T3](0, 1, 2, 3) { case (c0, c1, c2, c3) =>
+      t.apply[T0, T1, T2, T3](0, 1, 2, 3) { case (c0, c1, c2, c3) =>
         body(c0, c1, c2, c3)
       }
     }
@@ -158,9 +156,33 @@ private[ra3] trait RelationalAlgebra { self: Table =>
       ) => TableExpr
   ): TableExpr = {
     local(TableExpr.Const(self)) { t =>
-      t.useColumns[T0, T1, T2, T3, T4](0, 1, 2, 3, 4) {
+      t.apply[T0, T1, T2, T3, T4](0, 1, 2, 3, 4) {
         case (c0, c1, c2, c3, c4) =>
           body(c0, c1, c2, c3, c4)
+      }
+    }
+  }
+  def in[
+      T0: NotNothing,
+      T1: NotNothing,
+      T2: NotNothing,
+      T3: NotNothing,
+      T4: NotNothing,
+      T5: NotNothing,
+  ](
+      body: (
+          ra3.lang.DelayedIdent[T0],
+          ra3.lang.DelayedIdent[T1],
+          ra3.lang.DelayedIdent[T2],
+          ra3.lang.DelayedIdent[T3],
+          ra3.lang.DelayedIdent[T4],
+          ra3.lang.DelayedIdent[T5],
+      ) => TableExpr
+  ): TableExpr = {
+    local(TableExpr.Const(self)) { t =>
+      t.apply[T0, T1, T2, T3, T4,T5](0, 1, 2, 3, 4, 5) {
+        case (c0, c1, c2, c3, c4, c5) =>
+          body(c0, c1, c2, c3, c4, c5)
       }
     }
   }

@@ -1,11 +1,335 @@
 import tasks._
-import tasks.jsonitersupport._
 import cats.effect.unsafe.implicits.global
-import org.saddle._
 import cats.effect.IO
 import com.typesafe.config.ConfigFactory
 import scala.util.Random
-object main extends App {
+import mainargs.{main, arg, ParserForMethods, Flag}
+import ra3.{
+  StrVar,
+  I32Var,
+  F64Var,
+  DStr,
+  DF64,
+  DI32,
+  select,
+  where,
+  TableExpr,
+  let,
+  Table
+}
+
+object Main extends App {
+
+  /** Generate bogus data Each row is a transaction of some value between two
+    * customers Each row consists of:
+    *   - an id with cardinality in the millions, e.g. some customer id1
+    *   - an id with cardinality in the millions, e.g. some customer id2
+    *   - an id with cardinality in the hundred thousands e.g. some category id
+    *   - an id with cardinality in the thousands e.g. some category id
+    *   - a float value, e.g. a price
+    *
+    * The file is block gzipped
+    */
+  def runGenerate(size: Long, path: String) = {
+
+    def makeRow() = {
+      val millions = Random.alphanumeric.take(4).mkString
+      val millions2 = Random.alphanumeric.take(4).mkString
+      val hundredsOfThousands1 = Random.alphanumeric.take(3).mkString
+      val thousands = Random.nextInt(5000)
+      val float = Random.nextDouble()
+
+      (s"$millions\t$millions2\t$hundredsOfThousands1\t$thousands\t$float\n")
+    }
+
+    Iterator
+      .continually {
+        makeRow()
+
+      }
+      .grouped(100_000)
+      .take((size / 100_000).toInt)
+      .zipWithIndex
+      .foreach { case (group, idx) =>
+        val fos1 = new java.util.zip.GZIPOutputStream(
+          new java.io.FileOutputStream(path, true)
+        )
+        group.foreach { line =>
+          fos1.write(line.getBytes("US-ASCII"))
+        }
+        println((idx + 1) * 100000)
+        fos1.close
+      }
+
+  }
+
+  def runQuery(path: String) = {
+
+    val config = ConfigFactory.parseString(
+      s"""tasks.fileservice.storageURI=./storage/
+      akka.loglevel=OFF
+      tasks.disableRemoting = true
+      tasks.skipContentHashVerificationAfterCache = true
+      """
+    )
+
+    withTaskSystem(Some(config)) { implicit tsc =>
+      def parseTransactions(fileHandle: SharedFile) =
+        for {
+          table <- ra3
+            .importCsv(
+              file = fileHandle,
+              name = fileHandle.name,
+              columns = List(
+                ra3.CSVColumnDefinition.StrColumn(0),
+                ra3.CSVColumnDefinition.StrColumn(1),
+                ra3.CSVColumnDefinition.StrColumn(2),
+                ra3.CSVColumnDefinition.I32Column(3),
+                ra3.CSVColumnDefinition.F64Column(4)
+              ),
+              maxSegmentLength = 1_000_000,
+              recordSeparator = "\n",
+              fieldSeparator = '\t',
+              compression = Some(ra3.CompressionFormat.Gzip)
+            )
+          renamed = table.mapColIndex {
+            case "V0" => "customer1"
+            case "V1" => "customer2"
+            case "V2" => "category_string"
+            case "V3" => "category_int"
+            case "V4" => "value"
+          }
+          _ <- IO {
+            println(renamed)
+          }
+          sample <- renamed.showSample(nrows = 10)
+          _ <- IO {
+            println(sample)
+          }
+        } yield renamed
+
+      case class TransactionsSchema(
+          customerOut: StrVar,
+          customerIn: StrVar,
+          categoryString: StrVar,
+          categoryInt: I32Var,
+          value: F64Var
+      )
+      object TransactionsSchema {
+        def apply(a: ra3.Table)(
+            f: TransactionsSchema => TableExpr
+        ): TableExpr = apply(a.lift)(f)
+
+        def apply(a: ra3.TableExpr)(
+            f: TransactionsSchema => TableExpr
+        ): TableExpr =
+          let[DStr, DStr, DStr, DI32, DF64](a) { case (c0, c1, c2, c3, c4) =>
+            f(TransactionsSchema(c0, c1, c2, c3, c4))
+          }
+      }
+
+      case class CustomerSummary(
+          customer: StrVar,
+          avg: F64Var,
+          min: F64Var,
+          max: F64Var
+      )
+      object CustomerSummary {
+
+        def apply(
+            customer: StrVar,
+            price: F64Var
+        )(use: CustomerSummary => TableExpr): TableExpr = {
+          val summary = customer.groupBy
+            .reduce(
+              select(
+                customer.first,
+                price.sum,
+                price.count,
+                price.min,
+                price.max
+              )
+            )
+            .partial
+            .in[ra3.DStr, ra3.DF64, ra3.DF64, ra3.DF64, ra3.DF64] {
+              case (customer, sum, count, min, max) =>
+                customer
+                  .groupBy(
+                    select(
+                      customer.first as "customer",
+                      (sum.sum / count.sum) as "avg",
+                      min.min as "min",
+                      max.max as "max"
+                    )
+                  )
+                  .all
+            }
+
+          summary.in0(summary =>
+            use(
+              CustomerSummary(
+                summary[DStr](0),
+                summary[DF64](1),
+                summary[DF64](2),
+                summary[DF64]("max")
+              )
+            )
+          )
+
+        }
+
+      }
+
+      def avgInAndOut(transactions: Table) = {
+        val query = TransactionsSchema(transactions) { transactions =>
+          TransactionsSchema(
+            transactions.categoryInt.table
+              .query((transactions.categoryInt < 3000).in( pred => where(pred)))
+          ) { transactions =>
+            CustomerSummary(
+              transactions.customerIn,
+              transactions.value,
+            ) { summaryByCustomerIn =>
+              CustomerSummary(
+                transactions.customerOut,
+                transactions.value
+              ) { summaryByCustomerOut =>
+                val c1 = summaryByCustomerIn.customer
+                val c2 = summaryByCustomerOut.customer
+                c1.join
+                  .outer(c2)
+                  .elementwise(
+                    select(
+                      c1 as "cIn",
+                      c2 as "cOut",
+                      c1.isMissing.ifelseStr(c2, c1) as "customer",
+                      summaryByCustomerIn.avg as "inAvg",
+                      summaryByCustomerOut.avg as "outAvg"
+                    )
+                  )
+
+              }
+            }
+          }
+        }
+        IO { println(ra3.render(query)) }.flatMap(_ => query.evaluate)
+      }
+      def avgInAndOutWithoutAbstractions(transactions: Table) = {
+        val query = transactions
+          .in[DStr, DStr, DStr, DStr, DF64] {
+            (customerIn, customerOut, _, _, value) =>
+              customerIn.groupBy
+                .reduce(                  
+                  select(
+                    customerIn.first,
+                    value.sum,
+                    value.count,
+                    value.min,
+                    value.max
+                  )
+                )
+                .partial
+                .in0(_.tap("partial group by"))
+                .in[ra3.DStr, ra3.DF64, ra3.DF64, ra3.DF64, ra3.DF64] {
+                  case (customer, sum, count, min, max) =>
+                    customer
+                      .groupBy(
+                        select(
+                          customer.first as "customer",
+                          (sum.sum / count.sum) as "avg",
+                          min.min as "min",
+                          max.max as "max"
+                        )
+                      )
+                      .all
+                }
+                .in[DStr, DF64, DF64, DF64] { (customerIn, avgInValue, _, _) =>
+                  customerOut.groupBy
+                    .reduce(
+                      select(
+                        customerOut.first,
+                        value.sum,
+                        value.count,
+                        value.min,
+                        value.max
+                      )
+                    )
+                    .partial
+                    .in[ra3.DStr, ra3.DF64, ra3.DF64, ra3.DF64, ra3.DF64] {
+                      case (customer, sum, count, min, max) =>
+                        customer
+                          .groupBy(
+                            select(
+                              customer.first as "customer",
+                              (sum.sum / count.sum) as "avg",
+                              min.min as "min",
+                              max.max as "max"
+                            )
+                          )
+                          .all
+                    }
+                    .in[DStr, DF64, DF64, DF64] {
+                      (customerOut, avgOutValue, _, _) =>
+                        customerIn.join
+                          .outer(customerOut)
+                          .elementwise(
+                            select(
+                              customerIn as "cIn",
+                              customerOut as "cOut",
+                              customerIn.isMissing
+                                .ifelseStr(
+                                  customerOut,
+                                  customerIn
+                                ) as "customer",
+                              avgInValue as "inAvg",
+                              avgOutValue as "outAvg"
+                            )
+                          )
+                    }
+
+                }
+
+          }
+
+        IO { println(ra3.render(query)) }.flatMap(_ => query.evaluate)
+      }
+
+      val (transactionTabl, avgTable, avgCsv) =
+        (for {
+          fileHandle <- SharedFile(uri =
+            tasks.util.Uri(
+              s"file://${new java.io.File(path).getAbsolutePath()}"
+            )
+          )
+          table <- parseTransactions(fileHandle)
+          avgTable <- avgInAndOut(table)
+          avgTable2 <- avgInAndOutWithoutAbstractions(table)
+          exportedFiles <- avgTable.exportToCsv()
+          _ <- avgTable.showSample().flatMap(sample => IO { println(sample) })
+        } yield (table, avgTable, exportedFiles))
+          .unsafeRunSync()
+
+      println(transactionTabl)
+      println(avgTable)
+      println(avgCsv)
+    }
+  }
+
+  @main
+  def run(
+      @arg()
+      generate: Flag,
+      @arg()
+      size: Long = 1_000_000,
+      @arg()
+      path: String
+  ) = {
+    if (generate.value) {
+      runGenerate(size, path)
+    } else {
+      runQuery(path)
+    }
+  }
 
   scribe
     .Logger("tasks.queue") // Look-up or create the named logger
@@ -22,461 +346,6 @@ object main extends App {
     .withHandler(minimumLevel = Some(scribe.Level.Info))
     .replace()
 
-  val parseA = Task[(SharedFile, Int, String), ra3.Table]("parseA", 1) {
-    case (path, segmentSize, name) =>
-      implicit ce =>
-        path.file.use { file =>
-          IO {
-            val channel =
-              java.nio.file.Files.newByteChannel(file.toPath)
-
-            val table = ra3.csv
-              .readHeterogeneousFromCSVChannel(
-                name,
-                List(
-                  (0, ra3.ColumnTag.StringTag, None, None),
-                  (1, ra3.ColumnTag.StringTag, None, None),
-                  (2, ra3.ColumnTag.StringTag, None, None),
-                  (3, ra3.ColumnTag.F64, None, None)
-                ),
-                channel = channel,
-                header = false,
-                maxSegmentLength = segmentSize,
-                fieldSeparator = '\t',
-                recordSeparator = "\n"
-              )
-              .toOption
-              .get
-              .mapColIndex {
-                case "V0" => "rowid"
-                case "V1" => "customer"
-                case "V2" => "category"
-                case "V3" => "value"
-              }
-            scribe.info(table.toString)
-            table
-          }
-        }
-  }
-
-  if (args(0) == "generategroup") {
-    val num = args(1).toInt
-
-    def makeRow() = {
-      val unique = java.util.UUID.randomUUID().toString
-      val millions = Random.alphanumeric.take(4).mkString
-      val hundredsOfThousands1 = Random.alphanumeric.take(3).mkString
-      val float = Random.nextDouble()
-
-      (s"$unique\t$millions\t$hundredsOfThousands1\t$float\n")
-    }
-    val fos1 = new java.io.FileOutputStream("generatedGroupData.txt")
-    Iterator
-      .continually {
-        val a = makeRow()
-        fos1.write(a.getBytes("US-ASCII"))
-      }
-      .take(num)
-      .foreach(_ => ())
-    fos1.close()
-    System.exit(0)
-  }
-  if (args(0) == "generatejoin") {
-    val num = args(1).toInt
-    val numFiles = args(2).toInt
-
-    0 until numFiles foreach { fileIdx =>
-      def makeRow() = {
-        val unique = java.util.UUID.randomUUID().toString
-        val billions = Random.alphanumeric.take(6).mkString
-
-        val float = Random.nextDouble()
-
-        (s"$unique\t$billions\t$float\n")
-      }
-      val fos1 = new java.io.BufferedOutputStream(
-        (
-          new java.io.FileOutputStream(
-            s"generatedGroupJoinData1_$num.$fileIdx.txt"
-          )
-        )
-      )
-      val fos2 = new java.io.BufferedOutputStream(
-        new java.io.FileOutputStream(
-          s"generatedGroupJoinData2_$num.$fileIdx.txt"
-        )
-      )
-      Iterator
-        .continually {
-          val a = makeRow()
-          val b = makeRow()
-          fos1.write(a.getBytes("US-ASCII"))
-          fos2.write(b.getBytes("US-ASCII"))
-        }
-        .take(num)
-        .foreach(_ => ())
-      fos1.close()
-      fos2.close()
-    }
-    System.exit(0)
-  }
-
-  if (args(0) == "join") {
-    val filesA = args
-      .drop(2)
-      .filter(_.startsWith("generatedGroupJoinData1_"))
-      .map(new java.io.File(_))
-      .toList
-    val filesB = args
-      .drop(2)
-      .filter(_.startsWith("generatedGroupJoinData2_"))
-      .map(new java.io.File(_))
-      .toList
-
-    val segmentSize = args(2).toInt
-
-    val config = ConfigFactory.parseString(
-      s"""tasks.fileservice.storageURI=./storage/
-      akka.loglevel=OFF
-      tasks.disableRemoting = true
-      tasks.skipContentHashVerificationAfterCache = true
-      """
-    )
-
-    withTaskSystem(Some(config)) { implicit tsc =>
-      val sfA = IO
-        .parSequenceN(32)(
-          filesA.map(f =>
-            SharedFile(uri = tasks.util.Uri(s"file://${f.getAbsolutePath()}"))
-          )
-        )
-        .unsafeRunSync()
-      val sfB = IO
-        .parSequenceN(32)(
-          filesB.map(f =>
-            SharedFile(uri = tasks.util.Uri(s"file://${f.getAbsolutePath()}"))
-          )
-        )
-        .unsafeRunSync()
-
-      val tableA = IO
-        .parSequenceN(32)(sfA.map { sf =>
-          ra3
-            .importCsv(
-              sf,
-              sf.name,
-              List(
-                ra3.CSVColumnDefinition.StrColumn(0),
-                ra3.CSVColumnDefinition.StrColumn(1),
-                ra3.CSVColumnDefinition.F64Column(2)
-              ),
-              maxSegmentLength = segmentSize,
-              recordSeparator = "\n",
-              fieldSeparator = '\t'
-              // compression = Some(ImportCsv.Gzip)
-            )
-        })
-        .flatMap(ra3.concatenate(_: _*))
-        .unsafeRunSync()
-      val tableB = IO
-        .parSequenceN(32)(sfB.map { sf =>
-          ra3
-            .importCsv(
-              sf,
-              sf.name,
-              List(
-                ra3.CSVColumnDefinition.StrColumn(0),
-                ra3.CSVColumnDefinition.StrColumn(1),
-                ra3.CSVColumnDefinition.F64Column(2)
-              ),
-              maxSegmentLength = segmentSize,
-              recordSeparator = "\n",
-              fieldSeparator = '\t'
-              // compression = Some(ImportCsv.Gzip)
-            )
-        })
-        .flatMap(ra3.Table.concatenate(_: _*))
-        .unsafeRunSync()
-
-      println(tableA)
-      println(tableA.showSample(nrows = 10).unsafeRunSync())
-      println(tableB)
-      println(tableB.showSample(nrows = 10).unsafeRunSync())
-
-      def groupByCustomer(
-          customer: ra3.ColumnVariable[ra3.DStr],
-          price: ra3.ColumnVariable[ra3.DF64]
-      ) =
-        customer.groupBy
-          .apply(ra3.select(customer.first, price.sum, price.count))
-          .partial
-          .in[ra3.DStr, ra3.DF64, ra3.DF64] { case (customer, sum, count) =>
-            customer
-              .groupBy(
-                ra3.select(customer.first, (sum.sum / count.sum))
-              )
-              .all
-          }
-      case class TypedTablelet(
-          rowId: ra3.ColumnVariable[ra3.DStr],
-          customer: ra3.ColumnVariable[ra3.DStr],
-          value: ra3.ColumnVariable[ra3.DF64]
-      )
-
-      def mylet(a: ra3.Table)(f: TypedTablelet => ra3.tablelang.TableExpr) =
-        ra3.let[ra3.DStr, ra3.DStr, ra3.DF64](a) { case (c0, c1, c2) =>
-          f(TypedTablelet(c0, c1, c2))
-        }
-
-      val (show, table) =
-        mylet(tableA) { case tableAlet =>
-          
-          ra3.let[ra3.DStr, ra3.DStr, ra3.DF64](tableB) {
-            case (_, customerB, priceB) =>
-              groupByCustomer(tableAlet.customer, tableAlet.value)
-                .in[ra3.DStr, ra3.DF64] { case (customerA, meanpriceA) =>
-                  groupByCustomer(customerB, priceB).in[ra3.DStr, ra3.DF64] {
-                    case (customerB, meanpriceB) =>
-                      customerA.join
-                        .inner(customerB)
-                        .withPartitionBase(256)
-                        .elementwise(
-                          ra3.select(customerA, meanpriceA, meanpriceB)
-                        )
-                  }
-                }
-
-          }
-        }.evaluate
-          .flatMap(t => t.showSample(nrows = 100).map((_, t)))
-          .unsafeRunSync()
-
-      println(table)
-      println(show)
-
-      table.exportToCsv().unsafeRunSync()
-
-    }
-    System.exit(0)
-
-  }
-  if (args(0) == "group") {
-    val fileA = new java.io.File(args(1))
-    val segmentSize = args(2).toInt
-
-    val config = ConfigFactory.parseString(
-      s"""tasks.fileservice.storageURI=./storage/
-      akka.loglevel=OFF
-      tasks.disableRemoting = true
-      tasks.skipContentHashVerificationAfterCache = true
-      """
-    )
-
-    withTaskSystem(Some(config)) { implicit tsc =>
-      val sfA = SharedFile(uri =
-        tasks.util.Uri(s"file://${fileA.getAbsolutePath()}")
-      ).unsafeRunSync()
-
-      val tableA = parseA((sfA, segmentSize, "tabA"))(
-        ResourceRequest(1, 1)
-      ).unsafeRunSync()
-
-      println(tableA)
-      println(tableA.showSample(nrows = 1000).unsafeRunSync())
-
-      val (show, table) = ra3
-        .let[ra3.DStr, ra3.DStr, ra3.DStr, ra3.DF64](tableA) {
-          case (uuid, customer, category, price) =>
-            category.groupBy
-              .apply(ra3.select(category.first, price.mean))
-              .all
-              .in[ra3.DStr, ra3.DF64] { case (category, _) =>
-                ra3.query(
-                  ra3.select(ra3.star).where(category.matches("aa."))
-                )
-              }
-              .in[ra3.DStr, ra3.DF64] { case (aaCategories, _) =>
-                category.join
-                  .inner(aaCategories)
-                  .elementwise(
-                    ra3.select(uuid, customer, category, price)
-                  )
-              }
-              .in[ra3.DStr, ra3.DStr, ra3.DStr, ra3.DF64] {
-                case (
-                      _,
-                      filteredCustomer,
-                      filteredCategory,
-                      filteredPrice
-                    ) =>
-                  filteredCustomer.groupBy
-                    .by(filteredCategory)
-                    .apply(
-                      ra3.select(
-                        filteredCustomer.first,
-                        filteredCategory.first,
-                        filteredPrice.sum,
-                        filteredPrice.count
-                      )
-                    )
-                    .partial
-              }
-              .in[ra3.DStr, ra3.DStr, ra3.DF64, ra3.DF64] {
-                case (customer, category, sum, count) =>
-                  customer.groupBy
-                    .by(category)
-                    .apply(
-                      ra3.select(
-                        customer.first as "customer",
-                        category.first as "category",
-                        sum.sum / count.sum as "mean value"
-                      )
-                    )
-                    .all
-              }
-
-        }
-        .evaluate
-        .flatMap(t => t.showSample(nrows = 10).map((_, t)))
-        .unsafeRunSync()
-
-      println(table)
-      println(show)
-
-      table.exportToCsv().unsafeRunSync()
-
-    }
-    System.exit(0)
-
-  }
-
-  val parseT = Task[(SharedFile, Int), ra3.Table]("parse", 1) {
-    case (path, segmentSize) =>
-      implicit ce =>
-        path.file.use { file =>
-          IO {
-            val channel =
-              java.nio.file.Files.newByteChannel(file.toPath)
-
-            val table = ra3.csv
-              .readHeterogeneousFromCSVChannel(
-                "1brctable",
-                List(
-                  (0, ra3.ColumnTag.StringTag, None, None),
-                  (1, ra3.ColumnTag.F64, None, None)
-                  // 0 until (numCols) map (i => (i, ColumnTag.I32, None)): _*
-                ),
-                channel = channel,
-                header = false,
-                maxSegmentLength = segmentSize,
-                fieldSeparator = ';',
-                recordSeparator = "\n"
-              )
-              .toOption
-              .get
-              .mapColIndex {
-                case "V0" => "station"
-                case "V1" => "value"
-              }
-            scribe.info(table.toString)
-            table
-          }
-        }
-  }
-
-  val file = new java.io.File(args.head)
-  val segmentSize = args(1).toInt
-  val partitionBase = args(2).toInt
-
-  val config = ConfigFactory.parseString(
-    s"""tasks.fileservice.storageURI=./storage/
-      akka.loglevel=OFF
-      tasks.disableRemoting = true
-      """
-  )
-
-  withTaskSystem(Some(config)) { implicit tsc =>
-    val sf = SharedFile(uri =
-      tasks.util.Uri(s"file://${file.getAbsolutePath()}")
-    ).unsafeRunSync()
-    val table = parseT((sf, segmentSize))(
-      ResourceRequest(1, 1)
-    ).unsafeRunSync()
-
-    val topK = table
-      .topK(
-        sortColumn = 1,
-        ascending = false,
-        k = 50,
-        cdfCoverage = 0.05,
-        cdfNumberOfSamplesPerSegment = 100000
-      )
-      .unsafeRunSync()
-    println(
-      topK.bufferStream.compile.toList
-        .unsafeRunSync()
-        .map(_.toStringFrame)
-        .reduce(_ concat _)
-        .withRowIndex(0)
-        .colAt(0)
-    )
-
-    val result = ra3
-      .let[ra3.DStr, ra3.DF64](table) { (station, value) =>
-        station.groupBy
-          .apply(
-            ra3.select(
-              station.first as "station",
-              value.sum as "sum",
-              value.count as "count"
-            )
-          )
-          .partial
-          .in[ra3.DStr, ra3.DF64, ra3.DF64] { (station, sum, count) =>
-            station.groupBy
-              .apply(
-                ra3.select(
-                  station.first,
-                  sum.sum / count.sum
-                )
-              )
-              .all
-
-          }
-      }
-      .evaluate
-      .unsafeRunSync()
-
-    println(result)
-
-    val resultAsFrame =
-      result.bufferStream.compile.toList
-        .unsafeRunSync()
-        .map(_.toStringFrame)
-        .reduce(_ concat _)
-        .withRowIndex(0)
-        .colAt(0)
-        .mapValues(_.toDouble)
-        .sorted
-
-    println(resultAsFrame)
-
-    // val expected = org.saddle.csv.CsvParser
-    //   .parseFromChannel[String](
-    //     channel2,
-    //     fieldSeparator = ';',
-    //     recordSeparator = "\n"
-    //   )
-    //   .toOption
-    //   .get
-    //   ._1
-    //   .withRowIndex(0)
-    //   .colAt(0)
-    //   .mapValues(_.toDouble)
-    //   .groupBy
-    //   .combine(_.mean)
-    //   .sorted
-    // println(Frame(resultAsFrame,expected))
-  }
+  ParserForMethods(this).runOrExit(args.toIndexedSeq)
 
 }

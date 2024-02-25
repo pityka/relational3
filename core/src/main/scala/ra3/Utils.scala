@@ -60,9 +60,9 @@ private[ra3] object Utils {
   def guessMemoryUsageInMB(s: Int) =
     math.max(5, s.toLong * 64 / 1024 / 1024).toInt
   def guessMemoryUsageInMB(s: Segment) =
-    math.max(5, s.numElems.toLong * 64 / 1024 / 1024).toInt
+    math.max(5, s.numBytes * 2 / 1024 / 1024).toInt
   def guessMemoryUsageInMB(s: Column) = {
-    val r = math.max(5, s.numElems.toLong * 64 / 1024 / 1024)
+    val r = math.max(5, s.numBytes * 2 / 1024 / 1024)
     r.toInt
   }
   def writeFully(bb: ByteBuffer, channel: WritableByteChannel) = {

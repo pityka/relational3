@@ -6,7 +6,7 @@ private[ra3] object Join {
     JoinBuilderSyntax(a, Vector.empty, None, None, None, None)
 }
 
-/** Builder pattern for joins. Exit the builder with the done method */
+/** Builder pattern for joins. Exit the builder with the done method or elementwise method */
 case class JoinBuilderSyntax(
     private val first: Expr.DelayedIdent,
     private val others: Vector[

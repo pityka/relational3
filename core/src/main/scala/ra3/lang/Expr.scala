@@ -44,6 +44,17 @@ private[ra3] sealed trait Expr { self =>
   private[ra3] def replaceTags(map2: Map[ra3.tablelang.KeyTag, Int]) =
     replace(this.tags.toSeq.zipWithIndex.toMap, map2)
 
+  def in[T1](body: Expr {
+    type T = self.T
+  } => Expr {
+    type T = T1
+  }): Expr { type T = T1 } = {
+    val n = ra3.lang.TagKey(new ra3.lang.KeyTag)
+    val b = body(Expr.Ident(n).as[self.T])
+
+    Expr.Local(n, this, b).asInstanceOf[Expr { type T = T1 }]
+  }
+
 }
 object Expr {
 
@@ -306,7 +317,7 @@ object Expr {
   }
   private[ra3] case class Ident(name: Key) extends Expr {
 
-   private[ra3]  def referredTables = name match {
+    private[ra3] def referredTables = name match {
 
       case Delayed(table, _) => Set(ra3.tablelang.TableExpr.Ident(table))
       case _                 => Set.empty
@@ -476,7 +487,8 @@ object Expr {
     self =>
     type T = body.T
 
-    private[ra3] def referredTables = assigned.referredTables ++ body.referredTables
+    private[ra3] def referredTables =
+      assigned.referredTables ++ body.referredTables
 
     val tags: Set[KeyTag] = name match {
       case TagKey(s) => Set(s) ++ assigned.tags ++ body.tags
