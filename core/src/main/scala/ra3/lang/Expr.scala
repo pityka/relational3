@@ -295,7 +295,7 @@ object Expr {
         tsc: TaskSystemComponents
     ): IO[Value[T]] =
       IO.pure(env(name).asInstanceOf[Value[T]])
-    private[ra3] def cast[T1] = asInstanceOf[DelayedIdent { type T = T1 }]
+    private[ra3] def cast[T1 <: DelayedIdent] = asInstanceOf[T1]
 
     private[ra3] def tags: Set[KeyTag] = Set.empty
     private[ra3] val columnKeys: Set[ColumnKey] = Set.empty

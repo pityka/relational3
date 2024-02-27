@@ -4,19 +4,7 @@ import cats.effect.IO
 import com.typesafe.config.ConfigFactory
 import scala.util.Random
 import mainargs.{main, arg, ParserForMethods, Flag}
-import ra3.{
-  StrVar,
-  I32Var,
-  F64Var,
-  DStr,
-  DF64,
-  DI32,
-  select,
-  where,
-  TableExpr,
-  let,
-  Table
-}
+import ra3.{StrVar, I32Var, F64Var, select, where, TableExpr, let, Table}
 
 object Main extends App {
 
@@ -123,8 +111,9 @@ object Main extends App {
         def apply(a: ra3.TableExpr)(
             f: TransactionsSchema => TableExpr
         ): TableExpr =
-          let[DStr, DStr, DStr, DI32, DF64](a) { case (c0, c1, c2, c3, c4) =>
-            f(TransactionsSchema(c0, c1, c2, c3, c4))
+          let[StrVar, StrVar, StrVar, I32Var, F64Var](a) {
+            case (c0, c1, c2, c3, c4) =>
+              f(TransactionsSchema(c0, c1, c2, c3, c4))
           }
       }
 
@@ -151,7 +140,7 @@ object Main extends App {
               )
             )
             .partial
-            .in[ra3.DStr, ra3.DF64, ra3.DF64, ra3.DF64, ra3.DF64] {
+            .in[ra3.StrVar, ra3.F64Var, ra3.F64Var, ra3.F64Var, ra3.F64Var] {
               case (customer, sum, count, min, max) =>
                 customer
                   .groupBy(
@@ -168,10 +157,10 @@ object Main extends App {
           summary.in0(summary =>
             use(
               CustomerSummary(
-                summary[DStr](0),
-                summary[DF64](1),
-                summary[DF64](2),
-                summary[DF64]("max")
+                summary[StrVar](0),
+                summary[F64Var](1),
+                summary[F64Var](2),
+                summary[F64Var]("max")
               )
             )
           )
@@ -184,11 +173,11 @@ object Main extends App {
         val query = TransactionsSchema(transactions) { transactions =>
           TransactionsSchema(
             transactions.categoryInt.table
-              .query((transactions.categoryInt < 3000).in( pred => where(pred)))
+              .query((transactions.categoryInt < 3000).in(pred => where(pred)))
           ) { transactions =>
             CustomerSummary(
               transactions.customerIn,
-              transactions.value,
+              transactions.value
             ) { summaryByCustomerIn =>
               CustomerSummary(
                 transactions.customerOut,
@@ -216,10 +205,10 @@ object Main extends App {
       }
       def avgInAndOutWithoutAbstractions(transactions: Table) = {
         val query = transactions
-          .in[DStr, DStr, DStr, DStr, DF64] {
+          .in[StrVar, StrVar, StrVar, StrVar, F64Var] {
             (customerIn, customerOut, _, _, value) =>
               customerIn.groupBy
-                .reduce(                  
+                .reduce(
                   select(
                     customerIn.first,
                     value.sum,
@@ -230,7 +219,7 @@ object Main extends App {
                 )
                 .partial
                 .in0(_.tap("partial group by"))
-                .in[ra3.DStr, ra3.DF64, ra3.DF64, ra3.DF64, ra3.DF64] {
+                .in[StrVar, F64Var, F64Var, F64Var, F64Var] {
                   case (customer, sum, count, min, max) =>
                     customer
                       .groupBy(
@@ -243,49 +232,50 @@ object Main extends App {
                       )
                       .all
                 }
-                .in[DStr, DF64, DF64, DF64] { (customerIn, avgInValue, _, _) =>
-                  customerOut.groupBy
-                    .reduce(
-                      select(
-                        customerOut.first,
-                        value.sum,
-                        value.count,
-                        value.min,
-                        value.max
+                .in[StrVar, F64Var, F64Var, F64Var] {
+                  (customerIn, avgInValue, _, _) =>
+                    customerOut.groupBy
+                      .reduce(
+                        select(
+                          customerOut.first,
+                          value.sum,
+                          value.count,
+                          value.min,
+                          value.max
+                        )
                       )
-                    )
-                    .partial
-                    .in[ra3.DStr, ra3.DF64, ra3.DF64, ra3.DF64, ra3.DF64] {
-                      case (customer, sum, count, min, max) =>
-                        customer
-                          .groupBy(
-                            select(
-                              customer.first as "customer",
-                              (sum.sum / count.sum) as "avg",
-                              min.min as "min",
-                              max.max as "max"
+                      .partial
+                      .in[StrVar, F64Var, F64Var, F64Var, F64Var] {
+                        case (customer, sum, count, min, max) =>
+                          customer
+                            .groupBy(
+                              select(
+                                customer.first as "customer",
+                                (sum.sum / count.sum) as "avg",
+                                min.min as "min",
+                                max.max as "max"
+                              )
                             )
-                          )
-                          .all
-                    }
-                    .in[DStr, DF64, DF64, DF64] {
-                      (customerOut, avgOutValue, _, _) =>
-                        customerIn.join
-                          .outer(customerOut)
-                          .elementwise(
-                            select(
-                              customerIn as "cIn",
-                              customerOut as "cOut",
-                              customerIn.isMissing
-                                .ifelseStr(
-                                  customerOut,
-                                  customerIn
-                                ) as "customer",
-                              avgInValue as "inAvg",
-                              avgOutValue as "outAvg"
+                            .all
+                      }
+                      .in[StrVar, F64Var, F64Var, F64Var] {
+                        (customerOut, avgOutValue, _, _) =>
+                          customerIn.join
+                            .outer(customerOut)
+                            .elementwise(
+                              select(
+                                customerIn as "cIn",
+                                customerOut as "cOut",
+                                customerIn.isMissing
+                                  .ifelseStr(
+                                    customerOut,
+                                    customerIn
+                                  ) as "customer",
+                                avgInValue as "inAvg",
+                                avgOutValue as "outAvg"
+                              )
                             )
-                          )
-                    }
+                      }
 
                 }
 

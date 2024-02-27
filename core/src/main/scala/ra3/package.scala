@@ -76,19 +76,19 @@ package object ra3 {
   type TableExpr = ra3.tablelang.TableExpr
 
   /** Data type of I32 columns */
-  type DI32 = Either[BufferInt, Seq[SegmentInt]]
+  private[ra3] type DI32 = Either[BufferInt, Seq[SegmentInt]]
 
   /** Data type of I64 columns */
-  type DI64 = Either[BufferLong, Seq[SegmentLong]]
+  private[ra3] type DI64 = Either[BufferLong, Seq[SegmentLong]]
 
   /** Data type of F64 columns */
-  type DF64 = Either[BufferDouble, Seq[SegmentDouble]]
+  private[ra3] type DF64 = Either[BufferDouble, Seq[SegmentDouble]]
 
   /** Data type of String columns */
-  type DStr = Either[BufferString, Seq[SegmentString]]
+  private[ra3] type DStr = Either[BufferString, Seq[SegmentString]]
 
   /** Data type of Instant columns */
-  type DInst = Either[BufferInstant, Seq[SegmentInstant]]
+  private[ra3] type DInst = Either[BufferInstant, Seq[SegmentInstant]]
 
   /** Import CSV data into ra3
     *
@@ -262,8 +262,8 @@ package object ra3 {
     * Care must be taken annotate type of the column correctly, otherwise
     * runtime error will occur.
     */
-  def let[T0: NotNothing](assigned: ra3.Table)(
-      body: (ra3.lang.DelayedIdent[T0]) => TableExpr
+  def let[T0<: Expr.DelayedIdent: NotNothing](assigned: ra3.Table)(
+      body: (T0) => TableExpr
   ): TableExpr = {
     local(TableExpr.Const(assigned)) { t =>
       body(t.apply[T0](0))
@@ -271,8 +271,8 @@ package object ra3 {
     }
   }
 
-  def let[T0: NotNothing](assigned: ra3.TableExpr)(
-      body: (ra3.lang.DelayedIdent[T0]) => TableExpr
+  def let[T0<: Expr.DelayedIdent: NotNothing](assigned: ra3.TableExpr)(
+      body: (T0) => TableExpr
   ): TableExpr = {
     local(assigned) { t =>
       body(t.apply[T0](0))
@@ -286,10 +286,10 @@ package object ra3 {
     *
     * Decomposes the first two columns.
     */
-  def let[T0: NotNothing, T1: NotNothing](assigned: ra3.Table)(
+  def let[T0<: Expr.DelayedIdent: NotNothing, T1<: Expr.DelayedIdent: NotNothing](assigned: ra3.Table)(
       body: (
-          ra3.lang.DelayedIdent[T0],
-          ra3.lang.DelayedIdent[T1]
+          T0,
+          T1
       ) => TableExpr
   ): TableExpr = {
     local(TableExpr.Const(assigned)) { t =>
@@ -299,10 +299,10 @@ package object ra3 {
     }
   }
 
-  def let[T0: NotNothing, T1: NotNothing](assigned: ra3.TableExpr)(
+  def let[T0<: Expr.DelayedIdent: NotNothing, T1<: Expr.DelayedIdent: NotNothing](assigned: ra3.TableExpr)(
       body: (
-          ra3.lang.DelayedIdent[T0],
-          ra3.lang.DelayedIdent[T1]
+          T0,
+          T1
       ) => TableExpr
   ): TableExpr = {
     local(assigned) { t =>
@@ -318,13 +318,13 @@ package object ra3 {
     *
     * Decomposes the first 3 columns.
     */
-  def let[T0: NotNothing, T1: NotNothing, T2: NotNothing](
+  def let[T0<: Expr.DelayedIdent: NotNothing, T1<: Expr.DelayedIdent: NotNothing, T2<: Expr.DelayedIdent: NotNothing](
       assigned: ra3.Table
   )(
       body: (
-          ra3.lang.DelayedIdent[T0],
-          ra3.lang.DelayedIdent[T1],
-          ra3.lang.DelayedIdent[T2]
+          T0,
+          T1,
+          T2
       ) => TableExpr
   ): TableExpr = {
     local(TableExpr.Const(assigned)) { t =>
@@ -334,13 +334,13 @@ package object ra3 {
     }
   }
 
-  def let[T0: NotNothing, T1: NotNothing, T2: NotNothing](
+  def let[T0<: Expr.DelayedIdent: NotNothing, T1<: Expr.DelayedIdent: NotNothing, T2<: Expr.DelayedIdent: NotNothing](
       assigned: ra3.TableExpr
   )(
       body: (
-          ra3.lang.DelayedIdent[T0],
-          ra3.lang.DelayedIdent[T1],
-          ra3.lang.DelayedIdent[T2]
+          T0,
+          T1,
+          T2
       ) => TableExpr
   ): TableExpr = {
     local(assigned) { t =>
@@ -356,14 +356,14 @@ package object ra3 {
     *
     * Decomposes the first 4 columns.
     */
-  def let[T0: NotNothing, T1: NotNothing, T2: NotNothing, T3: NotNothing](
+  def let[T0<: Expr.DelayedIdent: NotNothing, T1<: Expr.DelayedIdent: NotNothing, T2<: Expr.DelayedIdent: NotNothing, T3<: Expr.DelayedIdent: NotNothing](
       assigned: ra3.Table
   )(
       body: (
-          ra3.lang.DelayedIdent[T0],
-          ra3.lang.DelayedIdent[T1],
-          ra3.lang.DelayedIdent[T2],
-          ra3.lang.DelayedIdent[T3]
+          T0,
+          T1,
+          T2,
+          T3
       ) => TableExpr
   ): TableExpr = {
     local(TableExpr.Const(assigned)) { t =>
@@ -373,14 +373,14 @@ package object ra3 {
     }
   }
 
-  def let[T0: NotNothing, T1: NotNothing, T2: NotNothing, T3: NotNothing](
+  def let[T0<: Expr.DelayedIdent: NotNothing, T1<: Expr.DelayedIdent: NotNothing, T2<: Expr.DelayedIdent: NotNothing, T3<: Expr.DelayedIdent: NotNothing](
       assigned: ra3.TableExpr
   )(
       body: (
-          ra3.lang.DelayedIdent[T0],
-          ra3.lang.DelayedIdent[T1],
-          ra3.lang.DelayedIdent[T2],
-          ra3.lang.DelayedIdent[T3]
+          T0,
+          T1,
+          T2,
+          T3
       ) => TableExpr
   ): TableExpr = {
     local(assigned) { t =>
@@ -397,20 +397,20 @@ package object ra3 {
     * Decomposes the first 5 columns.
     */
   def let[
-      T0: NotNothing,
-      T1: NotNothing,
-      T2: NotNothing,
-      T3: NotNothing,
-      T4: NotNothing
+      T0<: Expr.DelayedIdent: NotNothing,
+      T1<: Expr.DelayedIdent: NotNothing,
+      T2<: Expr.DelayedIdent: NotNothing,
+      T3<: Expr.DelayedIdent: NotNothing,
+      T4<: Expr.DelayedIdent: NotNothing
   ](
       assigned: ra3.Table
   )(
       body: (
-          ra3.lang.DelayedIdent[T0],
-          ra3.lang.DelayedIdent[T1],
-          ra3.lang.DelayedIdent[T2],
-          ra3.lang.DelayedIdent[T3],
-          ra3.lang.DelayedIdent[T4]
+          T0,
+          T1,
+          T2,
+          T3,
+          T4
       ) => TableExpr
   ): TableExpr = {
     local(TableExpr.Const(assigned)) { t =>
@@ -421,20 +421,20 @@ package object ra3 {
   }
 
   def let[
-      T0: NotNothing,
-      T1: NotNothing,
-      T2: NotNothing,
-      T3: NotNothing,
-      T4: NotNothing
+      T0<: Expr.DelayedIdent: NotNothing,
+      T1<: Expr.DelayedIdent: NotNothing,
+      T2<: Expr.DelayedIdent: NotNothing,
+      T3<: Expr.DelayedIdent: NotNothing,
+      T4<: Expr.DelayedIdent: NotNothing
   ](
       assigned: ra3.TableExpr
   )(
       body: (
-          ra3.lang.DelayedIdent[T0],
-          ra3.lang.DelayedIdent[T1],
-          ra3.lang.DelayedIdent[T2],
-          ra3.lang.DelayedIdent[T3],
-          ra3.lang.DelayedIdent[T4]
+          T0,
+          T1,
+          T2,
+          T3,
+          T4
       ) => TableExpr
   ): TableExpr = {
     local(assigned) { t =>

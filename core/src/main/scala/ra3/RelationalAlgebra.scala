@@ -94,17 +94,17 @@ private[ra3] trait RelationalAlgebra { self: Table =>
   ): ra3.tablelang.TableExpr =
     ra3.lang.local(ra3.tablelang.TableExpr.Const(this))(body)
 
-  def in[T0: NotNothing](
-      body: (ra3.lang.DelayedIdent[T0]) => TableExpr
+  def in[T0 <: Expr.DelayedIdent: NotNothing](
+      body: (T0) => TableExpr
   ): TableExpr = {
     local(TableExpr.Const(self)) { t =>
         body(t[T0](0))
     }
   }
-  def in[T0: NotNothing, T1: NotNothing](
+  def in[T0<: Expr.DelayedIdent: NotNothing, T1<: Expr.DelayedIdent: NotNothing](
       body: (
-          ra3.lang.DelayedIdent[T0],
-          ra3.lang.DelayedIdent[T1]
+          T0,
+          T1
       ) => TableExpr
   ): TableExpr = {
     local(TableExpr.Const(self)) { t =>
@@ -113,11 +113,11 @@ private[ra3] trait RelationalAlgebra { self: Table =>
       }
     }
   }
-  def in[T0: NotNothing, T1: NotNothing, T2: NotNothing](
+  def in[T0<: Expr.DelayedIdent: NotNothing, T1<: Expr.DelayedIdent: NotNothing, T2<: Expr.DelayedIdent: NotNothing](
       body: (
-          ra3.lang.DelayedIdent[T0],
-          ra3.lang.DelayedIdent[T1],
-          ra3.lang.DelayedIdent[T2]
+          T0,
+          T1,
+          T2
       ) => TableExpr
   ): TableExpr = {
     local(TableExpr.Const(self)) { t =>
@@ -126,12 +126,12 @@ private[ra3] trait RelationalAlgebra { self: Table =>
       }
     }
   }
-  def in[T0: NotNothing, T1: NotNothing, T2: NotNothing, T3: NotNothing](
+  def in[T0<: Expr.DelayedIdent: NotNothing, T1<: Expr.DelayedIdent: NotNothing, T2<: Expr.DelayedIdent: NotNothing, T3<: Expr.DelayedIdent: NotNothing](
       body: (
-          ra3.lang.DelayedIdent[T0],
-          ra3.lang.DelayedIdent[T1],
-          ra3.lang.DelayedIdent[T2],
-          ra3.lang.DelayedIdent[T3]
+          T0,
+          T1,
+          T2,
+          T3
       ) => TableExpr
   ): TableExpr = {
     local(TableExpr.Const(self)) { t =>
@@ -141,18 +141,18 @@ private[ra3] trait RelationalAlgebra { self: Table =>
     }
   }
   def in[
-      T0: NotNothing,
-      T1: NotNothing,
-      T2: NotNothing,
-      T3: NotNothing,
-      T4: NotNothing
+      T0<: Expr.DelayedIdent: NotNothing,
+      T1<: Expr.DelayedIdent: NotNothing,
+      T2<: Expr.DelayedIdent: NotNothing,
+      T3<: Expr.DelayedIdent: NotNothing,
+      T4<: Expr.DelayedIdent: NotNothing
   ](
       body: (
-          ra3.lang.DelayedIdent[T0],
-          ra3.lang.DelayedIdent[T1],
-          ra3.lang.DelayedIdent[T2],
-          ra3.lang.DelayedIdent[T3],
-          ra3.lang.DelayedIdent[T4]
+          T0,
+          T1,
+          T2,
+          T3,
+          T4
       ) => TableExpr
   ): TableExpr = {
     local(TableExpr.Const(self)) { t =>
@@ -163,20 +163,20 @@ private[ra3] trait RelationalAlgebra { self: Table =>
     }
   }
   def in[
-      T0: NotNothing,
-      T1: NotNothing,
-      T2: NotNothing,
-      T3: NotNothing,
-      T4: NotNothing,
-      T5: NotNothing,
+      T0<: Expr.DelayedIdent: NotNothing,
+      T1<: Expr.DelayedIdent: NotNothing,
+      T2<: Expr.DelayedIdent: NotNothing,
+      T3<: Expr.DelayedIdent: NotNothing,
+      T4<: Expr.DelayedIdent: NotNothing,
+      T5<: Expr.DelayedIdent: NotNothing,
   ](
       body: (
-          ra3.lang.DelayedIdent[T0],
-          ra3.lang.DelayedIdent[T1],
-          ra3.lang.DelayedIdent[T2],
-          ra3.lang.DelayedIdent[T3],
-          ra3.lang.DelayedIdent[T4],
-          ra3.lang.DelayedIdent[T5],
+          T0,
+          T1,
+          T2,
+          T3,
+          T4,
+          T5,
       ) => TableExpr
   ): TableExpr = {
     local(TableExpr.Const(self)) { t =>
