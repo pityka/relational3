@@ -155,8 +155,7 @@ package object ra3 {
 
   /** Variable assigning let expression.
     *
-    * @param the
-    *   expression which is being assigned
+    * @param assigned the expression which is being assigned
     * @param body
     *   the variable (the scala variable which is bound in the lambda) and the
     *   expression which is using the variable
