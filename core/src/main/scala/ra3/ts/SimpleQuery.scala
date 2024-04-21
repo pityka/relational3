@@ -100,16 +100,16 @@ private[ra3] object SimpleQuery {
           }
 
           scribe.debug(
-            s"SQ program evaluation done projection: ${returnValue.projections} filter: ${returnValue.filter} maskIsEmpty=$maskIsEmpty maskIsComplete=$maskIsComplete"
+            s"SQ program evaluation done projection: ${returnValue.list} filter: ${returnValue.filter} maskIsEmpty=$maskIsEmpty maskIsComplete=$maskIsComplete"
           )
 
           val selected: IO[List[NamedColumnSpec[_]]] = IO
-            .parSequenceN(32)(returnValue.projections.zipWithIndex.map {
+            .parSequenceN(32)(returnValue.list.zipWithIndex.map {
               case (v: NamedColumnSpec[_], _) =>
                 IO.pure(List(v))
               case (v: UnnamedColumnSpec[_], idx) =>
                 IO.pure(List(v.withName(s"V$idx")))
-              case (ra3.lang.Star, _) =>
+              case (ra3.lang.StarColumnSpec, _) =>
                 val r: IO[Seq[NamedColumnChunk]] =
                   IO.parSequenceN(32)(
                     input

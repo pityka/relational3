@@ -86,7 +86,8 @@ case class JoinBuilderSyntax(
       partitionBase.getOrElse(128),
       partitionLimit.getOrElse(10_000_000),
       maxSegmentsToBufferAtOnce.getOrElse(10),
-      prg.getOrElse(ra3.select(ra3.star))
+      prg.getOrElse(???)
+      // prg.getOrElse(ra3.select(ra3.star))
     )
   }
 }

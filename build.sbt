@@ -15,8 +15,8 @@ inThisBuild(
   )
 )
 
-lazy val scalaVersion213 = "2.13.12"
-lazy val scalaVersion3 = "3.3.1"
+lazy val scalaVersion213 = "2.13.13"
+lazy val scalaVersion3 = "3.3.3"
 lazy val scalaVersionInBuild = scalaVersion213
 
 ThisBuild / versionScheme := Some("early-semver")

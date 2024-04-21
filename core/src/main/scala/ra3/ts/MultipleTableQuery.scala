@@ -118,12 +118,12 @@ private[ra3] object MultipleTableQuery {
             })
 
             val selected: IO[List[NamedColumnSpec[_]]] = IO
-              .parSequenceN(32)(returnValue.projections.zipWithIndex.map {
+              .parSequenceN(32)(returnValue.list.zipWithIndex.map {
                 case (v: NamedColumnSpec[_], _) =>
                   IO.pure(List(v))
                 case (v: UnnamedColumnSpec[_], idx) =>
                   IO.pure(List(v.withName(s"V$idx")))
-                case (ra3.lang.Star, _) =>
+                case (ra3.lang.StarColumnSpec, _) =>
                   // get those columns who are not yet buffered
                   // buffer them and 'take' them
                   val r: IO[Seq[ra3.lang.NamedColumnChunk]] =

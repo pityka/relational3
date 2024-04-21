@@ -16,6 +16,15 @@ private[ra3] sealed trait Op3 {
 
 private[ra3] object Op3 {
 
+      object MkReturnValue3 extends Op3 {
+    type A0 = ra3.lang.ColumnSpec[_]
+    type A1 = ra3.lang.ColumnSpec[_]
+    type A2 = ra3.lang.ColumnSpec[_]
+    type T = ra3.lang.ReturnValue3[_,_,_]
+    def op(a0: A0,a1: A1, a2: A2)(implicit tsc: TaskSystemComponents) =
+      IO.pure(ra3.lang.ReturnValue3(a0,a1,a2,None))
+  }
+
   case object StringMatchAndReplaceOp extends Op3 {
     type A0 = DStr
     type A1 = String

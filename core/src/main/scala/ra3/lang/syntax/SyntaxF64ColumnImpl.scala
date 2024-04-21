@@ -1,6 +1,7 @@
 package ra3.lang.syntax
 import ra3.lang._
 import ra3.BufferInt
+import ra3.DF64
 
 private[ra3] trait SyntaxF64ColumnImpl {
   protected def arg0: F64ColumnExpr
@@ -77,13 +78,13 @@ private[ra3] trait SyntaxF64ColumnImpl {
 
   def unnamed = ra3.lang.Expr
     .BuiltInOp1(arg0, ops.Op1.MkUnnamedColumnSpecChunk)
-    .asInstanceOf[Expr { type T = ColumnSpec }]
+    .asInstanceOf[Expr { type T = ColumnSpec[DF64] }]
 
-  def as(arg1: Expr { type T = String }): Expr { type T = ColumnSpec } =
+  def as(arg1: Expr { type T = String }): Expr { type T = ColumnSpec[DF64] } =
     ra3.lang.Expr
       .BuiltInOp2(arg0, arg1, ops.Op2.MkNamedColumnSpecChunk)
-      .asInstanceOf[Expr { type T = ColumnSpec }]
+      .asInstanceOf[Expr { type T = ColumnSpec[DF64] }]
 
-  def as(arg1: String): Expr { type T = ColumnSpec } = as(Expr.LitStr(arg1))
+  def as(arg1: String): Expr { type T = ColumnSpec[DF64] } = as(Expr.LitStr(arg1))
 
 }

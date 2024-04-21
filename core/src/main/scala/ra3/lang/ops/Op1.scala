@@ -28,13 +28,29 @@ private[ra3] object Op1 {
     type A0
     type T = List[A0]
     def op(a: A0)(implicit tsc: TaskSystemComponents) = IO.pure(List(a))
+
   }
-  case object MkRawWhere extends Op1 {
-    type A0 = ra3.DI32
-    type T = ra3.lang.ReturnValue
-    def op(a: A0)(implicit tsc: TaskSystemComponents) =
-      IO.pure(ra3.lang.ReturnValue(projections = List(ra3.lang.Star),filter = Some(a)))
+
+  // object MkReturnValue extends Op1 {
+
+  //   type A0 = ra3.lang.Proj
+  //   type T = ra3.lang.ReturnValue
+  //   def op(a: Proj)(implicit tsc: TaskSystemComponents) =
+  //     IO.pure(ra3.lang.ReturnValue(a, None))
+  // }
+  object MkReturnValue1 extends Op1 {
+    type A0 = ra3.lang.ColumnSpec[_]
+    type T = ra3.lang.ReturnValue1[_]
+    def op(a: ra3.lang.ColumnSpec[_])(implicit tsc: TaskSystemComponents) =
+      IO.pure(ra3.lang.ReturnValue1(a,None))
   }
+
+  // case object MkRawWhere extends Op1 {
+  //   type A0 = ra3.DI32
+  //   type T = ra3.lang.ReturnValue
+  //   def op(a: A0)(implicit tsc: TaskSystemComponents) =
+  //     IO.pure(ra3.lang.ReturnValue(projections = List(ra3.lang.Star),filter = Some(a)))
+  // }
 
   case object MkUnnamedColumnSpecChunk extends Op1 {
     type A0 = Either[Buffer, Seq[Segment]]
@@ -60,7 +76,7 @@ private[ra3] object Op1 {
     def op(a: A0)(implicit tsc: TaskSystemComponents) =
       IO.pure(ra3.lang.UnnamedConstantF64(a))
   }
-  
+
   case object MkUnnamedConstantStr extends Op1 {
     type A0 = String
     type T = ra3.lang.UnnamedConstantString

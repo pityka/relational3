@@ -2,8 +2,8 @@ package ra3.lang
 
 import ra3._
 
-private[ra3] sealed trait ColumnSpec
-private[ra3] sealed trait ColumnSpecWithValue[T] extends ColumnSpec {
+private[ra3] trait ColumnSpec[+T]
+private[ra3] sealed trait ColumnSpecWithValue[T] extends ColumnSpec[T] {
   def value: T
 }
 private[ra3] sealed trait NamedColumnSpec[T] extends ColumnSpecWithValue[T] {
@@ -45,9 +45,51 @@ private[ra3] case class UnnamedConstantF64(value: Double)
     extends UnnamedColumnSpec[Double] {
   def withName(s: String): NamedColumnSpec[Double] = NamedConstantF64(value, s)
 }
-private[ra3] case object Star extends ColumnSpec
+private[ra3] object StarColumnSpec extends ColumnSpec[Any]
 
-private[ra3] case class ReturnValue(
-    projections: List[ColumnSpec],
+
+sealed trait ReturnValue {
+    type T <: ReturnValue
+  def list: List[ColumnSpec[_]]
+  def filter: Option[DI32]
+  def replacePredicate(i: Option[DI32]): T
+  
+}
+
+
+private[ra3] case class ReturnValueList[A](
+    a0: Seq[ColumnSpec[A]],
     filter: Option[DI32]
-)
+) extends ReturnValue {
+  def list = a0.toList
+  type T = ReturnValueList[A]
+  def replacePredicate(i: Option[DI32]) = ReturnValueList(a0, i)
+}
+
+private[ra3] case class ReturnValue1[A](
+    a0: ColumnSpec[A],
+    filter: Option[DI32]
+) extends ReturnValue {
+  def list = List(a0)
+  type T = ReturnValue1[A]
+  def replacePredicate(i: Option[DI32]) = ReturnValue1(a0, i)
+}
+private[ra3] case class ReturnValue2[A, B](
+    a0: ColumnSpec[A],
+    a1: ColumnSpec[B],
+    filter: Option[DI32]
+) extends ReturnValue {
+  def list = List(a0,a1)
+  type T = ReturnValue2[A,B]
+  def replacePredicate(i: Option[DI32]) = ReturnValue2(a0,a1, i)
+}
+private[ra3] case class ReturnValue3[A0, A1, A2](
+    a0: ColumnSpec[A0],
+    a1: ColumnSpec[A1],
+    a2: ColumnSpec[A2],
+    filter: Option[DI32]
+) extends ReturnValue {
+  def list = List(a0,a1,a2)
+  type T = ReturnValue3[A0,A1,A2]
+  def replacePredicate(i: Option[DI32]) = ReturnValue3(a0,a1,a2, i)
+}

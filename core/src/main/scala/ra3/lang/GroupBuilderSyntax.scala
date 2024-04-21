@@ -31,7 +31,8 @@ case class GroupBuilderSyntax(
     ra3.tablelang.TableExpr.GroupThenReduce(
       first,
       others,
-      prg.getOrElse(ra3.select(ra3.star)),
+      prg.getOrElse(???),
+      // prg.getOrElse(ra3.select(ra3.star)),
       partitionBase.getOrElse(128),
       partitionLimit.getOrElse(10_000_000),
       maxSegmentsToBufferAtOnce.getOrElse(10)
@@ -40,12 +41,14 @@ case class GroupBuilderSyntax(
     ra3.tablelang.TableExpr.GroupPartialThenReduce(
       first,
       others,
-      prg.getOrElse(ra3.select(ra3.star))
+      prg.getOrElse(???)
+      // prg.getOrElse(ra3.select(ra3.star))
     )
   def count = ra3.tablelang.TableExpr.GroupThenCount(
     first,
     others,
-    prg.getOrElse(ra3.select(ra3.star)),
+    // prg.getOrElse(ra3.select(ra3.star)),
+    prg.getOrElse(???),
     partitionBase.getOrElse(128),
     partitionLimit.getOrElse(10_000_000),
     maxSegmentsToBufferAtOnce.getOrElse(10)

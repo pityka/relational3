@@ -79,7 +79,7 @@ private[ra3] object SimpleQueryCount {
           }
 
           scribe.debug(
-            s"SQ program evaluation done projection: ${returnValue.projections} filter: ${returnValue.filter} maskIsEmpty=$maskIsEmpty maskIsComplete=$maskIsComplete"
+            s"SQ program evaluation done projection: ${returnValue.list} filter: ${returnValue.filter} maskIsEmpty=$maskIsEmpty maskIsComplete=$maskIsComplete"
           )
 
           if (maskIsEmpty) IO.pure(0)

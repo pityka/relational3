@@ -5,6 +5,8 @@ import ra3.tablelang.TableExpr
 package object lang {
 
   type Query = ra3.lang.Expr { type T <: ra3.lang.ReturnValue }
+  type QueryT[A,B] = ra3.lang.Expr { type T = ra3.lang.ReturnValue2[A,B] }
+  
   type IntExpr = Expr { type T = Int }
   type StrExpr = Expr { type T = String }
   type LongExpr = Expr { type T = Long }
@@ -30,7 +32,9 @@ package object lang {
     type T = Either[BufferInstant, Seq[SegmentInstant]]
   }
 
-  private[ra3] type ReturnExpr = Expr { type T = ReturnValue }
+  private[ra3] type ReturnExpr1[A] = Expr { type T = ReturnValue1[A] }
+  private[ra3] type ReturnExpr2[A,B] = Expr { type T = ReturnValue2[A,B] }
+  private[ra3] type ColumnSpecExpr[A] = Expr { type T = ColumnSpec[A] }
 
   private[ra3] type GenericExpr[T0] = Expr { type T = T0 }
   type DelayedIdent[T0] = Expr.DelayedIdent { type T = T0 }
@@ -88,13 +92,15 @@ package object lang {
     Expr.Local(n, assigned, b).asInstanceOf[Expr { type T = T1 }]
   }
 
-  private[ra3] def local[T1](
-      assigned: TableExpr
-  )(body: TableExpr.Ident => TableExpr): TableExpr = {
+  private[ra3] def local1[T1,T2](
+      assigned: TableExpr { type T = T1}
+  )(body: TableExpr.Ident { type T = T1} => TableExpr{ type T = T2}): TableExpr{ type T = T2} = {
     val n = ra3.tablelang.TagKey(new ra3.tablelang.KeyTag)
-    val b = body(TableExpr.Ident(n))
+    val b = body(TableExpr.Ident(n).asInstanceOf[TableExpr.Ident { type T = T1}])
 
-    TableExpr.Local(n, assigned, b)
+    TableExpr.Local(n, assigned, b).asInstanceOf[TableExpr.Local{ type T =T2}]
   }
+
+
 
 }

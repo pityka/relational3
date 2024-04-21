@@ -5,7 +5,7 @@ import ra3.lang.ops.Op3._
 import ra3.lang.ops.Op2._
 import ra3.lang.ops.Op1._
 import ra3.lang.Expr._
-import ra3.lang.ops.OpStar.MkSelect
+// import ra3.lang.ops.OpStar.MkSelect
 private[ra3] object Render {
 
   def render(op: ra3.lang.ops.Op3): String = op match {
@@ -185,7 +185,7 @@ private[ra3] object Render {
     case ColumnAbsOpI                 => render(arg) + ".abs"
     case ColumnIsMissingOpI           => render(arg) + ".isnull"
     case ColumnNotOpI                 => "not(" + render(arg) + ")"
-    case MkRawWhere                 => "WHERE " + render(arg) 
+    // case MkRawWhere                 => "WHERE " + render(arg) 
     case ColumnParseF64OpStr          => render(arg) + ".toDouble"
     case ColumnToDoubleOpInst         => render(arg) + ".toDouble"
     case ColumnIsMissingOpStr         => render(arg) + ".isnull"
@@ -200,10 +200,10 @@ private[ra3] object Render {
     case ColumnToDoubleOpI            => render(arg) + ".toDouble"
     case x                            => x.toString() + s"(${render(arg)})"
   }
-  def render(op: ra3.lang.ops.OpStar): String = op match {
-    case lang.ops.OpStar.MkSelect => "SELECT"
+  // def render(op: ra3.lang.ops.OpStar): String = op match {
+  //   case lang.ops.OpStar.MkSelect => "SELECT"
 
-  }
+  // }
 
   def render(expr: Expr): String = expr match {
     case Expr.Local(name,assigned,body) => 
@@ -234,13 +234,13 @@ private[ra3] object Render {
       if (args.size == 1) s"${render(args.head)}.${render(op)}"
       else s"${render(op)}(${args.map(render).mkString(", ")})"
     case LitNum(s) => s"$s"
-    case BuiltInOpStar(args, op) =>
-      op match {
-        case MkSelect =>  
-            s"SELECT ${args.map(a => render(a)).mkString(", ")}"
-        case _ => 
-            s"${render(op)}(${args.map(a => render(a)).mkString(", ")})"
-      }
+    // case BuiltInOpStar(args, op) =>
+    //   op match {
+    //     case MkSelect =>  
+    //         s"SELECT ${args.map(a => render(a)).mkString(", ")}"
+    //     case _ => 
+    //         s"${render(op)}(${args.map(a => render(a)).mkString(", ")})"
+    //   }
       
     case Expr.Ident(name) =>
       name match {

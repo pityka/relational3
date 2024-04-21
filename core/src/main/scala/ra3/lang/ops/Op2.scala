@@ -15,6 +15,14 @@ private[ra3] sealed trait Op2 {
 
 private[ra3] object Op2 {
 
+    object MkReturnValue2 extends Op2 {
+    type A0 = ra3.lang.ColumnSpec[_]
+    type A1 = ra3.lang.ColumnSpec[_]
+    type T = ra3.lang.ReturnValue2[_,_]
+    def op(a0: A0,a1: A1)(implicit tsc: TaskSystemComponents) =
+      IO.pure(ra3.lang.ReturnValue2(a0,a1,None))
+  }
+
   object Tap extends Op2 {
 
     type A0
@@ -48,7 +56,7 @@ private[ra3] object Op2 {
             f <- bufferIfNeeded(f)
             b <- bufferIfNeeded(b)
           } yield Some(Left(b.elementwise_&&(f)))
-      }).map(f => ReturnValue(a.projections, f))
+      }).map(f => a.replacePredicate(f))
 
   }
   case object MkNamedColumnSpecChunk extends Op2 {

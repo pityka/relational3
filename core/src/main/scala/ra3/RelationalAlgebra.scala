@@ -89,103 +89,103 @@ private[ra3] trait RelationalAlgebra { self: Table =>
       )
     }
   }
-  def in0(
-      body: ra3.tablelang.TableExpr.Ident => ra3.tablelang.TableExpr
-  ): ra3.tablelang.TableExpr =
-    ra3.lang.local(ra3.tablelang.TableExpr.Const(this))(body)
+  // def in0(
+  //     body: ra3.tablelang.TableExpr.Ident => ra3.tablelang.TableExpr
+  // ): ra3.tablelang.TableExpr =
+  //   ra3.lang.local(ra3.tablelang.TableExpr.Const(this))(body)
 
-  def in[T0 <: Expr.DelayedIdent: NotNothing](
-      body: (T0) => TableExpr
-  ): TableExpr = {
-    local(TableExpr.Const(self)) { t =>
-        body(t[T0](0))
-    }
-  }
-  def in[T0<: Expr.DelayedIdent: NotNothing, T1<: Expr.DelayedIdent: NotNothing](
-      body: (
-          T0,
-          T1
-      ) => TableExpr
-  ): TableExpr = {
-    local(TableExpr.Const(self)) { t =>
-      t.apply[T0, T1](0, 1) { case (c0, c1) =>
-        body(c0, c1)
-      }
-    }
-  }
-  def in[T0<: Expr.DelayedIdent: NotNothing, T1<: Expr.DelayedIdent: NotNothing, T2<: Expr.DelayedIdent: NotNothing](
-      body: (
-          T0,
-          T1,
-          T2
-      ) => TableExpr
-  ): TableExpr = {
-    local(TableExpr.Const(self)) { t =>
-      t.apply[T0, T1, T2](0, 1, 2) { case (c0, c1, c2) =>
-        body(c0, c1, c2)
-      }
-    }
-  }
-  def in[T0<: Expr.DelayedIdent: NotNothing, T1<: Expr.DelayedIdent: NotNothing, T2<: Expr.DelayedIdent: NotNothing, T3<: Expr.DelayedIdent: NotNothing](
-      body: (
-          T0,
-          T1,
-          T2,
-          T3
-      ) => TableExpr
-  ): TableExpr = {
-    local(TableExpr.Const(self)) { t =>
-      t.apply[T0, T1, T2, T3](0, 1, 2, 3) { case (c0, c1, c2, c3) =>
-        body(c0, c1, c2, c3)
-      }
-    }
-  }
-  def in[
-      T0<: Expr.DelayedIdent: NotNothing,
-      T1<: Expr.DelayedIdent: NotNothing,
-      T2<: Expr.DelayedIdent: NotNothing,
-      T3<: Expr.DelayedIdent: NotNothing,
-      T4<: Expr.DelayedIdent: NotNothing
-  ](
-      body: (
-          T0,
-          T1,
-          T2,
-          T3,
-          T4
-      ) => TableExpr
-  ): TableExpr = {
-    local(TableExpr.Const(self)) { t =>
-      t.apply[T0, T1, T2, T3, T4](0, 1, 2, 3, 4) {
-        case (c0, c1, c2, c3, c4) =>
-          body(c0, c1, c2, c3, c4)
-      }
-    }
-  }
-  def in[
-      T0<: Expr.DelayedIdent: NotNothing,
-      T1<: Expr.DelayedIdent: NotNothing,
-      T2<: Expr.DelayedIdent: NotNothing,
-      T3<: Expr.DelayedIdent: NotNothing,
-      T4<: Expr.DelayedIdent: NotNothing,
-      T5<: Expr.DelayedIdent: NotNothing,
-  ](
-      body: (
-          T0,
-          T1,
-          T2,
-          T3,
-          T4,
-          T5,
-      ) => TableExpr
-  ): TableExpr = {
-    local(TableExpr.Const(self)) { t =>
-      t.apply[T0, T1, T2, T3, T4,T5](0, 1, 2, 3, 4, 5) {
-        case (c0, c1, c2, c3, c4, c5) =>
-          body(c0, c1, c2, c3, c4, c5)
-      }
-    }
-  }
+  // def in[T0 <: Expr.DelayedIdent: NotNothing](
+  //     body: (T0) => TableExpr
+  // ): TableExpr = {
+  //   local(TableExpr.Const(self)) { t =>
+  //       body(t[T0](0))
+  //   }
+  // }
+  // def in[T0<: Expr.DelayedIdent: NotNothing, T1<: Expr.DelayedIdent: NotNothing](
+  //     body: (
+  //         T0,
+  //         T1
+  //     ) => TableExpr
+  // ): TableExpr = {
+  //   local(TableExpr.Const(self)) { t =>
+  //     t.apply[T0, T1](0, 1) { case (c0, c1) =>
+  //       body(c0, c1)
+  //     }
+  //   }
+  // }
+  // def in[T0<: Expr.DelayedIdent: NotNothing, T1<: Expr.DelayedIdent: NotNothing, T2<: Expr.DelayedIdent: NotNothing](
+  //     body: (
+  //         T0,
+  //         T1,
+  //         T2
+  //     ) => TableExpr
+  // ): TableExpr = {
+  //   local(TableExpr.Const(self)) { t =>
+  //     t.apply[T0, T1, T2](0, 1, 2) { case (c0, c1, c2) =>
+  //       body(c0, c1, c2)
+  //     }
+  //   }
+  // }
+  // def in[T0<: Expr.DelayedIdent: NotNothing, T1<: Expr.DelayedIdent: NotNothing, T2<: Expr.DelayedIdent: NotNothing, T3<: Expr.DelayedIdent: NotNothing](
+  //     body: (
+  //         T0,
+  //         T1,
+  //         T2,
+  //         T3
+  //     ) => TableExpr
+  // ): TableExpr = {
+  //   local(TableExpr.Const(self)) { t =>
+  //     t.apply[T0, T1, T2, T3](0, 1, 2, 3) { case (c0, c1, c2, c3) =>
+  //       body(c0, c1, c2, c3)
+  //     }
+  //   }
+  // }
+  // def in[
+  //     T0<: Expr.DelayedIdent: NotNothing,
+  //     T1<: Expr.DelayedIdent: NotNothing,
+  //     T2<: Expr.DelayedIdent: NotNothing,
+  //     T3<: Expr.DelayedIdent: NotNothing,
+  //     T4<: Expr.DelayedIdent: NotNothing
+  // ](
+  //     body: (
+  //         T0,
+  //         T1,
+  //         T2,
+  //         T3,
+  //         T4
+  //     ) => TableExpr
+  // ): TableExpr = {
+  //   local(TableExpr.Const(self)) { t =>
+  //     t.apply[T0, T1, T2, T3, T4](0, 1, 2, 3, 4) {
+  //       case (c0, c1, c2, c3, c4) =>
+  //         body(c0, c1, c2, c3, c4)
+  //     }
+  //   }
+  // }
+  // def in[
+  //     T0<: Expr.DelayedIdent: NotNothing,
+  //     T1<: Expr.DelayedIdent: NotNothing,
+  //     T2<: Expr.DelayedIdent: NotNothing,
+  //     T3<: Expr.DelayedIdent: NotNothing,
+  //     T4<: Expr.DelayedIdent: NotNothing,
+  //     T5<: Expr.DelayedIdent: NotNothing,
+  // ](
+  //     body: (
+  //         T0,
+  //         T1,
+  //         T2,
+  //         T3,
+  //         T4,
+  //         T5,
+  //     ) => TableExpr
+  // ): TableExpr = {
+  //   local(TableExpr.Const(self)) { t =>
+  //     t.apply[T0, T1, T2, T3, T4,T5](0, 1, 2, 3, 4, 5) {
+  //       case (c0, c1, c2, c3, c4, c5) =>
+  //         body(c0, c1, c2, c3, c4, c5)
+  //     }
+  //   }
+  // }
 
   def rfilterInEquality(
       columnIdx: Int,

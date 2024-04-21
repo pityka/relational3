@@ -46,15 +46,15 @@ private[ra3] trait SyntaxI64ColumnImpl {
     ra3.lang.Expr.Ident(ra3.lang.Numgroups).as[Int]
   )
 
-  def unnamed = ra3.lang.Expr
-    .BuiltInOp1(arg0, ops.Op1.MkUnnamedColumnSpecChunk)
-    .asInstanceOf[Expr { type T = ColumnSpec }]
+  // def unnamed = ra3.lang.Expr
+  //   .BuiltInOp1(arg0, ops.Op1.MkUnnamedColumnSpecChunk)
+  //   .asInstanceOf[Expr { type T = ColumnSpec }]
 
-  def as(arg1: Expr { type T = String }) = ra3.lang.Expr
-    .BuiltInOp2(arg0, arg1, ops.Op2.MkNamedColumnSpecChunk)
-    .asInstanceOf[Expr { type T = ColumnSpec }]
+  // def as(arg1: Expr { type T = String }) = ra3.lang.Expr
+  //   .BuiltInOp2(arg0, arg1, ops.Op2.MkNamedColumnSpecChunk)
+  //   .asInstanceOf[Expr { type T = ColumnSpec }]
 
-  def as(arg1: String): Expr { type T = ColumnSpec } = as(Expr.LitStr(arg1))
+  // def as(arg1: String): Expr { type T = ColumnSpec } = as(Expr.LitStr(arg1))
 
   // def <=(arg1: I32ColumnExpr) = Expr.makeOp2(ops.Op2.ColumnLtEqOpII)(arg0, arg1)
   // def <=(arg1: Int) = Expr.makeOp2(ops.Op2.ColumnLtEqOpIcI)(arg0, arg1)
