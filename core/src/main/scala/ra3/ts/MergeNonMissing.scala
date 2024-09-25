@@ -1,37 +1,39 @@
 package ra3.ts
 
-import ra3._
-import tasks._
-import tasks.jsonitersupport._
-import com.github.plokhotnyuk.jsoniter_scala.macros._
-import com.github.plokhotnyuk.jsoniter_scala.core._
+import ra3.*
+import tasks.*
+import tasks.jsonitersupport.*
+import com.github.plokhotnyuk.jsoniter_scala.macros.*
+import com.github.plokhotnyuk.jsoniter_scala.core.*
 import cats.effect.IO
 
 private[ra3] case class MergeNonMissing(
-    inputs: SegmentPair,
+    tag: ColumnTag,
+    inputA: Segment,
+    inputB: Segment,
     outputPath: LogicalPath
 )
 private[ra3] object MergeNonMissing {
-  def doit(
-      pair: SegmentPair,
+  def doit(tag: ColumnTag)(
+      inputA: tag.SegmentType,
+    inputB: tag.SegmentType,
       outputPath: LogicalPath
   )(implicit tsc: TaskSystemComponents) = {
-    val a = pair.a.buffer
-    val b = pair.b.buffer
+    val a = tag.buffer(inputA)
+    val b = tag.buffer(inputB)
     IO.both(a, b).flatMap { case (a, b) =>
-      a.mergeNonMissing(b).toSegment(outputPath)
+      tag.toSegment(tag.mergeNonMissing(a,b),outputPath)
     }
   }
-  def queue[D <: ColumnTag](tpe: D)(
+  def queue(tpe: ColumnTag)(
       input1: tpe.SegmentType,
       input2: tpe.SegmentType,
       outputPath: LogicalPath
   )(implicit
       tsc: TaskSystemComponents
   ): IO[tpe.SegmentType] = {
-    val pair = tpe.pair(input1, input2)
 
-    task(MergeNonMissing(pair, outputPath))(
+    task(MergeNonMissing(tpe,input1,input2, outputPath))(
       ResourceRequest(
         cpu = (1, 1),
         memory = ra3.Utils.guessMemoryUsageInMB(input1) + ra3.Utils
@@ -39,13 +41,13 @@ private[ra3] object MergeNonMissing {
         scratch = 0,
         gpu = 0
       )
-    ).map(_.as(tpe))
+    ).map((_:Segment).asInstanceOf[tpe.SegmentType])
   }
   implicit val codec: JsonValueCodec[MergeNonMissing] = JsonCodecMaker.make
   implicit val codecOut: JsonValueCodec[Segment] = JsonCodecMaker.make
   val task = Task[MergeNonMissing, Segment]("mergenonmissing", 1) {
     case input =>
-      implicit ce => doit(input.inputs, input.outputPath)
+      implicit ce => doit(input.tag)(input.inputA.asInstanceOf[input.tag.SegmentType],input.inputB.asInstanceOf[input.tag.SegmentType], input.outputPath)
 
   }
 }

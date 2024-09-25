@@ -15,7 +15,7 @@
 package ra3
 
 import org.specs2.mutable.Specification
-import org.saddle._
+import org.saddle.*
 
 /** User: Adam Klein Date: 2/19/13 Time: 7:17 PM
   */

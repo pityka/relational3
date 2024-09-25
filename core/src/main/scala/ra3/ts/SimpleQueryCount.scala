@@ -1,10 +1,10 @@
 package ra3.ts
 
-import ra3._
-import tasks._
-import tasks.jsonitersupport._
-import com.github.plokhotnyuk.jsoniter_scala.macros._
-import com.github.plokhotnyuk.jsoniter_scala.core._
+import ra3.*
+import tasks.*
+import tasks.jsonitersupport.*
+import com.github.plokhotnyuk.jsoniter_scala.macros.*
+import com.github.plokhotnyuk.jsoniter_scala.core.*
 import cats.effect.IO
 import ra3.lang.ReturnValue
 
@@ -38,7 +38,7 @@ private[ra3] object SimpleQueryCount {
       case Some((map, num)) => map.buffer.map(s => Some((s, num)))
     }
     groupMapBuffer.flatMap { case groupMapBuffer =>
-      val env1: Map[ra3.lang.Key, ra3.lang.Value[_]] =
+      val env1: Map[ra3.lang.Key, ra3.lang.Value[?]] =
         input
           .map { case segmentWithName =>
             val columnKey = ra3.lang.ColumnKey(
@@ -90,8 +90,8 @@ private[ra3] object SimpleQueryCount {
           else
             mask match {
               case Some(Right(s)) =>
-                ra3.ts.SimpleQuery
-                  .bufferMultiple(s)
+                ra3.Utils
+                  .bufferMultiple(ColumnTag.I32)(s)
                   .map(_.positiveLocations.length)
               case Some(Left(b)) => IO.pure(b.positiveLocations.length)
               case None =>

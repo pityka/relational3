@@ -138,7 +138,7 @@ object csv {
             callback.segments.zip(sortedColumnTypes).zipWithIndex map {
               case ((b, (_, tpe, _, _)), idx) =>
                 val segments = b.toVector
-                val column = tpe.makeColumn(segments.map(_.as(tpe)))
+                val column = tpe.makeTaggedColumn(tpe.makeColumn(segments.map((_:Segment).asInstanceOf[tpe.SegmentType])))
 
                 val name = colIndex.map(_.apply(idx))
                 (name, column)
@@ -160,7 +160,7 @@ object csv {
     }
   }
 
- private class ColumnBufferCallback(
+  private class ColumnBufferCallback(
       name: String,
       maxLines: Long,
       header: Boolean,
@@ -191,7 +191,7 @@ object csv {
 
     }
 
-    var bufdata: Array[_] = allocateBuffers()
+    var bufdata: Array[?] = allocateBuffers()
 
     val types: Array[ColumnTag] = columnTypes.map(_._2)
     val parsers: Array[Option[InstantParser]] = columnTypes.map(_._3)
@@ -241,9 +241,10 @@ object csv {
     }
 
     def uploadAndResetBufData(force: Boolean) = {
+      import scala.compiletime.asMatchable
       // upload
-      val lengths = bufdata.map(_ match {
-        case t: org.saddle.Buffer[_] => t.length
+      val lengths = bufdata.map(_.asMatchable match {
+        case t: org.saddle.Buffer[?] => t.length
       })
 
       assert(lengths.distinct.size == 1, lengths.toList)
@@ -253,15 +254,14 @@ object csv {
 
         IO.parSequenceN(32)(bufdata.zipWithIndex.toList.map {
           case (b, bufferIdx) =>
-            b match {
-              case t: org.saddle.Buffer[_] =>
+            b.asMatchable match {
+              case t: org.saddle.Buffer[?] =>
                 val tpe = columnTypes(bufferIdx)._2
 
-                tpe
+                tpe.toSegment(tpe
                   .makeBuffer(
                     t.asInstanceOf[org.saddle.Buffer[tpe.Elem]].toArray
-                  )
-                  .toSegment(
+                  ),
                     LogicalPath(
                       table = name,
                       partition = None,

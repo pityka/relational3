@@ -19,7 +19,7 @@
   */
 package ra3.join
 
-import scala.{specialized => spec}
+import scala.{specialized as spec}
 import org.saddle.{ST, Index}
 import org.saddle.Buffer
 

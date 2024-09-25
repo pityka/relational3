@@ -2,8 +2,8 @@ package ra3.lang
 import ra3.tablelang.TableExpr
 
 private[ra3] object Join {
-  def apply(a: Expr.DelayedIdent) =
-    JoinBuilderSyntax(a, Vector.empty, None, None, None, None)
+  def apply(a: Expr.DelayedIdent, prg: ra3.lang.Query) =
+    JoinBuilderSyntax(a, Vector.empty, prg, None, None, None)
 }
 
 /** Builder pattern for joins. Exit the builder with the done method or elementwise method */
@@ -12,7 +12,7 @@ case class JoinBuilderSyntax(
     private val others: Vector[
       (Expr.DelayedIdent, String, ra3.tablelang.Key)
     ],
-    private val prg: Option[ra3.lang.Query],
+    tracked val prg: ra3.lang.Query,
     private val partitionBase: Option[Int],
     private val partitionLimit: Option[Int],
     private val maxSegmentsToBufferAtOnce: Option[Int]
@@ -78,7 +78,7 @@ case class JoinBuilderSyntax(
   }
   def withPartitionBase(num: Int) = copy(partitionBase = Some(num))
   def withPartitionLimit(num: Int) = copy(partitionLimit = Some(num))
-  def elementwise(q: ra3.lang.Query) = copy(prg = Some(q)).done
+  def elementwise(q: ra3.lang.Query) = copy(prg = q).done
   def done = {
     ra3.tablelang.TableExpr.Join(
       first,
@@ -86,8 +86,8 @@ case class JoinBuilderSyntax(
       partitionBase.getOrElse(128),
       partitionLimit.getOrElse(10_000_000),
       maxSegmentsToBufferAtOnce.getOrElse(10),
-      prg.getOrElse(???)
+      prg
       // prg.getOrElse(ra3.select(ra3.star))
-    )
+    ).asInstanceOf[ra3.tablelang.TableExpr{type T = prg.T}]
   }
 }

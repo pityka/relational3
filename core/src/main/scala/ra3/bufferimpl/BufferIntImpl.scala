@@ -1,5 +1,5 @@
 package ra3.bufferimpl
-import ra3._
+import ra3.*
 private[ra3] trait BufferIntImpl { self: BufferInt =>
   def elementwise_abs: BufferInt
   def elementwise_not: BufferInt

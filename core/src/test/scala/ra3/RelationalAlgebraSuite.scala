@@ -1,11 +1,11 @@
 package ra3
-// import ra3._
-import org.saddle._
+// import ra3.*
+import org.saddle.*
 import java.nio.channels.Channels
 import java.io.ByteArrayInputStream
 import tasks.TaskSystemComponents
 import com.typesafe.config.ConfigFactory
-import tasks._
+import tasks.*
 import cats.effect.unsafe.implicits.global
 import ColumnTag.I32
 trait WithTempTaskSystem {
@@ -82,7 +82,7 @@ trait WithTempTaskSystem {
       .readHeterogeneousFromCSVChannel(
         name,
         List(
-          0 until (numCols) map (i => (i, ColumnTag.I32, None, None)): _*
+          0 until (numCols) map (i => (i, ColumnTag.I32, None, None))*
         ),
         channel = channel,
         header = true,
@@ -106,7 +106,7 @@ trait WithTempTaskSystem {
       .readHeterogeneousFromCSVChannel(
         name,
         List(
-          0 until (numCols) map (i => (i, ColumnTag.StringTag, None, None)): _*
+          0 until (numCols) map (i => (i, ColumnTag.StringTag, None, None))*
         ),
         channel = channel,
         header = true,
@@ -130,7 +130,7 @@ trait WithTempTaskSystem {
       .readHeterogeneousFromCSVChannel(
         name,
         List(
-          0 until (numCols) map (i => (i, ColumnTag.F64, None, None)): _*
+          0 until (numCols) map (i => (i, ColumnTag.F64, None, None))*
         ),
         channel = channel,
         header = true,
@@ -154,7 +154,7 @@ trait WithTempTaskSystem {
       .readHeterogeneousFromCSVChannel(
         name,
         List(
-          0 until (numCols) map (i => (i, ColumnTag.I64, None, None)): _*
+          0 until (numCols) map (i => (i, ColumnTag.I64, None, None))*
         ),
         channel = channel,
         header = true,
@@ -237,9 +237,9 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       val idxs = Seq(Seq(0), Seq(), Seq(0), Seq(0, 0))
       val indexColumn = I32.makeColumn(
         idxs.zipWithIndex
-          .map(s => (s._2, ColumnTag.I32.makeBufferFromSeq(s._1: _*)))
+          .map(s => (s._2, ColumnTag.I32.makeBufferFromSeq(s._1*)))
           .map(v =>
-            v._2.toSegment(LogicalPath("idx1", None, v._1, 0)).unsafeRunSync()
+            ColumnTag.I32.toSegment(v._2,LogicalPath("idx1", None, v._1, 0)).unsafeRunSync()
           )
           .toVector
       )
@@ -268,9 +268,9 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       val masks = Seq(Seq(1, 0, 1), Seq(0, 0, 0), Seq(1, 1, 1), Seq(0))
       val maskColumn = I32.makeColumn(
         masks.zipWithIndex
-          .map(s => (s._2, ColumnTag.I32.makeBufferFromSeq(s._1: _*)))
+          .map(s => (s._2, ColumnTag.I32.makeBufferFromSeq(s._1*)))
           .map(v =>
-            v._2.toSegment(LogicalPath("idx1", None, v._1, 0)).unsafeRunSync()
+            ColumnTag.I32.toSegment(v._2,LogicalPath("idx1", None, v._1, 0)).unsafeRunSync()
           )
           .toVector
       )
@@ -297,9 +297,8 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       val (tableFrame, tableCsv) = generateTable(numRows, numCols)
       println(tableFrame)
       val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
-      val literal = I32
-        .makeBufferFromSeq(0)
-        .toSegment(LogicalPath("test0", None, 0, 0))
+      val literal = I32.toSegment(I32
+        .makeBufferFromSeq(0),LogicalPath("test0", None, 0, 0))
         .unsafeRunSync()
 
       val less = ra3Table.rfilterInEquality(0, literal, true).unsafeRunSync()
@@ -327,7 +326,7 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
 
       val result = ra3Table
-        .in0 { table =>
+        .in { table =>
           table.query(ra3.select(ra3.star))
         }
         .evaluate
@@ -355,7 +354,7 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
 
       val less = ra3Table
-        .in[I32Var, I32Var] { (col0, col1) =>
+        .schema[I32Var, I32Var].columns { case (col0, col1) =>
           count(
             ra3
               .select(col1 as "b", col1, ra3.star)
@@ -392,7 +391,7 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
 
       val less = ra3Table
-        .in[I32Var, I32Var] { (col0, col1) =>
+        .schema[I32Var, I32Var].columns { (col0, col1) =>
           query(
             ra3
               .select(col1 as "b", col1, ra3.star)
@@ -427,7 +426,7 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
 
       import cats.effect.unsafe.implicits.global
-      val less2 = let[I32Var, I32Var](ra3Table) { (v0, v1) =>
+      val less2 = ra3Table.schema[I32Var, I32Var].columns { (v0, v1) =>
         query(
           ra3
             .select(v1 as "b", v1.unnamed, ra3.star)
@@ -469,8 +468,9 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       assert(partitions.size == 3)
 
       partitions.zipWithIndex.foreach { case (pTable, pIdx) =>
-        pTable.columns(0).segments.foreach { segment =>
-          val b = segment.buffer.unsafeRunSync()
+        val column = pTable.columns(0)
+        column.segments.foreach { segment =>
+          val b = column.tag.buffer(segment).unsafeRunSync()
           0 until b.length foreach { i =>
             val h = math.abs(b.hashOf(i))
             assert(h % 3 == pIdx)
@@ -479,7 +479,7 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       }
 
       val partionedRowsF = partitions
-        .reduce(_ concatenate _)
+        .reduce(_ `concatenate` _)
         .bufferStream
         .compile
         .toList
@@ -511,8 +511,9 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       assert(partitions.size == 3)
 
       partitions.zipWithIndex.foreach { case (pTable, pIdx) =>
-        pTable.columns(0).segments.foreach { segment =>
-          val b = segment.buffer.unsafeRunSync()
+        val column = pTable.columns(0)
+        column.segments.foreach { segment =>
+          val b = column.tag.buffer(segment).unsafeRunSync()
           0 until b.length foreach { i =>
             val h = math.abs(b.hashOf(i))
             assert(h % 3 == pIdx)
@@ -521,7 +522,7 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       }
 
       val partionedRowsF = partitions
-        .reduce(_ concatenate _)
+        .reduce(_ `concatenate` _)
         .bufferStream
         .compile
         .toList
@@ -602,16 +603,17 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       //     maxSegmentsToBufferAtOnce: Int
 
       val result = tableA
-        .in0 { tableA =>
-          tableB.in0 { tableB =>
-            tableA.useColumn[I32Var](3) { aCol3 =>
-              tableB.useColumn[I32Var](3) { bCol3 =>
-                aCol3.join
+        .in { tableA =>
+          tableB.in { tableB =>
+            tableA.apply[I32Var](3) { aCol3 =>
+              tableB.apply[I32Var](3) { bCol3 =>
+                aCol3.join(ra3.select(ra3.star))
                   .outer(bCol3)
                   .withPartitionBase(3)
                   .withPartitionLimit(0)
                   .withMaxSegmentsBufferingAtOnce(2)
-                  .elementwise(ra3.select(ra3.star))
+                  .done
+                  
               }
             }
           }
@@ -705,16 +707,16 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
 
       val result =
         tableA
-          .in0 { tableA =>
-            tableB.in0 { tableB =>
+          .in { tableA =>
+            tableB.in { tableB =>
               tableA[I32Var, I32Var](0, 3) { (aCol0, aCol3) =>
-                tableB.useColumn[I32Var](3) { bCol3 =>
-                  aCol3.join
+                tableB.apply[I32Var](3) { bCol3 =>
+                  aCol3.join(ra3.select(aCol0, ra3.star))
                     .inner(bCol3)
                     .withPartitionBase(3)
                     .withPartitionLimit(11)
                     .withMaxSegmentsBufferingAtOnce(2)
-                    .elementwise(ra3.select(aCol0, ra3.star))
+                    .done
                 }
               }
             }
@@ -801,16 +803,16 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
 
       val result =
         tableA
-          .in0 { tableA =>
-            tableB.in0 { tableB =>
+          .in { tableA =>
+            tableB.in { tableB =>
               tableA[I32Var, I32Var](0, 3) { (aCol0, aCol3) =>
-                tableB.useColumn[I32Var](3) { bCol3 =>
-                  aCol3.join
+                tableB.apply[I32Var](3) { bCol3 =>
+                  aCol3.join(ra3.select(aCol0, ra3.star))
                     .inner(bCol3)
                     .withPartitionBase(3)
                     .withPartitionLimit(0)
                     .withMaxSegmentsBufferingAtOnce(2)
-                    .elementwise(ra3.select(aCol0, ra3.star))
+                    .done
                 }
               }
             }
@@ -893,16 +895,16 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       assertEquals(toFrame(tableB), tF2.resetRowIndex)
 
       val result = tableA
-        .in0 { tableA =>
-          tableB.in0 { tableB =>
+        .in { tableA =>
+          tableB.in { tableB =>
             tableA[I32Var, I32Var](0, 3) { (_, aCol3) =>
-              tableB.useColumn[I32Var](3) { bCol3 =>
-                aCol3.join
+              tableB.apply[I32Var](3) { bCol3 =>
+                aCol3.join(ra3.select(ra3.star))
                   .inner(bCol3)
                   .withPartitionBase(3)
                   .withPartitionLimit(0)
                   .withMaxSegmentsBufferingAtOnce(2)
-                  .elementwise(ra3.select(ra3.star))
+                  .done
               }
             }
           }
@@ -985,16 +987,16 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       assertEquals(toFrame(tableB), tF2.resetRowIndex)
 
       val result = tableA
-        .in0 { tableA =>
-          tableB.in0 { tableB =>
+        .in { tableA =>
+          tableB.in { tableB =>
             tableA[I32Var, I32Var](0, 3) { (_, aCol3) =>
-              tableB.useColumn[I32Var](3) { bCol3 =>
-                aCol3.join
+              tableB.apply[I32Var](3) { bCol3 =>
+                aCol3.join(ra3.select(ra3.star))
                   .inner(bCol3)
                   .withPartitionBase(3)
                   .withPartitionLimit(0)
                   .withMaxSegmentsBufferingAtOnce(2)
-                  .elementwise(ra3.select(ra3.star))
+                  .done
               }
             }
           }
@@ -1093,18 +1095,18 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
 
       val result =
         tableA
-          .in0 { tableA =>
-            tableB.in0 { tableB =>
-              tableC.in0 { tableC =>
+          .in { tableA =>
+            tableB.in { tableB =>
+              tableC.in { tableC =>
                 tableA[I32Var, I32Var](0, 3) { (_, aCol3) =>
-                  tableB.useColumn[I32Var](3) { bCol3 =>
-                    tableC.useColumn[I32Var](3) { cCol3 =>
-                      aCol3.join
+                  tableB.apply[I32Var](3) { bCol3 =>
+                    tableC.apply[I32Var](3) { cCol3 =>
+                      aCol3.join(ra3.select(ra3.star))
                         .inner(bCol3)
                         .inner(cCol3)
                         .withPartitionBase(3)
                         .withPartitionLimit(10)
-                        .elementwise(ra3.select(ra3.star))
+                        .done
                     }
                   }
                 }
@@ -1191,16 +1193,16 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       assertEquals(toFrame(tableB), tF2.resetRowIndex)
 
       val result = tableA
-        .in0 { tableA =>
-          tableB.in0 { tableB =>
+        .in { tableA =>
+          tableB.in { tableB =>
             tableA[I32Var, I32Var](0, 3) { (aCol0, aCol3) =>
-              tableB.useColumn[I32Var](3) { bCol3 =>
-                aCol3.join
+              tableB.apply[I32Var](3) { bCol3 =>
+                aCol3.join(ra3.select(ra3.star).where(aCol0 <= 0))
                   .inner(bCol3)
                   .withPartitionBase(3)
                   .withPartitionLimit(0)
                   .withMaxSegmentsBufferingAtOnce(2)
-                  .elementwise(ra3.select(ra3.star).where(aCol0 <= 0))
+                  .done
               }
             }
           }
@@ -1283,16 +1285,16 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       assertEquals(toFrame(tableB), tF2.resetRowIndex)
 
       val result = tableA
-        .in0 { tableA =>
-          tableB.in0 { tableB =>
+        .in { tableA =>
+          tableB.in { tableB =>
             tableA[I32Var, I32Var](0, 3) { (_, aCol3) =>
-              tableB.useColumn[I32Var](3) { bCol3 =>
-                aCol3.join
+              tableB.apply[I32Var](3) { bCol3 =>
+                aCol3.join(ra3.select(ra3.star))
                   .left(bCol3)
                   .withPartitionBase(3)
                   .withPartitionLimit(0)
                   .withMaxSegmentsBufferingAtOnce(2)
-                  .elementwise(ra3.select(ra3.star))
+                  .done
               }
             }
           }
@@ -1374,16 +1376,16 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       assertEquals(toFrame(tableB), tF2.resetRowIndex)
 
       val result = tableA
-        .in0 { tableA =>
-          tableB.in0 { tableB =>
+        .in { tableA =>
+          tableB.in { tableB =>
             tableA[I32Var, I32Var](0, 3) { (_, aCol3) =>
-              tableB.useColumn[I32Var](3) { bCol3 =>
-                aCol3.join
+              tableB.apply[I32Var](3) { bCol3 =>
+                aCol3.join(ra3.select(ra3.star))
                   .right(bCol3)
                   .withPartitionBase(3)
                   .withPartitionLimit(0)
                   .withMaxSegmentsBufferingAtOnce(2)
-                  .elementwise(ra3.select(ra3.star))
+                  .done
               }
             }
           }
@@ -1477,16 +1479,14 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
 
       val result = toFrame(
         tableA
-          .in[I32Var, I32Var, I32Var, I32Var]((c1, c2, c3, c4) =>
-            c4.groupBy
+          .schema[I32Var, I32Var, I32Var, I32Var].columns{case (c1, c2, c3, c4) =>
+            c4.groupBy(ra3.select(c1.sum, c2.sum, c3.sum, c4.sum as "V4"))
               .withPartitionBase(3)
               .withPartitionLimit(0)
               .withMaxSegmentsBufferingAtOnce(2)
-              .apply(
-                ra3.select(c1.sum, c2.sum, c3.sum, c4.sum as "V4")
-              )
+              
               .all
-          )
+          }
           .evaluate
           .unsafeRunSync()
       )
@@ -1527,18 +1527,16 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
 
       val result = toLongFrame(
         tableA
-          .in[I32Var, I32Var, I32Var, I32Var]((c1, c2, c3, c4) =>
-            c4.groupBy
+          .schema[I32Var, I32Var, I32Var, I32Var].columns{ case (c1, c2, c3, c4) =>
+            c4.groupBy( ra3
+                  .select(c1.sum, c2.sum, c3.sum, c4.sum as "V4")
+                  .where(c1.sum <= 0))
               .withPartitionBase(3)
               .withPartitionLimit(0)
               .withMaxSegmentsBufferingAtOnce(2)
-              .apply(
-                ra3
-                  .select(c1.sum, c2.sum, c3.sum, c4.sum as "V4")
-                  .where(c1.sum <= 0)
-              )
+              
               .count
-          )
+          }
           .evaluate
           .unsafeRunSync()
       )
@@ -1580,9 +1578,9 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
 
       val result = toFrame(
         tableA
-          .in[I32Var, I32Var, I32Var, I32Var]((c1, c2, c3, c4) =>
+          .schema[I32Var, I32Var, I32Var, I32Var].columns{(c1, c2, c3, c4) =>
             reduce(ra3.select(c1.sum, c2.sum, c3.sum, c4.sum as "V4"))
-          )
+          }
           .evaluate
           .unsafeRunSync()
       )
@@ -1714,13 +1712,12 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       val (tableFrame, tableCsv) = generateTable(numRows, numCols)
       println(tableFrame)
       val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
-      val literal = I32
-        .makeBufferFromSeq(Int.MaxValue)
-        .toSegment(LogicalPath("test0", None, 0, 0))
+      val literal = I32.toSegment(I32
+        .makeBufferFromSeq(Int.MaxValue),LogicalPath("test0", None, 0, 0))
         .unsafeRunSync()
 
       val less = ra3Table.rfilterInEquality(0, literal, false).unsafeRunSync()
-      assert(less.columns.head.segments.forall(s => s.as(I32).sf.isEmpty))
+      assert(less.columns.head.segments.forall(s => s.asInstanceOf[SegmentInt].sf.isEmpty))
       val takenF = (0 until 4)
         .map(i => less.bufferSegment(i).unsafeRunSync().toHomogeneousFrame(I32))
         .reduce(_ concat _)
@@ -1795,16 +1792,17 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       assertEquals(toFrame(tableB), tF2.resetRowIndex)
 
       val joined = tableA
-        .in0 { tableA =>
-          tableB.in0 { tableB =>
+        .in { tableA =>
+          tableB.in { tableB =>
             tableA[I32Var, I32Var](0, 3) { (_, aCol3) =>
-              tableB.useColumn[I32Var](3) { bCol3 =>
-                aCol3.join
+              tableB.apply[I32Var](3) { bCol3 =>
+                aCol3.join(ra3.select(ra3.star))
                   .inner(bCol3)
                   .withPartitionBase(3)
                   .withPartitionLimit(0)
                   .withMaxSegmentsBufferingAtOnce(2)
-                  .elementwise(ra3.select(ra3.star))
+                  .done
+                  
               }
             }
           }
@@ -1891,16 +1889,17 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       assertEquals(toFrame(tableB), tF2.resetRowIndex)
 
       val joined = tableA
-        .in0 { tableA =>
-          tableB.in0 { tableB =>
+        .in { tableA =>
+          tableB.in { tableB =>
             tableA[I32Var, I32Var](0, 3) { (_, aCol3) =>
-              tableB.useColumn[I32Var](3) { bCol3 =>
-                aCol3.join
+              tableB.apply[I32Var](3) { bCol3 =>
+                aCol3.join(ra3.select(ra3.star))
                   .inner(bCol3)
                   .withPartitionBase(3)
                   .withPartitionLimit(6)
                   .withMaxSegmentsBufferingAtOnce(2)
-                  .elementwise(ra3.select(ra3.star))
+                  .done
+                  
               }
             }
           }
@@ -1920,16 +1919,17 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
         .reduce(_ concat _)
 
       val joined2 = tableA
-        .in0 { tableA =>
-          tableB.in0 { tableB =>
+        .in { tableA =>
+          tableB.in { tableB =>
             tableA[I32Var, I32Var](0, 3) { (_, aCol3) =>
-              tableB.useColumn[I32Var](3) { bCol3 =>
-                aCol3.join
+              tableB.apply[I32Var](3) { bCol3 =>
+                aCol3.join(ra3.select(ra3.star))
                   .inner(bCol3)
                   .withPartitionBase(3)
                   .withPartitionLimit(6)
                   .withMaxSegmentsBufferingAtOnce(2)
-                  .elementwise(ra3.select(ra3.star))
+                  .done
+                  
               }
             }
           }
@@ -2022,16 +2022,17 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
       println(pre)
 
       val joined = tableA
-        .in0 { tableA =>
-          pre.in0 { tableB =>
+        .in { tableA =>
+          pre.in { tableB =>
             tableA[I32Var, I32Var](0, 3) { (_, aCol3) =>
-              tableB.useColumn[I32Var](3) { bCol3 =>
-                aCol3.join
+              tableB.apply[I32Var](3) { bCol3 =>
+                aCol3.join(ra3.select(ra3.star))
                   .inner(bCol3)
                   .withPartitionBase(3)
                   .withPartitionLimit(6)
                   .withMaxSegmentsBufferingAtOnce(2)
-                  .elementwise(ra3.select(ra3.star))
+                  .done
+                  
               }
             }
           }
@@ -2051,16 +2052,17 @@ class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
         .reduce(_ concat _)
 
       val joined2 = tableA
-        .in0 { tableA =>
-          tableB.in0 { tableB =>
+        .in { tableA =>
+          tableB.in { tableB =>
             tableA[I32Var, I32Var](0, 3) { (_, aCol3) =>
-              tableB.useColumn[I32Var](3) { bCol3 =>
-                aCol3.join
+              tableB.apply[I32Var](3) { bCol3 =>
+                aCol3.join(ra3.select(ra3.star))
                   .inner(bCol3)
                   .withPartitionBase(3)
                   .withPartitionLimit(6)
                   .withMaxSegmentsBufferingAtOnce(2)
-                  .elementwise(ra3.select(ra3.star))
+                  .done
+                  
               }
             }
           }

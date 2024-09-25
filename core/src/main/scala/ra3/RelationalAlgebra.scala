@@ -3,8 +3,6 @@ package ra3
 import cats.effect.IO
 import tasks.{TaskSystemComponents}
 import ra3.ts.ExportCsv
-import tablelang._
-import lang._
 private[ra3] trait RelationalAlgebra { self: Table =>
 
   /**   - For each aligned index segment, buffer it
@@ -29,12 +27,12 @@ private[ra3] trait RelationalAlgebra { self: Table =>
         IO.parTraverseN(math.min(32, indexes.segments.size))(
           indexes.segments.zipWithIndex
         ) { case (segment, segmentIdx) =>
-          ts.TakeIndex.queue(
+          ts.TakeIndex.queue(tag = column.tag)(
             input = column.segments(segmentIdx),
             idx = segment,
             outputPath = LogicalPath(name, None, segmentIdx, columnIdx)
           )
-        }.map { segments => column.tag.makeColumn(segments) }
+        }.map { segments => column.tag.makeTaggedColumn(column.tag.makeColumn(segments)) }
 
       }.map(columns =>
         Table(
@@ -62,22 +60,22 @@ private[ra3] trait RelationalAlgebra { self: Table =>
     * @return
     */
   def rfilter(
-      predicate: Column
+      predicate: TaggedColumn
   )(implicit tsc: TaskSystemComponents): IO[Table] = {
-    assert(self.columns.head.segments.size == predicate.segments.size)
-    ts.MakeUniqueId.queue(self, "rfilter", List(predicate)).flatMap { name =>
+    assert(self.columns.head.segments.size == predicate.tag.segments(predicate.column).size)
+    ts.MakeUniqueId.queue(self, "rfilter", List(predicate.column)).flatMap { name =>
       IO.parTraverseN(math.min(32, self.columns.size))(
         self.columns.zipWithIndex
       ) { case (column, columnIdx) =>
-        IO.parTraverseN(math.min(32, predicate.segments.size))(
-          predicate.segments.zipWithIndex
+        IO.parTraverseN(math.min(32, predicate.tag.segments(predicate.column).size))(
+          predicate.tag.segments(predicate.column).zipWithIndex
         ) { case (segment, segmentIdx) =>
-          ts.Filter.queue(
+          ts.Filter.queue(tag = column.tag, predicateTag = predicate.tag)(
             input = column.segments(segmentIdx),
             predicate = segment,
             outputPath = LogicalPath(name, None, segmentIdx, columnIdx)
           )
-        }.map(segments => column.tag.makeColumn(segments))
+        }.map(segments => column.tag.makeTaggedColumn(column.tag.makeColumn(segments)))
 
       }.map(columns =>
         Table(
@@ -89,10 +87,10 @@ private[ra3] trait RelationalAlgebra { self: Table =>
       )
     }
   }
-  // def in0(
-  //     body: ra3.tablelang.TableExpr.Ident => ra3.tablelang.TableExpr
-  // ): ra3.tablelang.TableExpr =
-  //   ra3.lang.local(ra3.tablelang.TableExpr.Const(this))(body)
+  def in(
+      body: ra3.tablelang.TableExpr.Ident => ra3.tablelang.TableExpr
+  ): ra3.tablelang.TableExpr =
+    ra3.tablelang.local(ra3.tablelang.TableExpr.Const(this))(body)
 
   // def in[T0 <: Expr.DelayedIdent: NotNothing](
   //     body: (T0) => TableExpr
@@ -193,7 +191,8 @@ private[ra3] trait RelationalAlgebra { self: Table =>
       lessThan: Boolean
   )(implicit tsc: TaskSystemComponents): IO[Table] = {
     val comparisonColumn = self.columns(columnIdx)
-    val castedCutoff = cutoff.as(comparisonColumn)
+
+    val castedCutoff = cutoff.asInstanceOf[comparisonColumn.tag.SegmentType]
 
     ts.MakeUniqueId
       .queue(
@@ -208,14 +207,18 @@ private[ra3] trait RelationalAlgebra { self: Table =>
           IO.parTraverseN(math.min(32, comparisonColumn.segments.size))(
             comparisonColumn.segments.zipWithIndex
           ) { case (comparisonSegment, segmentIdx) =>
+            val inputSegment = column.segments(segmentIdx)
             ts.FilterInequality.queue(
-              comparison = comparisonSegment,
-              input = column.segments(segmentIdx),
+              tag = column.tag,
+              comparisonTag = comparisonColumn.tag
+            )(
+              comparison = comparisonSegment: comparisonColumn.tag.SegmentType,
+              input = inputSegment,
               cutoff = castedCutoff,
               outputPath = LogicalPath(name, None, segmentIdx, columnIdx),
               lessThan = lessThan
             )
-          }.map(segments => column.tag.makeColumn(segments))
+          }.map(segments => column.tag.makeTaggedColumn(column.tag.makeColumn(segments.toVector)))
 
         }.map(sx =>
           Table(
@@ -244,7 +247,7 @@ private[ra3] trait RelationalAlgebra { self: Table =>
       val pz = parts.zipWithIndex
       val partitionMapOverSegments =
         pz.flatMap(v => v._1.segmentation.map(_ => v._2))
-      val cat = parts.reduce(_ concatenate _)
+      val cat = parts.reduce(_ `concatenate` _)
 
       Table(
         cat.columns,
@@ -286,7 +289,7 @@ private[ra3] trait RelationalAlgebra { self: Table =>
               .filter(_._1 == pIdx)
               .map(_._2)
           val columns = self.columns.map { col =>
-            col.tag.makeColumn(segmentIdx.map(col.segments))
+            col.tag.makeTaggedColumn(col.tag.makeColumn(segmentIdx.map(col.segments)))
           }
           PartitionedTable(columns, PartitionMeta(columnIdx, partitionBase))
         }
@@ -309,7 +312,7 @@ private[ra3] trait RelationalAlgebra { self: Table =>
             .filter(_._1 == pIdx)
             .map(_._2)
         val columns = self.columns.map { col =>
-          col.tag.makeColumn(segmentIdx.map(col.segments))
+          col.tag.makeTaggedColumn(col.tag.makeColumn(segmentIdx.map(col.segments)))
         }
         PartitionedTable(columns, pmetaPrefix)
       }
@@ -485,7 +488,7 @@ private[ra3] trait RelationalAlgebra { self: Table =>
     val name = ts.MakeUniqueId.queue(
       self,
       s"concat",
-      this.columns ++ others.flatMap(_.columns)
+      (this.columns ++ others.flatMap(_.columns)).map(_.column)
     )
     name.map { name =>
       val all = Seq(self) ++ others
@@ -493,7 +496,7 @@ private[ra3] trait RelationalAlgebra { self: Table =>
       assert(all.map(_.columns.map(_.tag)).distinct.size == 1)
       val columns = all.head.columns.size
       val cols = 0 until columns map { cIdx =>
-        all.map(_.columns(cIdx)).reduce(_ castAndConcatenate _)
+        all.map(_.columns(cIdx)).reduce(_ `castAndConcatenate` _)
       } toVector
 
       Table(cols, all.head.colNames, name, None)
@@ -501,14 +504,14 @@ private[ra3] trait RelationalAlgebra { self: Table =>
   }
 
   /** Concat list of columns */
-  def addColOfSameSegmentation(c: Column, colName: String)(implicit
+  def addColOfSameSegmentation(c: TaggedColumn, colName: String)(implicit
       tsc: TaskSystemComponents
   ): IO[Table] = {
-    assert(c.segments.map(_.numElems) == this.segmentation)
+    assert(c.tag.segments(c.column).map(_.numElems) == this.segmentation)
     val name = ts.MakeUniqueId.queue(
       self,
       s"addcol-$colName",
-      List(c)
+      List(c.column)
     )
     name.map(name =>
       self.copy(
@@ -535,9 +538,12 @@ private[ra3] trait RelationalAlgebra { self: Table =>
       cdfCoverage: Double,
       cdfNumberOfSamplesPerSegment: Int
   )(implicit tsc: TaskSystemComponents): IO[Table] = {
-    val cdf = self
-      .columns(sortColumn)
-      .estimateCDF(cdfCoverage, cdfNumberOfSamplesPerSegment)
+    val cdf = {
+      val col = self
+        .columns(sortColumn)
+      Column
+        .estimateCDF(col.tag)(col.column, cdfCoverage, cdfNumberOfSamplesPerSegment)
+    }
 
     val name = ts.MakeUniqueId.queue(
       self,
@@ -550,8 +556,9 @@ private[ra3] trait RelationalAlgebra { self: Table =>
 
         cdf.topK(perc, ascending).flatMap {
           case Some(value) =>
-            value
+            cdf.tag
               .toSegment(
+                value,
                 LogicalPath(
                   table = name,
                   None,
@@ -584,7 +591,7 @@ private[ra3] trait RelationalAlgebra { self: Table =>
   )(implicit tsc: TaskSystemComponents) = {
     IO.parSequenceN(32)((0 until self.segmentation.size).toList map {
       segmentIdx =>
-        val cols = self.columns.map(_.segments(segmentIdx))
+        val cols = self.columns.map(tc => tc.tag.makeTaggedSegment(tc.tag.segments(tc.column)(segmentIdx)))
         ts.ExportCsv.queue(
           segments = cols,
           columnSeparator = columnSeparator,

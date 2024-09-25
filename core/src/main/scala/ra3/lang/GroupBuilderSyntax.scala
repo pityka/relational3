@@ -1,7 +1,7 @@
 package ra3.lang
 private[ra3] object GroupBy {
-  def apply(a: Expr.DelayedIdent) =
-    GroupBuilderSyntax(a, Vector.empty, None, None, None, None)
+  def apply(a: Expr.DelayedIdent, prg: ra3.lang.Query) =
+    GroupBuilderSyntax(a, Vector.empty, prg, None, None, None)
 }
 
 /** Builder pattern for group by clause. Exit the builder with the partial or the all method. */
@@ -10,7 +10,7 @@ case class GroupBuilderSyntax(
     private val others: Vector[
       (Expr.DelayedIdent)
     ],
-    private val prg: Option[ra3.lang.Query],
+     tracked val prg: ra3.lang.Query,
     private val partitionBase: Option[Int],
     private val partitionLimit: Option[Int],
     private val maxSegmentsToBufferAtOnce: Option[Int]
@@ -25,33 +25,31 @@ case class GroupBuilderSyntax(
   def withPartitionLimit(num: Int) = copy(partitionLimit = Some(num))
   def withMaxSegmentsBufferingAtOnce(num: Int) =
     copy(maxSegmentsToBufferAtOnce = Some(num))
-  def apply(q: ra3.lang.Query) = copy(prg = Some(q))
-  def reduce(q: ra3.lang.Query) = copy(prg = Some(q))
   def all =
     ra3.tablelang.TableExpr.GroupThenReduce(
       first,
       others,
-      prg.getOrElse(???),
+      prg,
       // prg.getOrElse(ra3.select(ra3.star)),
       partitionBase.getOrElse(128),
       partitionLimit.getOrElse(10_000_000),
       maxSegmentsToBufferAtOnce.getOrElse(10)
-    )
+    ).asInstanceOf[ra3.tablelang.TableExpr{type T = prg.T}]
   def partial =
     ra3.tablelang.TableExpr.GroupPartialThenReduce(
       first,
       others,
-      prg.getOrElse(???)
+      prg
       // prg.getOrElse(ra3.select(ra3.star))
-    )
+    ).asInstanceOf[ra3.tablelang.TableExpr{type T = prg.T}]
   def count = ra3.tablelang.TableExpr.GroupThenCount(
     first,
     others,
     // prg.getOrElse(ra3.select(ra3.star)),
-    prg.getOrElse(???),
+    prg,
     partitionBase.getOrElse(128),
     partitionLimit.getOrElse(10_000_000),
     maxSegmentsToBufferAtOnce.getOrElse(10)
-  )
+  ).asInstanceOf[ra3.tablelang.TableExpr{type T = ra3.DI32}]
 
 }

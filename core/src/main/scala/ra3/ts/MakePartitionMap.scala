@@ -1,14 +1,14 @@
 package ra3.ts
 
-import ra3._
-import tasks._
-import tasks.jsonitersupport._
-import com.github.plokhotnyuk.jsoniter_scala.macros._
-import com.github.plokhotnyuk.jsoniter_scala.core._
+import ra3.*
+import tasks.*
+import tasks.jsonitersupport.*
+import com.github.plokhotnyuk.jsoniter_scala.macros.*
+import com.github.plokhotnyuk.jsoniter_scala.core.*
 import cats.effect.IO
 
 private[ra3] case class MakePartitionMap(
-    input: Vector[Segment],
+    input: Vector[TaggedSegment],
     outputPath: LogicalPath,
     partitionBase: Int
 )
@@ -17,7 +17,7 @@ private[ra3] object MakePartitionMap {
   // for some reason jsoniter would use that for the codec of MakePartitionMap
   case class Output(segment: SegmentInt)
   def queue(
-      input: Vector[Segment],
+      input: Vector[TaggedSegment],
       partitionBase: Int,
       outputPath: LogicalPath
   )(implicit
@@ -26,7 +26,7 @@ private[ra3] object MakePartitionMap {
     task(MakePartitionMap(input, outputPath, partitionBase))(
       ResourceRequest(
         cpu = (1, 1),
-        memory = input.map(ra3.Utils.guessMemoryUsageInMB).sum,
+        memory = input.map(s => ra3.Utils.guessMemoryUsageInMB(s.segment)).sum,
         scratch = 0,
         gpu = 0
       )
@@ -41,11 +41,11 @@ private[ra3] object MakePartitionMap {
         )
         val b: IO[Vector[Buffer]] = IO.parSequenceN(
           math.min(1, ce.resourceAllocated.cpu)
-        )(input.input.map(_.buffer))
+        )(input.input.map(s => s.tag.buffer(s.segment)))
         b.flatMap { in =>
-          Buffer
+          ColumnTag.I32.toSegment(Buffer
             .computePartitions(buffers = in, num = input.partitionBase)
-            .toSegment(input.outputPath)
+            ,input.outputPath)
             .map(Output(_))
         }
 

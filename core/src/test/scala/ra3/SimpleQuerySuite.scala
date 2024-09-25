@@ -1,9 +1,9 @@
 package ra3
-import org.saddle._
+import org.saddle.*
 
 import cats.effect.unsafe.implicits.global
 import ColumnTag.I32
-import ra3.lang._
+import ra3.lang.*
 import ra3.MissingString
 import ra3.DInst
 class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
@@ -25,7 +25,7 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
           p: (DelayedIdent[DF64], DelayedIdent[DF64]) => I32ColumnExpr
       )(p2: (Vec[Double], Vec[Double]) => Array[Int]) = {
         val less = ra3Table
-          .in[F64Var, F64Var] { (col0, col1) =>
+          .schema[F64Var, F64Var].columns { (col0, col1) =>
             query(
               ra3
                 .select(ra3.star)
@@ -128,7 +128,7 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
         (frame.mapValues(_.toString), csv)
       }
       val ra3Table = csvStringToStringTable("table", tableCsv, 2, 3)
-        .in[StrVar, StrVar] { (col0, col1) =>
+        .schema[StrVar, StrVar].columns { (col0, col1) =>
           query(
             ra3.select(
               col0.matchAndReplace("NA", MissingString) as "V0",
@@ -142,7 +142,7 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
           p: (DelayedIdent[DStr], DelayedIdent[DStr]) => I32ColumnExpr
       )(p2: (Vec[String], Vec[String]) => Array[Int]) = {
         val less = ra3Table
-          .in[StrVar, StrVar] { (col0, col1) =>
+          .schema[StrVar, StrVar].columns { (col0, col1) =>
             query(
               ra3
                 .select(ra3.star)
@@ -250,7 +250,7 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
           p: (DelayedIdent[DI64], DelayedIdent[DI64]) => I32ColumnExpr
       )(p2: (Vec[Long], Vec[Long]) => Array[Int]) = {
         val less = ra3Table
-          .in[I64Var, I64Var] { (col0, col1) =>
+          .schema[I64Var, I64Var].columns { (col0, col1) =>
             query(
               ra3
                 .select(ra3.star)
@@ -357,7 +357,7 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
           p: (GenericExpr[DInst], GenericExpr[DInst]) => I32ColumnExpr
       )(p2: (Vec[Long], Vec[Long]) => Array[Int]) = {
         val less = ra3Table
-          .in[I64Var, I64Var] { (col0, col1) =>
+          .schema[I64Var, I64Var].columns { (col0, col1) =>
             query(
               ra3
                 .select(col0.toInstantEpochMilli, col1.toInstantEpochMilli)
@@ -455,7 +455,7 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
           p: (DelayedIdent[DI32], DelayedIdent[DI32]) => I32ColumnExpr
       )(p2: (Vec[Int], Vec[Int]) => Array[Int]) = {
         val less = ra3Table
-          .in[I32Var, I32Var] { (col0, col1) =>
+          .schema[I32Var, I32Var].columns { (col0, col1) =>
             query(
               ra3
                 .select(ra3.star)
@@ -558,8 +558,8 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
       }
       val ra3Table = csvStringToStringTable("table", tableCsv, 2, 3)
       val less =
-        ra3
-          .let[StrVar, StrVar](ra3Table) { case (col0, _) =>
+        ra3Table
+          .schema[StrVar, StrVar].columns { case (col0, _) =>
             query(
               ra3
                 .select(ra3.star)
@@ -602,8 +602,8 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
       }
       val ra3Table = csvStringToTable("table", tableCsv, 2, 3)
       val less =
-        ra3
-          .let[I32Var, I32Var](ra3Table) { case (col0, col1) =>
+        ra3Table
+          .schema[I32Var, I32Var].columns { case (col0, col1) =>
             query(
               ra3
                 .select(col0.ifelseI32(col0,col1))

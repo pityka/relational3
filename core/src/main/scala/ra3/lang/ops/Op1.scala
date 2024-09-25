@@ -1,24 +1,15 @@
 package ra3.lang.ops
 import cats.effect.IO
 import tasks.TaskSystemComponents
-import ra3._
+import ra3.*
 import ra3.lang.bufferIfNeededWithPrecondition
+import ra3.Utils.* 
+
 private[ra3] sealed trait Op1 {
   type A0
   type T
 
-  def bufferBefore[
-      B <: Buffer { type BufferType = B },
-      S <: Segment { type SegmentType = S; type BufferType = B },
-      C
-  ](
-      arg: Either[B, Seq[S]]
-  )(fun: B => C)(implicit tsc: TaskSystemComponents) =
-    arg match {
-      case Left(b) => IO.pure(Left(fun(b)))
-      case Right(s) =>
-        ra3.Utils.bufferMultiple(s).map(b => Left(fun(b)))
-    }
+  
   def op(a: A0)(implicit tsc: TaskSystemComponents): IO[T]
 }
 
@@ -39,10 +30,10 @@ private[ra3] object Op1 {
   //     IO.pure(ra3.lang.ReturnValue(a, None))
   // }
   object MkReturnValue1 extends Op1 {
-    type A0 = ra3.lang.ColumnSpec[_]
-    type T = ra3.lang.ReturnValue1[_]
-    def op(a: ra3.lang.ColumnSpec[_])(implicit tsc: TaskSystemComponents) =
-      IO.pure(ra3.lang.ReturnValue1(a,None))
+    type A0 = ra3.lang.ColumnSpec[?]
+    type T = ra3.lang.ReturnValue1[?]
+    def op(a: ra3.lang.ColumnSpec[?])(implicit tsc: TaskSystemComponents) =
+      IO.pure(ra3.lang.ReturnValue1(a, None))
   }
 
   // case object MkRawWhere extends Op1 {
@@ -53,7 +44,7 @@ private[ra3] object Op1 {
   // }
 
   case object MkUnnamedColumnSpecChunk extends Op1 {
-    type A0 = Either[Buffer, Seq[Segment]]
+    type A0 = Either[TaggedBuffer, TaggedSegments]
     type T = ra3.lang.UnnamedColumnChunk
     def op(a: A0)(implicit tsc: TaskSystemComponents) =
       IO.pure(ra3.lang.UnnamedColumnChunk(a))
@@ -168,12 +159,12 @@ private[ra3] object Op1 {
   case object ColumnAbsOpI extends ColumnOp1II {
     def op(
         a: ra3.DI32
-    )(implicit tsc: TaskSystemComponents) = bufferBefore(a)(_.elementwise_abs)
+    )(implicit tsc: TaskSystemComponents) = bufferBeforeI32(a)(_.elementwise_abs)
   }
   case object ColumnNotOpI extends ColumnOp1II {
     def op(
         a: ra3.DI32
-    )(implicit tsc: TaskSystemComponents) = bufferBefore(a)(_.elementwise_not)
+    )(implicit tsc: TaskSystemComponents) = bufferBeforeI32(a)(_.elementwise_not)
   }
 
   case object ColumnIsMissingOpL extends ColumnOp1LI {
@@ -181,7 +172,7 @@ private[ra3] object Op1 {
         a: ra3.DI64
     )(implicit tsc: TaskSystemComponents) =
       for {
-        a <- bufferIfNeededWithPrecondition(a)((segment: SegmentLong) =>
+        a <- bufferIfNeededWithPrecondition(ColumnTag.I64)(a)((segment: SegmentLong) =>
           segment.statistic.hasMissing
         )
       } yield (a match {
@@ -195,7 +186,7 @@ private[ra3] object Op1 {
         a: ra3.DF64
     )(implicit tsc: TaskSystemComponents) =
       for {
-        a <- bufferIfNeededWithPrecondition(a)((segment: SegmentDouble) =>
+        a <- bufferIfNeededWithPrecondition(ColumnTag.F64)(a)((segment: SegmentDouble) =>
           segment.statistic.hasMissing
         )
       } yield (a match {
@@ -209,7 +200,7 @@ private[ra3] object Op1 {
         a: ra3.DStr
     )(implicit tsc: TaskSystemComponents) =
       for {
-        a <- bufferIfNeededWithPrecondition(a)((segment: SegmentString) =>
+        a <- bufferIfNeededWithPrecondition(ColumnTag.StringTag)(a)((segment: SegmentString) =>
           segment.statistic.hasMissing
         )
       } yield (a match {
@@ -221,19 +212,19 @@ private[ra3] object Op1 {
   case object ColumnAbsOpD extends ColumnOp1DD {
     def op(
         a: ra3.DF64
-    )(implicit tsc: TaskSystemComponents) = bufferBefore(a)(_.elementwise_abs)
+    )(implicit tsc: TaskSystemComponents) = bufferBeforeF64(a)(_.elementwise_abs)
   }
   case object ColumnRoundToDoubleOpD extends ColumnOp1DD {
     def op(
         a: ra3.DF64
     )(implicit tsc: TaskSystemComponents) =
-      bufferBefore(a)(_.elementwise_roundToDouble)
+      bufferBeforeF64(a)(_.elementwise_roundToDouble)
   }
   case object ColumnRoundToIntOpD extends ColumnOp1DI {
     def op(
         a: ra3.DF64
     )(implicit tsc: TaskSystemComponents) =
-      bufferBefore(a)(_.elementwise_roundToInt)
+      bufferBeforeF64(a)(_.elementwise_roundToInt)
   }
 
   case object ColumnIsMissingOpI extends ColumnOp1II {
@@ -241,7 +232,7 @@ private[ra3] object Op1 {
         a: ra3.DI32
     )(implicit tsc: TaskSystemComponents) =
       for {
-        a <- bufferIfNeededWithPrecondition(a)((segment: SegmentInt) =>
+        a <- bufferIfNeededWithPrecondition(ColumnTag.I32)(a)((segment: SegmentInt) =>
           segment.statistic.hasMissing
         )
       } yield (a match {
@@ -254,7 +245,7 @@ private[ra3] object Op1 {
     def op(
         a: ra3.DI32
     )(implicit tsc: TaskSystemComponents) =
-      bufferBefore(a)(_.elementwise_toDouble)
+      bufferBeforeI32(a)(_.elementwise_toDouble)
   }
 
   case object ColumnIsMissingOpInst extends ColumnOp1InstI {
@@ -262,7 +253,7 @@ private[ra3] object Op1 {
         a: ra3.DInst
     )(implicit tsc: TaskSystemComponents) =
       for {
-        a <- bufferIfNeededWithPrecondition(a)((segment: SegmentInstant) =>
+        a <- bufferIfNeededWithPrecondition(ColumnTag.Instant)(a)((segment: SegmentInstant) =>
           segment.statistic.hasMissing
         )
       } yield (a match {
@@ -275,119 +266,119 @@ private[ra3] object Op1 {
     def op(
         a: ra3.DInst
     )(implicit tsc: TaskSystemComponents) =
-      bufferBefore(a)(_.elementwise_toDouble)
+      bufferBeforeInstant(a)(_.elementwise_toDouble)
   }
   case object ColumnToLongOpInst extends ColumnOp1InstL {
     def op(
         a: ra3.DInst
     )(implicit tsc: TaskSystemComponents) =
-      bufferBefore(a)(_.elementwise_toLong)
+      bufferBeforeInstant(a)(_.elementwise_toLong)
   }
   case object ColumnYearsOpInst extends ColumnOp1InstI {
     def op(
         a: ra3.DInst
-    )(implicit tsc: TaskSystemComponents) = bufferBefore(a)(_.elementwise_years)
+    )(implicit tsc: TaskSystemComponents) = bufferBeforeInstant(a)(_.elementwise_years)
   }
   case object ColumnMonthsOpInst extends ColumnOp1InstI {
     def op(
         a: ra3.DInst
     )(implicit tsc: TaskSystemComponents) =
-      bufferBefore(a)(_.elementwise_months)
+      bufferBeforeInstant(a)(_.elementwise_months)
   }
   case object ColumnDaysOpInst extends ColumnOp1InstI {
     def op(
         a: ra3.DInst
-    )(implicit tsc: TaskSystemComponents) = bufferBefore(a)(_.elementwise_days)
+    )(implicit tsc: TaskSystemComponents) = bufferBeforeInstant(a)(_.elementwise_days)
   }
   case object ColumnHoursOpInst extends ColumnOp1InstI {
     def op(
         a: ra3.DInst
-    )(implicit tsc: TaskSystemComponents) = bufferBefore(a)(_.elementwise_hours)
+    )(implicit tsc: TaskSystemComponents) = bufferBeforeInstant(a)(_.elementwise_hours)
   }
   case object ColumnMinutesOpInst extends ColumnOp1InstI {
     def op(
         a: ra3.DInst
     )(implicit tsc: TaskSystemComponents) =
-      bufferBefore(a)(_.elementwise_minutes)
+      bufferBeforeInstant(a)(_.elementwise_minutes)
   }
   case object ColumnSecondsOpInst extends ColumnOp1InstI {
     def op(
         a: ra3.DInst
     )(implicit tsc: TaskSystemComponents) =
-      bufferBefore(a)(_.elementwise_seconds)
+      bufferBeforeInstant(a)(_.elementwise_seconds)
   }
 
   case object ColumnNanosecondsOpInst extends ColumnOp1InstI {
     def op(
         a: ra3.DInst
     )(implicit tsc: TaskSystemComponents) =
-      bufferBefore(a)(_.elementwise_nanoseconds)
+      bufferBeforeInstant(a)(_.elementwise_nanoseconds)
   }
   case object ColumnRoundToYearOpInst extends ColumnOp1InstInst {
     def op(
         a: ra3.DInst
     )(implicit tsc: TaskSystemComponents) =
-      bufferBefore(a)(_.elementwise_roundToYear)
+      bufferBeforeInstant(a)(_.elementwise_roundToYear)
   }
   case object ColumnRoundToMonthOpInst extends ColumnOp1InstInst {
     def op(
         a: ra3.DInst
     )(implicit tsc: TaskSystemComponents) =
-      bufferBefore(a)(_.elementwise_roundToMonth)
+      bufferBeforeInstant(a)(_.elementwise_roundToMonth)
   }
   case object ColumnRoundToDayOpInst extends ColumnOp1InstInst {
     def op(
         a: ra3.DInst
     )(implicit tsc: TaskSystemComponents) =
-      bufferBefore(a)(_.elementwise_roundToDay)
+      bufferBeforeInstant(a)(_.elementwise_roundToDay)
   }
   case object ColumnRoundToHourOpInst extends ColumnOp1InstInst {
     def op(
         a: ra3.DInst
     )(implicit tsc: TaskSystemComponents) =
-      bufferBefore(a)(_.elementwise_roundToHours)
+      bufferBeforeInstant(a)(_.elementwise_roundToHours)
   }
 
   case object ColumnParseI32OpStr extends ColumnOp1StrI {
     def op(
         a: ra3.DStr
     )(implicit tsc: TaskSystemComponents) =
-      bufferBefore(a)(_.elementwise_parseInt)
+      bufferBeforeString(a)(_.elementwise_parseInt)
   }
   case object ColumnParseF64OpStr extends ColumnOp1StrD {
     def op(
         a: ra3.DStr
     )(implicit tsc: TaskSystemComponents) =
-      bufferBefore(a)(_.elementwise_parseDouble)
+      bufferBeforeString(a)(_.elementwise_parseDouble)
   }
   case object ColumnParseI64OpStr extends ColumnOp1StrL {
     def op(
         a: ra3.DStr
     )(implicit tsc: TaskSystemComponents) =
-      bufferBefore(a)(_.elementwise_parseLong)
+      bufferBeforeString(a)(_.elementwise_parseLong)
   }
   case object ColumnParseInstOpStr extends ColumnOp1StrInst {
     def op(
         a: ra3.DStr
     )(implicit tsc: TaskSystemComponents) =
-      bufferBefore(a)(_.elementwise_parseInstant)
+      bufferBeforeString(a)(_.elementwise_parseInstant)
   }
   case object ColumnToISOOpInst extends ColumnOp1InstStr {
     def op(
         a: ra3.DInst
-    )(implicit tsc: TaskSystemComponents) = bufferBefore(a)(_.elementwise_toISO)
+    )(implicit tsc: TaskSystemComponents) = bufferBeforeInstant(a)(_.elementwise_toISO)
   }
   case object ColumnToDoubleOpL extends ColumnOp1LD {
     def op(
         a: ra3.DI64
     )(implicit tsc: TaskSystemComponents) =
-      bufferBefore(a)(_.elementwise_toDouble)
+      bufferBeforeI64(a)(_.elementwise_toDouble)
   }
   case object ColumnToInstantEpochMilliOpL extends ColumnOp1LInst {
     def op(
         a: ra3.DI64
     )(implicit tsc: TaskSystemComponents) =
-      bufferBefore(a)(_.elementwise_toInstantEpochMilli)
+      bufferBeforeI64(a)(_.elementwise_toInstantEpochMilli)
   }
 
 }

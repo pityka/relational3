@@ -1,6 +1,6 @@
-import tasks._
-import ra3.lang._
-import ra3.tablelang._
+import tasks.*
+import ra3.lang.*
+import ra3.tablelang.*
 
 /** ra3 provides an embedded query language and its corresponding query engine.
   *
@@ -65,12 +65,11 @@ package object ra3 {
     * with content of the \u0001 character.
     */
   val MissingString = BufferString.MissingValue.toString
-  type ColumnVariable[T] = ra3.lang.DelayedIdent[T]
-  type StrVar = ra3.lang.DelayedIdent[DStr]
-  type I32Var = ra3.lang.DelayedIdent[DI32]
-  type I64Var = ra3.lang.DelayedIdent[DI64]
-  type F64Var = ra3.lang.DelayedIdent[DF64]
-  type InstVar = ra3.lang.DelayedIdent[DInst]
+  type StrVar = DStr
+  type I32Var = DI32
+  type I64Var = DI64
+  type F64Var = DF64
+  type InstVar = DInst
 
   type TableVariable = ra3.tablelang.TableExpr.Ident
   type TableExpr = ra3.tablelang.TableExpr
@@ -153,11 +152,10 @@ package object ra3 {
   /** The expression which selects all column as is */
   val star: Expr { type T = ra3.lang.ColumnSpec[Any] } = ra3.lang.Expr.Star
 
-  
-
   /** Variable assigning let expression.
     *
-    * @param assigned the expression which is being assigned
+    * @param assigned
+    *   the expression which is being assigned
     * @param body
     *   the variable (the scala variable which is bound in the lambda) and the
     *   expression which is using the variable
@@ -168,28 +166,46 @@ package object ra3 {
     ra3.lang.local(assigned)(body)
 
   /** Elementwise or group wise projection */
-     def select[T0](arg0: ColumnSpecExpr[T0]): Expr{type T = ra3.lang.ReturnValue1[T0]} = ra3.lang.Expr
+  def select[T0](
+      arg0: ColumnSpecExpr[T0]
+  ): Expr { type T = ra3.lang.ReturnValue1[T0] } = ra3.lang.Expr
     .BuiltInOp1(arg0, ops.Op1.MkReturnValue1)
     .asInstanceOf[Expr { type T = ReturnValue1[T0] }]
 
-     def select[T0,T1](
-      arg0:  ColumnSpecExpr[T0],
-      arg1:  ColumnSpecExpr[T1],
-      ) = ra3.lang.Expr
-    .BuiltInOp2(arg0,arg1, ops.Op2.MkReturnValue2)
-    .asInstanceOf[Expr { type T = ReturnValue2[T0,T1] }]
+  def select[T0, T1](
+      arg0: Expr { type T = ColumnSpec[T0] },
+      arg1: Expr { type T = ColumnSpec[T1] }
+  ) = ra3.lang.Expr
+    .BuiltInOp2(arg0, arg1, ops.Op2.MkReturnValue2)
+    .asInstanceOf[Expr { type T = ReturnValue2[T0, T1] }]
+  def select[T0, T1, T2](
+      arg0: Expr { type T = ColumnSpec[T0] },
+      arg1: Expr { type T = ColumnSpec[T1] },
+      arg2: Expr { type T = ColumnSpec[T2] }
+  ) = ra3.lang.Expr
+    .BuiltInOp3(arg0, arg1,arg2, ops.Op3.MkReturnValue3)
+    .asInstanceOf[Expr { type T = ReturnValue3[T0, T1, T2] }]
+  def select[T0, T1, T2,T3](
+      arg0: Expr { type T = ColumnSpec[T0] },
+      arg1: Expr { type T = ColumnSpec[T1] },
+      arg2: Expr { type T = ColumnSpec[T2] },
+      arg3: Expr { type T = ColumnSpec[T3] },
+  ) = ra3.lang.Expr
+    .BuiltInOp4(arg0, arg1,arg2, arg3, ops.Op3.MkReturnValue4)
+    .asInstanceOf[Expr { type T = ReturnValue4[T0, T1, T2, T3] }]
+  def select[T0, T1, T2,T3,T4](
+      arg0: Expr { type T = ColumnSpec[T0] },
+      arg1: Expr { type T = ColumnSpec[T1] },
+      arg2: Expr { type T = ColumnSpec[T2] },
+      arg3: Expr { type T = ColumnSpec[T3] },
+      arg4: Expr { type T = ColumnSpec[T4] },
+  ) = ra3.lang.Expr
+    .BuiltInOp5(arg0, arg1,arg2, arg3,arg4, ops.Op3.MkReturnValue5)
+    .asInstanceOf[Expr { type T = ReturnValue5[T0, T1, T2, T3,T4] }]
 
-  // def select[T0,T1](
-  //   projExpr: Expr { type T = Proj2[T0,T1] }
-    
-  // ): ReturnExpr2[T0,T1] = 
-  //   Expr.makeOp1(ops.Op1.MkSelect)(projExpr).asInstanceOf[ReturnExpr2[T0,T1]]
-  /** Alias of select */
-  // def project(args: Expr { type T = ColumnSpec }*): ReturnExpr = {
-  //   Expr.makeOpStar(ops.OpStar.MkSelect)(args: _*)
-  // }
+  
 
-  // def where(arg0: I32ColumnExpr): ReturnExpr =
+  // def where(arg0: I32ColumnExpr) =
   //   Expr.makeOp1(ops.Op1.MkRawWhere)(arg0)
   // def filter(arg0: I32ColumnExpr): ReturnExpr =
   //   where(arg0)
@@ -201,7 +217,7 @@ package object ra3 {
       tables.size == 1,
       s"0 or more than 1 tables referenced in this query $prg"
     )
-    ra3.tablelang.TableExpr.SimpleQuery(tables.head, prg)
+    ra3.tablelang.TableExpr.SimpleQuery(tables.head, prg).asInstanceOf[TableExpr { type T = prg.T }]
   }
 
   /** Count query consisting of elementwise (row-wise) filter and counting those
@@ -214,7 +230,7 @@ package object ra3 {
       tables.size == 1,
       s"0 or more than 1 tables referenced in this query $prg"
     )
-    ra3.tablelang.TableExpr.SimpleQueryCount(tables.head, prg)
+    ra3.tablelang.TableExpr.SimpleQueryCount(tables.head, prg).asInstanceOf[TableExpr { type T = prg.T }]
   }
 
   /** Full table reduction
@@ -237,7 +253,7 @@ package object ra3 {
     ra3.tablelang.TableExpr.ReduceTable(
       arg0 = tables.head,
       groupwise = prg
-    )
+    ).asInstanceOf[TableExpr { type T = prg.T }]
   }
 
   /** Partial reduction
@@ -256,206 +272,11 @@ package object ra3 {
     ra3.tablelang.TableExpr.FullTablePartialReduce(
       arg0 = tables.head,
       groupwise = prg
-    )
+    ).asInstanceOf[TableExpr { type T = prg.T }]
   }
 
-  // /** Variable assigning let expression where the assigned part is a single
-  //   * Table
-  //   */
-  // def let0(assigned: ra3.Table)(
-  //     body: TableExpr.Ident => TableExpr
-  // ): TableExpr =
-  //   local1(TableExpr.Const(assigned))(body)
 
-  // /** Variable assigning let expression with column decomposition
-  //   *
-  //   * The assigned expression is a single table. The receiver is a typed
-  //   * variable referencing the first column of the table.
-  //   *
-  //   * Care must be taken annotate type of the column correctly, otherwise
-  //   * runtime error will occur.
-  //   */
-  // def let[T0<: Expr.DelayedIdent: NotNothing](assigned: ra3.Table)(
-  //     body: (T0) => TableExpr
-  // ): TableExpr = {
-  //   local1(TableExpr.Const(assigned)) { t =>
-  //     body(t.apply[T0](0))
-
-  //   }
-  // }
-
-  // def let[T0<: Expr.DelayedIdent: NotNothing](assigned: ra3.TableExpr)(
-  //     body: (T0) => TableExpr
-  // ): TableExpr = {
-  //   local(assigned) { t =>
-  //     body(t.apply[T0](0))
-
-  //   }
-  // }
-
-  // /** Variable assigning let expression with column decomposition of two columns
-  //   *
-  //   * See the single column version for documentation.
-  //   *
-  //   * Decomposes the first two columns.
-  //   */
-  // def let[T0<: Expr.DelayedIdent: NotNothing, T1<: Expr.DelayedIdent: NotNothing](assigned: ra3.Table)(
-  //     body: (
-  //         T0,
-  //         T1
-  //     ) => TableExpr
-  // ): TableExpr = {
-  //   local(TableExpr.Const(assigned)) { t =>
-  //     t.apply[T0, T1](0, 1) { case (c0, c1) =>
-  //       body(c0, c1)
-  //     }
-  //   }
-  // }
-
-  // def let[T0<: Expr.DelayedIdent: NotNothing, T1<: Expr.DelayedIdent: NotNothing](assigned: ra3.TableExpr)(
-  //     body: (
-  //         T0,
-  //         T1
-  //     ) => TableExpr
-  // ): TableExpr = {
-  //   local(assigned) { t =>
-  //     t.apply[T0, T1](0, 1) { case (c0, c1) =>
-  //       body(c0, c1)
-  //     }
-  //   }
-  // }
-
-  // /** Variable assigning let expression with column decomposition of 3 columns
-  //   *
-  //   * See the single column version for documentation.
-  //   *
-  //   * Decomposes the first 3 columns.
-  //   */
-  // def let[T0<: Expr.DelayedIdent: NotNothing, T1<: Expr.DelayedIdent: NotNothing, T2<: Expr.DelayedIdent: NotNothing](
-  //     assigned: ra3.Table
-  // )(
-  //     body: (
-  //         T0,
-  //         T1,
-  //         T2
-  //     ) => TableExpr
-  // ): TableExpr = {
-  //   local(TableExpr.Const(assigned)) { t =>
-  //     t.apply[T0, T1, T2](0, 1, 2) { case (c0, c1, c2) =>
-  //       body(c0, c1, c2)
-  //     }
-  //   }
-  // }
-
-  // def let[T0<: Expr.DelayedIdent: NotNothing, T1<: Expr.DelayedIdent: NotNothing, T2<: Expr.DelayedIdent: NotNothing](
-  //     assigned: ra3.TableExpr
-  // )(
-  //     body: (
-  //         T0,
-  //         T1,
-  //         T2
-  //     ) => TableExpr
-  // ): TableExpr = {
-  //   local(assigned) { t =>
-  //     t.apply[T0, T1, T2](0, 1, 2) { case (c0, c1, c2) =>
-  //       body(c0, c1, c2)
-  //     }
-  //   }
-  // }
-
-  // /** Variable assigning let expression with column decomposition of 4 columns
-  //   *
-  //   * See the single column version for documentation.
-  //   *
-  //   * Decomposes the first 4 columns.
-  //   */
-  // def let[T0<: Expr.DelayedIdent: NotNothing, T1<: Expr.DelayedIdent: NotNothing, T2<: Expr.DelayedIdent: NotNothing, T3<: Expr.DelayedIdent: NotNothing](
-  //     assigned: ra3.Table
-  // )(
-  //     body: (
-  //         T0,
-  //         T1,
-  //         T2,
-  //         T3
-  //     ) => TableExpr
-  // ): TableExpr = {
-  //   local(TableExpr.Const(assigned)) { t =>
-  //     t.apply[T0, T1, T2, T3](0, 1, 2, 3) { case (c0, c1, c2, c3) =>
-  //       body(c0, c1, c2, c3)
-  //     }
-  //   }
-  // }
-
-  // def let[T0<: Expr.DelayedIdent: NotNothing, T1<: Expr.DelayedIdent: NotNothing, T2<: Expr.DelayedIdent: NotNothing, T3<: Expr.DelayedIdent: NotNothing](
-  //     assigned: ra3.TableExpr
-  // )(
-  //     body: (
-  //         T0,
-  //         T1,
-  //         T2,
-  //         T3
-  //     ) => TableExpr
-  // ): TableExpr = {
-  //   local(assigned) { t =>
-  //     t.apply[T0, T1, T2, T3](0, 1, 2, 3) { case (c0, c1, c2, c3) =>
-  //       body(c0, c1, c2, c3)
-  //     }
-  //   }
-  // }
-
-  // /** Variable assigning let expression with column decomposition of 5 columns
-  //   *
-  //   * See the single column version for documentation.
-  //   *
-  //   * Decomposes the first 5 columns.
-  //   */
-  // def let[
-  //     T0<: Expr.DelayedIdent: NotNothing,
-  //     T1<: Expr.DelayedIdent: NotNothing,
-  //     T2<: Expr.DelayedIdent: NotNothing,
-  //     T3<: Expr.DelayedIdent: NotNothing,
-  //     T4<: Expr.DelayedIdent: NotNothing
-  // ](
-  //     assigned: ra3.Table
-  // )(
-  //     body: (
-  //         T0,
-  //         T1,
-  //         T2,
-  //         T3,
-  //         T4
-  //     ) => TableExpr
-  // ): TableExpr = {
-  //   local(TableExpr.Const(assigned)) { t =>
-  //     t.apply[T0, T1, T2, T3, T4](0, 1, 2, 3, 4) { case (c0, c1, c2, c3, c4) =>
-  //       body(c0, c1, c2, c3, c4)
-  //     }
-  //   }
-  // }
-
-  // def let[
-  //     T0<: Expr.DelayedIdent: NotNothing,
-  //     T1<: Expr.DelayedIdent: NotNothing,
-  //     T2<: Expr.DelayedIdent: NotNothing,
-  //     T3<: Expr.DelayedIdent: NotNothing,
-  //     T4<: Expr.DelayedIdent: NotNothing
-  // ](
-  //     assigned: ra3.TableExpr
-  // )(
-  //     body: (
-  //         T0,
-  //         T1,
-  //         T2,
-  //         T3,
-  //         T4
-  //     ) => TableExpr
-  // ): TableExpr = {
-  //   local(assigned) { t =>
-  //     t.apply[T0, T1, T2, T3, T4](0, 1, 2, 3, 4) { case (c0, c1, c2, c3, c4) =>
-  //       body(c0, c1, c2, c3, c4)
-  //     }
-  //   }
-  // }
+ 
 
   /** Concatenate the list of rows of multiple tables ('grows downwards') */
   def concatenate(
@@ -464,7 +285,7 @@ package object ra3 {
     val name = ra3.ts.MakeUniqueId.queue(
       others.head,
       s"concat",
-      others.flatMap(_.columns)
+      others.flatMap(_.columns).map(_.column)
     )
     name.map { name =>
       val all = others
@@ -472,7 +293,7 @@ package object ra3 {
       assert(all.map(_.columns.map(_.tag)).distinct.size == 1)
       val columns = all.head.columns.size
       val cols = 0 until columns map { cIdx =>
-        all.map(_.columns(cIdx)).reduce(_ castAndConcatenate _)
+        all.map(_.columns(cIdx)).reduce(_ `castAndConcatenate` _)
       } toVector
 
       Table(cols, all.head.colNames, name, None)

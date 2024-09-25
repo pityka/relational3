@@ -1,21 +1,21 @@
 package ra3.ts
 
-import ra3._
-import tasks._
-import tasks.jsonitersupport._
-import com.github.plokhotnyuk.jsoniter_scala.macros._
-import com.github.plokhotnyuk.jsoniter_scala.core._
+import ra3.*
+import tasks.*
+import tasks.jsonitersupport.*
+import com.github.plokhotnyuk.jsoniter_scala.macros.*
+import com.github.plokhotnyuk.jsoniter_scala.core.*
 import cats.effect.IO
 
 private[ra3] case class BufferColumnAndTakeIndex(
-    input: Column,
+    input: TaggedColumn,
     idx: Option[SegmentInt],
     outputPath: LogicalPath
 )
 private[ra3] object BufferColumnAndTakeIndex {
-  def queue(input: Column, idx: Option[SegmentInt], outputPath: LogicalPath)(
+  def queue(input: TaggedColumn, idx: Option[SegmentInt], outputPath: LogicalPath)(
       implicit tsc: TaskSystemComponents
-  ): IO[input.SegmentType] =
+  ): IO[input.tag.SegmentType] =
     task(BufferColumnAndTakeIndex(input, idx, outputPath))(
       ResourceRequest(
         cpu = (1, 1),
@@ -23,7 +23,7 @@ private[ra3] object BufferColumnAndTakeIndex {
         scratch = 0,
         gpu = 0
       )
-    ).map(_.as(input))
+    ).map((_:Segment).asInstanceOf[input.tag.SegmentType])
 
   implicit val codec: JsonValueCodec[BufferColumnAndTakeIndex] =
     JsonCodecMaker.make
@@ -31,7 +31,7 @@ private[ra3] object BufferColumnAndTakeIndex {
   implicit val codecOut: JsonValueCodec[Segment] = JsonCodecMaker.make
 
   private def doit(
-      input: Column,
+      input: TaggedColumn,
       idx: Option[SegmentInt],
       outputPath: LogicalPath
   )(implicit
@@ -42,18 +42,17 @@ private[ra3] object BufferColumnAndTakeIndex {
     else {
       val bufferedColumn = IO
         .parSequenceN(32)(
-          input.segments.map(_.buffer)
+          input.tag.segments(input.column).map(s => input.tag.buffer(s))
         )
-        .map(b => input.tag.cat(b: _*))
+        .map(b => input.tag.cat(b*))
 
       val bufferedIdx =
         idx.map(_.buffer.map(Some(_))).getOrElse(IO.pure(None))
       IO.both(bufferedColumn, bufferedIdx)
         .flatMap { case (part, idx) =>
-          idx
-            .map(t => part.take(t))
-            .getOrElse(part)
-            .toSegment(outputPath)
+          input.tag.toSegment(idx
+            .map(t => input.tag.take(part,t))
+            .getOrElse(part),outputPath)
         }
     }
   }

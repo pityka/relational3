@@ -1,6 +1,6 @@
 package ra3.lang.syntax
 
-import ra3.lang._
+import ra3.lang.*
 private[ra3] trait SyntaxExprImpl[T0] {
 
   

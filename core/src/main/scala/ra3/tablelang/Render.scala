@@ -1,13 +1,19 @@
 package ra3.tablelang
-import ra3.lang._
+import ra3.lang.*
 import ra3.lang
-import ra3.lang.ops.Op3._
-import ra3.lang.ops.Op2._
-import ra3.lang.ops.Op1._
-import ra3.lang.Expr._
+import ra3.lang.ops.Op3.*
+import ra3.lang.ops.Op2.*
+import ra3.lang.ops.Op1.*
+import ra3.lang.Expr.*
 // import ra3.lang.ops.OpStar.MkSelect
 private[ra3] object Render {
 
+  def render(op: ra3.lang.ops.Op4): String = op match {
+    case MkReturnValue4 => "return"
+  }
+  def render(op: ra3.lang.ops.Op5): String = op match {
+    case MkReturnValue5 => "return"
+  }
   def render(op: ra3.lang.ops.Op3): String = op match {
     case BufferCountInGroupsOpL            => "in"
     case IfElseF64                         => "ifelse"
@@ -121,7 +127,11 @@ private[ra3] object Render {
     case MkNamedConstantF64            => "as"
     case lang.ops.Op2.Tap              => "tap"
     case ColumnPrintfOpDcStr           => "printf"
-    case MkNamedColumnSpecChunk        => "as"
+    case MkNamedColumnSpecChunkI32        => "as"
+    case MkNamedColumnSpecChunkI64        => "as"
+    case MkNamedColumnSpecChunkF64        => "as"
+    case MkNamedColumnSpecChunkString        => "as"
+    case MkNamedColumnSpecChunkInst        => "as"
     case MkNamedConstantStr            => "as"
     case MkNamedConstantI32            => "as"
     case ColumnConcatOpStrcStr         => "++"
@@ -233,6 +243,24 @@ private[ra3] object Render {
       }
       if (args.size == 1) s"${render(args.head)}.${render(op)}"
       else s"${render(op)}(${args.map(render).mkString(", ")})"
+    case BuiltInOp4(arg0, arg1, arg2, arg3, op) =>
+      val args = List(arg0, arg1, arg2, arg3).filter {
+        _ match {
+          case Expr.Ident(_: SingletonKey) => false
+          case _                           => true
+        }
+      }
+      if (args.size == 1) s"${render(args.head)}.${render(op)}"
+      else s"${render(op)}(${args.map(render).mkString(", ")})"
+    case BuiltInOp5(arg0, arg1, arg2, arg3,arg4, op) =>
+      val args = List(arg0, arg1, arg2, arg3,arg4).filter {
+        _ match {
+          case Expr.Ident(_: SingletonKey) => false
+          case _                           => true
+        }
+      }
+      if (args.size == 1) s"${render(args.head)}.${render(op)}"
+      else s"${render(op)}(${args.map(render).mkString(", ")})"
     case LitNum(s) => s"$s"
     // case BuiltInOpStar(args, op) =>
     //   op match {
@@ -275,7 +303,7 @@ private[ra3] object Render {
   }
 
   def render(expr: TableExpr, indent: Int): String = {
-    import TableExpr._
+    import TableExpr.*
     val padInt = (0 until indent).map(_ => "  ").mkString
     expr match {
       case Const(table) =>

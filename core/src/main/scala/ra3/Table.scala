@@ -52,24 +52,24 @@ private[ra3] case class PartitionData(
   * buffering the segment.
   */
 case class Table(
-    private[ra3] columns: Vector[Column],
+    private[ra3] columns: Vector[TaggedColumn],
     colNames: Vector[String],
     private[ra3] uniqueId: String,
     private[ra3] partitions: Option[PartitionData]
 ) extends RelationalAlgebra {
 
   def lift = ra3.tablelang.TableExpr.Const(this)
-  assert(columns.map(_.segments.map(_.numElems)).distinct.size == 1)
+  assert(columns.map(c => c.tag.segments(c.column).map(_.numElems)).distinct.size == 1)
 
   def numCols = columns.size
   def numRows =
-    columns.map(_.segments.map(_.numElems.toLong).sum).headOption.getOrElse(0L)
+    columns.map(c => c.tag.segments(c.column).map(_.numElems.toLong).sum).headOption.getOrElse(0L)
 
   /** Returns one integer list, of the same size as the number of segments,
     * items being the size of segments
     */
   def segmentation =
-    columns.map(_.segments.map(_.numElems)).headOption.getOrElse(Nil)
+    columns.map(c => c.tag.segments(c.column).map(_.numElems)).headOption.getOrElse(Nil)
 
   def mapColIndex(f: String => String) = copy(colNames = colNames.map(f))
 
@@ -109,7 +109,9 @@ case class Table(
   def bufferSegment(
       idx: Int
   )(implicit tsc: TaskSystemComponents): IO[BufferedTable] = {
-    IO.parSequenceN(32)(columns.map(_.segments(idx).buffer: IO[Buffer]))
+    IO.parSequenceN(32)(columns.map{v => 
+      val segment = v.tag.segments(v.column)(idx)
+      v.tag.buffer(segment): IO[Buffer]})
       .map { buffers =>
         BufferedTable(buffers, colNames)
       }
@@ -121,9 +123,11 @@ case class Table(
   ): fs2.Stream[IO, BufferedTable] = {
     if (columns.isEmpty) fs2.Stream.empty
     else
-      fs2.Stream
-        .apply(0 until columns.head.segments.size: _*)
+      {val c = columns.head
+        fs2.Stream
+        .apply(0 until c.tag.segments(c.column).size*)
         .evalMap(idx => bufferSegment(idx))
+      }
   }
 
   /** Returns a string summary of the table without data itself
@@ -145,11 +149,135 @@ case class Table(
       }
       ._2
       .map(_.toSeq)
-    val col = tag.makeColumnFromSeq(this.uniqueId, idx)(segmented)
+    val col = tag.makeColumnFromSeq(this.uniqueId, idx)(segmented).map(tag.makeTaggedColumn)
     col.flatMap { col =>
       this.addColOfSameSegmentation(col, columnName)
     }
   }
+
+  import ra3.tablelang.TableExpr
+  /** Variable assigning let expression where the assigned part is a single
+    * Table
+    */
+  def schema[T1: NotNothing] =
+    TableExpr.const[T1](this)
+
+  /** Variable assigning let expression where the assigned part is a single
+    * Table
+    */
+  def schema[T1: NotNothing, T2: NotNothing] =
+    TableExpr.const[(T1, T2)](this)
+
+  /** Variable assigning let expression where the assigned part is a single
+    * Table
+    */
+  def schema[T1: NotNothing, T2: NotNothing, T3: NotNothing] =
+    TableExpr.const[(T1, T2, T3)](this)
+
+  def schema[T1: NotNothing, T2: NotNothing, T3: NotNothing, T4: NotNothing]  =
+    TableExpr.const[(T1, T2, T3, T4)](this)
+
+  def schema[
+      T1: NotNothing,
+      T2: NotNothing,
+      T3: NotNothing,
+      T4: NotNothing,
+      T5: NotNothing,
+      
+  ] =
+    TableExpr.const[(T1, T2, T3, T4, T5)](this)
+
+
+  import ra3.lang.Expr
+
+  // /** Variable assigning let expression with column decomposition
+  //   *
+  //   * The assigned expression is a single table. The receiver is a typed
+  //   * variable referencing the first column of the table.
+  //   *
+  //   * Care must be taken annotate type of the column correctly, otherwise
+  //   * runtime error will occur.
+  //   */
+  // def let[T0: NotNothing](
+  //     body: [R] => (Expr.DelayedIdent { type T = T0 }) => TableExpr{type T = R}
+  // ) = {
+  //   schema[T0].in { t =>
+  //     t.in[T0](body)
+
+  //   }
+  // }
+  // /** Variable assigning let expression with column decomposition
+  //   *
+  //   * The assigned expression is a single table. The receiver is a typed
+  //   * variable referencing the first column of the table.
+  //   *
+  //   * Care must be taken annotate type of the column correctly, otherwise
+  //   * runtime error will occur.
+  //   */
+  // def let[
+  //   T0: NotNothing,
+  //   T1: NotNothing,
+  //   ](
+  //     body: [R] => (
+  //       Expr.DelayedIdent { type T = T0 },
+  //       Expr.DelayedIdent { type T = T1 }
+  //       ) => TableExpr{type T = R}
+  // ): TableExpr{type T = R} = {
+  //   schema[T0,T1] { t =>
+  //     t.in[T0,T1](body)
+
+  //   }
+  // }
+  // /** Variable assigning let expression with column decomposition
+  //   *
+  //   * The assigned expression is a single table. The receiver is a typed
+  //   * variable referencing the first column of the table.
+  //   *
+  //   * Care must be taken annotate type of the column correctly, otherwise
+  //   * runtime error will occur.
+  //   */
+  // def let[
+  //   T0: NotNothing,
+  //   T1: NotNothing,
+  //   T2: NotNothing,
+  //   ](
+  //     body: [R] =>  (
+  //       Expr.DelayedIdent { type T = T0 },
+  //       Expr.DelayedIdent { type T = T1 },
+  //       Expr.DelayedIdent { type T = T2 }
+  //       ) => TableExpr{type T = R}
+  // ): TableExpr{type T = R} = {
+  //   schema[T0,T1,T2] { t =>
+  //     t.in[T0,T1,T2](body)
+
+  //   }
+  // }
+  // /** Variable assigning let expression with column decomposition
+  //   *
+  //   * The assigned expression is a single table. The receiver is a typed
+  //   * variable referencing the first column of the table.
+  //   *
+  //   * Care must be taken annotate type of the column correctly, otherwise
+  //   * runtime error will occur.
+  //   */
+  // def let[
+  //   T0: NotNothing,
+  //   T1: NotNothing,
+  //   T2: NotNothing,
+  //   T3: NotNothing,
+  //   ](
+  //     body: [R] => (
+  //       Expr.DelayedIdent { type T = T0 },
+  //       Expr.DelayedIdent { type T = T1 },
+  //       Expr.DelayedIdent { type T = T2 },
+  //       Expr.DelayedIdent { type T = T3 }
+  //       ) => TableExpr{type T = R}
+  // ):TableExpr{type T = R}= {
+  //   schema[T0,T1,T2,T3] { t =>
+  //     t.in[T0,T1,T2,T3](body)
+
+  //   }
+  // }
 }
 
 object Table {
@@ -163,6 +291,6 @@ object Table {
   def concatenate(
       others: Table*
   )(implicit tsc: TaskSystemComponents): IO[Table] = {
-    ra3.concatenate(others: _*)
+    ra3.concatenate(others*)
   }
 }

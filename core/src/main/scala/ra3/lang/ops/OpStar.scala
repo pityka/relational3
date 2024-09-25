@@ -1,4 +1,4 @@
-package ra3.lang.ops
+// package ra3.lang.ops
 
 // private[ra3] sealed trait OpStar {
 //   type A
@@ -11,7 +11,7 @@ package ra3.lang.ops
 //   object MkSelect extends OpStar {
 //     type A = ra3.lang.ColumnSpec[Any]
 //     type T = ra3.lang.ReturnValue
-//     def op(a: A*) = ra3.lang.ReturnValue(ra3.lang.ProjList(List(a: _*)), None)
+//     def op(a: A*) = ra3.lang.ReturnValue(ra3.lang.ProjList(List(a*)), None)
 //   }
  
 // }

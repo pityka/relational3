@@ -1,6 +1,6 @@
 package ra3
-import com.github.plokhotnyuk.jsoniter_scala.core._
-import com.github.plokhotnyuk.jsoniter_scala.macros._
+import com.github.plokhotnyuk.jsoniter_scala.core.*
+import com.github.plokhotnyuk.jsoniter_scala.macros.*
 
 private[ra3] case class StatisticInt(
     hasMissing: Boolean,
@@ -160,7 +160,7 @@ private[ra3] case class StatisticCharSequence(
     lowCardinalityNonMissingSet: Option[Set[CharSequence]],
     bloomFilter: Option[BloomFilter]
 ) {
-  import ra3.bufferimpl.{CharSequenceOrdering => CSO}
+  import ra3.bufferimpl.{CharSequenceOrdering as CSO}
 
   def mightLtEq(i: CharSequence): Boolean = {
     if (i == BufferString.MissingValue) false

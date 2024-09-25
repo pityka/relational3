@@ -15,10 +15,11 @@ private[ra3] object SimpleQuery {
           (0 until nSegments).toList
         ) { segmentIdx =>
           ts.SimpleQuery.queue(
-            input = self.columns.map(_.segments(segmentIdx)).zipWithIndex.map {
+            input = self.columns.map(c => (c.tag.makeTaggedSegment(c.segments(segmentIdx)))).zipWithIndex.map {
               case (s, columnIdx) =>
-                ra3.ts.SegmentWithName(
-                  segment = List(s),
+                ra3.ts.TypedSegmentWithName(
+                  tag = s.tag,
+                  segment = List(s.segment),
                   tableUniqueId = self.uniqueId,
                   columnName = self.colNames(columnIdx),
                   columnIdx = columnIdx
@@ -32,7 +33,12 @@ private[ra3] object SimpleQuery {
           segments.transpose.map { case segments =>
             val tag = segments.head._1.tag
             val col =
-              tag.makeColumn(segments.map(_._1).toVector.map(_.as(tag)))
+              tag.makeTaggedColumn(tag.makeColumn(
+                segments
+                  .map(_._1)
+                  .toVector
+                  .asInstanceOf[Vector[tag.SegmentType]])
+              )
             val name = segments.head._2
             (col, name)
           }
@@ -75,7 +81,7 @@ private[ra3] object SimpleQuery {
               .makeColumnFromSeq(name, 0)(List(List(count)))
               .map { column =>
                 Table(
-                  columns = Vector(column),
+                  columns = Vector(ra3.ColumnTag.I64.makeTaggedColumn(column)),
                   colNames = Vector("count"),
                   uniqueId = name,
                   partitions = None

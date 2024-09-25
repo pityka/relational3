@@ -1,6 +1,6 @@
 package ra3.bufferimpl
 import cats.effect.IO
-import ra3._
+import ra3.*
 import tasks.{TaskSystemComponents}
 private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
   def nonMissingMinMax = makeStatistic().nonMissingMinMax
@@ -41,7 +41,7 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
   }
 
   def positiveLocations: BufferInt = {
-    import org.saddle._
+    import org.saddle.*
     if (self.value > 0)
       BufferInt(
         array.range(0, self.length)
@@ -81,11 +81,11 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
   /** Find locations at which _ <= other[0] or _ >= other[0] holds returns
     * indexes
     */
-  override def findInequalityVsHead(
+   def findInequalityVsHead(
       other: BufferType,
       lessThan: Boolean
   ): BufferInt = {
-    import org.saddle._
+    import org.saddle.*
     val c = other.raw(0)
     if (value == Int.MinValue || c == Int.MinValue) BufferInt.empty
     else {
@@ -115,7 +115,7 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
     (x, y)
   }
 
-  import org.saddle.{Buffer => _, _}
+  import org.saddle.{Buffer as _, *}
 
   def groups = {
     Buffer.GroupMap(
@@ -160,7 +160,7 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
     else BufferInt.empty
   }
 
-  override def take(locs: Location): BufferInt = locs match {
+   def take(locs: Location): BufferInt = locs match {
     case Slice(start, until) =>
       BufferInt.constant(value, until - start)
     case idx: BufferInt =>
@@ -175,7 +175,7 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
     scala.util.hashing.byteswap32(value).toLong
   }
 
-  override def toSegment(
+   def toSegment(
       name: LogicalPath
   )(implicit tsc: TaskSystemComponents): IO[SegmentInt] = {
     if (values.length == 0) IO.pure(SegmentInt(None, 0, StatisticInt.empty))

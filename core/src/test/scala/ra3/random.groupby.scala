@@ -1,11 +1,11 @@
 // import cats.effect.unsafe.implicits.global
-// import ra3.lang._
-// import ra3._
+// import ra3.lang.*
+// import ra3.*
 // import tasks.util.TempFile
 // import scala.util.Random
-// import tasks._
-// import tasks.jsonitersupport._
-// import cats.effect._
+// import tasks.*
+// import tasks.jsonitersupport.*
+// import cats.effect.*
 
 // object GroupByRandomSuite {
 //   val parseA = Task[(SharedFile, Int, String), ra3.Table]("parseA", 1) {

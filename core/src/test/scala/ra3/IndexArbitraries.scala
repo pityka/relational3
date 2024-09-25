@@ -14,7 +14,7 @@
   */
 package ra3
 
-import org.saddle._
+import org.saddle.*
 import org.scalacheck.Gen
 
 object IndexArbitraries {

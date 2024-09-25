@@ -1,5 +1,5 @@
 package ra3.bufferimpl
-import ra3._
+import ra3.*
 import cats.effect.IO
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -193,11 +193,11 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
 
   }
 
-  override def findInequalityVsHead(
+   def findInequalityVsHead(
       other: BufferType,
       lessThan: Boolean
   ): BufferInt = {
-    import org.saddle._
+    import org.saddle.*
     val c = other.values(0)
     if (c.isNaN) BufferInt.empty
     else {
@@ -210,12 +210,12 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
     }
   }
 
-  override def cdf(numPoints: Int): (BufferDouble, BufferDouble) = {
+   def cdf(numPoints: Int): (BufferDouble, BufferDouble) = {
     val percentiles =
       ((0 until (numPoints - 1)).map(i => i * (1d / (numPoints - 1))) ++ List(
         1d
       )).distinct
-    import org.saddle._
+    import org.saddle.*
     val sorted = org.saddle.array.sort[Double](values.toVec.dropNA.toArray)
     val cdf = percentiles.map { p =>
       val idx = (p * (sorted.length - 1)).toInt
@@ -228,7 +228,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
   }
 
   override def groups: Buffer.GroupMap = {
-    import org.saddle._
+    import org.saddle.*
     val idx = Index(values)
     val uniques = idx.uniques
     val counts = idx.counts
@@ -247,42 +247,24 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
 
   override def length: Int = values.length
 
-  override def take(locs: Location): BufferDouble = locs match {
+   def take(locs: Location): BufferDouble = locs match {
     case Slice(start, until) =>
       val r = Array.ofDim[Double](until - start)
       System.arraycopy(values, start, r, 0, until - start)
       BufferDouble(r)
     case idx: BufferInt =>
-      import org.saddle._
+      import org.saddle.*
       BufferDouble(values.toVec.take(idx.values).toArray)
   }
 
   def positiveLocations: BufferInt = {
-    import org.saddle._
+    import org.saddle.*
     BufferInt(
       values.toVec.find(_ > 0).toArray
     )
   }
 
-  override def computeJoinIndexes(
-      other: BufferType,
-      how: String
-  ): (Option[BufferInt], Option[BufferInt]) = {
-    import org.saddle._
-    val idx1 = Index(values)
-    val idx2 = Index(other.asBufferType.values)
-    val reindexer = new (ra3.join.JoinerImpl[Double]).join(
-      left = idx1,
-      right = idx2,
-      how = how match {
-        case "inner" => org.saddle.index.InnerJoin
-        case "left"  => org.saddle.index.LeftJoin
-        case "right" => org.saddle.index.RightJoin
-        case "outer" => org.saddle.index.OuterJoin
-      }
-    )
-    (reindexer.lTake.map(BufferInt(_)), reindexer.rTake.map(BufferInt(_)))
-  }
+  
 
   def mergeNonMissing(
       other: BufferType
@@ -320,7 +302,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
 
   }
 
-  override def toSegment(name: LogicalPath)(implicit
+   def toSegment(name: LogicalPath)(implicit
       tsc: TaskSystemComponents
   ): IO[SegmentDouble] =
     if (values.length == 0)

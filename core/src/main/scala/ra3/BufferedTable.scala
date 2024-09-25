@@ -5,42 +5,37 @@ case class BufferedTable(
     colNames: Vector[String]
 ) {
   def toFrame = toStringFrame
-  def toHomogeneousFrameWithRowIndex(rowIndexCol: Int, rowIndexTag: ColumnTag)(
-      tag: ColumnTag
-  )(implicit
-      st: org.saddle.ST[tag.Elem],
-      st2: org.saddle.ST[rowIndexTag.Elem],
-      ord: org.saddle.ORD[rowIndexTag.Elem]
+  def toHomogeneousFrameWithRowIndex[Rx,V](rowIndexCol: Int)(implicit
+      st: org.saddle.ST[V],
+      st2: org.saddle.ST[Rx],
+      ord: org.saddle.ORD[Rx]
   ) = {
-    import org.saddle._
-    val header = columns(rowIndexCol).as(rowIndexTag).toSeq.toVec
+    import org.saddle.*
+    val header = columns(rowIndexCol).toSeq.asInstanceOf[Seq[Rx]].toVec
 
     Frame(
       columns.zipWithIndex
         .filterNot(v => v._2 != rowIndexCol)
         .map(_._1)
         .map { col =>
-          if (col.tag == tag) Some(col.as(tag).toSeq.toVec)
-          else None
-        }
-        .collect { case Some(x) => x }: _*
+          col.toSeq.asInstanceOf[Seq[V]].toVec
+        }*
     ).setRowIndex(Index(header.toArray))
 
   }
-  def toHomogeneousFrame(
-      tag: ColumnTag
-  )(implicit st: org.saddle.ST[tag.Elem]) = {
-    import org.saddle._
-    Frame(columns.map(_.as(tag).toSeq.toVec): _*)
+ 
+  def toHomogeneousFrame( tag: ColumnTag)(implicit st: org.saddle.ST[tag.Elem]) = {
+    import org.saddle.*
+    Frame(columns.map(_.toSeq.asInstanceOf[Seq[tag.Elem]].toVec)*)
       .setColIndex(colNames.toIndex)
   }
   def toStringFrame = {
-    import org.saddle._
+    import org.saddle.*
     Frame(columns.map { buffer =>
-      buffer.tag match {
-        case x if x == ra3.ColumnTag.Instant =>
+      buffer match {
+        case buffer: BufferInstant =>
           buffer
-            .as(ra3.ColumnTag.Instant)
+            // .as(ra3.ColumnTag.Instant)
             .toSeq
             .map(v => java.time.Instant.ofEpochMilli(v).toString)
             .toVec
@@ -57,7 +52,7 @@ case class BufferedTable(
           ar.toVec
         }
       }
-    }: _*)
+    }*)
       .setColIndex(colNames.toIndex)
   }
 

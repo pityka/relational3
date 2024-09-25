@@ -1,7 +1,7 @@
 import cats.effect.unsafe.implicits.global
 import java.nio.channels.Channels
-import ra3._
-
+import ra3.*
+import org.saddle.doubleOrd
 class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
 
   test("1brc group by and reduce") {
@@ -17,7 +17,7 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
           List(
             (0, ColumnTag.StringTag, None, None),
             (1, ColumnTag.F64, None, None)
-            // 0 until (numCols) map (i => (i, ColumnTag.I32, None)): _*
+            // 0 until (numCols) map (i => (i, ColumnTag.I32, None))*
           ),
           channel = channel,
           header = false,
@@ -32,27 +32,44 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
           case "V1" => "value"
         }
 
-      val result = let[StrVar, F64Var](table) { case (station, value) =>
-        station
+      val tpe = table.schema[StrVar, F64Var]
+
+      val result = tpe.columns { case (station, value) =>
+        val t = station
           .groupBy(
             select(
               station.first as "station",
               value.sum as "sum",
-              value.count as "count"
+              // value.count as "count"
             )
           )
           .partial
-          .in[StrVar, F64Var, F64Var] { (station, sum, count) =>
+          .columns { case (station, sum) =>
+
             station
               .groupBy(
                 select(
                   station.first,
-                  sum.sum / count.sum
+                  sum.sum// / count.sum
                 )
               )
               .all
 
           }
+          .columns { case (station, sum) =>
+
+            station
+              .groupBy(
+                select(
+                  station.first,
+                  sum.sum// / count.sum
+                )
+              )
+              .all
+
+          }
+
+          t
       }.evaluate
         .unsafeRunSync()
         .bufferStream
@@ -67,7 +84,7 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
         .sorted
 
       println(result)
-
+      
       val expected = org.saddle.csv.CsvParser
         .parseFromChannel[String](
           channel2,
@@ -88,7 +105,7 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
       // .toOption
       // .get
       println(table)
-      import org.saddle.ops.BinOps._
+      import org.saddle.ops.BinOps.*
       assert((result - expected).values.toSeq.forall(v => math.abs(v) < 1e-3))
       assert(table.numRows == 1000000)
       assertEquals(result.index.sorted, expected.index.sorted)
@@ -107,7 +124,7 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
           List(
             (0, ColumnTag.StringTag, None, None),
             (1, ColumnTag.F64, None, None)
-            // 0 until (numCols) map (i => (i, ColumnTag.I32, None)): _*
+            // 0 until (numCols) map (i => (i, ColumnTag.I32, None))*
           ),
           channel = channel,
           header = false,
@@ -122,7 +139,9 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
           case "V1" => "value"
         }
 
-      val result = let[StrVar, F64Var](table) { case (station, _) =>
+      val tpe = table.schema[StrVar, F64Var]
+
+      val result = tpe.columns{ case (station, _) =>
         query(select(star).where(station === "Skopje"))
 
       }.evaluate
@@ -178,7 +197,7 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
           List(
             (0, ColumnTag.StringTag, None, None),
             (1, ColumnTag.F64, None, None)
-            // 0 until (numCols) map (i => (i, ColumnTag.I32, None)): _*
+            // 0 until (numCols) map (i => (i, ColumnTag.I32, None))*
           ),
           channel = channel,
           header = false,
@@ -192,8 +211,11 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
           case "V0" => "station"
           case "V1" => "value"
         }
+      val typedTable = table.schema[StrVar, F64Var] 
 
-      val result = let[StrVar, F64Var](table) { case (station, _) =>
+        
+
+      val result = typedTable.columns{ case (station, _) =>
         station
           .groupBy(
             select(
@@ -201,7 +223,7 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
             )
           )
           .all
-          .in[StrVar, F64Var, F64Var] { (station, _, _) =>
+          .columns { (station) =>
             station
               .groupBy(
                 select(

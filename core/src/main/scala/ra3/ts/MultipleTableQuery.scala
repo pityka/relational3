@@ -1,13 +1,13 @@
 package ra3.ts
 
-import ra3._
-import tasks._
-import tasks.jsonitersupport._
-import com.github.plokhotnyuk.jsoniter_scala.macros._
-import com.github.plokhotnyuk.jsoniter_scala.core._
+import ra3.*
+import tasks.*
+import tasks.jsonitersupport.*
+import com.github.plokhotnyuk.jsoniter_scala.macros.*
+import com.github.plokhotnyuk.jsoniter_scala.core.*
 import cats.effect.IO
 import ra3.lang.ReturnValue
-import ra3.lang._
+import ra3.lang.*
 
 /** @param input
   * @param predicate
@@ -16,7 +16,7 @@ import ra3.lang._
   *   table unique id -> take index array from join , if None then take all
   */
 private[ra3] case class MultipleTableQuery(
-    input: Seq[SegmentWithName],
+    input: Seq[(ColumnTag, SegmentWithName)],
     predicate: ra3.lang.Expr,
     outputPath: LogicalPath,
     takes: Seq[(String, Option[SegmentInt])]
@@ -24,33 +24,34 @@ private[ra3] case class MultipleTableQuery(
 private[ra3] object MultipleTableQuery {
 
   def doit(
-      input: Seq[SegmentWithName],
+      input: Seq[(ColumnTag, SegmentWithName)],
       predicate: ra3.lang.Expr,
       outputPath: LogicalPath,
       takes: Seq[(String, Option[SegmentInt])]
   )(implicit tsc: TaskSystemComponents): IO[List[(Segment, String)]] = {
     scribe.debug(
       s"MultipleTableQuery task on ${input
-          .groupBy(_.tableUniqueId)
+          .groupBy(_._2.tableUniqueId)
           .toSeq
-          .map(s => (s._1, s._2.map(v => (v.columnName, v.segment.size))))} with $predicate to $outputPath. Takes: ${takes}"
+          .map(s => (s._1, s._2.map(v => (v._2.columnName, v._2.segment.size))))} with $predicate to $outputPath. Takes: ${takes}"
     )
 
-    assert(input.forall(s => takes.exists(_._1 == s.tableUniqueId)))
+    assert(input.forall(s => takes.exists(_._1 == s._2.tableUniqueId)))
     val neededColumns = predicate.columnKeys
     val numElems = {
       val d = takes
         .map(v =>
           v._2
             .map(_.numElems)
-            .getOrElse(
+            .getOrElse {
               input
-                .find(_.tableUniqueId == v._1)
+                .find(_._2.tableUniqueId == v._1)
                 .get
+                ._2
                 .segment
                 .map(_.numElems)
                 .sum
-            )
+            }
         )
         .distinct
       assert(d.size == 1, "uneven column lengths")
@@ -67,37 +68,37 @@ private[ra3] object MultipleTableQuery {
         input
           .map { segmentWithName =>
             val columnKey = ra3.lang.ColumnKey(
-              segmentWithName.tableUniqueId,
-              segmentWithName.columnIdx
+              segmentWithName._2.tableUniqueId,
+              segmentWithName._2.columnIdx
             )
             val t =
-              takeBuffers.find(_._1 == segmentWithName.tableUniqueId).get._2
+              takeBuffers.find(_._1 == segmentWithName._2.tableUniqueId).get._2
             (columnKey, segmentWithName, t)
-            // (key, t.map(t =>buf.take(t)).getOrElse((buf)), x)
           }
           .filter(v => neededColumns.contains(v._1))
           .map {
             case (key, segment, Some(takeBuffer)) if takeBuffer.length == 0 =>
+              val tag = segment._1
               IO.pure(
                 (
                   key,
-                  Left(segment.segment.head.tag.makeBufferFromSeq()),
-                  segment.columnName
+                  Left(tag.makeTaggedBuffer(tag.makeBufferFromSeq())),
+                  segment._2.columnName
                 )
               )
-            case (key, segment, Some(takeBuffer)) =>
-              ra3.ts.SimpleQuery
-                .bufferMultiple(segment.segment)
-                .map(b => (key, Left(b.take(takeBuffer)), segment.columnName))
-            case (key, segment, None) =>
-              ra3.ts.SimpleQuery
-                .bufferMultiple(segment.segment)
-                .map(b => (key, Left(b), segment.columnName))
+            case (key, (tag,segment), Some(takeBuffer)) =>
+              ra3.Utils
+                .bufferMultiple(tag)(segment.segment.map(_.asInstanceOf[tag.SegmentType]))
+                .map(b => (key, Left(tag.makeTaggedBuffer(tag.take(b,takeBuffer))), segment.columnName))
+            case (key, (tag,segment), None) =>
+              ra3.Utils
+                .bufferMultiple(tag)(segment.segment.map(_.asInstanceOf[tag.SegmentType]))
+                .map(b => (key, Left(tag.makeTaggedBuffer(b)), segment.columnName))
           }
       )
 
       takenBuffers.flatMap { takenBuffers =>
-        val env1: Map[ra3.lang.Key, ra3.lang.Value[_]] =
+        val env1: Map[ra3.lang.Key, ra3.lang.Value[?]] =
           takenBuffers.map { case (key, bufAsLeft, _) =>
             (key, ra3.lang.Value.Const(bufAsLeft))
           }.toMap
@@ -117,11 +118,11 @@ private[ra3] object MultipleTableQuery {
               case _                                     => false
             })
 
-            val selected: IO[List[NamedColumnSpec[_]]] = IO
+            val selected: IO[List[NamedColumnSpec[?]]] = IO
               .parSequenceN(32)(returnValue.list.zipWithIndex.map {
-                case (v: NamedColumnSpec[_], _) =>
+                case (v: NamedColumnSpec[?], _) =>
                   IO.pure(List(v))
-                case (v: UnnamedColumnSpec[_], idx) =>
+                case (v: UnnamedColumnSpec[?], idx) =>
                   IO.pure(List(v.withName(s"V$idx")))
                 case (ra3.lang.StarColumnSpec, _) =>
                   // get those columns who are not yet buffered
@@ -134,7 +135,7 @@ private[ra3] object MultipleTableQuery {
                             s,
                             takenBuffers.find(
                               _._1 == ra3.lang
-                                .ColumnKey(s.tableUniqueId, s.columnIdx)
+                                .ColumnKey(s._2.tableUniqueId, s._2.columnIdx)
                             )
                           )
                         }
@@ -145,35 +146,35 @@ private[ra3] object MultipleTableQuery {
                                 .NamedColumnChunk(Left(buffer), columnName)
                             )
                           case (
-                                SegmentWithName(
+                                (tag,SegmentWithName(
                                   segmentParts,
                                   tableId,
                                   columnName,
                                   _
-                                ),
+                                )),
                                 _
                               ) =>
                             if (maskIsEmpty)
                               IO.pure(
                                 NamedColumnChunk(
                                   Left(
-                                    segmentParts.head.tag.makeBufferFromSeq()
+                                    tag.makeTaggedBuffer(tag.makeBufferFromSeq())
                                   ),
                                   columnName
                                 )
                               )
                             else
-                              ra3.ts.SimpleQuery
-                                .bufferMultiple(segmentParts)
+                              ra3.Utils
+                                .bufferMultiple(tag)(segmentParts.map(_.asInstanceOf[tag.SegmentType]))
                                 .map(b =>
                                   NamedColumnChunk(
                                     Left(
-                                      takeBuffers
+                                      tag.makeTaggedBuffer(takeBuffers
                                         .find(_._1 == tableId)
                                         .get
                                         ._2
-                                        .map(b.take)
-                                        .getOrElse(b)
+                                        .map(tag.take(b,_))
+                                        .getOrElse(b))
                                     ),
                                     columnName
                                   )
@@ -190,45 +191,47 @@ private[ra3] object MultipleTableQuery {
               IO.parSequenceN(32)(selected.toList.zipWithIndex.map {
                 case (columnSpec, columnIdx) =>
                   val columnName = columnSpec.name
-                  val buffer = columnSpec match {
+                  val taggedBuffer = columnSpec match {
                     case NamedColumnChunk(Right(_), _) =>
                       throw new AssertionError(
                         "unexpected Right[Seq[Segment]] returned from program"
                       )
                     case NamedColumnChunk(Left(x), _)
-                        if x.length == outputNumElemsBeforeFiltering =>
+                        if x.buffer.length == outputNumElemsBeforeFiltering =>
                       x
                     case NamedColumnChunk(Left(x), _)
                         if outputNumElemsBeforeFiltering == 0 =>
-                      x.tag.makeBufferFromSeq()
+                      x.tag.makeTaggedBuffer(x.tag.makeBufferFromSeq())
                     case NamedColumnChunk(Left(x), _) =>
                       require(
                         false,
-                        s"program returned a buffer of size ${x.length} instead of ${outputNumElemsBeforeFiltering}. In this invocation the program must be element wise"
+                        s"program returned a buffer of size ${x.buffer.length} instead of ${outputNumElemsBeforeFiltering}. In this invocation the program must be element wise"
                       )
                       ???
                     case NamedConstantI32(x, _) =>
-                      BufferIntConstant(x, outputNumElemsBeforeFiltering)
+                      ColumnTag.I32.makeTaggedBuffer(BufferIntConstant(x, outputNumElemsBeforeFiltering))
                     case NamedConstantF64(x, _) =>
-                      BufferDouble.constant(x, outputNumElemsBeforeFiltering)
+                      ColumnTag.F64.makeTaggedBuffer(BufferDouble.constant(x, outputNumElemsBeforeFiltering))
                     case NamedConstantI64(x, _) =>
-                      BufferLong.constant(x, outputNumElemsBeforeFiltering)
+                      ColumnTag.I64.makeTaggedBuffer(BufferLong.constant(x, outputNumElemsBeforeFiltering))
                     case NamedConstantString(x, _) =>
-                      BufferString.constant(x, outputNumElemsBeforeFiltering)
+                      ColumnTag.StringTag.makeTaggedBuffer(BufferString.constant(x, outputNumElemsBeforeFiltering))
 
                   }
+                  val tag = taggedBuffer.tag
+                  val buffer = taggedBuffer.buffer
                   val filtered =
-                    if (maskIsEmpty) IO.pure(buffer.tag.makeBufferFromSeq())
+                    if (maskIsEmpty) IO.pure(tag.makeBufferFromSeq())
                     else {
                       mask match {
                         case None => IO.pure(buffer)
                         case Some(mask) =>
-                          ra3.lang.bufferIfNeeded(mask).map(buffer.filter)
+                          ra3.lang.bufferIfNeeded(ColumnTag.I32)(mask).map(tag.filter(buffer,_))
                       }
                     }
 
                   filtered.flatMap(
-                    _.toSegment(outputPath.copy(column = columnIdx))
+                    tag.toSegment(_,outputPath.copy(column = columnIdx))
                       .map(s => (s, columnName))
                   )
               })
@@ -238,16 +241,16 @@ private[ra3] object MultipleTableQuery {
     }
   }
   def queue(
-      input: Seq[SegmentWithName],
+      input: Seq[TypedSegmentWithName],
       predicate: ra3.lang.Expr { type T <: ReturnValue },
       outputPath: LogicalPath,
       takes: Seq[(String, Option[SegmentInt])]
   )(implicit
       tsc: TaskSystemComponents
-  ): IO[Seq[(Segment, String)]] =
+  ): IO[Seq[(ColumnTag, Segment, String)]] =
     task(
       MultipleTableQuery(
-        input,
+        input.map(v => v.tag -> v.erase),
         predicate.replaceTags(Map.empty),
         outputPath,
         takes
@@ -260,7 +263,7 @@ private[ra3] object MultipleTableQuery {
         scratch = 0,
         gpu = 0
       )
-    )
+    ).map(seq => seq.zip(input.map(_.tag)).map(v => (v._2, v._1._1, v._1._2)))
   implicit val codec: JsonValueCodec[MultipleTableQuery] = JsonCodecMaker.make
   implicit val codecOut: JsonValueCodec[Seq[(Segment, String)]] =
     JsonCodecMaker.make

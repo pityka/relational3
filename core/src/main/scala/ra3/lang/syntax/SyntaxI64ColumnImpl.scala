@@ -1,5 +1,5 @@
 package ra3.lang.syntax
-import ra3.lang._
+import ra3.lang.*
 import ra3.BufferInt
 
 private[ra3] trait SyntaxI64ColumnImpl {
@@ -50,11 +50,11 @@ private[ra3] trait SyntaxI64ColumnImpl {
   //   .BuiltInOp1(arg0, ops.Op1.MkUnnamedColumnSpecChunk)
   //   .asInstanceOf[Expr { type T = ColumnSpec }]
 
-  // def as(arg1: Expr { type T = String }) = ra3.lang.Expr
-  //   .BuiltInOp2(arg0, arg1, ops.Op2.MkNamedColumnSpecChunk)
-  //   .asInstanceOf[Expr { type T = ColumnSpec }]
+  infix def as(arg1: Expr { type T = String }) = ra3.lang.Expr
+    .BuiltInOp2(arg0, arg1, ops.Op2.MkNamedColumnSpecChunkI64)
+    .asInstanceOf[Expr { type T = ColumnSpec[ra3.DI64] }]
 
-  // def as(arg1: String): Expr { type T = ColumnSpec } = as(Expr.LitStr(arg1))
+  infix def as(arg1: String): Expr { type T = ColumnSpec[ra3.DI64] } = as(Expr.LitStr(arg1))
 
   // def <=(arg1: I32ColumnExpr) = Expr.makeOp2(ops.Op2.ColumnLtEqOpII)(arg0, arg1)
   // def <=(arg1: Int) = Expr.makeOp2(ops.Op2.ColumnLtEqOpIcI)(arg0, arg1)

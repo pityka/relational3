@@ -1,6 +1,6 @@
 package ra3.lang.ops
-import ra3._
-import ra3.lang._
+import ra3.*
+import ra3.lang.*
 import ra3.DI32
 import ra3.lang.ReturnValue
 import ra3.lang.bufferIfNeeded
@@ -15,12 +15,12 @@ private[ra3] sealed trait Op2 {
 
 private[ra3] object Op2 {
 
-    object MkReturnValue2 extends Op2 {
-    type A0 = ra3.lang.ColumnSpec[_]
-    type A1 = ra3.lang.ColumnSpec[_]
-    type T = ra3.lang.ReturnValue2[_,_]
-    def op(a0: A0,a1: A1)(implicit tsc: TaskSystemComponents) =
-      IO.pure(ra3.lang.ReturnValue2(a0,a1,None))
+  object MkReturnValue2 extends Op2 {
+    type A0 = ra3.lang.ColumnSpec[?]
+    type A1 = ra3.lang.ColumnSpec[?]
+    type T = ra3.lang.ReturnValue2[?, ?]
+    def op(a0: A0, a1: A1)(implicit tsc: TaskSystemComponents) =
+      IO.pure(ra3.lang.ReturnValue2(a0, a1, None))
   }
 
   object Tap extends Op2 {
@@ -53,19 +53,86 @@ private[ra3] object Op2 {
         case None => IO.pure(Some(b))
         case Some(f) =>
           for {
-            f <- bufferIfNeeded(f)
-            b <- bufferIfNeeded(b)
+            f <- bufferIfNeededI32(f)
+            b <- bufferIfNeededI32(b)
           } yield Some(Left(b.elementwise_&&(f)))
       }).map(f => a.replacePredicate(f))
 
   }
-  case object MkNamedColumnSpecChunk extends Op2 {
+  case object MkNamedColumnSpecChunkI32 extends Op2 {
 
-    type A0 = Either[Buffer, Seq[Segment]]
+    type A0 = ra3.DI32
     type A1 = String
     type T = NamedColumnChunk
     def op(a: A0, b: String)(implicit tsc: TaskSystemComponents) =
-      IO.pure(NamedColumnChunk(a, b))
+      IO.pure(
+        NamedColumnChunk(
+          a.map(ColumnTag.I32.makeTaggedSegments)
+            .left
+            .map(ColumnTag.I32.makeTaggedBuffer),
+          b
+        )
+      )
+  }
+  case object MkNamedColumnSpecChunkF64 extends Op2 {
+
+    type A0 = ra3.DF64
+    type A1 = String
+    type T = NamedColumnChunk
+    def op(a: A0, b: String)(implicit tsc: TaskSystemComponents) =
+      IO.pure(
+        NamedColumnChunk(
+          a.map(ColumnTag.F64.makeTaggedSegments)
+            .left
+            .map(ColumnTag.F64.makeTaggedBuffer),
+          b
+        )
+      )
+  }
+  case object MkNamedColumnSpecChunkI64 extends Op2 {
+
+    type A0 = ra3.DI64
+    type A1 = String
+    type T = NamedColumnChunk
+    def op(a: A0, b: String)(implicit tsc: TaskSystemComponents) =
+      IO.pure(
+        NamedColumnChunk(
+          a.map(ColumnTag.I64.makeTaggedSegments)
+            .left
+            .map(ColumnTag.I64.makeTaggedBuffer),
+          b
+        )
+      )
+  }
+  case object MkNamedColumnSpecChunkString extends Op2 {
+
+    type A0 = ra3.DStr
+    type A1 = String
+    type T = NamedColumnChunk
+    def op(a: A0, b: String)(implicit tsc: TaskSystemComponents) =
+      IO.pure(
+        NamedColumnChunk(
+          a.map(ColumnTag.StringTag.makeTaggedSegments)
+            .left
+            .map(ColumnTag.StringTag.makeTaggedBuffer),
+          b
+        )
+      )
+  }
+  case object MkNamedColumnSpecChunkInst extends Op2 {
+
+    type A0 = ra3.DInst
+    type A1 = String
+    type T = NamedColumnChunk
+    def op(a: A0, b: String)(implicit tsc: TaskSystemComponents) =
+      IO.pure(
+        NamedColumnChunk(
+          a.map(ColumnTag.Instant.makeTaggedSegments)
+            .left
+            .map(ColumnTag.Instant.makeTaggedBuffer),
+          b
+        )
+      )
   }
   case object MkNamedConstantI32 extends Op2 {
 
@@ -215,8 +282,8 @@ private[ra3] object Op2 {
   case object ColumnEqOpII extends ColumnOp2III {
     def op(a: DI32, b: DI32)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
-        b <- bufferIfNeeded(b)
+        a <- bufferIfNeededI32(a)
+        b <- bufferIfNeededI32(b)
       } yield Left(a.elementwise_eq(b))
 
     }
@@ -224,7 +291,7 @@ private[ra3] object Op2 {
   case object ColumnEqOpIcI extends ColumnOp2ICII {
     def op(a: DI32, b: Int)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeededWithPrecondition(a)((segment: SegmentInt) =>
+        a <- bufferIfNeededWithPreconditionI32(a)((segment: SegmentInt) =>
           segment.statistic.mightEq(b)
         )
       } yield (a match {
@@ -237,8 +304,8 @@ private[ra3] object Op2 {
   case object ColumnLtEqOpII extends ColumnOp2III {
     def op(a: DI32, b: DI32)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
-        b <- bufferIfNeeded(b)
+        a <- bufferIfNeededI32(a)
+        b <- bufferIfNeededI32(b)
       } yield Left(a.elementwise_lteq(b))
 
     }
@@ -246,8 +313,8 @@ private[ra3] object Op2 {
   case object ColumnLtOpII extends ColumnOp2III {
     def op(a: DI32, b: DI32)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
-        b <- bufferIfNeeded(b)
+        a <- bufferIfNeededI32(a)
+        b <- bufferIfNeededI32(b)
       } yield Left(a.elementwise_lt(b))
 
     }
@@ -255,7 +322,7 @@ private[ra3] object Op2 {
   case object ColumnLtEqOpIcI extends ColumnOp2ICII {
     def op(a: DI32, b: Int)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeededWithPrecondition(a)((segment: SegmentInt) =>
+        a <- bufferIfNeededWithPreconditionI32(a)((segment: SegmentInt) =>
           segment.statistic.mightLtEq(b)
         )
       } yield (a match {
@@ -268,7 +335,7 @@ private[ra3] object Op2 {
   case object ColumnLtOpIcI extends ColumnOp2ICII {
     def op(a: DI32, b: Int)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeededWithPrecondition(a)((segment: SegmentInt) =>
+        a <- bufferIfNeededWithPreconditionI32(a)((segment: SegmentInt) =>
           segment.statistic.mightLt(b)
         )
       } yield (a match {
@@ -281,8 +348,8 @@ private[ra3] object Op2 {
   case object ColumnGtEqOpII extends ColumnOp2III {
     def op(a: DI32, b: DI32)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
-        b <- bufferIfNeeded(b)
+        a <- bufferIfNeededI32(a)
+        b <- bufferIfNeededI32(b)
       } yield Left(a.elementwise_gteq(b))
 
     }
@@ -290,8 +357,8 @@ private[ra3] object Op2 {
   case object ColumnGtOpII extends ColumnOp2III {
     def op(a: DI32, b: DI32)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
-        b <- bufferIfNeeded(b)
+        a <- bufferIfNeededI32(a)
+        b <- bufferIfNeededI32(b)
       } yield Left(a.elementwise_gt(b))
 
     }
@@ -299,7 +366,7 @@ private[ra3] object Op2 {
   case object ColumnGtEqOpIcI extends ColumnOp2ICII {
     def op(a: DI32, b: Int)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeededWithPrecondition(a)((segment: SegmentInt) =>
+        a <- bufferIfNeededWithPreconditionI32(a)((segment: SegmentInt) =>
           segment.statistic.mightGtEq(b)
         )
       } yield (a match {
@@ -312,7 +379,7 @@ private[ra3] object Op2 {
   case object ColumnGtOpIcI extends ColumnOp2ICII {
     def op(a: DI32, b: Int)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeededWithPrecondition(a)((segment: SegmentInt) =>
+        a <- bufferIfNeededWithPreconditionI32(a)((segment: SegmentInt) =>
           segment.statistic.mightGt(b)
         )
       } yield (a match {
@@ -325,7 +392,7 @@ private[ra3] object Op2 {
   case object ColumnEqOpStrcStr extends ColumnOp2StrCStrI {
     def op(a: DStr, b: String)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeededWithPrecondition(a)((segment: SegmentString) =>
+        a <- bufferIfNeededWithPreconditionString(a)((segment: SegmentString) =>
           segment.statistic.mightEq(b)
         )
       } yield (a match {
@@ -338,7 +405,7 @@ private[ra3] object Op2 {
   case object ColumnMatchesOpStrcStr extends ColumnOp2StrCStrI {
     def op(a: DStr, b: String)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
+        a <- bufferIfNeededString(a)
       } yield Left(a.elementwise_matches(b))
     }
   }
@@ -347,7 +414,7 @@ private[ra3] object Op2 {
         tsc: TaskSystemComponents
     ): IO[DI32] = {
       for {
-        a <- bufferIfNeededWithPrecondition(a)((segment: SegmentString) =>
+        a <- bufferIfNeededWithPreconditionString(a)((segment: SegmentString) =>
           b.exists(b => segment.statistic.mightEq(b))
         )
       } yield (a match {
@@ -362,7 +429,7 @@ private[ra3] object Op2 {
         tsc: TaskSystemComponents
     ): IO[DI32] = {
       for {
-        a <- bufferIfNeededWithPrecondition(a)((segment: SegmentInt) =>
+        a <- bufferIfNeededWithPreconditionI32(a)((segment: SegmentInt) =>
           b.exists(b => segment.statistic.mightEq(b))
         )
       } yield (a match {
@@ -377,7 +444,7 @@ private[ra3] object Op2 {
         tsc: TaskSystemComponents
     ): IO[DI32] = {
       for {
-        a <- bufferIfNeededWithPrecondition(a)((segment: SegmentDouble) =>
+        a <- bufferIfNeededWithPreconditionF64(a)((segment: SegmentDouble) =>
           b.exists(b => segment.statistic.mightEq(b))
         )
       } yield (a match {
@@ -404,8 +471,8 @@ private[ra3] object Op2 {
   case object ColumnDivOpDD extends ColumnOp2DDD {
     def op(a: DF64, b: DF64)(implicit tsc: TaskSystemComponents): IO[DF64] = {
       for {
-        a <- bufferIfNeeded(a)
-        b <- bufferIfNeeded(b)
+        a <- bufferIfNeededF64(a)
+        b <- bufferIfNeededF64(b)
       } yield Left(a.elementwise_div(b))
 
     }
@@ -413,8 +480,8 @@ private[ra3] object Op2 {
   case object ColumnMulOpDD extends ColumnOp2DDD {
     def op(a: DF64, b: DF64)(implicit tsc: TaskSystemComponents): IO[DF64] = {
       for {
-        a <- bufferIfNeeded(a)
-        b <- bufferIfNeeded(b)
+        a <- bufferIfNeededF64(a)
+        b <- bufferIfNeededF64(b)
       } yield Left(a.elementwise_mul(b))
 
     }
@@ -422,8 +489,8 @@ private[ra3] object Op2 {
   case object ColumnAddOpDD extends ColumnOp2DDD {
     def op(a: DF64, b: DF64)(implicit tsc: TaskSystemComponents): IO[DF64] = {
       for {
-        a <- bufferIfNeeded(a)
-        b <- bufferIfNeeded(b)
+        a <- bufferIfNeededF64(a)
+        b <- bufferIfNeededF64(b)
       } yield Left(a.elementwise_add(b))
 
     }
@@ -431,8 +498,8 @@ private[ra3] object Op2 {
   case object ColumnSubtractOpDD extends ColumnOp2DDD {
     def op(a: DF64, b: DF64)(implicit tsc: TaskSystemComponents): IO[DF64] = {
       for {
-        a <- bufferIfNeeded(a)
-        b <- bufferIfNeeded(b)
+        a <- bufferIfNeededF64(a)
+        b <- bufferIfNeededF64(b)
       } yield Left(a.elementwise_subtract(b))
 
     }
@@ -441,8 +508,8 @@ private[ra3] object Op2 {
   case object ColumnLtEqOpDD extends ColumnOp2DDI {
     def op(a: DF64, b: DF64)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
-        b <- bufferIfNeeded(b)
+        a <- bufferIfNeededF64(a)
+        b <- bufferIfNeededF64(b)
       } yield Left(a.elementwise_lteq(b))
 
     }
@@ -450,7 +517,7 @@ private[ra3] object Op2 {
   case object ColumnLtEqOpDcD extends ColumnOp2DcDI {
     def op(a: DF64, b: Double)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeededWithPrecondition(a)((segment: SegmentDouble) =>
+        a <- bufferIfNeededWithPreconditionF64(a)((segment: SegmentDouble) =>
           segment.statistic.mightLtEq(b)
         )
       } yield (a match {
@@ -465,8 +532,8 @@ private[ra3] object Op2 {
   case object ColumnLtOpDD extends ColumnOp2DDI {
     def op(a: DF64, b: DF64)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
-        b <- bufferIfNeeded(b)
+        a <- bufferIfNeededF64(a)
+        b <- bufferIfNeededF64(b)
       } yield Left(a.elementwise_lt(b))
 
     }
@@ -474,7 +541,7 @@ private[ra3] object Op2 {
   case object ColumnLtOpDcD extends ColumnOp2DcDI {
     def op(a: DF64, b: Double)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeededWithPrecondition(a)((segment: SegmentDouble) =>
+        a <- bufferIfNeededWithPreconditionF64(a)((segment: SegmentDouble) =>
           segment.statistic.mightLt(b)
         )
       } yield (a match {
@@ -487,8 +554,8 @@ private[ra3] object Op2 {
   case object ColumnGtEqOpDD extends ColumnOp2DDI {
     def op(a: DF64, b: DF64)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
-        b <- bufferIfNeeded(b)
+        a <- bufferIfNeededF64(a)
+        b <- bufferIfNeededF64(b)
       } yield Left(a.elementwise_gteq(b))
 
     }
@@ -496,7 +563,7 @@ private[ra3] object Op2 {
   case object ColumnGtEqOpDcD extends ColumnOp2DcDI {
     def op(a: DF64, b: Double)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeededWithPrecondition(a)((segment: SegmentDouble) =>
+        a <- bufferIfNeededWithPreconditionF64(a)((segment: SegmentDouble) =>
           segment.statistic.mightGtEq(b)
         )
       } yield (a match {
@@ -509,8 +576,8 @@ private[ra3] object Op2 {
   case object ColumnGtOpDD extends ColumnOp2DDI {
     def op(a: DF64, b: DF64)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
-        b <- bufferIfNeeded(b)
+        a <- bufferIfNeededF64(a)
+        b <- bufferIfNeededF64(b)
       } yield Left(a.elementwise_gt(b))
 
     }
@@ -518,7 +585,7 @@ private[ra3] object Op2 {
   case object ColumnGtOpDcD extends ColumnOp2DcDI {
     def op(a: DF64, b: Double)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeededWithPrecondition(a)((segment: SegmentDouble) =>
+        a <- bufferIfNeededWithPreconditionF64(a)((segment: SegmentDouble) =>
           segment.statistic.mightGt(b)
         )
       } yield (a match {
@@ -531,8 +598,8 @@ private[ra3] object Op2 {
   case object ColumnEqOpDD extends ColumnOp2DDI {
     def op(a: DF64, b: DF64)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
-        b <- bufferIfNeeded(b)
+        a <- bufferIfNeededF64(a)
+        b <- bufferIfNeededF64(b)
       } yield Left(a.elementwise_eq(b))
 
     }
@@ -540,7 +607,7 @@ private[ra3] object Op2 {
   case object ColumnEqOpDcD extends ColumnOp2DcDI {
     def op(a: DF64, b: Double)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeededWithPrecondition(a)((segment: SegmentDouble) =>
+        a <- bufferIfNeededWithPreconditionF64(a)((segment: SegmentDouble) =>
           segment.statistic.mightEq(b)
         )
       } yield (a match {
@@ -553,8 +620,8 @@ private[ra3] object Op2 {
   case object ColumnNEqOpDD extends ColumnOp2DDI {
     def op(a: DF64, b: DF64)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
-        b <- bufferIfNeeded(b)
+        a <- bufferIfNeededF64(a)
+        b <- bufferIfNeededF64(b)
       } yield Left(a.elementwise_neq(b))
 
     }
@@ -562,7 +629,7 @@ private[ra3] object Op2 {
   case object ColumnNEqOpDcD extends ColumnOp2DcDI {
     def op(a: DF64, b: Double)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
+        a <- bufferIfNeededF64(a)
       } yield Left(a.elementwise_neq(b))
 
     }
@@ -571,7 +638,7 @@ private[ra3] object Op2 {
   case object ColumnPrintfOpDcStr extends ColumnOp2DcStrStr {
     def op(a: DF64, b: String)(implicit tsc: TaskSystemComponents): IO[DStr] = {
       for {
-        a <- bufferIfNeeded(a)
+        a <- bufferIfNeededF64(a)
       } yield Left(a.elementwise_printf(b))
 
     }
@@ -579,7 +646,7 @@ private[ra3] object Op2 {
   case object ColumnPrintfOpIcStr extends ColumnOp2IcStrStr {
     def op(a: DI32, b: String)(implicit tsc: TaskSystemComponents): IO[DStr] = {
       for {
-        a <- bufferIfNeeded(a)
+        a <- bufferIfNeededI32(a)
       } yield Left(a.elementwise_printf(b))
 
     }
@@ -588,8 +655,8 @@ private[ra3] object Op2 {
   case object ColumnNEqOpII extends ColumnOp2III {
     def op(a: DI32, b: DI32)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
-        b <- bufferIfNeeded(b)
+        a <- bufferIfNeededI32(a)
+        b <- bufferIfNeededI32(b)
       } yield Left(a.elementwise_neq(b))
 
     }
@@ -597,7 +664,7 @@ private[ra3] object Op2 {
   case object ColumnNEqOpIcI extends ColumnOp2ICII {
     def op(a: DI32, b: Int)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
+        a <- bufferIfNeededI32(a)
       } yield Left(a.elementwise_neq(b))
 
     }
@@ -615,7 +682,7 @@ private[ra3] object Op2 {
   case object ColumnPlusOpInstcL extends ColumnOp2InstcLInst {
     def op(a: DInst, b: Long)(implicit tsc: TaskSystemComponents): IO[DInst] = {
       for {
-        a <- bufferIfNeeded(a)
+        a <- bufferIfNeededInst(a)
       } yield Left(a.elementwise_plus(b))
 
     }
@@ -623,7 +690,7 @@ private[ra3] object Op2 {
   case object ColumnMinusOpInstcL extends ColumnOp2InstcLInst {
     def op(a: DInst, b: Long)(implicit tsc: TaskSystemComponents): IO[DInst] = {
       for {
-        a <- bufferIfNeeded(a)
+        a <- bufferIfNeededInst(a)
       } yield Left(a.elementwise_minus(b))
 
     }
@@ -632,8 +699,8 @@ private[ra3] object Op2 {
   case object ColumnLtEqOpInstInst extends ColumnOp2InstInstI {
     def op(a: DInst, b: DInst)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
-        b <- bufferIfNeeded(b)
+        a <- bufferIfNeededInst(a)
+        b <- bufferIfNeededInst(b)
       } yield Left(a.elementwise_lteq(b))
 
     }
@@ -644,7 +711,7 @@ private[ra3] object Op2 {
         tsc: TaskSystemComponents
     ): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
+        a <- bufferIfNeededInst(a)
       } yield Left(
         a.elementwise_lteq(java.time.Instant.parse(b).toEpochMilli())
       )
@@ -655,8 +722,8 @@ private[ra3] object Op2 {
   case object ColumnLtOpInstInst extends ColumnOp2InstInstI {
     def op(a: DInst, b: DInst)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
-        b <- bufferIfNeeded(b)
+        a <- bufferIfNeededInst(a)
+        b <- bufferIfNeededInst(b)
       } yield Left(a.elementwise_lt(b))
 
     }
@@ -667,7 +734,7 @@ private[ra3] object Op2 {
         tsc: TaskSystemComponents
     ): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
+        a <- bufferIfNeededInst(a)
       } yield Left(
         a.elementwise_lt(java.time.Instant.parse(b).toEpochMilli())
       )
@@ -677,8 +744,8 @@ private[ra3] object Op2 {
   case object ColumnGtEqOpInstInst extends ColumnOp2InstInstI {
     def op(a: DInst, b: DInst)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
-        b <- bufferIfNeeded(b)
+        a <- bufferIfNeededInst(a)
+        b <- bufferIfNeededInst(b)
       } yield Left(a.elementwise_gteq(b))
 
     }
@@ -689,7 +756,7 @@ private[ra3] object Op2 {
         tsc: TaskSystemComponents
     ): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
+        a <- bufferIfNeededInst(a)
       } yield Left(
         a.elementwise_gteq(java.time.Instant.parse(b).toEpochMilli())
       )
@@ -699,8 +766,8 @@ private[ra3] object Op2 {
   case object ColumnGtOpInstInst extends ColumnOp2InstInstI {
     def op(a: DInst, b: DInst)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
-        b <- bufferIfNeeded(b)
+        a <- bufferIfNeededInst(a)
+        b <- bufferIfNeededInst(b)
       } yield Left(a.elementwise_gt(b))
 
     }
@@ -711,7 +778,7 @@ private[ra3] object Op2 {
         tsc: TaskSystemComponents
     ): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
+        a <- bufferIfNeededInst(a)
       } yield Left(
         a.elementwise_gt(java.time.Instant.parse(b).toEpochMilli())
       )
@@ -721,8 +788,8 @@ private[ra3] object Op2 {
   case object ColumnEqOpInstInst extends ColumnOp2InstInstI {
     def op(a: DInst, b: DInst)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
-        b <- bufferIfNeeded(b)
+        a <- bufferIfNeededInst(a)
+        b <- bufferIfNeededInst(b)
       } yield Left(a.elementwise_eq(b))
 
     }
@@ -733,7 +800,7 @@ private[ra3] object Op2 {
         tsc: TaskSystemComponents
     ): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
+        a <- bufferIfNeededInst(a)
       } yield Left(a.elementwise_eq(java.time.Instant.parse(b).toEpochMilli()))
 
     }
@@ -741,8 +808,8 @@ private[ra3] object Op2 {
   case object ColumnNEqOpInstInst extends ColumnOp2InstInstI {
     def op(a: DInst, b: DInst)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
-        b <- bufferIfNeeded(b)
+        a <- bufferIfNeededInst(a)
+        b <- bufferIfNeededInst(b)
       } yield Left(a.elementwise_neq(b))
 
     }
@@ -753,7 +820,7 @@ private[ra3] object Op2 {
         tsc: TaskSystemComponents
     ): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
+        a <- bufferIfNeededInst(a)
       } yield Left(a.elementwise_neq(java.time.Instant.parse(b).toEpochMilli()))
 
     }
@@ -762,7 +829,7 @@ private[ra3] object Op2 {
   case object ColumnPlusSecondsOpInstcInt extends ColumnOp2InstcIInst {
     def op(a: DInst, b: Int)(implicit tsc: TaskSystemComponents): IO[DInst] = {
       for {
-        a <- bufferIfNeeded(a)
+        a <- bufferIfNeededInst(a)
       } yield Left(a.elementwise_plus(b * 1000L))
 
     }
@@ -770,7 +837,7 @@ private[ra3] object Op2 {
   case object ColumnMinusSecondsOpInstcInt extends ColumnOp2InstcIInst {
     def op(a: DInst, b: Int)(implicit tsc: TaskSystemComponents): IO[DInst] = {
       for {
-        a <- bufferIfNeeded(a)
+        a <- bufferIfNeededInst(a)
       } yield Left(a.elementwise_minus(b * 1000L))
 
     }
@@ -778,7 +845,7 @@ private[ra3] object Op2 {
   case object ColumnPlusDaysOpInstcInt extends ColumnOp2InstcIInst {
     def op(a: DInst, b: Int)(implicit tsc: TaskSystemComponents): IO[DInst] = {
       for {
-        a <- bufferIfNeeded(a)
+        a <- bufferIfNeededInst(a)
       } yield Left(a.elementwise_plus(b * 1000L * 60L * 60L * 24L))
 
     }
@@ -786,78 +853,78 @@ private[ra3] object Op2 {
   case object ColumnMinusDaysOpInstcInt extends ColumnOp2InstcIInst {
     def op(a: DInst, b: Int)(implicit tsc: TaskSystemComponents): IO[DInst] = {
       for {
-        a <- bufferIfNeeded(a)
+        a <- bufferIfNeededInst(a)
       } yield Left(a.elementwise_minus(b * 1000L * 60L * 60L * 24L))
 
     }
   }
 
-   case object ColumnLtEqOpInstcL extends ColumnOp2InstcLI {
+  case object ColumnLtEqOpInstcL extends ColumnOp2InstcLI {
     def op(a: DInst, b: Long)(implicit
         tsc: TaskSystemComponents
     ): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
+        a <- bufferIfNeededInst(a)
       } yield Left(
         a.elementwise_lteq(b)
       )
 
     }
   }
-   case object ColumnLtOpInstcL extends ColumnOp2InstcLI {
+  case object ColumnLtOpInstcL extends ColumnOp2InstcLI {
     def op(a: DInst, b: Long)(implicit
         tsc: TaskSystemComponents
     ): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
+        a <- bufferIfNeededInst(a)
       } yield Left(
         a.elementwise_lt(b)
       )
 
     }
   }
-   case object ColumnGtEqOpInstcL extends ColumnOp2InstcLI {
+  case object ColumnGtEqOpInstcL extends ColumnOp2InstcLI {
     def op(a: DInst, b: Long)(implicit
         tsc: TaskSystemComponents
     ): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
+        a <- bufferIfNeededInst(a)
       } yield Left(
         a.elementwise_gteq(b)
       )
 
     }
   }
-   case object ColumnGtOpInstcL extends ColumnOp2InstcLI {
+  case object ColumnGtOpInstcL extends ColumnOp2InstcLI {
     def op(a: DInst, b: Long)(implicit
         tsc: TaskSystemComponents
     ): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
+        a <- bufferIfNeededInst(a)
       } yield Left(
         a.elementwise_gt(b)
       )
 
     }
   }
-   case object ColumnEqOpInstcL extends ColumnOp2InstcLI {
+  case object ColumnEqOpInstcL extends ColumnOp2InstcLI {
     def op(a: DInst, b: Long)(implicit
         tsc: TaskSystemComponents
     ): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
+        a <- bufferIfNeededInst(a)
       } yield Left(
         a.elementwise_eq(b)
       )
 
     }
   }
-   case object ColumnNEqOpInstcL extends ColumnOp2InstcLI {
+  case object ColumnNEqOpInstcL extends ColumnOp2InstcLI {
     def op(a: DInst, b: Long)(implicit
         tsc: TaskSystemComponents
     ): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
+        a <- bufferIfNeededInst(a)
       } yield Left(
         a.elementwise_neq(b)
       )
@@ -868,7 +935,7 @@ private[ra3] object Op2 {
   case object ColumnNEqOpStrcStr extends ColumnOp2StrCStrI {
     def op(a: DStr, b: String)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
+        a <- bufferIfNeededString(a)
       } yield Left(a.elementwise_neq(b))
 
     }
@@ -876,7 +943,7 @@ private[ra3] object Op2 {
   case object ColumnConcatOpStrcStr extends ColumnOp2StrCStrStr {
     def op(a: DStr, b: String)(implicit tsc: TaskSystemComponents): IO[DStr] = {
       for {
-        a <- bufferIfNeeded(a)
+        a <- bufferIfNeededString(a)
       } yield Left(a.elementwise_concatenate(b))
 
     }
@@ -884,8 +951,8 @@ private[ra3] object Op2 {
   case object ColumnConcatOpStrStr extends ColumnOp2StrStrStr {
     def op(a: DStr, b: DStr)(implicit tsc: TaskSystemComponents): IO[DStr] = {
       for {
-        a <- bufferIfNeeded(a)
-        b <- bufferIfNeeded(b)
+        a <- bufferIfNeededString(a)
+        b <- bufferIfNeededString(b)
       } yield Left(a.elementwise_concatenate(b))
 
     }
@@ -894,8 +961,8 @@ private[ra3] object Op2 {
   case object ColumnAndOpII extends ColumnOp2III {
     def op(a: DI32, b: DI32)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
-        b <- bufferIfNeeded(b)
+        a <- bufferIfNeededI32(a)
+        b <- bufferIfNeededI32(b)
       } yield Left(a.elementwise_&&(b))
 
     }
@@ -903,8 +970,8 @@ private[ra3] object Op2 {
   case object ColumnOrOpII extends ColumnOp2III {
     def op(a: DI32, b: DI32)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
-        b <- bufferIfNeeded(b)
+        a <- bufferIfNeededI32(a)
+        b <- bufferIfNeededI32(b)
       } yield Left(a.`elementwise_||`(b))
 
     }
@@ -913,7 +980,7 @@ private[ra3] object Op2 {
   case object ColumnPrintfOpLcStr extends ColumnOp2LCStrStr {
     def op(a: DI64, b: String)(implicit tsc: TaskSystemComponents): IO[DStr] = {
       for {
-        a <- bufferIfNeeded(a)
+        a <- bufferIfNeededI64(a)
       } yield Left(a.elementwise_printf(b))
 
     }
@@ -922,8 +989,8 @@ private[ra3] object Op2 {
   case object ColumnEqOpLL extends ColumnOp2LLI {
     def op(a: DI64, b: DI64)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
-        b <- bufferIfNeeded(b)
+        a <- bufferIfNeededI64(a)
+        b <- bufferIfNeededI64(b)
       } yield Left(a.elementwise_eq(b))
 
     }
@@ -931,7 +998,7 @@ private[ra3] object Op2 {
   case object ColumnEqOpLcL extends ColumnOp2LcLI {
     def op(a: DI64, b: Long)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeededWithPrecondition(a)((segment: SegmentLong) =>
+        a <- bufferIfNeededWithPreconditionI64(a)((segment: SegmentLong) =>
           segment.statistic.mightEq(b)
         )
       } yield (a match {
@@ -947,8 +1014,8 @@ private[ra3] object Op2 {
   case object ColumnLtEqOpStrStr extends ColumnOp2StrStrI {
     def op(a: DStr, b: DStr)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
-        b <- bufferIfNeeded(b)
+        a <- bufferIfNeededString(a)
+        b <- bufferIfNeededString(b)
       } yield Left(a.elementwise_lteq(b))
 
     }
@@ -956,7 +1023,7 @@ private[ra3] object Op2 {
   case object ColumnLtEqOpStrcStr extends ColumnOp2StrCStrI {
     def op(a: DStr, b: String)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeededWithPrecondition(a)((segment: SegmentString) =>
+        a <- bufferIfNeededWithPreconditionString(a)((segment: SegmentString) =>
           segment.statistic.mightLtEq(b)
         )
       } yield (a match {
@@ -970,8 +1037,8 @@ private[ra3] object Op2 {
   case object ColumnGtEqOpStrStr extends ColumnOp2StrStrI {
     def op(a: DStr, b: DStr)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
-        b <- bufferIfNeeded(b)
+        a <- bufferIfNeededString(a)
+        b <- bufferIfNeededString(b)
       } yield Left(a.elementwise_gteq(b))
 
     }
@@ -979,7 +1046,7 @@ private[ra3] object Op2 {
   case object ColumnGtEqOpStrcStr extends ColumnOp2StrCStrI {
     def op(a: DStr, b: String)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeededWithPrecondition(a)((segment: SegmentString) =>
+        a <- bufferIfNeededWithPreconditionString(a)((segment: SegmentString) =>
           segment.statistic.mightGtEq(b)
         )
       } yield (a match {
@@ -993,8 +1060,8 @@ private[ra3] object Op2 {
   case object ColumnLtOpStrStr extends ColumnOp2StrStrI {
     def op(a: DStr, b: DStr)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
-        b <- bufferIfNeeded(b)
+        a <- bufferIfNeededString(a)
+        b <- bufferIfNeededString(b)
       } yield Left(a.elementwise_lt(b))
 
     }
@@ -1002,7 +1069,7 @@ private[ra3] object Op2 {
   case object ColumnLtOpStrcStr extends ColumnOp2StrCStrI {
     def op(a: DStr, b: String)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeededWithPrecondition(a)((segment: SegmentString) =>
+        a <- bufferIfNeededWithPreconditionString(a)((segment: SegmentString) =>
           segment.statistic.mightLt(b)
         )
       } yield (a match {
@@ -1016,8 +1083,8 @@ private[ra3] object Op2 {
   case object ColumnGtOpStrStr extends ColumnOp2StrStrI {
     def op(a: DStr, b: DStr)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
-        b <- bufferIfNeeded(b)
+        a <- bufferIfNeededString(a)
+        b <- bufferIfNeededString(b)
       } yield Left(a.elementwise_gt(b))
 
     }
@@ -1025,7 +1092,7 @@ private[ra3] object Op2 {
   case object ColumnGtOpStrcStr extends ColumnOp2StrCStrI {
     def op(a: DStr, b: String)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeededWithPrecondition(a)((segment: SegmentString) =>
+        a <- bufferIfNeededWithPreconditionString(a)((segment: SegmentString) =>
           segment.statistic.mightGt(b)
         )
       } yield (a match {
@@ -1040,8 +1107,8 @@ private[ra3] object Op2 {
   case object ColumnEqOpStrStr extends ColumnOp2StrStrI {
     def op(a: DStr, b: DStr)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
-        b <- bufferIfNeeded(b)
+        a <- bufferIfNeededString(a)
+        b <- bufferIfNeededString(b)
       } yield Left(a.elementwise_eq(b))
 
     }
@@ -1049,8 +1116,8 @@ private[ra3] object Op2 {
   case object ColumnNEqOpStrStr extends ColumnOp2StrStrI {
     def op(a: DStr, b: DStr)(implicit tsc: TaskSystemComponents): IO[DI32] = {
       for {
-        a <- bufferIfNeeded(a)
-        b <- bufferIfNeeded(b)
+        a <- bufferIfNeededString(a)
+        b <- bufferIfNeededString(b)
       } yield Left(a.elementwise_neq(b))
 
     }

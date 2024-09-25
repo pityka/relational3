@@ -13,7 +13,7 @@ private[ra3] object BitSet {
 }
 
 private[ra3] final class BitSetBuilder(final val elems: Array[Long]) {
-  import BitSet._
+  import BitSet.*
 
   def toBitSet = BitSet(elems.toVector)
 
@@ -46,7 +46,7 @@ private[ra3] final class BitSetBuilder(final val elems: Array[Long]) {
 
 }
 private[ra3] final case class BitSet(final val elems: Vector[Long]) {
-  import BitSet._
+  import BitSet.*
 
   def array = (0 until elems.size * WordLength).map { i =>
     if (contains(i)) 1 else 0

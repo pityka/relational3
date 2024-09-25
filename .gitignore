@@ -6,3 +6,4 @@ target/
 metals.sbt
 todo
 demo/
+.scala-build/

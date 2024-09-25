@@ -20,8 +20,8 @@ package ra3
 import org.specs2.mutable.Specification
 import org.specs2.ScalaCheck
 import org.scalacheck.Arbitrary
-import org.scalacheck.Prop._
-import org.saddle._
+import org.scalacheck.Prop.*
+import org.saddle.*
 
 class IndexCheck extends Specification with ScalaCheck {
   "Int Index Tests" in {

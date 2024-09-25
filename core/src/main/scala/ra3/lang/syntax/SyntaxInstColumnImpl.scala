@@ -1,5 +1,5 @@
 package ra3.lang.syntax
-import ra3.lang._
+import ra3.lang.*
 import ra3.BufferInt
 
 private[ra3] trait SyntaxInstColumnImpl {
@@ -94,8 +94,8 @@ private[ra3] trait SyntaxInstColumnImpl {
   //   .BuiltInOp1(arg0, ops.Op1.MkUnnamedColumnSpecChunk)
   //   .asInstanceOf[Expr { type T = ColumnSpec }]
 
-  // def as(arg1: Expr { type T = String }) = ra3.lang.Expr
-  //   .BuiltInOp2(arg0, arg1, ops.Op2.MkNamedColumnSpecChunk)
-  //   .asInstanceOf[Expr { type T = ColumnSpec }]
-  // def as(arg1: String): Expr { type T = ColumnSpec } = as(Expr.LitStr(arg1))
+  infix def as(arg1: Expr { type T = String }) = ra3.lang.Expr
+    .BuiltInOp2(arg0, arg1, ops.Op2.MkNamedColumnSpecChunkInst)
+    .asInstanceOf[Expr { type T = ColumnSpec[ra3.DInst] }]
+  infix def as(arg1: String): Expr { type T = ColumnSpec[ra3.DInst] } = as(Expr.LitStr(arg1))
 }

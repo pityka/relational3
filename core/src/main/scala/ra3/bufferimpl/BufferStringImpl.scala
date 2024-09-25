@@ -1,5 +1,5 @@
 package ra3.bufferimpl
-import ra3._
+import ra3.*
 import cats.effect.IO
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -118,7 +118,7 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
   }
 
   def positiveLocations: BufferInt = {
-    import org.saddle._
+    import org.saddle.*
     BufferInt(
       values.toVec.find(s => s != BufferString.missing && s.length > 0).toArray
     )
@@ -132,11 +132,11 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
   /** Find locations at which _ <= other[0] or _ >= other[0] holds returns
     * indexes
     */
-  override def findInequalityVsHead(
+   def findInequalityVsHead(
       other: BufferType,
       lessThan: Boolean
   ): BufferInt = {
-    import org.saddle._
+    import org.saddle.*
     val ord = CharSequenceOrdering
     val c = other.values(0)
     if (ord.isMissing(c)) BufferInt.empty
@@ -272,7 +272,7 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
       other: BufferType,
       how: String
   ): (Option[BufferInt], Option[BufferInt]) = {
-    import org.saddle.{Buffer => _, _}
+    import org.saddle.{Buffer as _, *}
     val idx1 = Index(
       values.map(v =>
         if (CharSequenceOrdering.isMissing(v)) null else v.toString
@@ -296,7 +296,7 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
     (reindexer.lTake.map(BufferInt(_)), reindexer.rTake.map(BufferInt(_)))
   }
 
-  override def take(locs: Location): BufferString = locs match {
+   def take(locs: Location): BufferString = locs match {
     case Slice(start, until) =>
       val r = Array.ofDim[CharSequence](until - start)
       System.arraycopy(values, start, r, 0, until - start)
@@ -337,7 +337,7 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
 
   }
 
-  override def toSegment(
+   def toSegment(
       name: LogicalPath
   )(implicit tsc: TaskSystemComponents): IO[SegmentString] = {
     if (values.length == 0)

@@ -1,5 +1,5 @@
 package ra3.bufferimpl
-import ra3._
+import ra3.*
 import cats.effect.IO
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -70,7 +70,7 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
   }
 
   def positiveLocations: BufferInt = {
-    import org.saddle._
+    import org.saddle.*
     BufferInt(
       values.toVec.find(_ > 0L).toArray
     )
@@ -95,11 +95,11 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
   /** Find locations at which _ <= other[0] or _ >= other[0] holds returns
     * indexes
     */
-  override def findInequalityVsHead(
+   def findInequalityVsHead(
       other: BufferType,
       lessThan: Boolean
   ): BufferInt = {
-    import org.saddle._
+    import org.saddle.*
     val c = other.values(0)
     if (c == Long.MinValue) BufferInt.empty
     else {
@@ -114,26 +114,11 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
 
   def toSeq = values.toSeq
 
-  def cdf(numPoints: Int): (BufferInstant, BufferDouble) = {
-    val percentiles =
-      ((0 until (numPoints - 1)).map(i => i * (1d / (numPoints - 1))) ++ List(
-        1d
-      )).distinct
-      import org.saddle._
-    val sorted = org.saddle.array.sort[Long](values.toVec.dropNA.toArray)
-    val cdf = percentiles.map { p =>
-      val idx = (p * (sorted.length - 1)).toInt
-      (sorted(idx), p)
-    }
-
-    val x = BufferInstant(cdf.map(_._1).toArray)
-    val y = BufferDouble(cdf.map(_._2).toArray)
-    (x, y)
-  }
+  
 
   def length = values.length
 
-  import org.saddle.{Buffer => _, _}
+  import org.saddle.{Buffer as _, *}
 
   def groups = {
     val idx = Index(values)
@@ -189,7 +174,7 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
     (reindexer.lTake.map(BufferInt(_)), reindexer.rTake.map(BufferInt(_)))
   }
 
-  override def take(locs: Location): BufferInstant = locs match {
+   def take(locs: Location): BufferInstant = locs match {
     case Slice(start, until) =>
       val r = Array.ofDim[Long](until - start)
       System.arraycopy(values, start, r, 0, until - start)
@@ -205,7 +190,7 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
     scala.util.hashing.byteswap64(values(l))
   }
 
-  override def toSegment(
+   def toSegment(
       name: LogicalPath
   )(implicit tsc: TaskSystemComponents): IO[SegmentInstant] = {
     if (values.length == 0)

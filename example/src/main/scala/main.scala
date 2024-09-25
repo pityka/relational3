@@ -1,10 +1,11 @@
-import tasks._
+import tasks.*
 import cats.effect.unsafe.implicits.global
 import cats.effect.IO
 import com.typesafe.config.ConfigFactory
 import scala.util.Random
 import mainargs.{main, arg, ParserForMethods, Flag}
-import ra3.{StrVar, I32Var, F64Var, select, where, TableExpr, let, Table}
+import ra3.{StrVar, I32Var, F64Var, select,  TableExpr, let, Table}
+import ra3.lang.DelayedIdent
 
 object Main extends App {
 
@@ -97,80 +98,69 @@ object Main extends App {
         } yield renamed
 
       case class TransactionsSchema(
-          customerOut: StrVar,
-          customerIn: StrVar,
-          categoryString: StrVar,
-          categoryInt: I32Var,
-          value: F64Var
+          customerOut: DelayedIdent[StrVar],
+          customerIn: DelayedIdent[StrVar],
+          categoryString: DelayedIdent[StrVar],
+          categoryInt: DelayedIdent[I32Var],
+          value: DelayedIdent[F64Var]
       )
       object TransactionsSchema {
-        def apply(a: ra3.Table)(
-            f: TransactionsSchema => TableExpr
-        ): TableExpr = apply(a.lift)(f)
-
-        def apply(a: ra3.TableExpr)(
-            f: TransactionsSchema => TableExpr
-        ): TableExpr =
-          let[StrVar, StrVar, StrVar, I32Var, F64Var](a) {
+        def schema[R](a: ra3.Table)(
+            f: TransactionsSchema => TableExpr{type T = R}
+        ) = 
+          a.schema[StrVar, StrVar, StrVar, I32Var, F64Var].columns {
             case (c0, c1, c2, c3, c4) =>
               f(TransactionsSchema(c0, c1, c2, c3, c4))
           }
       }
 
       case class CustomerSummary(
-          customer: StrVar,
-          avg: F64Var,
-          min: F64Var,
-          max: F64Var
+          customer: DelayedIdent[StrVar],
+          avg: DelayedIdent[F64Var],
+          max: DelayedIdent[F64Var]
       )
       object CustomerSummary {
 
         def apply(
-            customer: StrVar,
-            price: F64Var
-        )(use: CustomerSummary => TableExpr): TableExpr = {
-          val summary = customer.groupBy
-            .reduce(
-              select(
+            customer: DelayedIdent[StrVar],
+            price: DelayedIdent[F64Var]
+        )(use: [R] => CustomerSummary => TableExpr{type T = R}): TableExpr = {
+          val summary = customer.groupBy(select(
                 customer.first,
                 price.sum,
                 price.count,
-                price.min,
                 price.max
-              )
-            )
+              ))            
             .partial
-            .in[ra3.StrVar, ra3.F64Var, ra3.F64Var, ra3.F64Var, ra3.F64Var] {
-              case (customer, sum, count, min, max) =>
+            .columns {
+              case (customer, sum, count,  max) =>
                 customer
                   .groupBy(
                     select(
                       customer.first as "customer",
                       (sum.sum / count.sum) as "avg",
-                      min.min as "min",
                       max.max as "max"
                     )
                   )
                   .all
             }
 
-          summary.in0(summary =>
+          summary.columns{ case (customer,avg,max) =>
             use(
               CustomerSummary(
-                summary[StrVar](0),
-                summary[F64Var](1),
-                summary[F64Var](2),
-                summary[F64Var]("max")
+                customer,
+                avg,
+                max
               )
             )
-          )
+        }
 
         }
 
       }
 
       def avgInAndOut(transactions: Table) = {
-        val query = TransactionsSchema(transactions) { transactions =>
+        val query = TransactionsSchema.schema(transactions) { transactions =>
           TransactionsSchema(
             transactions.categoryInt.table
               .query((transactions.categoryInt < 3000).in(pred => where(pred)))
@@ -185,17 +175,15 @@ object Main extends App {
               ) { summaryByCustomerOut =>
                 val c1 = summaryByCustomerIn.customer
                 val c2 = summaryByCustomerOut.customer
-                c1.join
-                  .outer(c2)
-                  .elementwise(
-                    select(
+                c1.join( select(
                       c1 as "cIn",
                       c2 as "cOut",
                       c1.isMissing.ifelseStr(c2, c1) as "customer",
                       summaryByCustomerIn.avg as "inAvg",
                       summaryByCustomerOut.avg as "outAvg"
-                    )
-                  )
+                    ))
+                  .outer(c2)
+                  
 
               }
             }
@@ -205,10 +193,10 @@ object Main extends App {
       }
       def avgInAndOutWithoutAbstractions(transactions: Table) = {
         val query = transactions
-          .in[StrVar, StrVar, StrVar, StrVar, F64Var] {
+          .schema[StrVar, StrVar, StrVar, StrVar, F64Var].columns {
             (customerIn, customerOut, _, _, value) =>
               customerIn.groupBy
-                .reduce(
+                (
                   select(
                     customerIn.first,
                     value.sum,
@@ -218,8 +206,8 @@ object Main extends App {
                   )
                 )
                 .partial
-                .in0(_.tap("partial group by"))
-                .in[StrVar, F64Var, F64Var, F64Var, F64Var] {
+                .in(_.tap("partial group by"))
+                .columns {
                   case (customer, sum, count, min, max) =>
                     customer
                       .groupBy(
@@ -232,10 +220,10 @@ object Main extends App {
                       )
                       .all
                 }
-                .in[StrVar, F64Var, F64Var, F64Var] {
+                .columns {
                   (customerIn, avgInValue, _, _) =>
                     customerOut.groupBy
-                      .reduce(
+                      (
                         select(
                           customerOut.first,
                           value.sum,
@@ -245,7 +233,7 @@ object Main extends App {
                         )
                       )
                       .partial
-                      .in[StrVar, F64Var, F64Var, F64Var, F64Var] {
+                      .columns {
                         case (customer, sum, count, min, max) =>
                           customer
                             .groupBy(
@@ -258,12 +246,9 @@ object Main extends App {
                             )
                             .all
                       }
-                      .in[StrVar, F64Var, F64Var, F64Var] {
+                      .columns {
                         (customerOut, avgOutValue, _, _) =>
-                          customerIn.join
-                            .outer(customerOut)
-                            .elementwise(
-                              select(
+                          customerIn.join(select(
                                 customerIn as "cIn",
                                 customerOut as "cOut",
                                 customerIn.isMissing
@@ -273,8 +258,9 @@ object Main extends App {
                                   ) as "customer",
                                 avgInValue as "inAvg",
                                 avgOutValue as "outAvg"
-                              )
-                            )
+                              ))
+                            .outer(customerOut)
+                            .done
                       }
 
                 }

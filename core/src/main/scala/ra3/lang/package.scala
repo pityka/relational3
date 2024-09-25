@@ -5,7 +5,6 @@ import ra3.tablelang.TableExpr
 package object lang {
 
   type Query = ra3.lang.Expr { type T <: ra3.lang.ReturnValue }
-  type QueryT[A,B] = ra3.lang.Expr { type T = ra3.lang.ReturnValue2[A,B] }
   
   type IntExpr = Expr { type T = Int }
   type StrExpr = Expr { type T = String }
@@ -47,37 +46,80 @@ package object lang {
   private[ra3] def evaluate(expr: Expr)(implicit
       tsc: TaskSystemComponents
   ): IO[Value[expr.T]] = expr.evalWith(Map.empty)
-  private[ra3] def evaluate(expr: Expr, map: Map[Key, Value[_]])(implicit
+  private[ra3] def evaluate(expr: Expr, map: Map[Key, Value[?]])(implicit
       tsc: TaskSystemComponents
   ): IO[Value[expr.T]] =
     expr.evalWith(map)
 
-  private[ra3] def bufferIfNeeded[
-      B <: Buffer { type BufferType = B },
-      S <: Segment { type SegmentType = S; type BufferType = B },
-      C
-  ](
-      arg: Either[B, Seq[S]]
-  )(implicit tsc: TaskSystemComponents): IO[B] =
+  private[ra3] def bufferIfNeededI32(
+      arg: Either[BufferInt, Seq[SegmentInt]]
+  )(implicit tsc: TaskSystemComponents): IO[BufferInt] = 
+    bufferIfNeeded(ColumnTag.I32)(arg)
+
+  private[ra3] def bufferIfNeededF64(
+      arg: Either[BufferDouble, Seq[SegmentDouble]]
+  )(implicit tsc: TaskSystemComponents): IO[BufferDouble] = 
+    bufferIfNeeded(ColumnTag.F64)(arg)
+
+  private[ra3] def bufferIfNeededI64(
+      arg: Either[BufferLong, Seq[SegmentLong]]
+  )(implicit tsc: TaskSystemComponents): IO[BufferLong] = 
+    bufferIfNeeded(ColumnTag.I64)(arg)
+
+  private[ra3] def bufferIfNeededString(
+      arg: Either[BufferString, Seq[SegmentString]]
+  )(implicit tsc: TaskSystemComponents): IO[BufferString] = 
+    bufferIfNeeded(ColumnTag.StringTag)(arg)
+
+  private[ra3] def bufferIfNeededInst(
+      arg: Either[BufferInstant, Seq[SegmentInstant]]
+  )(implicit tsc: TaskSystemComponents): IO[BufferInstant] = 
+    bufferIfNeeded(ColumnTag.Instant)(arg)
+    
+  private[ra3] def bufferIfNeeded(tag: ColumnTag)(
+      arg: Either[tag.BufferType, Seq[tag.SegmentType]]
+  )(implicit tsc: TaskSystemComponents): IO[tag.BufferType] =
     arg match {
       case Left(b) => IO.pure(b)
       case Right(s) =>
-        ra3.Utils.bufferMultiple(s)
+        ra3.Utils.bufferMultiple(tag)(s)
     }
-  private[ra3] def bufferIfNeededWithPrecondition[
-      B <: Buffer { type BufferType = B },
-      S <: Segment { type SegmentType = S; type BufferType = B },
-      C
-  ](
-      arg: Either[B, Seq[S]]
+
+  private[ra3] def bufferIfNeededWithPreconditionInst(
+      arg: Either[BufferInstant, Seq[SegmentInstant]]
+  )(prec: SegmentInstant => Boolean)(implicit tsc: TaskSystemComponents):  IO[Either[Int, BufferInstant]] = 
+    bufferIfNeededWithPrecondition(ColumnTag.Instant)(arg)(prec)
+
+  private[ra3] def bufferIfNeededWithPreconditionString(
+      arg: Either[BufferString, Seq[SegmentString]]
+  )(prec: SegmentString => Boolean)(implicit tsc: TaskSystemComponents):  IO[Either[Int, BufferString]] = 
+    bufferIfNeededWithPrecondition(ColumnTag.StringTag)(arg)(prec)
+
+  private[ra3] def bufferIfNeededWithPreconditionI32(
+      arg: Either[BufferInt, Seq[SegmentInt]]
+  )(prec: SegmentInt => Boolean)(implicit tsc: TaskSystemComponents):  IO[Either[Int, BufferInt]] = 
+    bufferIfNeededWithPrecondition(ColumnTag.I32)(arg)(prec)
+    
+  private[ra3] def bufferIfNeededWithPreconditionI64(
+      arg: Either[BufferLong, Seq[SegmentLong]]
+  )(prec: SegmentLong => Boolean)(implicit tsc: TaskSystemComponents):  IO[Either[Int, BufferLong]] = 
+    bufferIfNeededWithPrecondition(ColumnTag.I64)(arg)(prec)
+
+  private[ra3] def bufferIfNeededWithPreconditionF64(
+      arg: Either[BufferDouble, Seq[SegmentDouble]]
+  )(prec: SegmentDouble => Boolean)(implicit tsc: TaskSystemComponents):  IO[Either[Int, BufferDouble]] = 
+    bufferIfNeededWithPrecondition(ColumnTag.F64)(arg)(prec)
+
+  private[ra3] def bufferIfNeededWithPrecondition(tag: ColumnTag)(
+      arg: Either[tag.BufferType, Seq[tag.SegmentType]]
   )(
-      prec: S => Boolean
-  )(implicit tsc: TaskSystemComponents): IO[Either[Int, B]] =
+      prec: tag.SegmentType => Boolean
+  )(implicit tsc: TaskSystemComponents): IO[Either[Int, tag.BufferType]] =
     arg match {
       case Left(b) => IO.pure(Right(b))
       case Right(s) =>
         if (s.exists(prec))
-          ra3.Utils.bufferMultiple(s).map(Right(_))
+          ra3.Utils.bufferMultiple(tag)(s).map(Right(_))
         else IO.pure(Left(s.map(_.numElems).sum))
     }
 
@@ -92,14 +134,7 @@ package object lang {
     Expr.Local(n, assigned, b).asInstanceOf[Expr { type T = T1 }]
   }
 
-  private[ra3] def local1[T1,T2](
-      assigned: TableExpr { type T = T1}
-  )(body: TableExpr.Ident { type T = T1} => TableExpr{ type T = T2}): TableExpr{ type T = T2} = {
-    val n = ra3.tablelang.TagKey(new ra3.tablelang.KeyTag)
-    val b = body(TableExpr.Ident(n).asInstanceOf[TableExpr.Ident { type T = T1}])
 
-    TableExpr.Local(n, assigned, b).asInstanceOf[TableExpr.Local{ type T =T2}]
-  }
 
 
 

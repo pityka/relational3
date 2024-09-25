@@ -1,12 +1,12 @@
 package ra3.lang
-import com.github.plokhotnyuk.jsoniter_scala.macros._
-import com.github.plokhotnyuk.jsoniter_scala.core._
+import com.github.plokhotnyuk.jsoniter_scala.macros.*
+import com.github.plokhotnyuk.jsoniter_scala.core.*
 import cats.effect.IO
 import tasks.TaskSystemComponents
 import ra3.tablelang.DelayedTableSchema
 import ra3.tablelang
 import ra3.lang.StrExpr
-import ra3._
+import ra3.*
 
 private[ra3] class KeyTag
 private[ra3] sealed trait Key
@@ -25,7 +25,7 @@ private[ra3] case class Delayed(
 private[ra3] sealed trait Expr { self =>
   private[ra3] type T
 
-  private[lang] def evalWith(env: Map[Key, Value[_]])(implicit
+  private[lang] def evalWith(env: Map[Key, Value[?]])(implicit
       tsc: TaskSystemComponents
   ): IO[Value[T]]
   private[ra3] def hash = {
@@ -180,7 +180,7 @@ object Expr {
 
     private[ra3] def referredTables = Set.empty
     type T = ColumnSpec[Any]
-    def evalWith(env: Map[Key, Value[_]])(implicit
+    def evalWith(env: Map[Key, Value[?]])(implicit
         tsc: TaskSystemComponents
     ): IO[Value[T]] = IO.pure(Value.Const(ra3.lang.StarColumnSpec))
     def tags: Set[KeyTag] = Set.empty
@@ -193,7 +193,7 @@ object Expr {
 
     private[ra3] def referredTables = Set.empty
     type T = Set[String]
-    def evalWith(env: Map[Key, Value[_]])(implicit
+    def evalWith(env: Map[Key, Value[?]])(implicit
         tsc: TaskSystemComponents
     ): IO[Value[T]] = IO.pure(Value.Const(s))
     def tags: Set[KeyTag] = Set.empty
@@ -206,7 +206,7 @@ object Expr {
 
     private[ra3] def referredTables = Set.empty
     type T = String
-    def evalWith(env: Map[Key, Value[_]])(implicit
+    def evalWith(env: Map[Key, Value[?]])(implicit
         tsc: TaskSystemComponents
     ): IO[Value[T]] = IO.pure(Value.Const(s))
     def tags: Set[KeyTag] = Set.empty
@@ -219,7 +219,7 @@ object Expr {
 
     private[ra3] def referredTables = Set.empty
     type T = Int
-    def evalWith(env: Map[Key, Value[_]])(implicit
+    def evalWith(env: Map[Key, Value[?]])(implicit
         tsc: TaskSystemComponents
     ): IO[Value[T]] = IO.pure(Value.Const(s))
     def tags: Set[KeyTag] = Set.empty
@@ -232,7 +232,7 @@ object Expr {
 
     private[ra3] def referredTables = Set.empty
     type T = Double
-    def evalWith(env: Map[Key, Value[_]])(implicit
+    def evalWith(env: Map[Key, Value[?]])(implicit
         tsc: TaskSystemComponents
     ): IO[Value[T]] = IO.pure(Value.Const(s))
     def tags: Set[KeyTag] = Set.empty
@@ -245,7 +245,7 @@ object Expr {
 
     private[ra3] def referredTables = Set.empty
     type T = Set[Double]
-    def evalWith(env: Map[Key, Value[_]])(implicit
+    def evalWith(env: Map[Key, Value[?]])(implicit
         tsc: TaskSystemComponents
     ): IO[Value[T]] = IO.pure(Value.Const(s))
     def tags: Set[KeyTag] = Set.empty
@@ -258,7 +258,7 @@ object Expr {
 
     private[ra3] def referredTables = Set.empty
     type T = Set[Int]
-    def evalWith(env: Map[Key, Value[_]])(implicit
+    def evalWith(env: Map[Key, Value[?]])(implicit
         tsc: TaskSystemComponents
     ): IO[Value[T]] = IO.pure(Value.Const(s))
     def tags: Set[KeyTag] = Set.empty
@@ -272,7 +272,7 @@ object Expr {
 
     private[ra3] def referredTables = Set.empty
     type T = Long
-    def evalWith(env: Map[Key, Value[_]])(implicit
+    def evalWith(env: Map[Key, Value[?]])(implicit
         tsc: TaskSystemComponents
     ): IO[Value[T]] = IO.pure(Value.Const(s))
     def tags: Set[KeyTag] = Set.empty
@@ -290,10 +290,10 @@ object Expr {
     private[ra3] def referredTables = Set(tableIdent)
 
     /** Join this column with an other column */
-    def join = ra3.lang.Join(this)
+    def join(prg: ra3.lang.Query) = ra3.lang.Join(this, prg)
 
     /** group the table by this column */
-    def groupBy = ra3.lang.GroupBy(this)
+    def groupBy(prg: ra3.lang.Query) = ra3.lang.GroupBy(this, prg)
 
     private[ra3] def tableIdent: ra3.tablelang.TableExpr.Ident { type T = R } =
       ra3.tablelang.TableExpr
@@ -301,11 +301,11 @@ object Expr {
         .asInstanceOf[ra3.tablelang.TableExpr.Ident { type T = R }]
     def table = tableIdent
 
-    private[ra3] def evalWith(env: Map[Key, Value[_]])(implicit
+    private[ra3] def evalWith(env: Map[Key, Value[?]])(implicit
         tsc: TaskSystemComponents
     ): IO[Value[T]] =
       IO.pure(env(name).asInstanceOf[Value[T]])
-    private[ra3] def cast[T1 <: DelayedIdent] = asInstanceOf[T1]
+    private[ra3] def cast[T1] = asInstanceOf[DelayedIdent{type T = T1}]
 
     private[ra3] def tags: Set[KeyTag] = Set.empty
     private[ra3] val columnKeys: Set[ColumnKey] = Set.empty
@@ -320,10 +320,7 @@ object Expr {
     }
 
     private[ra3] override def replaceDelayed(i: DelayedTableSchema) =
-      name match {
-        case x: Delayed => Ident(i.replace(x))
-        case _          => this
-      }
+       Ident(i.replace(name))
   }
   private[ra3] case class Ident(name: Key) extends Expr {
 
@@ -333,7 +330,7 @@ object Expr {
       case _                 => Set.empty
     }
 
-    def evalWith(env: Map[Key, Value[_]])(implicit
+    def evalWith(env: Map[Key, Value[?]])(implicit
         tsc: TaskSystemComponents
     ): IO[Value[T]] =
       IO.pure(env(name).asInstanceOf[Value[T]])
@@ -376,7 +373,7 @@ object Expr {
       BuiltInOp1(arg0.replaceDelayed(i), op)
 
     def evalWith(
-        env: Map[Key, Value[_]]
+        env: Map[Key, Value[?]]
     )(implicit tsc: TaskSystemComponents): IO[Value[T]] =
       arg0
         .asInstanceOf[Expr { type T = op.A0 }]
@@ -399,7 +396,7 @@ object Expr {
       BuiltInOp2(arg0.replaceDelayed(i), arg1.replaceDelayed(i), op)
 
     def evalWith(
-        env: Map[Key, Value[_]]
+        env: Map[Key, Value[?]]
     )(implicit tsc: TaskSystemComponents): IO[Value[T]] =
       for {
         a0 <- arg0.asInstanceOf[Expr { type T = op.A0 }].evalWith(env)
@@ -437,13 +434,104 @@ object Expr {
       op
     )
     def evalWith(
-        env: Map[Key, Value[_]]
+        env: Map[Key, Value[?]]
     )(implicit tsc: TaskSystemComponents): IO[Value[T]] =
       for {
         a0 <- arg0.asInstanceOf[Expr { type T = op.A0 }].evalWith(env)
         a1 <- arg1.asInstanceOf[Expr { type T = op.A1 }].evalWith(env)
         a2 <- arg2.asInstanceOf[Expr { type T = op.A2 }].evalWith(env)
         r <- op.op(a0.v, a1.v, a2.v)
+      } yield Value.Const(r)
+
+  }
+  private[ra3] case class BuiltInOp4(
+      arg0: Expr,
+      arg1: Expr,
+      arg2: Expr,
+      arg3: Expr,
+      op: ops.Op4
+  ) extends Expr {
+    type T = op.T
+
+    private[ra3] def referredTables =
+      arg0.referredTables ++ arg1.referredTables ++ arg2.referredTables ++ arg3.referredTables
+
+    val tags: Set[KeyTag] = arg0.tags ++ arg1.tags ++ arg2.tags ++ arg3.tags
+    val columnKeys: Set[ColumnKey] =
+      arg0.columnKeys ++ arg1.columnKeys ++ arg2.columnKeys ++ arg3.columnKeys
+    def replace(i: Map[KeyTag, Int], i2: Map[ra3.tablelang.KeyTag, Int]): Expr =
+      BuiltInOp4(
+        arg0.replace(i, i2),
+        arg1.replace(i, i2),
+        arg2.replace(i, i2),
+        arg3.replace(i, i2),
+        op
+      )
+
+    def replaceDelayed(i: DelayedTableSchema): Expr = BuiltInOp4(
+      arg0.replaceDelayed(i),
+      arg1.replaceDelayed(i),
+      arg2.replaceDelayed(i),
+      arg3.replaceDelayed(i),
+      op
+    )
+    def evalWith(
+        env: Map[Key, Value[?]]
+    )(implicit tsc: TaskSystemComponents): IO[Value[T]] =
+      for {
+        a0 <- arg0.asInstanceOf[Expr { type T = op.A0 }].evalWith(env)
+        a1 <- arg1.asInstanceOf[Expr { type T = op.A1 }].evalWith(env)
+        a2 <- arg2.asInstanceOf[Expr { type T = op.A2 }].evalWith(env)
+        a3 <- arg3.asInstanceOf[Expr { type T = op.A3 }].evalWith(env)
+        r <- op.op(a0.v, a1.v, a2.v, a3.v)
+      } yield Value.Const(r)
+
+  }
+  private[ra3] case class BuiltInOp5(
+      arg0: Expr,
+      arg1: Expr,
+      arg2: Expr,
+      arg3: Expr,
+      arg4: Expr,
+      op: ops.Op5
+  ) extends Expr {
+    type T = op.T
+
+    private[ra3] def referredTables =
+      arg0.referredTables ++ arg1.referredTables ++ arg2.referredTables 
+      ++ arg3.referredTables ++ arg4.referredTables
+
+    val tags: Set[KeyTag] = arg0.tags ++ arg1.tags ++ arg2.tags ++ arg3.tags ++ arg4.tags
+    val columnKeys: Set[ColumnKey] =
+      arg0.columnKeys ++ arg1.columnKeys ++ arg2.columnKeys ++ arg3.columnKeys ++ arg4.columnKeys
+    def replace(i: Map[KeyTag, Int], i2: Map[ra3.tablelang.KeyTag, Int]): Expr =
+      BuiltInOp5(
+        arg0.replace(i, i2),
+        arg1.replace(i, i2),
+        arg2.replace(i, i2),
+        arg3.replace(i, i2),
+        arg4.replace(i, i2),
+        op
+      )
+
+    def replaceDelayed(i: DelayedTableSchema): Expr = BuiltInOp5(
+      arg0.replaceDelayed(i),
+      arg1.replaceDelayed(i),
+      arg2.replaceDelayed(i),
+      arg3.replaceDelayed(i),
+      arg4.replaceDelayed(i),
+      op
+    )
+    def evalWith(
+        env: Map[Key, Value[?]]
+    )(implicit tsc: TaskSystemComponents): IO[Value[T]] =
+      for {
+        a0 <- arg0.asInstanceOf[Expr { type T = op.A0 }].evalWith(env)
+        a1 <- arg1.asInstanceOf[Expr { type T = op.A1 }].evalWith(env)
+        a2 <- arg2.asInstanceOf[Expr { type T = op.A2 }].evalWith(env)
+        a3 <- arg3.asInstanceOf[Expr { type T = op.A3 }].evalWith(env)
+        a4 <- arg4.asInstanceOf[Expr { type T = op.A4 }].evalWith(env)
+        r <- op.op(a0.v, a1.v, a2.v, a3.v, a4.v)
       } yield Value.Const(r)
 
   }
@@ -463,11 +551,11 @@ object Expr {
   //     BuiltInOpStar(args.map(_.replaceDelayed(i)), op)
 
   //   def evalWith(
-  //       env: Map[Key, Value[_]]
+  //       env: Map[Key, Value[?]]
   //   )(implicit tsc: TaskSystemComponents): IO[Value[T]] =
   //     IO.parSequenceN(32)(
   //       args.map(_.asInstanceOf[Expr { type T = op.A }].evalWith(env))
-  //     ).map(args => Value.Const(op.op(args.map(_.v): _*)))
+  //     ).map(args => Value.Const(op.op(args.map(_.v)*)))
 
   // }
 
@@ -527,7 +615,7 @@ object Expr {
       Local(replacedName, assigned.replaceDelayed(i), body.replaceDelayed(i))
     }
     def evalWith(
-        env: Map[Key, Value[_]]
+        env: Map[Key, Value[?]]
     )(implicit tsc: TaskSystemComponents): IO[Value[T]] = {
       assigned.evalWith(env).flatMap { assignedValue =>
         body.evalWith(env + (name -> assignedValue))

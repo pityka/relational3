@@ -1,12 +1,12 @@
 package ra3
-import com.github.plokhotnyuk.jsoniter_scala.core._
+import com.github.plokhotnyuk.jsoniter_scala.core.*
 import cats.effect.unsafe.implicits.global
-import lang.{global => gl, _}
+import lang.{global as gl, *}
 
 class LanguageSuite extends munit.FunSuite with WithTempTaskSystem {
   test("basic") {
     withTempTaskSystem { implicit ts =>
-      def eval(expr: Expr, map: Map[Key, Value[_]]) =
+      def eval(expr: Expr, map: Map[Key, Value[?]]) =
         ra3.lang.evaluate(expr, map).unsafeRunSync()
       val e: Expr =
         lang.global[Int](ColumnKey("hole", 0))((hole: IntExpr) =>
@@ -27,17 +27,16 @@ class LanguageSuite extends munit.FunSuite with WithTempTaskSystem {
 
       assert(
         evaluate(let(Expr.LitNum(1)) { e1 =>
-          star :: (e1 ++ e1).as("b") :: e1.as("a").list
+           (e1 ++ e1).as("b") :: e1.as("a").list
         }).unsafeRunSync().v == List(
-          ra3.lang.Star,
+          
           NamedConstantI32(2, "b"),
           NamedConstantI32(1, "a")
         )
       )
 
       gl[ra3.DI32](ColumnKey("hole", 0))(buffer =>
-        select(buffer as "boo", buffer as "boo2", buffer)
-          where (buffer <= 0)
+        select(buffer as "boo", buffer as "boo2", buffer).where(buffer <= 0)
       ).replaceTags(Map.empty)
 
       val e3 = readFromString[Expr](writeToString(e.replaceTags(Map.empty)))
