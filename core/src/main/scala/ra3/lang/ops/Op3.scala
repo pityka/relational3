@@ -13,23 +13,7 @@ private[ra3] sealed trait Op3 {
   type T
   def op(a: A0, b: A1, c: A2)(implicit tsc: TaskSystemComponents): IO[T]
 }
-private[ra3] sealed trait Op4 {
-  type A0
-  type A1
-  type A2
-  type A3
-  type T
-  def op(a: A0, b: A1, c: A2, d: A3)(implicit tsc: TaskSystemComponents): IO[T]
-}
-private[ra3] sealed trait Op5 {
-  type A0
-  type A1
-  type A2
-  type A3
-  type A4
-  type T
-  def op(a: A0, b: A1, c: A2, d: A3, e:A4)(implicit tsc: TaskSystemComponents): IO[T]
-}
+
 
 private[ra3] object Op3 {
 
@@ -41,25 +25,7 @@ private[ra3] object Op3 {
     def op(a0: A0, a1: A1, a2: A2)(implicit tsc: TaskSystemComponents) =
       IO.pure(ra3.lang.ReturnValue3(a0, a1, a2, None))
   }
-  object MkReturnValue4 extends Op4 {
-    type A0 = ra3.lang.ColumnSpec[?]
-    type A1 = ra3.lang.ColumnSpec[?]
-    type A2 = ra3.lang.ColumnSpec[?]
-    type A3 = ra3.lang.ColumnSpec[?]
-    type T = ra3.lang.ReturnValue4[?, ?, ?,?]
-    def op(a0: A0, a1: A1, a2: A2, a3: A3)(implicit tsc: TaskSystemComponents) =
-      IO.pure(ra3.lang.ReturnValue4(a0, a1, a2,a3, None))
-  }
-  object MkReturnValue5 extends Op5 {
-    type A0 = ra3.lang.ColumnSpec[?]
-    type A1 = ra3.lang.ColumnSpec[?]
-    type A2 = ra3.lang.ColumnSpec[?]
-    type A3 = ra3.lang.ColumnSpec[?]
-    type A4 = ra3.lang.ColumnSpec[?]
-    type T = ra3.lang.ReturnValue5[?, ?, ?,?,?]
-    def op(a0: A0, a1: A1, a2: A2, a3: A3, a4:A4)(implicit tsc: TaskSystemComponents) =
-      IO.pure(ra3.lang.ReturnValue5(a0, a1, a2,a3,a4, None))
-  }
+  
 
   case object StringMatchAndReplaceOp extends Op3 {
     type A0 = DStr

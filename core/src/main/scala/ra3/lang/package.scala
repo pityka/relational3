@@ -4,13 +4,13 @@ import tasks.TaskSystemComponents
 import ra3.tablelang.TableExpr
 package object lang {
 
-  type Query = ra3.lang.Expr { type T <: ra3.lang.ReturnValue }
+  type Query = ra3.lang.Expr { type T <: ra3.lang.ReturnValue}
   
   type IntExpr = Expr { type T = Int }
   type StrExpr = Expr { type T = String }
   type LongExpr = Expr { type T = Long }
   type DoubleExpr = Expr { type T = Double }
-  private[ra3] type BufferExpr = Expr { type T <: Buffer }
+  private[ra3] type BufferExpr = Expr { type T <: Buffer }  
 
   type ColumnExpr = Expr {
     type T = Either[Buffer, Seq[Segment]]
@@ -33,7 +33,7 @@ package object lang {
 
   private[ra3] type ReturnExpr1[A] = Expr { type T = ReturnValue1[A] }
   private[ra3] type ReturnExpr2[A,B] = Expr { type T = ReturnValue2[A,B] }
-  private[ra3] type ColumnSpecExpr[A] = Expr { type T = ColumnSpec[A] }
+  case class ColumnSpecExpr[A](a: Expr { type T = ColumnSpec[A] }) 
 
   private[ra3] type GenericExpr[T0] = Expr { type T = T0 }
   type DelayedIdent[T0] = Expr.DelayedIdent { type T = T0 }

@@ -118,7 +118,7 @@ private[ra3] trait SyntaxI32ColumnImpl {
 
   def unnamed = ra3.lang.Expr
     .BuiltInOp1(arg0, ops.Op1.MkUnnamedColumnSpecChunk)
-    .asInstanceOf[Expr { type T = ColumnSpec[ra3.DI32] }]
+    .asInstanceOf[ColumnSpecExpr[ra3.DI32]]
 
   infix def as(arg1: Expr { type T = String }) = ra3.lang.Expr
     .BuiltInOp2(arg0, arg1, ops.Op2.MkNamedColumnSpecChunkI32)

@@ -151,24 +151,7 @@ object Expr {
     def lift = arg0
   }
 
-  import scala.language.implicitConversions
-  implicit def conversionDI32(
-      a: Expr { type T = DI32 }
-  ): Expr { type T = ColumnSpec[DI32] } = a.unnamed
-
-  implicit def conversionDF64(
-      a: Expr { type T = DF64 }
-  ): Expr { type T = ColumnSpec[DF64] } = a.unnamed
-  implicit def conversionDI64(
-      a: Expr { type T = DI64 }
-  ): Expr { type T = ColumnSpec[DI64] } = ??? // a.unnamed
-  implicit def conversionDInst(
-      a: Expr { type T = DInst }
-  ): Expr { type T = ColumnSpec[DInst] } = ??? // a.unnamed
-
-  implicit def conversionStr(
-      a: Expr { type T = DStr }
-  ): Expr { type T = ColumnSpec[DStr] } = ??? // a.unnamed
+  
 
   implicit val customCodecOfDouble: JsonValueCodec[Double] =
     ra3.Utils.customDoubleCodec
@@ -535,29 +518,30 @@ object Expr {
       } yield Value.Const(r)
 
   }
-  // private[ra3] case class BuiltInOpStar(args: Seq[Expr], op: ops.OpStar)
-  //     extends Expr {
-  //   type T = op.T
 
-  //   private[ra3] def referredTables = args.flatMap(_.referredTables).toSet
+  private[ra3] case class BuiltInOpAny(args: Seq[Expr],  op: ops.OpAny)
+      extends Expr {
+    
 
-  //   val tags: Set[KeyTag] = args.flatMap(_.tags).toSet
-  //   val columnKeys: Set[ColumnKey] =
-  //     args.flatMap(_.columnKeys).toSet
-  //   def replace(i: Map[KeyTag, Int], i2: Map[ra3.tablelang.KeyTag, Int]): Expr =
-  //     BuiltInOpStar(args.map(_.replace(i, i2)), op)
+    private[ra3] def referredTables = args.flatMap(_.referredTables).toSet
 
-  //   def replaceDelayed(i: DelayedTableSchema): Expr =
-  //     BuiltInOpStar(args.map(_.replaceDelayed(i)), op)
+    val tags: Set[KeyTag] = args.flatMap(_.tags).toSet
+    val columnKeys: Set[ColumnKey] =
+      args.flatMap(_.columnKeys).toSet
+    def replace(i: Map[KeyTag, Int], i2: Map[ra3.tablelang.KeyTag, Int]): Expr =
+      BuiltInOpAny(args.map(_.replace(i, i2)), op)
 
-  //   def evalWith(
-  //       env: Map[Key, Value[?]]
-  //   )(implicit tsc: TaskSystemComponents): IO[Value[T]] =
-  //     IO.parSequenceN(32)(
-  //       args.map(_.asInstanceOf[Expr { type T = op.A }].evalWith(env))
-  //     ).map(args => Value.Const(op.op(args.map(_.v)*)))
+    def replaceDelayed(i: DelayedTableSchema): Expr =
+      BuiltInOpAny(args.map(_.replaceDelayed(i)), op)
 
-  // }
+    def evalWith(
+        env: Map[Key, Value[?]]
+    )(implicit tsc: TaskSystemComponents): IO[Value[T]] =
+      IO.parSequenceN(32)(
+        args.map(_.asInstanceOf[Expr { type T = op.A }].evalWith(env))
+      ).flatMap(args => op.op(args.map(_.v).asInstanceOf[op.A])).map(value => Value.Const(value.asInstanceOf[T]))
+
+  }
 
   private[ra3] def makeOp3(op: ops.Op3)(
       arg0: Expr { type T = op.A0 },

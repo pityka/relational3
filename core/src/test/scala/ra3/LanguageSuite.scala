@@ -36,7 +36,7 @@ class LanguageSuite extends munit.FunSuite with WithTempTaskSystem {
       )
 
       gl[ra3.DI32](ColumnKey("hole", 0))(buffer =>
-        select(buffer as "boo", buffer as "boo2", buffer).where(buffer <= 0)
+        select(buffer as "boo", buffer as "boo2", buffer.unnamed).where(buffer <= 0)
       ).replaceTags(Map.empty)
 
       val e3 = readFromString[Expr](writeToString(e.replaceTags(Map.empty)))

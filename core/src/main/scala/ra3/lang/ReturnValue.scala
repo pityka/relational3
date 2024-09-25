@@ -47,14 +47,53 @@ private[ra3] case class UnnamedConstantF64(value: Double)
 }
 private[ra3] object StarColumnSpec extends ColumnSpec[Any]
 
+object ReturnValue {
 
-sealed trait ReturnValue {
-  type T <: ReturnValue
-  def list: List[ColumnSpec[?]]
-  def filter: Option[DI32]
-  def replacePredicate(i: Option[DI32]): T
+
   
+
+  def list(r:ReturnValue): List[ColumnSpec[?]] = 
+    r match
+      // case ReturnValueTuple(a0, filter) =>  ???
+      case ReturnValueList(a0, filter) => a0.toList
+      case ReturnValue1(a0, filter) => List(a0)
+      case ReturnValue2(a0, a1, filter) => List(a0,a1)
+      case ReturnValue3(a0, a1, a2, filter) => List(a0,a1,a2)
+      case ReturnValue4(a0, a1, a2, a3, filter) => List(a0,a1,a2,a3)
+      case ReturnValue5(a0, a1, a2, a3, a4, filter) => List(a0,a1,a2,a3,a4)
+      case _:ReturnValueTuple[?] => ??? // ReturnValueTuple is a trait without values
+    
+  // inline def rvtolist[A<:Tuple](r: ReturnValueTuple[A]) : List[ColumnSpec[?]] = tupleToList[A](r.a0)
+  //  case class Is[T <: Tuple](value: Tuple.Map[T, ColumnSpec])
+
+  // // import compiletime.asMatchable
+  // inline def tupleToList[A<:Tuple](tuple: Tuple.Map[A,ColumnSpec]) : List[ColumnSpec[?]]= 
+  //   inline Is(tuple) match
+  //     case _:Is[EmptyTuple] => Nil
+  //     case tup : Is[h *: t] =>
+  //       tup.value.head :: tupleToList(tup.value.tail) 
 }
+
+sealed trait ReturnValue { self =>
+    type T 
+    def filter: Option[DI32]
+    def replacePredicate(i: Option[DI32]): ReturnValue{ type T = self.T}
+
+  }
+
+  
+trait ReturnValueTuple[A<:Tuple] extends ReturnValue{
+    type B = A
+    type MM =  Tuple.Map[B,ra3.lang.DelayedIdent]
+  }
+
+  // case class ReturnValueTuple[A <: Tuple](
+  //     a0: Tuple.Map[A,ColumnSpec],
+  //     filter: Option[DI32]
+  // ) extends ReturnValue {
+  //   type T = A
+  //   def replacePredicate(i: Option[DI32]) = ReturnValueTuple(a0, i)
+  // }
 
 
 case class ReturnValueList[A](
@@ -70,7 +109,6 @@ case class ReturnValue1[A](
     a0: ColumnSpec[A],
     filter: Option[DI32]
 ) extends ReturnValue {
-  def list = List(a0)
   type T = ReturnValue1[A]
   def replacePredicate(i: Option[DI32]) = ReturnValue1(a0, i)
 }
@@ -79,7 +117,6 @@ case class ReturnValue2[A, B](
     a1: ColumnSpec[B],
     filter: Option[DI32]
 ) extends ReturnValue {
-  def list = List(a0,a1)
   type T = ReturnValue2[A,B]
   def replacePredicate(i: Option[DI32]) = ReturnValue2(a0,a1, i)
 }
@@ -89,7 +126,6 @@ case class ReturnValue3[A0, A1, A2](
     a2: ColumnSpec[A2],
     filter: Option[DI32]
 ) extends ReturnValue {
-  def list = List(a0,a1,a2)
   type T = ReturnValue3[A0,A1,A2]
   def replacePredicate(i: Option[DI32]) = ReturnValue3(a0,a1,a2, i)
 }
@@ -100,7 +136,6 @@ case class ReturnValue4[A0, A1, A2, A3](
     a3: ColumnSpec[A3],
     filter: Option[DI32]
 ) extends ReturnValue {
-  def list = List(a0,a1,a2, a3)
   type T = ReturnValue4[A0,A1,A2, A3]
   def replacePredicate(i: Option[DI32]) = ReturnValue4(a0,a1,a2,a3, i)
 }
@@ -112,7 +147,6 @@ case class ReturnValue5[A0, A1, A2, A3,A4](
     a4: ColumnSpec[A4],
     filter: Option[DI32]
 ) extends ReturnValue {
-  def list = List(a0,a1,a2, a3,a4)
   type T = ReturnValue5[A0,A1,A2, A3,A4]
   def replacePredicate(i: Option[DI32]) = ReturnValue5(a0,a1,a2,a3,a4, i)
 }

@@ -90,9 +90,9 @@ private[ra3] trait SyntaxInstColumnImpl {
     ra3.lang.Expr.Ident(ra3.lang.Numgroups).as[Int]
   )
 
-  // def unnamed = ra3.lang.Expr
-  //   .BuiltInOp1(arg0, ops.Op1.MkUnnamedColumnSpecChunk)
-  //   .asInstanceOf[Expr { type T = ColumnSpec }]
+  def unnamed = ra3.lang.Expr
+    .BuiltInOp1(arg0, ops.Op1.MkUnnamedColumnSpecChunk)
+    .asInstanceOf[Expr { type T = ColumnSpec[ra3.DStr] }]
 
   infix def as(arg1: Expr { type T = String }) = ra3.lang.Expr
     .BuiltInOp2(arg0, arg1, ops.Op2.MkNamedColumnSpecChunkInst)

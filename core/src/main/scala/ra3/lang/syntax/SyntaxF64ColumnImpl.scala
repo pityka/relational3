@@ -78,13 +78,13 @@ private[ra3] trait SyntaxF64ColumnImpl {
 
   def unnamed = ra3.lang.Expr
     .BuiltInOp1(arg0, ops.Op1.MkUnnamedColumnSpecChunk)
-    .asInstanceOf[Expr { type T = ColumnSpec[DF64] }]
+    .asInstanceOf[ColumnSpecExpr[DF64]]
 
-  infix def as(arg1: Expr { type T = String }): Expr { type T = ColumnSpec[DF64] } =
-    ra3.lang.Expr
+  infix def as(arg1: Expr { type T = String }) =
+    ColumnSpecExpr(ra3.lang.Expr
       .BuiltInOp2(arg0, arg1, ops.Op2.MkNamedColumnSpecChunkF64)
-      .asInstanceOf[Expr { type T = ColumnSpec[DF64] }]
+      .asInstanceOf[Expr{type T = ColumnSpec[DF64]}])
 
-  infix def as(arg1: String): Expr { type T = ColumnSpec[DF64] } = as(Expr.LitStr(arg1))
+  infix def as(arg1: String): ColumnSpecExpr[DF64] = as(Expr.LitStr(arg1))
 
 }

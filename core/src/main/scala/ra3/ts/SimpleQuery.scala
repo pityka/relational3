@@ -112,11 +112,11 @@ private[ra3] object SimpleQuery {
           }
 
           scribe.debug(
-            s"SQ program evaluation done projection: ${returnValue.list} filter: ${returnValue.filter} maskIsEmpty=$maskIsEmpty maskIsComplete=$maskIsComplete"
+            s"SQ program evaluation done projection: ${ReturnValue.list(returnValue)} filter: ${returnValue.filter} maskIsEmpty=$maskIsEmpty maskIsComplete=$maskIsComplete"
           )
 
           val selected: IO[List[NamedColumnSpec[?]]] = IO
-            .parSequenceN(32)(returnValue.list.zipWithIndex.map {
+            .parSequenceN(32)(ReturnValue.list(returnValue).zipWithIndex.map {
               case (v: NamedColumnSpec[?], _) =>
                 IO.pure(List(v))
               case (v: UnnamedColumnSpec[?], idx) =>

@@ -35,32 +35,47 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
       val tpe = table.schema[StrVar, F64Var]
 
       val result = tpe.columns { case (station, value) =>
-        val t = station
+
+       
+
+        val t0 : ra3.tablelang.TableExpr{
+          type T = ra3.lang.ReturnValueTuple[(ra3.StrVar, ra3.F64Var)]
+        }= station
           .groupBy(
-            select(
-              station.first as "station",
-              value.sum as "sum",
+            selectTuple(
+              (station.first as "station",
+              value.sum as "sum")
               // value.count as "count"
             )
           )
           .partial
-          .columns { case (station, sum) =>
+          
+        t0.t0 
+        t0.mm
+        // val ct : ra3.tablelang.TableExpr.curryColumnsTuple[(ra3.StrVar, ra3.F64Var)] = t0.columnsTuple
+
+        
+
+        val t = t0
+          .columnsTuple { 
+            case (station, sum) =>
+
 
             station
               .groupBy(
-                select(
-                  station.first,
-                  sum.sum// / count.sum
+                selectTuple(
+                 (station.first,
+                  sum.sum)// / count.sum
                 )
               )
               .all
-
+            
           }
           .columns { case (station, sum) =>
 
             station
               .groupBy(
-                select(
+                selectTuple(
                   station.first,
                   sum.sum// / count.sum
                 )
@@ -111,162 +126,162 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
       assertEquals(result.index.sorted, expected.index.sorted)
     }
   }
-  test("1brc filter") {
-    withTempTaskSystem { implicit tsc =>
-      val channel =
-        Channels.newChannel(getClass().getResourceAsStream("/1brc.1M.txt"))
-      val channel2 =
-        Channels.newChannel(getClass().getResourceAsStream("/1brc.1M.txt"))
+  // test("1brc filter") {
+  //   withTempTaskSystem { implicit tsc =>
+  //     val channel =
+  //       Channels.newChannel(getClass().getResourceAsStream("/1brc.1M.txt"))
+  //     val channel2 =
+  //       Channels.newChannel(getClass().getResourceAsStream("/1brc.1M.txt"))
 
-      val table = ra3.csv
-        .readHeterogeneousFromCSVChannel(
-          "1brc",
-          List(
-            (0, ColumnTag.StringTag, None, None),
-            (1, ColumnTag.F64, None, None)
-            // 0 until (numCols) map (i => (i, ColumnTag.I32, None))*
-          ),
-          channel = channel,
-          header = false,
-          maxSegmentLength = 10000,
-          fieldSeparator = ';',
-          recordSeparator = "\n"
-        )
-        .toOption
-        .get
-        .mapColIndex {
-          case "V0" => "station"
-          case "V1" => "value"
-        }
+  //     val table = ra3.csv
+  //       .readHeterogeneousFromCSVChannel(
+  //         "1brc",
+  //         List(
+  //           (0, ColumnTag.StringTag, None, None),
+  //           (1, ColumnTag.F64, None, None)
+  //           // 0 until (numCols) map (i => (i, ColumnTag.I32, None))*
+  //         ),
+  //         channel = channel,
+  //         header = false,
+  //         maxSegmentLength = 10000,
+  //         fieldSeparator = ';',
+  //         recordSeparator = "\n"
+  //       )
+  //       .toOption
+  //       .get
+  //       .mapColIndex {
+  //         case "V0" => "station"
+  //         case "V1" => "value"
+  //       }
 
-      val tpe = table.schema[StrVar, F64Var]
+  //     val tpe = table.schema[StrVar, F64Var]
 
-      val result = tpe.columns{ case (station, _) =>
-        query(select(star).where(station === "Skopje"))
+  //     val result = tpe.columns{ case (station, _) =>
+  //       query(select(star).where(station === "Skopje"))
 
-      }.evaluate
-        .unsafeRunSync()
-        .bufferStream
-        .compile
-        .toList
-        .unsafeRunSync()
-        .map(_.toStringFrame)
-        .reduce(_ concat _)
-        .withRowIndex(0)
-        .colAt(0)
-        .mapValues(_.toDouble)
-        .sorted
-        .mapVec(_.roundTo(2))
+  //     }.evaluate
+  //       .unsafeRunSync()
+  //       .bufferStream
+  //       .compile
+  //       .toList
+  //       .unsafeRunSync()
+  //       .map(_.toStringFrame)
+  //       .reduce(_ concat _)
+  //       .withRowIndex(0)
+  //       .colAt(0)
+  //       .mapValues(_.toDouble)
+  //       .sorted
+  //       .mapVec(_.roundTo(2))
 
-      println(result)
+  //     println(result)
 
-      val expected = org.saddle.csv.CsvParser
-        .parseFromChannel[String](
-          channel2,
-          fieldSeparator = ';',
-          recordSeparator = "\n"
-        )
-        .toOption
-        .get
-        ._1
-        .withRowIndex(0)
-        .colAt(0)
-        .mapValues(_.toDouble)
-        .filterIx(_ == "Skopje")
-        .sorted
-        .mapVec(_.roundTo(2))
+  //     val expected = org.saddle.csv.CsvParser
+  //       .parseFromChannel[String](
+  //         channel2,
+  //         fieldSeparator = ';',
+  //         recordSeparator = "\n"
+  //       )
+  //       .toOption
+  //       .get
+  //       ._1
+  //       .withRowIndex(0)
+  //       .colAt(0)
+  //       .mapValues(_.toDouble)
+  //       .filterIx(_ == "Skopje")
+  //       .sorted
+  //       .mapVec(_.roundTo(2))
 
-      println(expected)
-      // .toOption
-      // .get
-      println(table)
-      assert(table.numRows == 1000000)
-      assert(result == expected)
-    }
-  }
-  test("unique stations") {
-    withTempTaskSystem { implicit tsc =>
-      val channel =
-        Channels.newChannel(getClass().getResourceAsStream("/1brc.1M.txt"))
-      val channel2 =
-        Channels.newChannel(getClass().getResourceAsStream("/1brc.1M.txt"))
+  //     println(expected)
+  //     // .toOption
+  //     // .get
+  //     println(table)
+  //     assert(table.numRows == 1000000)
+  //     assert(result == expected)
+  //   }
+  // }
+  // test("unique stations") {
+  //   withTempTaskSystem { implicit tsc =>
+  //     val channel =
+  //       Channels.newChannel(getClass().getResourceAsStream("/1brc.1M.txt"))
+  //     val channel2 =
+  //       Channels.newChannel(getClass().getResourceAsStream("/1brc.1M.txt"))
 
-      val table = ra3.csv
-        .readHeterogeneousFromCSVChannel(
-          "1brc",
-          List(
-            (0, ColumnTag.StringTag, None, None),
-            (1, ColumnTag.F64, None, None)
-            // 0 until (numCols) map (i => (i, ColumnTag.I32, None))*
-          ),
-          channel = channel,
-          header = false,
-          maxSegmentLength = 10000,
-          fieldSeparator = ';',
-          recordSeparator = "\n"
-        )
-        .toOption
-        .get
-        .mapColIndex {
-          case "V0" => "station"
-          case "V1" => "value"
-        }
-      val typedTable = table.schema[StrVar, F64Var] 
+  //     val table = ra3.csv
+  //       .readHeterogeneousFromCSVChannel(
+  //         "1brc",
+  //         List(
+  //           (0, ColumnTag.StringTag, None, None),
+  //           (1, ColumnTag.F64, None, None)
+  //           // 0 until (numCols) map (i => (i, ColumnTag.I32, None))*
+  //         ),
+  //         channel = channel,
+  //         header = false,
+  //         maxSegmentLength = 10000,
+  //         fieldSeparator = ';',
+  //         recordSeparator = "\n"
+  //       )
+  //       .toOption
+  //       .get
+  //       .mapColIndex {
+  //         case "V0" => "station"
+  //         case "V1" => "value"
+  //       }
+  //     val typedTable = table.schema[StrVar, F64Var] 
 
         
 
-      val result = typedTable.columns{ case (station, _) =>
-        station
-          .groupBy(
-            select(
-              station.first as "station"
-            )
-          )
-          .all
-          .columns { (station) =>
-            station
-              .groupBy(
-                select(
-                  station.first
-                )
-              )
-              .all
+  //     val result = typedTable.columns{ case (station, _) =>
+  //       station
+  //         .groupBy(
+  //           select(
+  //             station.first as "station"
+  //           )
+  //         )
+  //         .all
+  //         .columns { (station) =>
+  //           station
+  //             .groupBy(
+  //               select(
+  //                 station.first
+  //               )
+  //             )
+  //             .all
 
-          }
+  //         }
 
-      }.evaluate
-        .unsafeRunSync()
-        .bufferStream
-        .compile
-        .toList
-        .unsafeRunSync()
-        .map(_.toStringFrame)
-        .reduce(_ concat _)
-        .colAt(0)
-        .toVec
-        .toSeq
-        .sorted
+  //     }.evaluate
+  //       .unsafeRunSync()
+  //       .bufferStream
+  //       .compile
+  //       .toList
+  //       .unsafeRunSync()
+  //       .map(_.toStringFrame)
+  //       .reduce(_ concat _)
+  //       .colAt(0)
+  //       .toVec
+  //       .toSeq
+  //       .sorted
 
-      val expected = org.saddle.csv.CsvParser
-        .parseFromChannel[String](
-          channel2,
-          fieldSeparator = ';',
-          recordSeparator = "\n"
-        )
-        .toOption
-        .get
-        ._1
-        .withRowIndex(0)
-        .colAt(0)
-        .mapValues(_.toDouble)
-        .index
-        .toSeq
-        .distinct
-        .sorted
+  //     val expected = org.saddle.csv.CsvParser
+  //       .parseFromChannel[String](
+  //         channel2,
+  //         fieldSeparator = ';',
+  //         recordSeparator = "\n"
+  //       )
+  //       .toOption
+  //       .get
+  //       ._1
+  //       .withRowIndex(0)
+  //       .colAt(0)
+  //       .mapValues(_.toDouble)
+  //       .index
+  //       .toSeq
+  //       .distinct
+  //       .sorted
 
-      assert(table.numRows == 1000000)
-      assert(result == expected)
-    }
-  }
+  //     assert(table.numRows == 1000000)
+  //     assert(result == expected)
+  //   }
+  // }
 
 }

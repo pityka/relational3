@@ -89,6 +89,25 @@ package object ra3 {
   /** Data type of Instant columns */
   private[ra3] type DInst = Either[BufferInstant, Seq[SegmentInstant]]
 
+  import scala.language.implicitConversions
+  implicit def conversionDI32(
+      a: Expr { type T = DI32 }
+  ): ColumnSpecExpr[DI32] = a.unnamed
+
+  implicit def conversionDF64(
+      a: Expr { type T = DF64 }
+  ): ColumnSpecExpr[DF64] = a.unnamed
+  implicit def conversionDI64(
+      a: Expr { type T = DI64 }
+  ): Expr { type T = ColumnSpec[DI64] } = ??? // a.unnamed
+  implicit def conversionDInst(
+      a: Expr { type T = DInst }
+  ): Expr { type T = ColumnSpec[DInst] } = ??? // a.unnamed
+
+  implicit def conversionStr(
+      a: Expr { type T = DStr }
+  ): Expr { type T = ColumnSpec[DStr] } = ??? // a.unnamed
+
   /** Import CSV data into ra3
     *
     * @param file
@@ -169,7 +188,7 @@ package object ra3 {
   def select[T0](
       arg0: ColumnSpecExpr[T0]
   ): Expr { type T = ra3.lang.ReturnValue1[T0] } = ra3.lang.Expr
-    .BuiltInOp1(arg0, ops.Op1.MkReturnValue1)
+    .BuiltInOp1(arg0.a, ops.Op1.MkReturnValue1)
     .asInstanceOf[Expr { type T = ReturnValue1[T0] }]
 
   def select[T0, T1](
@@ -191,7 +210,7 @@ package object ra3 {
       arg2: Expr { type T = ColumnSpec[T2] },
       arg3: Expr { type T = ColumnSpec[T3] },
   ) = ra3.lang.Expr
-    .BuiltInOp4(arg0, arg1,arg2, arg3, ops.Op3.MkReturnValue4)
+    .BuiltInOp4(arg0, arg1,arg2, arg3, ops.OpN.MkReturnValue4)
     .asInstanceOf[Expr { type T = ReturnValue4[T0, T1, T2, T3] }]
   def select[T0, T1, T2,T3,T4](
       arg0: Expr { type T = ColumnSpec[T0] },
@@ -200,9 +219,16 @@ package object ra3 {
       arg3: Expr { type T = ColumnSpec[T3] },
       arg4: Expr { type T = ColumnSpec[T4] },
   ) = ra3.lang.Expr
-    .BuiltInOp5(arg0, arg1,arg2, arg3,arg4, ops.Op3.MkReturnValue5)
+    .BuiltInOp5(arg0, arg1,arg2, arg3,arg4, ops.OpN.MkReturnValue5)
     .asInstanceOf[Expr { type T = ReturnValue5[T0, T1, T2, T3,T4] }]
 
+   inline def selectTuple[T0<:Tuple](
+    tup: T0
+  )  = 
+    ra3.lang.Expr.BuiltInOpAny(tup.productIterator.map(_.asInstanceOf[Expr]).toList,ops.OpAny.MkReturnValueStar).asInstanceOf[Expr { 
+
+      type T = ReturnValueTuple[T0] 
+    }]
   
 
   // def where(arg0: I32ColumnExpr) =

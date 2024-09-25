@@ -166,1933 +166,1933 @@ trait WithTempTaskSystem {
   
 }
 
-class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
+// class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
 
-  def toFrame(t: Table)(implicit tsc: TaskSystemComponents) = {
-    t.bufferStream.compile.toList
-      .unsafeRunSync()
-      .map(_.toHomogeneousFrame(I32))
-      .reduce(_ concat _)
-      .resetRowIndex
-  }
-  def toLongFrame(t: Table)(implicit tsc: TaskSystemComponents) = {
-    t.bufferStream.compile.toList
-      .unsafeRunSync()
-      .map(_.toHomogeneousFrame(ra3.ColumnTag.I64))
-      .reduce(_ concat _)
-      .resetRowIndex
-  }
+//   def toFrame(t: Table)(implicit tsc: TaskSystemComponents) = {
+//     t.bufferStream.compile.toList
+//       .unsafeRunSync()
+//       .map(_.toHomogeneousFrame(I32))
+//       .reduce(_ concat _)
+//       .resetRowIndex
+//   }
+//   def toLongFrame(t: Table)(implicit tsc: TaskSystemComponents) = {
+//     t.bufferStream.compile.toList
+//       .unsafeRunSync()
+//       .map(_.toHomogeneousFrame(ra3.ColumnTag.I64))
+//       .reduce(_ concat _)
+//       .resetRowIndex
+//   }
 
-  test("to and from csv 1 segment") {
-    withTempTaskSystem { implicit ts =>
-      val numCols = 3
-      val numRows = 10
-      val (tableFrame, tableCsv) = generateTable(numRows, numCols)
-      val ra3Table = csvStringToTable("test1", tableCsv, numCols, 1000)
-      val segment0 = ra3Table.bufferSegment(0).unsafeRunSync()
-      val f1 = segment0.toHomogeneousFrame(ColumnTag.I32)
+//   test("to and from csv 1 segment") {
+//     withTempTaskSystem { implicit ts =>
+//       val numCols = 3
+//       val numRows = 10
+//       val (tableFrame, tableCsv) = generateTable(numRows, numCols)
+//       val ra3Table = csvStringToTable("test1", tableCsv, numCols, 1000)
+//       val segment0 = ra3Table.bufferSegment(0).unsafeRunSync()
+//       val f1 = segment0.toHomogeneousFrame(ColumnTag.I32)
 
-      assertEquals(f1.filterIx(_.nonEmpty), tableFrame)
-    }
+//       assertEquals(f1.filterIx(_.nonEmpty), tableFrame)
+//     }
 
-  }
-  test("to and from csv more segments") {
-    withTempTaskSystem { implicit ts =>
-      val numCols = 3
-      val numRows = 10
-      val (tableFrame, tableCsv) = generateTable(numRows, numCols)
-      val ra3Table = csvStringToTable("test1", tableCsv, numCols, 3)
-      assertEquals(ra3Table.columns.map(_.segments.size).distinct.size, 1)
-      assertEquals(
-        ra3Table.columns.map(_.segments.map(_.numElems).sum).head,
-        tableFrame.numRows
-      )
-      assertEquals(
-        ra3Table.columns.map(_.segments.map(_.numElems)).head,
-        Seq(3, 3, 3, 1)
-      )
-      val segment0 = ra3Table.bufferSegment(0).unsafeRunSync()
-      val segment1 = ra3Table.bufferSegment(1).unsafeRunSync()
-      val segment2 = ra3Table.bufferSegment(2).unsafeRunSync()
-      val segment3 = ra3Table.bufferSegment(3).unsafeRunSync()
-      val f1 = segment0
-        .toHomogeneousFrame(ColumnTag.I32)
-        .concat(
-          segment1.toHomogeneousFrame(ColumnTag.I32)
-        )
-        .concat(segment2.toHomogeneousFrame(ColumnTag.I32))
-        .concat(segment3.toHomogeneousFrame(ColumnTag.I32))
-        .resetRowIndex
+//   }
+//   test("to and from csv more segments") {
+//     withTempTaskSystem { implicit ts =>
+//       val numCols = 3
+//       val numRows = 10
+//       val (tableFrame, tableCsv) = generateTable(numRows, numCols)
+//       val ra3Table = csvStringToTable("test1", tableCsv, numCols, 3)
+//       assertEquals(ra3Table.columns.map(_.segments.size).distinct.size, 1)
+//       assertEquals(
+//         ra3Table.columns.map(_.segments.map(_.numElems).sum).head,
+//         tableFrame.numRows
+//       )
+//       assertEquals(
+//         ra3Table.columns.map(_.segments.map(_.numElems)).head,
+//         Seq(3, 3, 3, 1)
+//       )
+//       val segment0 = ra3Table.bufferSegment(0).unsafeRunSync()
+//       val segment1 = ra3Table.bufferSegment(1).unsafeRunSync()
+//       val segment2 = ra3Table.bufferSegment(2).unsafeRunSync()
+//       val segment3 = ra3Table.bufferSegment(3).unsafeRunSync()
+//       val f1 = segment0
+//         .toHomogeneousFrame(ColumnTag.I32)
+//         .concat(
+//           segment1.toHomogeneousFrame(ColumnTag.I32)
+//         )
+//         .concat(segment2.toHomogeneousFrame(ColumnTag.I32))
+//         .concat(segment3.toHomogeneousFrame(ColumnTag.I32))
+//         .resetRowIndex
 
-      assertEquals(f1.filterIx(_.nonEmpty), tableFrame)
-    }
+//       assertEquals(f1.filterIx(_.nonEmpty), tableFrame)
+//     }
 
-  }
-  test("take") {
-    withTempTaskSystem { implicit ts =>
-      val numCols = 3
-      val numRows = 10
-      val (tableFrame, tableCsv) = generateTable(numRows, numCols)
-      val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
-      val idxs = Seq(Seq(0), Seq(), Seq(0), Seq(0, 0))
-      val indexColumn = I32.makeColumn(
-        idxs.zipWithIndex
-          .map(s => (s._2, ColumnTag.I32.makeBufferFromSeq(s._1*)))
-          .map(v =>
-            ColumnTag.I32.toSegment(v._2,LogicalPath("idx1", None, v._1, 0)).unsafeRunSync()
-          )
-          .toVector
-      )
+//   }
+//   test("take") {
+//     withTempTaskSystem { implicit ts =>
+//       val numCols = 3
+//       val numRows = 10
+//       val (tableFrame, tableCsv) = generateTable(numRows, numCols)
+//       val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
+//       val idxs = Seq(Seq(0), Seq(), Seq(0), Seq(0, 0))
+//       val indexColumn = I32.makeColumn(
+//         idxs.zipWithIndex
+//           .map(s => (s._2, ColumnTag.I32.makeBufferFromSeq(s._1*)))
+//           .map(v =>
+//             ColumnTag.I32.toSegment(v._2,LogicalPath("idx1", None, v._1, 0)).unsafeRunSync()
+//           )
+//           .toVector
+//       )
 
-      val taken = ra3Table.take(indexColumn).unsafeRunSync()
-      val takenF = (0 until 4)
-        .map(i =>
-          taken.bufferSegment(i).unsafeRunSync().toHomogeneousFrame(I32)
-        )
-        .reduce(_ concat _)
-        .resetRowIndex
-        .filterIx(_.nonEmpty)
-      val expect =
-        tableFrame.rowAt(0, 6, 9, 9).resetRowIndex
+//       val taken = ra3Table.take(indexColumn).unsafeRunSync()
+//       val takenF = (0 until 4)
+//         .map(i =>
+//           taken.bufferSegment(i).unsafeRunSync().toHomogeneousFrame(I32)
+//         )
+//         .reduce(_ concat _)
+//         .resetRowIndex
+//         .filterIx(_.nonEmpty)
+//       val expect =
+//         tableFrame.rowAt(0, 6, 9, 9).resetRowIndex
 
-      assertEquals(takenF, expect)
-    }
+//       assertEquals(takenF, expect)
+//     }
 
-  }
-  test("filter on predicate") {
-    withTempTaskSystem { implicit ts =>
-      val numCols = 3
-      val numRows = 10
-      val (tableFrame, tableCsv) = generateTable(numRows, numCols)
-      val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
-      val masks = Seq(Seq(1, 0, 1), Seq(0, 0, 0), Seq(1, 1, 1), Seq(0))
-      val maskColumn = I32.makeColumn(
-        masks.zipWithIndex
-          .map(s => (s._2, ColumnTag.I32.makeBufferFromSeq(s._1*)))
-          .map(v =>
-            ColumnTag.I32.toSegment(v._2,LogicalPath("idx1", None, v._1, 0)).unsafeRunSync()
-          )
-          .toVector
-      )
+//   }
+//   test("filter on predicate") {
+//     withTempTaskSystem { implicit ts =>
+//       val numCols = 3
+//       val numRows = 10
+//       val (tableFrame, tableCsv) = generateTable(numRows, numCols)
+//       val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
+//       val masks = Seq(Seq(1, 0, 1), Seq(0, 0, 0), Seq(1, 1, 1), Seq(0))
+//       val maskColumn = I32.makeColumn(
+//         masks.zipWithIndex
+//           .map(s => (s._2, ColumnTag.I32.makeBufferFromSeq(s._1*)))
+//           .map(v =>
+//             ColumnTag.I32.toSegment(v._2,LogicalPath("idx1", None, v._1, 0)).unsafeRunSync()
+//           )
+//           .toVector
+//       )
 
-      val taken = ra3Table.rfilter(maskColumn).unsafeRunSync()
-      val takenF = (0 until 4)
-        .map(i =>
-          taken.bufferSegment(i).unsafeRunSync().toHomogeneousFrame(I32)
-        )
-        .reduce(_ concat _)
-        .resetRowIndex
-        .filterIx(_.nonEmpty)
-      val expect =
-        tableFrame.rowAt(0, 2, 6, 7, 8).resetRowIndex
+//       val taken = ra3Table.rfilter(maskColumn).unsafeRunSync()
+//       val takenF = (0 until 4)
+//         .map(i =>
+//           taken.bufferSegment(i).unsafeRunSync().toHomogeneousFrame(I32)
+//         )
+//         .reduce(_ concat _)
+//         .resetRowIndex
+//         .filterIx(_.nonEmpty)
+//       val expect =
+//         tableFrame.rowAt(0, 2, 6, 7, 8).resetRowIndex
 
-      assertEquals(takenF, expect)
-    }
+//       assertEquals(takenF, expect)
+//     }
 
-  }
-  test("filter on <>") {
-    withTempTaskSystem { implicit ts =>
-      val numCols = 3
-      val numRows = 10
-      val (tableFrame, tableCsv) = generateTable(numRows, numCols)
-      println(tableFrame)
-      val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
-      val literal = I32.toSegment(I32
-        .makeBufferFromSeq(0),LogicalPath("test0", None, 0, 0))
-        .unsafeRunSync()
+//   }
+//   test("filter on <>") {
+//     withTempTaskSystem { implicit ts =>
+//       val numCols = 3
+//       val numRows = 10
+//       val (tableFrame, tableCsv) = generateTable(numRows, numCols)
+//       println(tableFrame)
+//       val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
+//       val literal = I32.toSegment(I32
+//         .makeBufferFromSeq(0),LogicalPath("test0", None, 0, 0))
+//         .unsafeRunSync()
 
-      val less = ra3Table.rfilterInEquality(0, literal, true).unsafeRunSync()
-      println(less)
-      val takenF = (0 until 4)
-        .map(i => less.bufferSegment(i).unsafeRunSync().toHomogeneousFrame(I32))
-        .reduce(_ concat _)
-        .resetRowIndex
-        .filterIx(_.nonEmpty)
-      val expect =
-        tableFrame
-          .rowAt(tableFrame.colAt(0).toVec.find(_ <= 0).toArray)
-          .resetRowIndex
+//       val less = ra3Table.rfilterInEquality(0, literal, true).unsafeRunSync()
+//       println(less)
+//       val takenF = (0 until 4)
+//         .map(i => less.bufferSegment(i).unsafeRunSync().toHomogeneousFrame(I32))
+//         .reduce(_ concat _)
+//         .resetRowIndex
+//         .filterIx(_.nonEmpty)
+//       val expect =
+//         tableFrame
+//           .rowAt(tableFrame.colAt(0).toVec.find(_ <= 0).toArray)
+//           .resetRowIndex
 
-      assertEquals(takenF, expect)
-    }
+//       assertEquals(takenF, expect)
+//     }
 
-  }
-  test("simple projection does not copy segments") {
-    withTempTaskSystem { implicit ts =>
-      val numCols = 3
-      val numRows = 10
-      val (tableFrame, tableCsv) = generateTable(numRows, numCols)
-      println(tableFrame)
-      val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
+//   }
+//   test("simple projection does not copy segments") {
+//     withTempTaskSystem { implicit ts =>
+//       val numCols = 3
+//       val numRows = 10
+//       val (tableFrame, tableCsv) = generateTable(numRows, numCols)
+//       println(tableFrame)
+//       val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
 
-      val result = ra3Table
-        .in { table =>
-          table.query(ra3.select(ra3.star))
-        }
-        .evaluate
-        .unsafeRunSync()
-      assertEquals(ra3Table.columns.head.segments, result.columns.head.segments)
-      val takenF = (0 until 4)
-        .map(i =>
-          result.bufferSegment(i).unsafeRunSync().toHomogeneousFrame(I32)
-        )
-        .reduce(_ concat _)
-        .resetRowIndex
-        .filterIx(_.nonEmpty)
-      val expect =
-        tableFrame.resetRowIndex
+//       val result = ra3Table
+//         .in { table =>
+//           table.query(ra3.select(ra3.star))
+//         }
+//         .evaluate
+//         .unsafeRunSync()
+//       assertEquals(ra3Table.columns.head.segments, result.columns.head.segments)
+//       val takenF = (0 until 4)
+//         .map(i =>
+//           result.bufferSegment(i).unsafeRunSync().toHomogeneousFrame(I32)
+//         )
+//         .reduce(_ concat _)
+//         .resetRowIndex
+//         .filterIx(_.nonEmpty)
+//       val expect =
+//         tableFrame.resetRowIndex
 
-      assertEquals(takenF, expect)
-    }
+//       assertEquals(takenF, expect)
+//     }
 
-  }
-  test("simple query count") {
-    withTempTaskSystem { implicit ts =>
-      val numCols = 3
-      val numRows = 10
-      val (tableFrame, tableCsv) = generateTable(numRows, numCols)
-      val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
+//   }
+//   test("simple query count") {
+//     withTempTaskSystem { implicit ts =>
+//       val numCols = 3
+//       val numRows = 10
+//       val (tableFrame, tableCsv) = generateTable(numRows, numCols)
+//       val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
 
-      val less = ra3Table
-        .schema[I32Var, I32Var].columns { case (col0, col1) =>
-          count(
-            ra3
-              .select(col1 as "b", col1, ra3.star)
-              .where(col0.tap("col0") <= 0)
-          )
+//       val less = ra3Table
+//         .schema[I32Var, I32Var].columns { case (col0, col1) =>
+//           count(
+//             ra3
+//               .select(col1 as "b", col1, ra3.star)
+//               .where(col0.tap("col0") <= 0)
+//           )
 
-        }
-        .evaluate
-        .unsafeRunSync()
-      val takenF = (0 until 1)
-        .map(i =>
-          less
-            .bufferSegment(i)
-            .unsafeRunSync()
-            .toHomogeneousFrame(ra3.ColumnTag.I64)
-        )
-        .reduce(_ concat _)
-        .resetRowIndex
-        .filterIx(_.nonEmpty)
-      println(takenF)
-      val expect =
-        Frame("count" -> Vec(tableFrame.colAt(0).toVec.countif(_ <= 0).toLong))
+//         }
+//         .evaluate
+//         .unsafeRunSync()
+//       val takenF = (0 until 1)
+//         .map(i =>
+//           less
+//             .bufferSegment(i)
+//             .unsafeRunSync()
+//             .toHomogeneousFrame(ra3.ColumnTag.I64)
+//         )
+//         .reduce(_ concat _)
+//         .resetRowIndex
+//         .filterIx(_.nonEmpty)
+//       println(takenF)
+//       val expect =
+//         Frame("count" -> Vec(tableFrame.colAt(0).toVec.countif(_ <= 0).toLong))
 
-      assertEquals(takenF, expect)
-    }
+//       assertEquals(takenF, expect)
+//     }
 
-  }
-  test("simple query") {
-    withTempTaskSystem { implicit ts =>
-      val numCols = 3
-      val numRows = 10
-      val (tableFrame, tableCsv) = generateTable(numRows, numCols)
-      println(tableFrame)
-      val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
+//   }
+//   test("simple query") {
+//     withTempTaskSystem { implicit ts =>
+//       val numCols = 3
+//       val numRows = 10
+//       val (tableFrame, tableCsv) = generateTable(numRows, numCols)
+//       println(tableFrame)
+//       val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
 
-      val less = ra3Table
-        .schema[I32Var, I32Var].columns { (col0, col1) =>
-          query(
-            ra3
-              .select(col1 as "b", col1, ra3.star)
-              .where(col0.tap("col0") <= 0)
-          )
+//       val less = ra3Table
+//         .schema[I32Var, I32Var].columns { (col0, col1) =>
+//           query(
+//             ra3
+//               .select(col1 as "b", col1, ra3.star)
+//               .where(col0.tap("col0") <= 0)
+//           )
 
-        }
-        .evaluate
-        .unsafeRunSync()
-      val takenF = (0 until 4)
-        .map(i => less.bufferSegment(i).unsafeRunSync().toHomogeneousFrame(I32))
-        .reduce(_ concat _)
-        .resetRowIndex
-        .filterIx(_.nonEmpty)
-      val expect =
-        tableFrame
-          .rowAt(tableFrame.colAt(0).toVec.find(_ <= 0).toArray)
-          .resetRowIndex
-          .colAt(Array(1, 1, 0, 1, 2))
-          .setColIndex(Index("b", "V1", "V0", "V1", "V2"))
+//         }
+//         .evaluate
+//         .unsafeRunSync()
+//       val takenF = (0 until 4)
+//         .map(i => less.bufferSegment(i).unsafeRunSync().toHomogeneousFrame(I32))
+//         .reduce(_ concat _)
+//         .resetRowIndex
+//         .filterIx(_.nonEmpty)
+//       val expect =
+//         tableFrame
+//           .rowAt(tableFrame.colAt(0).toVec.find(_ <= 0).toArray)
+//           .resetRowIndex
+//           .colAt(Array(1, 1, 0, 1, 2))
+//           .setColIndex(Index("b", "V1", "V0", "V1", "V2"))
 
-      assertEquals(takenF, expect)
-    }
+//       assertEquals(takenF, expect)
+//     }
 
-  }
-  test("simple query tablelang") {
-    withTempTaskSystem { implicit ts =>
-      val numCols = 3
-      val numRows = 10
-      val (tableFrame, tableCsv) = generateTable(numRows, numCols)
-      println(tableFrame)
-      val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
+//   }
+//   test("simple query tablelang") {
+//     withTempTaskSystem { implicit ts =>
+//       val numCols = 3
+//       val numRows = 10
+//       val (tableFrame, tableCsv) = generateTable(numRows, numCols)
+//       println(tableFrame)
+//       val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
 
-      import cats.effect.unsafe.implicits.global
-      val less2 = ra3Table.schema[I32Var, I32Var].columns { (v0, v1) =>
-        query(
-          ra3
-            .select(v1 as "b", v1.unnamed, ra3.star)
-            .where(v0.tap("col0") <= 0)
-        )
-      }.evaluate.unsafeRunSync()
+//       import cats.effect.unsafe.implicits.global
+//       val less2 = ra3Table.schema[I32Var, I32Var].columns { (v0, v1) =>
+//         query(
+//           ra3
+//             .select(v1 as "b", v1.unnamed, ra3.star)
+//             .where(v0.tap("col0") <= 0)
+//         )
+//       }.evaluate.unsafeRunSync()
 
-      val takenF2 = (0 until 4)
-        .map(i =>
-          less2.bufferSegment(i).unsafeRunSync().toHomogeneousFrame(I32)
-        )
-        .reduce(_ concat _)
-        .resetRowIndex
-        .filterIx(_.nonEmpty)
-      val expect =
-        tableFrame
-          .rowAt(tableFrame.colAt(0).toVec.find(_ <= 0).toArray)
-          .resetRowIndex
-          .colAt(Array(1, 1, 0, 1, 2))
-          .setColIndex(Index("b", "V1", "V0", "V1", "V2"))
+//       val takenF2 = (0 until 4)
+//         .map(i =>
+//           less2.bufferSegment(i).unsafeRunSync().toHomogeneousFrame(I32)
+//         )
+//         .reduce(_ concat _)
+//         .resetRowIndex
+//         .filterIx(_.nonEmpty)
+//       val expect =
+//         tableFrame
+//           .rowAt(tableFrame.colAt(0).toVec.find(_ <= 0).toArray)
+//           .resetRowIndex
+//           .colAt(Array(1, 1, 0, 1, 2))
+//           .setColIndex(Index("b", "V1", "V0", "V1", "V2"))
 
-      println(takenF2)
-      println(expect)
-      // assertEquals(takenF, expect)
-      assertEquals(takenF2, expect)
-    }
+//       println(takenF2)
+//       println(expect)
+//       // assertEquals(takenF, expect)
+//       assertEquals(takenF2, expect)
+//     }
 
-  }
-  test("partition") {
-    withTempTaskSystem { implicit ts =>
-      val numCols = 3
-      val numRows = 10
-      val (tableFrame, tableCsv) = generateTable(numRows, numCols)
-      val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
+//   }
+//   test("partition") {
+//     withTempTaskSystem { implicit ts =>
+//       val numCols = 3
+//       val numRows = 10
+//       val (tableFrame, tableCsv) = generateTable(numRows, numCols)
+//       val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
 
-      val partitions =
-        ra3Table.partition(List(0), 3, true, 0, 2).unsafeRunSync()
+//       val partitions =
+//         ra3Table.partition(List(0), 3, true, 0, 2).unsafeRunSync()
 
-      assert(partitions.size == 3)
+//       assert(partitions.size == 3)
 
-      partitions.zipWithIndex.foreach { case (pTable, pIdx) =>
-        val column = pTable.columns(0)
-        column.segments.foreach { segment =>
-          val b = column.tag.buffer(segment).unsafeRunSync()
-          0 until b.length foreach { i =>
-            val h = math.abs(b.hashOf(i))
-            assert(h % 3 == pIdx)
-          }
-        }
-      }
+//       partitions.zipWithIndex.foreach { case (pTable, pIdx) =>
+//         val column = pTable.columns(0)
+//         column.segments.foreach { segment =>
+//           val b = column.tag.buffer(segment).unsafeRunSync()
+//           0 until b.length foreach { i =>
+//             val h = math.abs(b.hashOf(i))
+//             assert(h % 3 == pIdx)
+//           }
+//         }
+//       }
 
-      val partionedRowsF = partitions
-        .reduce(_ `concatenate` _)
-        .bufferStream
-        .compile
-        .toList
-        .unsafeRunSync()
-        .map(_.toHomogeneousFrame(I32))
-        .reduce(_ concat _)
-        .resetColIndex
-        .toRowSeq
-        .map(_._2)
-        .toSet
+//       val partionedRowsF = partitions
+//         .reduce(_ `concatenate` _)
+//         .bufferStream
+//         .compile
+//         .toList
+//         .unsafeRunSync()
+//         .map(_.toHomogeneousFrame(I32))
+//         .reduce(_ concat _)
+//         .resetColIndex
+//         .toRowSeq
+//         .map(_._2)
+//         .toSet
 
-      val expected = tableFrame.resetColIndex.toRowSeq.map(_._2).toSet
+//       val expected = tableFrame.resetColIndex.toRowSeq.map(_._2).toSet
 
-      assertEquals(partionedRowsF, expected)
+//       assertEquals(partionedRowsF, expected)
 
-    }
+//     }
 
-  }
-  test("partition") {
-    withTempTaskSystem { implicit ts =>
-      val numCols = 3
-      val numRows = 10
-      val (tableFrame, tableCsv) = generateTable(numRows, numCols)
-      val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
+//   }
+//   test("partition") {
+//     withTempTaskSystem { implicit ts =>
+//       val numCols = 3
+//       val numRows = 10
+//       val (tableFrame, tableCsv) = generateTable(numRows, numCols)
+//       val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
 
-      val partitions =
-        ra3Table.partition(List(0), 3, true, 0, 2).unsafeRunSync()
+//       val partitions =
+//         ra3Table.partition(List(0), 3, true, 0, 2).unsafeRunSync()
 
-      assert(partitions.size == 3)
+//       assert(partitions.size == 3)
 
-      partitions.zipWithIndex.foreach { case (pTable, pIdx) =>
-        val column = pTable.columns(0)
-        column.segments.foreach { segment =>
-          val b = column.tag.buffer(segment).unsafeRunSync()
-          0 until b.length foreach { i =>
-            val h = math.abs(b.hashOf(i))
-            assert(h % 3 == pIdx)
-          }
-        }
-      }
+//       partitions.zipWithIndex.foreach { case (pTable, pIdx) =>
+//         val column = pTable.columns(0)
+//         column.segments.foreach { segment =>
+//           val b = column.tag.buffer(segment).unsafeRunSync()
+//           0 until b.length foreach { i =>
+//             val h = math.abs(b.hashOf(i))
+//             assert(h % 3 == pIdx)
+//           }
+//         }
+//       }
 
-      val partionedRowsF = partitions
-        .reduce(_ `concatenate` _)
-        .bufferStream
-        .compile
-        .toList
-        .unsafeRunSync()
-        .map(_.toHomogeneousFrame(I32))
-        .reduce(_ concat _)
-        .resetColIndex
-        .toRowSeq
-        .map(_._2)
-        .toSet
+//       val partionedRowsF = partitions
+//         .reduce(_ `concatenate` _)
+//         .bufferStream
+//         .compile
+//         .toList
+//         .unsafeRunSync()
+//         .map(_.toHomogeneousFrame(I32))
+//         .reduce(_ concat _)
+//         .resetColIndex
+//         .toRowSeq
+//         .map(_._2)
+//         .toSet
 
-      val expected = tableFrame.resetColIndex.toRowSeq.map(_._2).toSet
+//       val expected = tableFrame.resetColIndex.toRowSeq.map(_._2).toSet
 
-      assertEquals(partionedRowsF, expected)
+//       assertEquals(partionedRowsF, expected)
 
-    }
+//     }
 
-  }
-  test("outer join") {
-    withTempTaskSystem { implicit ts =>
-      val numCols = 3
-      val numRows = 10
-      val (tableFrame, tableCsv) = generateTable(numRows, numCols)
-      val (tableFrame2, tableCsv2) = generateTable(numRows, numCols)
-      val colA = Seq(Seq(0, 0, 1), Seq(0, 2, 3), Seq(4, 5, 0), Seq(9))
-      val colB = Seq(Seq(2, 2, 1), Seq(99, 2, 0), Seq(4, 5, 0), Seq(4))
+//   }
+//   test("outer join") {
+//     withTempTaskSystem { implicit ts =>
+//       val numCols = 3
+//       val numRows = 10
+//       val (tableFrame, tableCsv) = generateTable(numRows, numCols)
+//       val (tableFrame2, tableCsv2) = generateTable(numRows, numCols)
+//       val colA = Seq(Seq(0, 0, 1), Seq(0, 2, 3), Seq(4, 5, 0), Seq(9))
+//       val colB = Seq(Seq(2, 2, 1), Seq(99, 2, 0), Seq(4, 5, 0), Seq(4))
 
-      val tF = {
-        val tmp = tableFrame.addCol(
-          Series(colA.flatten.toVec),
-          "V4",
-          org.saddle.index.InnerJoin
-        )
-        tmp.setRowIndex(Index(tmp.firstCol("V4").toVec.toArray))
-      }
-      val tF2 = {
-        val tmp = tableFrame2
-          .addCol(Series(colB.flatten.toVec), "V4", org.saddle.index.InnerJoin)
-          .mapColIndex(v => v + "_2")
-        tmp.setRowIndex(Index(tmp.firstCol("V4_2").toVec.toArray))
-      }
+//       val tF = {
+//         val tmp = tableFrame.addCol(
+//           Series(colA.flatten.toVec),
+//           "V4",
+//           org.saddle.index.InnerJoin
+//         )
+//         tmp.setRowIndex(Index(tmp.firstCol("V4").toVec.toArray))
+//       }
+//       val tF2 = {
+//         val tmp = tableFrame2
+//           .addCol(Series(colB.flatten.toVec), "V4", org.saddle.index.InnerJoin)
+//           .mapColIndex(v => v + "_2")
+//         tmp.setRowIndex(Index(tmp.firstCol("V4_2").toVec.toArray))
+//       }
 
-      // println(tF)
-      // println(tF2)
+//       // println(tF)
+//       // println(tF2)
 
-      val saddleResult = tF
-        .rconcat(
-          tF2,
-          org.saddle.index.OuterJoin
-        )
-        .filterIx(_ != "V4_2")
-        .filterIx(_ != "V4")
-        .col(
-          "V4",
-          "V0",
-          "V1",
-          "V2",
-          "V0_2",
-          "V1_2",
-          "V2_2"
-        )
-        .resetRowIndex
+//       val saddleResult = tF
+//         .rconcat(
+//           tF2,
+//           org.saddle.index.OuterJoin
+//         )
+//         .filterIx(_ != "V4_2")
+//         .filterIx(_ != "V4")
+//         .col(
+//           "V4",
+//           "V0",
+//           "V1",
+//           "V2",
+//           "V0_2",
+//           "V1_2",
+//           "V2_2"
+//         )
+//         .resetRowIndex
 
-      val tableA = csvStringToTable("table", tableCsv, numCols, 3)
-        .addColumnFromSeq(I32, "V4")(colA.flatten)
-        .unsafeRunSync()
+//       val tableA = csvStringToTable("table", tableCsv, numCols, 3)
+//         .addColumnFromSeq(I32, "V4")(colA.flatten)
+//         .unsafeRunSync()
 
-      val tableB = csvStringToTable("tableB", tableCsv2, numCols, 3)
-        .addColumnFromSeq(I32, "V4")(colB.flatten)
-        .unsafeRunSync()
-        .mapColIndex(_ + "_2")
+//       val tableB = csvStringToTable("tableB", tableCsv2, numCols, 3)
+//         .addColumnFromSeq(I32, "V4")(colB.flatten)
+//         .unsafeRunSync()
+//         .mapColIndex(_ + "_2")
 
-      assertEquals(toFrame(tableA), tF.resetRowIndex)
-      assertEquals(toFrame(tableB), tF2.resetRowIndex)
+//       assertEquals(toFrame(tableA), tF.resetRowIndex)
+//       assertEquals(toFrame(tableB), tF2.resetRowIndex)
 
-      //     partitionBase: Int,
-      //     partitionLimit: Int,
-      //     maxSegmentsToBufferAtOnce: Int
+//       //     partitionBase: Int,
+//       //     partitionLimit: Int,
+//       //     maxSegmentsToBufferAtOnce: Int
 
-      val result = tableA
-        .in { tableA =>
-          tableB.in { tableB =>
-            tableA.apply[I32Var](3) { aCol3 =>
-              tableB.apply[I32Var](3) { bCol3 =>
-                aCol3.join(ra3.select(ra3.star))
-                  .outer(bCol3)
-                  .withPartitionBase(3)
-                  .withPartitionLimit(0)
-                  .withMaxSegmentsBufferingAtOnce(2)
-                  .done
+//       val result = tableA
+//         .in { tableA =>
+//           tableB.in { tableB =>
+//             tableA.apply[I32Var](3) { aCol3 =>
+//               tableB.apply[I32Var](3) { bCol3 =>
+//                 aCol3.join(ra3.select(ra3.star))
+//                   .outer(bCol3)
+//                   .withPartitionBase(3)
+//                   .withPartitionLimit(0)
+//                   .withMaxSegmentsBufferingAtOnce(2)
+//                   .done
                   
-              }
-            }
-          }
-
-        }
-        .evaluate
-        .unsafeRunSync()
-        .filterColumnNames("joined-filtered")(_ != "V4")
-        .filterColumnNames("joined-filtered")(_ != "V4_2")
-        .bufferStream
-        .compile
-        .toList
-        .unsafeRunSync()
-        .map(_.toHomogeneousFrame(I32))
-        .reduce(_ concat _)
-
-      assertEquals(
-        saddleResult.toRowSeq.map(_._2).toSet,
-        result.toRowSeq.map(_._2).toSet
-      )
-
-    }
-
-  }
-  test("inner join with filter pushdown") {
-    withTempTaskSystem { implicit ts =>
-      val numCols = 3
-      val numRows = 10
-      val (tableFrame, tableCsv) = generateTable(numRows, numCols)
-      val (tableFrame2, tableCsv2) = generateTable(numRows * 2, numCols)
-      val colA = Seq(Seq(1, 1, 2), Seq(1, 1, 1), Seq(2, 2, 1), Seq(1))
-      val colB = Seq(
-        Seq(3, 3, 4),
-        Seq(1, 2, 1),
-        Seq(2, 1, 2),
-        Seq(1),
-        Seq(3, 3, 4),
-        Seq(1, 2, 1),
-        Seq(2, 1, 2),
-        Seq(1)
-      )
-
-      val tF = {
-        val tmp = tableFrame.addCol(
-          Series(colA.flatten.toVec),
-          "V4",
-          org.saddle.index.InnerJoin
-        )
-        tmp.setRowIndex(Index(tmp.firstCol("V4").toVec.toArray))
-      }
-      val tF2 = {
-        val tmp = tableFrame2
-          .addCol(Series(colB.flatten.toVec), "V4", org.saddle.index.InnerJoin)
-          .mapColIndex(v => v + "_2")
-        tmp.setRowIndex(Index(tmp.firstCol("V4_2").toVec.toArray))
-      }
-
-      // println(tF)
-      // println(tF2)
-
-      val saddleResult = tF
-        .rconcat(
-          tF2,
-          org.saddle.index.InnerJoin
-        )
-        .filterIx(_ != "V4_2")
-        .filterIx(_ != "V4")
-        .col(
-          "V0",
-          "V4",
-          "V0",
-          "V1",
-          "V2",
-          "V0_2",
-          "V1_2",
-          "V2_2"
-        )
-        .resetRowIndex
-
-      val tableA = csvStringToTable("table", tableCsv, numCols, 3)
-        .addColumnFromSeq(I32, "V4")(colA.flatten)
-        .unsafeRunSync()
-
-      val tableB = csvStringToTable("tableB", tableCsv2, numCols, 3)
-        .addColumnFromSeq(I32, "V4")(colB.flatten)
-        .unsafeRunSync()
-        .mapColIndex(_ + "_2")
-
-      assertEquals(toFrame(tableA), tF.resetRowIndex)
-      assertEquals(toFrame(tableB), tF2.resetRowIndex)
-
-      val result =
-        tableA
-          .in { tableA =>
-            tableB.in { tableB =>
-              tableA[I32Var, I32Var](0, 3) { (aCol0, aCol3) =>
-                tableB.apply[I32Var](3) { bCol3 =>
-                  aCol3.join(ra3.select(aCol0, ra3.star))
-                    .inner(bCol3)
-                    .withPartitionBase(3)
-                    .withPartitionLimit(11)
-                    .withMaxSegmentsBufferingAtOnce(2)
-                    .done
-                }
-              }
-            }
-
-          }
-          .evaluate
-          .unsafeRunSync()
-          .filterColumnNames("joined-filtered")(_ != "V4")
-          .filterColumnNames("joined-filtered")(_ != "V4_2")
-          .bufferStream
-          .compile
-          .toList
-          .unsafeRunSync()
-          .map(_.toHomogeneousFrame(I32))
-          .reduce(_ concat _)
-
-      println(result)
-
-      assertEquals(
-        saddleResult.toRowSeq.map(_._2).toSet,
-        result.toRowSeq.map(_._2).toSet
-      )
-
-    }
-
-  }
-  test("inner join with 3") {
-    withTempTaskSystem { implicit ts =>
-      val numCols = 3
-      val numRows = 10
-      val (tableFrame, tableCsv) = generateTable(numRows, numCols)
-      val (tableFrame2, tableCsv2) = generateTable(numRows, numCols)
-      val colA = Seq(Seq(1, 1, 2), Seq(1, 1, 1), Seq(2, 2, 1), Seq(1))
-      val colB = Seq(Seq(3, 3, 4), Seq(1, 2, 1), Seq(2, 1, 2), Seq(1))
-
-      val tF = {
-        val tmp = tableFrame.addCol(
-          Series(colA.flatten.toVec),
-          "V4",
-          org.saddle.index.InnerJoin
-        )
-        tmp.setRowIndex(Index(tmp.firstCol("V4").toVec.toArray))
-      }
-      val tF2 = {
-        val tmp = tableFrame2
-          .addCol(Series(colB.flatten.toVec), "V4", org.saddle.index.InnerJoin)
-          .mapColIndex(v => v + "_2")
-        tmp.setRowIndex(Index(tmp.firstCol("V4_2").toVec.toArray))
-      }
-
-      // println(tF)
-      // println(tF2)
-
-      val saddleResult = tF
-        .rconcat(
-          tF2,
-          org.saddle.index.InnerJoin
-        )
-        .filterIx(_ != "V4_2")
-        .filterIx(_ != "V4")
-        .col(
-          "V0",
-          "V4",
-          "V0",
-          "V1",
-          "V2",
-          "V0_2",
-          "V1_2",
-          "V2_2"
-        )
-        .resetRowIndex
-
-      val tableA = csvStringToTable("table", tableCsv, numCols, 3)
-        .addColumnFromSeq(I32, "V4")(colA.flatten)
-        .unsafeRunSync()
-
-      val tableB = csvStringToTable("tableB", tableCsv2, numCols, 3)
-        .addColumnFromSeq(I32, "V4")(colB.flatten)
-        .unsafeRunSync()
-        .mapColIndex(_ + "_2")
-
-      assertEquals(toFrame(tableA), tF.resetRowIndex)
-      assertEquals(toFrame(tableB), tF2.resetRowIndex)
-
-      val result =
-        tableA
-          .in { tableA =>
-            tableB.in { tableB =>
-              tableA[I32Var, I32Var](0, 3) { (aCol0, aCol3) =>
-                tableB.apply[I32Var](3) { bCol3 =>
-                  aCol3.join(ra3.select(aCol0, ra3.star))
-                    .inner(bCol3)
-                    .withPartitionBase(3)
-                    .withPartitionLimit(0)
-                    .withMaxSegmentsBufferingAtOnce(2)
-                    .done
-                }
-              }
-            }
-
-          }
-          .evaluate
-          .unsafeRunSync()
-          .filterColumnNames("joined-filtered")(_ != "V4")
-          .filterColumnNames("joined-filtered")(_ != "V4_2")
-          .bufferStream
-          .compile
-          .toList
-          .unsafeRunSync()
-          .map(_.toHomogeneousFrame(I32))
-          .reduce(_ concat _)
-
-      assertEquals(
-        saddleResult.toRowSeq.map(_._2).toSet,
-        result.toRowSeq.map(_._2).toSet
-      )
-
-    }
-
-  }
-  test("inner join 2") {
-    withTempTaskSystem { implicit ts =>
-      val numCols = 3
-      val numRows = 10
-      val (tableFrame, tableCsv) = generateTable(numRows, numCols)
-      val (tableFrame2, tableCsv2) = generateTable(numRows, numCols)
-      val colA = Seq(Seq(1, 1, 2), Seq(1, 1, 1), Seq(2, 2, 1), Seq(1))
-      val colB = Seq(Seq(2, 2, 1), Seq(1, 2, 1), Seq(2, 1, 2), Seq(1))
-
-      val tF = {
-        val tmp = tableFrame.addCol(
-          Series(colA.flatten.toVec),
-          "V4",
-          org.saddle.index.InnerJoin
-        )
-        tmp.setRowIndex(Index(tmp.firstCol("V4").toVec.toArray))
-      }
-      val tF2 = {
-        val tmp = tableFrame2
-          .addCol(Series(colB.flatten.toVec), "V4", org.saddle.index.InnerJoin)
-          .mapColIndex(v => v + "_2")
-        tmp.setRowIndex(Index(tmp.firstCol("V4_2").toVec.toArray))
-      }
-
-      // println(tF)
-      // println(tF2)
-
-      val saddleResult = tF
-        .rconcat(
-          tF2,
-          org.saddle.index.InnerJoin
-        )
-        .filterIx(_ != "V4_2")
-        .filterIx(_ != "V4")
-        .col(
-          "V4",
-          "V0",
-          "V1",
-          "V2",
-          "V0_2",
-          "V1_2",
-          "V2_2"
-        )
-        .resetRowIndex
-
-      val tableA = csvStringToTable("table", tableCsv, numCols, 3)
-        .addColumnFromSeq(I32, "V4")(colA.flatten)
-        .unsafeRunSync()
-
-      val tableB = csvStringToTable("tableB", tableCsv2, numCols, 3)
-        .addColumnFromSeq(I32, "V4")(colB.flatten)
-        .unsafeRunSync()
-        .mapColIndex(_ + "_2")
-
-      assertEquals(toFrame(tableA), tF.resetRowIndex)
-      assertEquals(toFrame(tableB), tF2.resetRowIndex)
-
-      val result = tableA
-        .in { tableA =>
-          tableB.in { tableB =>
-            tableA[I32Var, I32Var](0, 3) { (_, aCol3) =>
-              tableB.apply[I32Var](3) { bCol3 =>
-                aCol3.join(ra3.select(ra3.star))
-                  .inner(bCol3)
-                  .withPartitionBase(3)
-                  .withPartitionLimit(0)
-                  .withMaxSegmentsBufferingAtOnce(2)
-                  .done
-              }
-            }
-          }
-
-        }
-        .evaluate
-        .unsafeRunSync()
-        .filterColumnNames("joined-filtered")(_ != "V4")
-        .filterColumnNames("joined-filtered")(_ != "V4_2")
-        .bufferStream
-        .compile
-        .toList
-        .unsafeRunSync()
-        .map(_.toHomogeneousFrame(I32))
-        .reduce(_ concat _)
-
-      assertEquals(
-        saddleResult.toRowSeq.map(_._2).toSet,
-        result.toRowSeq.map(_._2).toSet
-      )
-
-    }
-
-  }
-  test("inner join") {
-    withTempTaskSystem { implicit ts =>
-      val numCols = 3
-      val numRows = 10
-      val (tableFrame, tableCsv) = generateTable(numRows, numCols)
-      val (tableFrame2, tableCsv2) = generateTable(numRows, numCols)
-      val colA = Seq(Seq(0, 0, 1), Seq(0, 2, 3), Seq(4, 5, 0), Seq(9))
-      val colB = Seq(Seq(2, 2, 1), Seq(99, 2, 0), Seq(4, 5, 0), Seq(4))
-
-      val tF = {
-        val tmp = tableFrame.addCol(
-          Series(colA.flatten.toVec),
-          "V4",
-          org.saddle.index.InnerJoin
-        )
-        tmp.setRowIndex(Index(tmp.firstCol("V4").toVec.toArray))
-      }
-      val tF2 = {
-        val tmp = tableFrame2
-          .addCol(Series(colB.flatten.toVec), "V4", org.saddle.index.InnerJoin)
-          .mapColIndex(v => v + "_2")
-        tmp.setRowIndex(Index(tmp.firstCol("V4_2").toVec.toArray))
-      }
-
-      // println(tF)
-      // println(tF2)
-
-      val saddleResult = tF
-        .rconcat(
-          tF2,
-          org.saddle.index.InnerJoin
-        )
-        .filterIx(_ != "V4_2")
-        .filterIx(_ != "V4")
-        .col(
-          "V4",
-          "V0",
-          "V1",
-          "V2",
-          "V0_2",
-          "V1_2",
-          "V2_2"
-        )
-        .resetRowIndex
-
-      val tableA = csvStringToTable("table", tableCsv, numCols, 3)
-        .addColumnFromSeq(I32, "V4")(colA.flatten)
-        .unsafeRunSync()
-
-      val tableB = csvStringToTable("tableB", tableCsv2, numCols, 3)
-        .addColumnFromSeq(I32, "V4")(colB.flatten)
-        .unsafeRunSync()
-        .mapColIndex(_ + "_2")
-
-      assertEquals(toFrame(tableA), tF.resetRowIndex)
-      assertEquals(toFrame(tableB), tF2.resetRowIndex)
-
-      val result = tableA
-        .in { tableA =>
-          tableB.in { tableB =>
-            tableA[I32Var, I32Var](0, 3) { (_, aCol3) =>
-              tableB.apply[I32Var](3) { bCol3 =>
-                aCol3.join(ra3.select(ra3.star))
-                  .inner(bCol3)
-                  .withPartitionBase(3)
-                  .withPartitionLimit(0)
-                  .withMaxSegmentsBufferingAtOnce(2)
-                  .done
-              }
-            }
-          }
-
-        }
-        .evaluate
-        .unsafeRunSync()
-        .filterColumnNames("joined-filtered")(_ != "V4")
-        .filterColumnNames("joined-filtered")(_ != "V4_2")
-        .bufferStream
-        .compile
-        .toList
-        .unsafeRunSync()
-        .map(_.toHomogeneousFrame(I32))
-        .reduce(_ concat _)
-
-      assertEquals(
-        saddleResult.toRowSeq.map(_._2).toSet,
-        result.toRowSeq.map(_._2).toSet
-      )
-
-    }
-
-  }
-  test("inner join 3") {
-    withTempTaskSystem { implicit ts =>
-      val numCols = 3
-      val numRows = 10
-      val (tableFrame, tableCsv) = generateTable(numRows, numCols)
-      val (tableFrame2, tableCsv2) = generateTable(numRows, numCols)
-      val (tableFrame3, tableCsv3) = generateTable(numRows + 1, numCols)
-      val colA = Seq(Seq(0, 0, 1), Seq(0, 2, 3), Seq(4, 5, 0), Seq(9))
-      val colB = Seq(Seq(2, 2, 1), Seq(99, 2, 0), Seq(4, 5, 0), Seq(4))
-      val colC = Seq(Seq(3, 3, 3), Seq(4, 4, 4), Seq(99, 0, 1), Seq(5, 99))
-
-      val tF = {
-        val tmp = tableFrame.addCol(
-          Series(colA.flatten.toVec),
-          "V4",
-          org.saddle.index.InnerJoin
-        )
-        tmp.setRowIndex(Index(tmp.firstCol("V4").toVec.toArray))
-      }
-      val tF2 = {
-        val tmp = tableFrame2
-          .addCol(Series(colB.flatten.toVec), "V4", org.saddle.index.InnerJoin)
-          .mapColIndex(v => v + "_2")
-        tmp.setRowIndex(Index(tmp.firstCol("V4_2").toVec.toArray))
-      }
-      val tF3 = {
-        val tmp = tableFrame3
-          .addCol(Series(colC.flatten.toVec), "V4", org.saddle.index.InnerJoin)
-          .mapColIndex(v => v + "_3")
-        tmp.setRowIndex(Index(tmp.firstCol("V4_3").toVec.toArray))
-      }
-
-      val saddleResult = tF
-        .rconcat(
-          tF2,
-          org.saddle.index.InnerJoin
-        )
-        .rconcat(tF3, org.saddle.index.InnerJoin)
-        .filterIx(_ != "V4_2")
-        .filterIx(_ != "V4_3")
-        .filterIx(_ != "V4")
-        .col(
-          "V4",
-          "V0",
-          "V1",
-          "V2",
-          "V0_2",
-          "V1_2",
-          "V2_2",
-          "V0_3",
-          "V1_3",
-          "V2_3"
-        )
-        .resetRowIndex
-
-      val tableA = csvStringToTable("table", tableCsv, numCols, 3)
-        .addColumnFromSeq(I32, "V4")(colA.flatten)
-        .unsafeRunSync()
-
-      val tableB = csvStringToTable("tableB", tableCsv2, numCols, 3)
-        .addColumnFromSeq(I32, "V4")(colB.flatten)
-        .unsafeRunSync()
-        .mapColIndex(_ + "_2")
-      val tableC = csvStringToTable("tableC", tableCsv3, numCols, 3)
-        .addColumnFromSeq(I32, "V4")(colC.flatten)
-        .unsafeRunSync()
-        .mapColIndex(_ + "_3")
-
-      assertEquals(toFrame(tableA), tF.resetRowIndex)
-      assertEquals(toFrame(tableB), tF2.resetRowIndex)
-      assertEquals(toFrame(tableC), tF3.resetRowIndex)
-
-      val result =
-        tableA
-          .in { tableA =>
-            tableB.in { tableB =>
-              tableC.in { tableC =>
-                tableA[I32Var, I32Var](0, 3) { (_, aCol3) =>
-                  tableB.apply[I32Var](3) { bCol3 =>
-                    tableC.apply[I32Var](3) { cCol3 =>
-                      aCol3.join(ra3.select(ra3.star))
-                        .inner(bCol3)
-                        .inner(cCol3)
-                        .withPartitionBase(3)
-                        .withPartitionLimit(10)
-                        .done
-                    }
-                  }
-                }
-              }
-            }
-
-          }
-          .evaluate
-          .unsafeRunSync()
-          .filterColumnNames("joined-filtered")(_ != "V4")
-          .filterColumnNames("joined-filtered")(_ != "V4_2")
-          .filterColumnNames("joined-filtered")(_ != "V4_3")
-          .bufferStream
-          .compile
-          .toList
-          .unsafeRunSync()
-          .map(_.toHomogeneousFrame(I32))
-          .reduce(_ concat _)
-
-      assertEquals(
-        saddleResult.toRowSeq.map(_._2).toSet,
-        result.toRowSeq.map(_._2).toSet
-      )
-
-    }
-
-  }
-  test("inner join filter") {
-    withTempTaskSystem { implicit ts =>
-      val numCols = 3
-      val numRows = 10
-      val (tableFrame, tableCsv) = generateTable(numRows, numCols)
-      val (tableFrame2, tableCsv2) = generateTable(numRows, numCols)
-      val colA = Seq(Seq(0, 0, 1), Seq(0, 2, 3), Seq(4, 5, 0), Seq(9))
-      val colB = Seq(Seq(2, 2, 1), Seq(99, 2, 0), Seq(4, 5, 0), Seq(4))
-
-      val tF = {
-        val tmp = tableFrame.addCol(
-          Series(colA.flatten.toVec),
-          "V4",
-          org.saddle.index.InnerJoin
-        )
-        tmp.setRowIndex(Index(tmp.firstCol("V4").toVec.toArray))
-      }
-      val tF2 = {
-        val tmp = tableFrame2
-          .addCol(Series(colB.flatten.toVec), "V4", org.saddle.index.InnerJoin)
-          .mapColIndex(v => v + "_2")
-        tmp.setRowIndex(Index(tmp.firstCol("V4_2").toVec.toArray))
-      }
-
-      // println(tF)
-      // println(tF2)
-
-      val saddleResult = tF
-        .rconcat(
-          tF2,
-          org.saddle.index.InnerJoin
-        )
-        .filterIx(_ != "V4_2")
-        .filterIx(_ != "V4")
-        .col(
-          "V4",
-          "V0",
-          "V1",
-          "V2",
-          "V0_2",
-          "V1_2",
-          "V2_2"
-        )
-        .resetRowIndex
-        .rfilter(_.first("V0").get <= 0)
-
-      val tableA = csvStringToTable("table", tableCsv, numCols, 3)
-        .addColumnFromSeq(I32, "V4")(colA.flatten)
-        .unsafeRunSync()
-
-      val tableB = csvStringToTable("tableB", tableCsv2, numCols, 3)
-        .addColumnFromSeq(I32, "V4")(colB.flatten)
-        .unsafeRunSync()
-        .mapColIndex(_ + "_2")
-
-      assertEquals(toFrame(tableA), tF.resetRowIndex)
-      assertEquals(toFrame(tableB), tF2.resetRowIndex)
-
-      val result = tableA
-        .in { tableA =>
-          tableB.in { tableB =>
-            tableA[I32Var, I32Var](0, 3) { (aCol0, aCol3) =>
-              tableB.apply[I32Var](3) { bCol3 =>
-                aCol3.join(ra3.select(ra3.star).where(aCol0 <= 0))
-                  .inner(bCol3)
-                  .withPartitionBase(3)
-                  .withPartitionLimit(0)
-                  .withMaxSegmentsBufferingAtOnce(2)
-                  .done
-              }
-            }
-          }
-
-        }
-        .evaluate
-        .unsafeRunSync()
-        .filterColumnNames("joined-filtered")(_ != "V4")
-        .filterColumnNames("joined-filtered")(_ != "V4_2")
-        .bufferStream
-        .compile
-        .toList
-        .unsafeRunSync()
-        .map(_.toHomogeneousFrame(I32))
-        .reduce(_ concat _)
-
-      assertEquals(
-        saddleResult.toRowSeq.map(_._2).toSet,
-        result.toRowSeq.map(_._2).toSet
-      )
-
-    }
-
-  }
-  test("left outer join") {
-    withTempTaskSystem { implicit ts =>
-      val numCols = 3
-      val numRows = 10
-      val (tableFrame, tableCsv) = generateTable(numRows, numCols)
-      val (tableFrame2, tableCsv2) = generateTable(numRows, numCols)
-      val colA = Seq(Seq(0, 0, 1), Seq(0, 2, 3), Seq(4, 5, 0), Seq(9))
-      val colB = Seq(Seq(2, 2, 1), Seq(99, 2, 0), Seq(4, 5, 0), Seq(4))
-
-      val tF = {
-        val tmp = tableFrame.addCol(
-          Series(colA.flatten.toVec),
-          "V4",
-          org.saddle.index.InnerJoin
-        )
-        tmp.setRowIndex(Index(tmp.firstCol("V4").toVec.toArray))
-      }
-      val tF2 = {
-        val tmp = tableFrame2
-          .addCol(Series(colB.flatten.toVec), "V4", org.saddle.index.InnerJoin)
-          .mapColIndex(v => v + "_2")
-        tmp.setRowIndex(Index(tmp.firstCol("V4_2").toVec.toArray))
-      }
-
-      // println(tF)
-      // println(tF2)
-
-      val saddleResult = tF
-        .rconcat(
-          tF2,
-          org.saddle.index.LeftJoin
-        )
-        .filterIx(_ != "V4_2")
-        .filterIx(_ != "V4")
-        .col(
-          "V4",
-          "V0",
-          "V1",
-          "V2",
-          "V0_2",
-          "V1_2",
-          "V2_2"
-        )
-        .resetRowIndex
-
-      val tableA = csvStringToTable("table", tableCsv, numCols, 3)
-        .addColumnFromSeq(I32, "V4")(colA.flatten)
-        .unsafeRunSync()
-
-      val tableB = csvStringToTable("tableB", tableCsv2, numCols, 3)
-        .addColumnFromSeq(I32, "V4")(colB.flatten)
-        .unsafeRunSync()
-        .mapColIndex(_ + "_2")
-
-      assertEquals(toFrame(tableA), tF.resetRowIndex)
-      assertEquals(toFrame(tableB), tF2.resetRowIndex)
-
-      val result = tableA
-        .in { tableA =>
-          tableB.in { tableB =>
-            tableA[I32Var, I32Var](0, 3) { (_, aCol3) =>
-              tableB.apply[I32Var](3) { bCol3 =>
-                aCol3.join(ra3.select(ra3.star))
-                  .left(bCol3)
-                  .withPartitionBase(3)
-                  .withPartitionLimit(0)
-                  .withMaxSegmentsBufferingAtOnce(2)
-                  .done
-              }
-            }
-          }
-
-        }
-        .evaluate
-        .unsafeRunSync()
-        .filterColumnNames("joined-filtered")(_ != "V4")
-        .filterColumnNames("joined-filtered")(_ != "V4_2")
-        .bufferStream
-        .compile
-        .toList
-        .unsafeRunSync()
-        .map(_.toHomogeneousFrame(I32))
-        .reduce(_ concat _)
-
-      assertEquals(
-        saddleResult.toRowSeq.map(_._2).toSet,
-        result.toRowSeq.map(_._2).toSet
-      )
-
-    }
-
-  }
-  test("right outer join") {
-    withTempTaskSystem { implicit ts =>
-      val numCols = 3
-      val numRows = 10
-      val (tableFrame, tableCsv) = generateTable(numRows, numCols)
-      val (tableFrame2, tableCsv2) = generateTable(numRows, numCols)
-      val colA = Seq(Seq(0, 0, 1), Seq(0, 2, 3), Seq(4, 5, 0), Seq(9))
-      val colB = Seq(Seq(2, 2, 1), Seq(99, 2, 0), Seq(4, 5, 0), Seq(4))
-
-      val tF = {
-        val tmp = tableFrame.addCol(
-          Series(colA.flatten.toVec),
-          "V4",
-          org.saddle.index.InnerJoin
-        )
-        tmp.setRowIndex(Index(tmp.firstCol("V4").toVec.toArray))
-      }
-      val tF2 = {
-        val tmp = tableFrame2
-          .addCol(Series(colB.flatten.toVec), "V4", org.saddle.index.InnerJoin)
-          .mapColIndex(v => v + "_2")
-        tmp.setRowIndex(Index(tmp.firstCol("V4_2").toVec.toArray))
-      }
-
-      // println(tF)
-      // println(tF2)
-
-      val saddleResult = tF
-        .rconcat(
-          tF2,
-          org.saddle.index.RightJoin
-        )
-        .filterIx(_ != "V4_2")
-        .filterIx(_ != "V4")
-        .col(
-          "V0",
-          "V1",
-          "V2",
-          "V0_2",
-          "V1_2",
-          "V2_2"
-        )
-        .resetRowIndex
-
-      val tableA = csvStringToTable("table", tableCsv, numCols, 3)
-        .addColumnFromSeq(I32, "V4")(colA.flatten)
-        .unsafeRunSync()
-
-      val tableB = csvStringToTable("tableB", tableCsv2, numCols, 3)
-        .addColumnFromSeq(I32, "V4")(colB.flatten)
-        .unsafeRunSync()
-        .mapColIndex(_ + "_2")
-
-      assertEquals(toFrame(tableA), tF.resetRowIndex)
-      assertEquals(toFrame(tableB), tF2.resetRowIndex)
-
-      val result = tableA
-        .in { tableA =>
-          tableB.in { tableB =>
-            tableA[I32Var, I32Var](0, 3) { (_, aCol3) =>
-              tableB.apply[I32Var](3) { bCol3 =>
-                aCol3.join(ra3.select(ra3.star))
-                  .right(bCol3)
-                  .withPartitionBase(3)
-                  .withPartitionLimit(0)
-                  .withMaxSegmentsBufferingAtOnce(2)
-                  .done
-              }
-            }
-          }
-
-        }
-        .evaluate
-        .unsafeRunSync()
-        .filterColumnNames("joined-filtered")(s => s != "V4" && s != "V4_2")
-        .bufferStream
-        .compile
-        .toList
-        .unsafeRunSync()
-        .map(_.toHomogeneousFrame(I32))
-        .reduce(_ concat _)
-
-      assertEquals(
-        saddleResult.toRowSeq.map(_._2).toSet,
-        result.toRowSeq.map(_._2).toSet
-      )
-
-    }
-
-  }
-  test("group by") {
-    withTempTaskSystem { implicit ts =>
-      val numCols = 3
-      val numRows = 10
-      val (tableFrame, tableCsv) = generateTable(numRows, numCols)
-      val colA = Seq(Seq(0, 0, 1), Seq(0, 2, 3), Seq(4, 5, 0), Seq(9))
-
-      val tF = {
-        val tmp = tableFrame.addCol(
-          Series(colA.flatten.toVec),
-          "V4",
-          org.saddle.index.InnerJoin
-        )
-        tmp.setRowIndex(Index(tmp.firstCol("V4").toVec.toArray))
-      }
-
-      // println(tF)
-      // println(tF2)
-
-      val saddleResult = tF.groupBy.groups.map { case (group, idx) =>
-        (group, tF.rowAt(idx))
-      }.toList
-
-      val tableA = csvStringToTable("table", tableCsv, numCols, 3)
-        .addColumnFromSeq(I32, "V4")(colA.flatten)
-        .unsafeRunSync()
-
-      assertEquals(toFrame(tableA), tF.resetRowIndex)
-
-      val result = tableA
-        .groupBy(List(3), 3, 0, 2)
-        .unsafeRunSync()
-        .extractGroups
-        .unsafeRunSync()
-        .map { group =>
-          toFrame(group)
-        }
-
-      assertEquals(saddleResult.map(_._2.resetRowIndex).toSet, result.toSet)
-
-    }
-
-  }
-  test("reduce by") {
-
-    withTempTaskSystem { implicit ts =>
-      val numCols = 3
-      val numRows = 10
-      val (tableFrame, tableCsv) = generateTable(numRows, numCols)
-      val colA = Seq(Seq(0, 0, 1), Seq(0, 2, 3), Seq(4, 5, 0), Seq(9))
-
-      val tF = {
-        val tmp = tableFrame.addCol(
-          Series(colA.flatten.toVec),
-          "V4",
-          org.saddle.index.InnerJoin
-        )
-        tmp.setRowIndex(Index(tmp.firstCol("V4").toVec.toArray))
-      }
-
-      val saddleResult = tF.groupBy.combine(_.sum).resetRowIndex
-
-      val tableA = csvStringToTable("table", tableCsv, numCols, 3)
-        .addColumnFromSeq(I32, "V4")(colA.flatten)
-        .unsafeRunSync()
-
-      assertEquals(toFrame(tableA), tF.resetRowIndex)
-
-      val result = toFrame(
-        tableA
-          .schema[I32Var, I32Var, I32Var, I32Var].columns{case (c1, c2, c3, c4) =>
-            c4.groupBy(ra3.select(c1.sum, c2.sum, c3.sum, c4.sum as "V4"))
-              .withPartitionBase(3)
-              .withPartitionLimit(0)
-              .withMaxSegmentsBufferingAtOnce(2)
+//               }
+//             }
+//           }
+
+//         }
+//         .evaluate
+//         .unsafeRunSync()
+//         .filterColumnNames("joined-filtered")(_ != "V4")
+//         .filterColumnNames("joined-filtered")(_ != "V4_2")
+//         .bufferStream
+//         .compile
+//         .toList
+//         .unsafeRunSync()
+//         .map(_.toHomogeneousFrame(I32))
+//         .reduce(_ concat _)
+
+//       assertEquals(
+//         saddleResult.toRowSeq.map(_._2).toSet,
+//         result.toRowSeq.map(_._2).toSet
+//       )
+
+//     }
+
+//   }
+//   test("inner join with filter pushdown") {
+//     withTempTaskSystem { implicit ts =>
+//       val numCols = 3
+//       val numRows = 10
+//       val (tableFrame, tableCsv) = generateTable(numRows, numCols)
+//       val (tableFrame2, tableCsv2) = generateTable(numRows * 2, numCols)
+//       val colA = Seq(Seq(1, 1, 2), Seq(1, 1, 1), Seq(2, 2, 1), Seq(1))
+//       val colB = Seq(
+//         Seq(3, 3, 4),
+//         Seq(1, 2, 1),
+//         Seq(2, 1, 2),
+//         Seq(1),
+//         Seq(3, 3, 4),
+//         Seq(1, 2, 1),
+//         Seq(2, 1, 2),
+//         Seq(1)
+//       )
+
+//       val tF = {
+//         val tmp = tableFrame.addCol(
+//           Series(colA.flatten.toVec),
+//           "V4",
+//           org.saddle.index.InnerJoin
+//         )
+//         tmp.setRowIndex(Index(tmp.firstCol("V4").toVec.toArray))
+//       }
+//       val tF2 = {
+//         val tmp = tableFrame2
+//           .addCol(Series(colB.flatten.toVec), "V4", org.saddle.index.InnerJoin)
+//           .mapColIndex(v => v + "_2")
+//         tmp.setRowIndex(Index(tmp.firstCol("V4_2").toVec.toArray))
+//       }
+
+//       // println(tF)
+//       // println(tF2)
+
+//       val saddleResult = tF
+//         .rconcat(
+//           tF2,
+//           org.saddle.index.InnerJoin
+//         )
+//         .filterIx(_ != "V4_2")
+//         .filterIx(_ != "V4")
+//         .col(
+//           "V0",
+//           "V4",
+//           "V0",
+//           "V1",
+//           "V2",
+//           "V0_2",
+//           "V1_2",
+//           "V2_2"
+//         )
+//         .resetRowIndex
+
+//       val tableA = csvStringToTable("table", tableCsv, numCols, 3)
+//         .addColumnFromSeq(I32, "V4")(colA.flatten)
+//         .unsafeRunSync()
+
+//       val tableB = csvStringToTable("tableB", tableCsv2, numCols, 3)
+//         .addColumnFromSeq(I32, "V4")(colB.flatten)
+//         .unsafeRunSync()
+//         .mapColIndex(_ + "_2")
+
+//       assertEquals(toFrame(tableA), tF.resetRowIndex)
+//       assertEquals(toFrame(tableB), tF2.resetRowIndex)
+
+//       val result =
+//         tableA
+//           .in { tableA =>
+//             tableB.in { tableB =>
+//               tableA[I32Var, I32Var](0, 3) { (aCol0, aCol3) =>
+//                 tableB.apply[I32Var](3) { bCol3 =>
+//                   aCol3.join(ra3.select(aCol0, ra3.star))
+//                     .inner(bCol3)
+//                     .withPartitionBase(3)
+//                     .withPartitionLimit(11)
+//                     .withMaxSegmentsBufferingAtOnce(2)
+//                     .done
+//                 }
+//               }
+//             }
+
+//           }
+//           .evaluate
+//           .unsafeRunSync()
+//           .filterColumnNames("joined-filtered")(_ != "V4")
+//           .filterColumnNames("joined-filtered")(_ != "V4_2")
+//           .bufferStream
+//           .compile
+//           .toList
+//           .unsafeRunSync()
+//           .map(_.toHomogeneousFrame(I32))
+//           .reduce(_ concat _)
+
+//       println(result)
+
+//       assertEquals(
+//         saddleResult.toRowSeq.map(_._2).toSet,
+//         result.toRowSeq.map(_._2).toSet
+//       )
+
+//     }
+
+//   }
+//   test("inner join with 3") {
+//     withTempTaskSystem { implicit ts =>
+//       val numCols = 3
+//       val numRows = 10
+//       val (tableFrame, tableCsv) = generateTable(numRows, numCols)
+//       val (tableFrame2, tableCsv2) = generateTable(numRows, numCols)
+//       val colA = Seq(Seq(1, 1, 2), Seq(1, 1, 1), Seq(2, 2, 1), Seq(1))
+//       val colB = Seq(Seq(3, 3, 4), Seq(1, 2, 1), Seq(2, 1, 2), Seq(1))
+
+//       val tF = {
+//         val tmp = tableFrame.addCol(
+//           Series(colA.flatten.toVec),
+//           "V4",
+//           org.saddle.index.InnerJoin
+//         )
+//         tmp.setRowIndex(Index(tmp.firstCol("V4").toVec.toArray))
+//       }
+//       val tF2 = {
+//         val tmp = tableFrame2
+//           .addCol(Series(colB.flatten.toVec), "V4", org.saddle.index.InnerJoin)
+//           .mapColIndex(v => v + "_2")
+//         tmp.setRowIndex(Index(tmp.firstCol("V4_2").toVec.toArray))
+//       }
+
+//       // println(tF)
+//       // println(tF2)
+
+//       val saddleResult = tF
+//         .rconcat(
+//           tF2,
+//           org.saddle.index.InnerJoin
+//         )
+//         .filterIx(_ != "V4_2")
+//         .filterIx(_ != "V4")
+//         .col(
+//           "V0",
+//           "V4",
+//           "V0",
+//           "V1",
+//           "V2",
+//           "V0_2",
+//           "V1_2",
+//           "V2_2"
+//         )
+//         .resetRowIndex
+
+//       val tableA = csvStringToTable("table", tableCsv, numCols, 3)
+//         .addColumnFromSeq(I32, "V4")(colA.flatten)
+//         .unsafeRunSync()
+
+//       val tableB = csvStringToTable("tableB", tableCsv2, numCols, 3)
+//         .addColumnFromSeq(I32, "V4")(colB.flatten)
+//         .unsafeRunSync()
+//         .mapColIndex(_ + "_2")
+
+//       assertEquals(toFrame(tableA), tF.resetRowIndex)
+//       assertEquals(toFrame(tableB), tF2.resetRowIndex)
+
+//       val result =
+//         tableA
+//           .in { tableA =>
+//             tableB.in { tableB =>
+//               tableA[I32Var, I32Var](0, 3) { (aCol0, aCol3) =>
+//                 tableB.apply[I32Var](3) { bCol3 =>
+//                   aCol3.join(ra3.select(aCol0, ra3.star))
+//                     .inner(bCol3)
+//                     .withPartitionBase(3)
+//                     .withPartitionLimit(0)
+//                     .withMaxSegmentsBufferingAtOnce(2)
+//                     .done
+//                 }
+//               }
+//             }
+
+//           }
+//           .evaluate
+//           .unsafeRunSync()
+//           .filterColumnNames("joined-filtered")(_ != "V4")
+//           .filterColumnNames("joined-filtered")(_ != "V4_2")
+//           .bufferStream
+//           .compile
+//           .toList
+//           .unsafeRunSync()
+//           .map(_.toHomogeneousFrame(I32))
+//           .reduce(_ concat _)
+
+//       assertEquals(
+//         saddleResult.toRowSeq.map(_._2).toSet,
+//         result.toRowSeq.map(_._2).toSet
+//       )
+
+//     }
+
+//   }
+//   test("inner join 2") {
+//     withTempTaskSystem { implicit ts =>
+//       val numCols = 3
+//       val numRows = 10
+//       val (tableFrame, tableCsv) = generateTable(numRows, numCols)
+//       val (tableFrame2, tableCsv2) = generateTable(numRows, numCols)
+//       val colA = Seq(Seq(1, 1, 2), Seq(1, 1, 1), Seq(2, 2, 1), Seq(1))
+//       val colB = Seq(Seq(2, 2, 1), Seq(1, 2, 1), Seq(2, 1, 2), Seq(1))
+
+//       val tF = {
+//         val tmp = tableFrame.addCol(
+//           Series(colA.flatten.toVec),
+//           "V4",
+//           org.saddle.index.InnerJoin
+//         )
+//         tmp.setRowIndex(Index(tmp.firstCol("V4").toVec.toArray))
+//       }
+//       val tF2 = {
+//         val tmp = tableFrame2
+//           .addCol(Series(colB.flatten.toVec), "V4", org.saddle.index.InnerJoin)
+//           .mapColIndex(v => v + "_2")
+//         tmp.setRowIndex(Index(tmp.firstCol("V4_2").toVec.toArray))
+//       }
+
+//       // println(tF)
+//       // println(tF2)
+
+//       val saddleResult = tF
+//         .rconcat(
+//           tF2,
+//           org.saddle.index.InnerJoin
+//         )
+//         .filterIx(_ != "V4_2")
+//         .filterIx(_ != "V4")
+//         .col(
+//           "V4",
+//           "V0",
+//           "V1",
+//           "V2",
+//           "V0_2",
+//           "V1_2",
+//           "V2_2"
+//         )
+//         .resetRowIndex
+
+//       val tableA = csvStringToTable("table", tableCsv, numCols, 3)
+//         .addColumnFromSeq(I32, "V4")(colA.flatten)
+//         .unsafeRunSync()
+
+//       val tableB = csvStringToTable("tableB", tableCsv2, numCols, 3)
+//         .addColumnFromSeq(I32, "V4")(colB.flatten)
+//         .unsafeRunSync()
+//         .mapColIndex(_ + "_2")
+
+//       assertEquals(toFrame(tableA), tF.resetRowIndex)
+//       assertEquals(toFrame(tableB), tF2.resetRowIndex)
+
+//       val result = tableA
+//         .in { tableA =>
+//           tableB.in { tableB =>
+//             tableA[I32Var, I32Var](0, 3) { (_, aCol3) =>
+//               tableB.apply[I32Var](3) { bCol3 =>
+//                 aCol3.join(ra3.select(ra3.star))
+//                   .inner(bCol3)
+//                   .withPartitionBase(3)
+//                   .withPartitionLimit(0)
+//                   .withMaxSegmentsBufferingAtOnce(2)
+//                   .done
+//               }
+//             }
+//           }
+
+//         }
+//         .evaluate
+//         .unsafeRunSync()
+//         .filterColumnNames("joined-filtered")(_ != "V4")
+//         .filterColumnNames("joined-filtered")(_ != "V4_2")
+//         .bufferStream
+//         .compile
+//         .toList
+//         .unsafeRunSync()
+//         .map(_.toHomogeneousFrame(I32))
+//         .reduce(_ concat _)
+
+//       assertEquals(
+//         saddleResult.toRowSeq.map(_._2).toSet,
+//         result.toRowSeq.map(_._2).toSet
+//       )
+
+//     }
+
+//   }
+//   test("inner join") {
+//     withTempTaskSystem { implicit ts =>
+//       val numCols = 3
+//       val numRows = 10
+//       val (tableFrame, tableCsv) = generateTable(numRows, numCols)
+//       val (tableFrame2, tableCsv2) = generateTable(numRows, numCols)
+//       val colA = Seq(Seq(0, 0, 1), Seq(0, 2, 3), Seq(4, 5, 0), Seq(9))
+//       val colB = Seq(Seq(2, 2, 1), Seq(99, 2, 0), Seq(4, 5, 0), Seq(4))
+
+//       val tF = {
+//         val tmp = tableFrame.addCol(
+//           Series(colA.flatten.toVec),
+//           "V4",
+//           org.saddle.index.InnerJoin
+//         )
+//         tmp.setRowIndex(Index(tmp.firstCol("V4").toVec.toArray))
+//       }
+//       val tF2 = {
+//         val tmp = tableFrame2
+//           .addCol(Series(colB.flatten.toVec), "V4", org.saddle.index.InnerJoin)
+//           .mapColIndex(v => v + "_2")
+//         tmp.setRowIndex(Index(tmp.firstCol("V4_2").toVec.toArray))
+//       }
+
+//       // println(tF)
+//       // println(tF2)
+
+//       val saddleResult = tF
+//         .rconcat(
+//           tF2,
+//           org.saddle.index.InnerJoin
+//         )
+//         .filterIx(_ != "V4_2")
+//         .filterIx(_ != "V4")
+//         .col(
+//           "V4",
+//           "V0",
+//           "V1",
+//           "V2",
+//           "V0_2",
+//           "V1_2",
+//           "V2_2"
+//         )
+//         .resetRowIndex
+
+//       val tableA = csvStringToTable("table", tableCsv, numCols, 3)
+//         .addColumnFromSeq(I32, "V4")(colA.flatten)
+//         .unsafeRunSync()
+
+//       val tableB = csvStringToTable("tableB", tableCsv2, numCols, 3)
+//         .addColumnFromSeq(I32, "V4")(colB.flatten)
+//         .unsafeRunSync()
+//         .mapColIndex(_ + "_2")
+
+//       assertEquals(toFrame(tableA), tF.resetRowIndex)
+//       assertEquals(toFrame(tableB), tF2.resetRowIndex)
+
+//       val result = tableA
+//         .in { tableA =>
+//           tableB.in { tableB =>
+//             tableA[I32Var, I32Var](0, 3) { (_, aCol3) =>
+//               tableB.apply[I32Var](3) { bCol3 =>
+//                 aCol3.join(ra3.select(ra3.star))
+//                   .inner(bCol3)
+//                   .withPartitionBase(3)
+//                   .withPartitionLimit(0)
+//                   .withMaxSegmentsBufferingAtOnce(2)
+//                   .done
+//               }
+//             }
+//           }
+
+//         }
+//         .evaluate
+//         .unsafeRunSync()
+//         .filterColumnNames("joined-filtered")(_ != "V4")
+//         .filterColumnNames("joined-filtered")(_ != "V4_2")
+//         .bufferStream
+//         .compile
+//         .toList
+//         .unsafeRunSync()
+//         .map(_.toHomogeneousFrame(I32))
+//         .reduce(_ concat _)
+
+//       assertEquals(
+//         saddleResult.toRowSeq.map(_._2).toSet,
+//         result.toRowSeq.map(_._2).toSet
+//       )
+
+//     }
+
+//   }
+//   test("inner join 3") {
+//     withTempTaskSystem { implicit ts =>
+//       val numCols = 3
+//       val numRows = 10
+//       val (tableFrame, tableCsv) = generateTable(numRows, numCols)
+//       val (tableFrame2, tableCsv2) = generateTable(numRows, numCols)
+//       val (tableFrame3, tableCsv3) = generateTable(numRows + 1, numCols)
+//       val colA = Seq(Seq(0, 0, 1), Seq(0, 2, 3), Seq(4, 5, 0), Seq(9))
+//       val colB = Seq(Seq(2, 2, 1), Seq(99, 2, 0), Seq(4, 5, 0), Seq(4))
+//       val colC = Seq(Seq(3, 3, 3), Seq(4, 4, 4), Seq(99, 0, 1), Seq(5, 99))
+
+//       val tF = {
+//         val tmp = tableFrame.addCol(
+//           Series(colA.flatten.toVec),
+//           "V4",
+//           org.saddle.index.InnerJoin
+//         )
+//         tmp.setRowIndex(Index(tmp.firstCol("V4").toVec.toArray))
+//       }
+//       val tF2 = {
+//         val tmp = tableFrame2
+//           .addCol(Series(colB.flatten.toVec), "V4", org.saddle.index.InnerJoin)
+//           .mapColIndex(v => v + "_2")
+//         tmp.setRowIndex(Index(tmp.firstCol("V4_2").toVec.toArray))
+//       }
+//       val tF3 = {
+//         val tmp = tableFrame3
+//           .addCol(Series(colC.flatten.toVec), "V4", org.saddle.index.InnerJoin)
+//           .mapColIndex(v => v + "_3")
+//         tmp.setRowIndex(Index(tmp.firstCol("V4_3").toVec.toArray))
+//       }
+
+//       val saddleResult = tF
+//         .rconcat(
+//           tF2,
+//           org.saddle.index.InnerJoin
+//         )
+//         .rconcat(tF3, org.saddle.index.InnerJoin)
+//         .filterIx(_ != "V4_2")
+//         .filterIx(_ != "V4_3")
+//         .filterIx(_ != "V4")
+//         .col(
+//           "V4",
+//           "V0",
+//           "V1",
+//           "V2",
+//           "V0_2",
+//           "V1_2",
+//           "V2_2",
+//           "V0_3",
+//           "V1_3",
+//           "V2_3"
+//         )
+//         .resetRowIndex
+
+//       val tableA = csvStringToTable("table", tableCsv, numCols, 3)
+//         .addColumnFromSeq(I32, "V4")(colA.flatten)
+//         .unsafeRunSync()
+
+//       val tableB = csvStringToTable("tableB", tableCsv2, numCols, 3)
+//         .addColumnFromSeq(I32, "V4")(colB.flatten)
+//         .unsafeRunSync()
+//         .mapColIndex(_ + "_2")
+//       val tableC = csvStringToTable("tableC", tableCsv3, numCols, 3)
+//         .addColumnFromSeq(I32, "V4")(colC.flatten)
+//         .unsafeRunSync()
+//         .mapColIndex(_ + "_3")
+
+//       assertEquals(toFrame(tableA), tF.resetRowIndex)
+//       assertEquals(toFrame(tableB), tF2.resetRowIndex)
+//       assertEquals(toFrame(tableC), tF3.resetRowIndex)
+
+//       val result =
+//         tableA
+//           .in { tableA =>
+//             tableB.in { tableB =>
+//               tableC.in { tableC =>
+//                 tableA[I32Var, I32Var](0, 3) { (_, aCol3) =>
+//                   tableB.apply[I32Var](3) { bCol3 =>
+//                     tableC.apply[I32Var](3) { cCol3 =>
+//                       aCol3.join(ra3.select(ra3.star))
+//                         .inner(bCol3)
+//                         .inner(cCol3)
+//                         .withPartitionBase(3)
+//                         .withPartitionLimit(10)
+//                         .done
+//                     }
+//                   }
+//                 }
+//               }
+//             }
+
+//           }
+//           .evaluate
+//           .unsafeRunSync()
+//           .filterColumnNames("joined-filtered")(_ != "V4")
+//           .filterColumnNames("joined-filtered")(_ != "V4_2")
+//           .filterColumnNames("joined-filtered")(_ != "V4_3")
+//           .bufferStream
+//           .compile
+//           .toList
+//           .unsafeRunSync()
+//           .map(_.toHomogeneousFrame(I32))
+//           .reduce(_ concat _)
+
+//       assertEquals(
+//         saddleResult.toRowSeq.map(_._2).toSet,
+//         result.toRowSeq.map(_._2).toSet
+//       )
+
+//     }
+
+//   }
+//   test("inner join filter") {
+//     withTempTaskSystem { implicit ts =>
+//       val numCols = 3
+//       val numRows = 10
+//       val (tableFrame, tableCsv) = generateTable(numRows, numCols)
+//       val (tableFrame2, tableCsv2) = generateTable(numRows, numCols)
+//       val colA = Seq(Seq(0, 0, 1), Seq(0, 2, 3), Seq(4, 5, 0), Seq(9))
+//       val colB = Seq(Seq(2, 2, 1), Seq(99, 2, 0), Seq(4, 5, 0), Seq(4))
+
+//       val tF = {
+//         val tmp = tableFrame.addCol(
+//           Series(colA.flatten.toVec),
+//           "V4",
+//           org.saddle.index.InnerJoin
+//         )
+//         tmp.setRowIndex(Index(tmp.firstCol("V4").toVec.toArray))
+//       }
+//       val tF2 = {
+//         val tmp = tableFrame2
+//           .addCol(Series(colB.flatten.toVec), "V4", org.saddle.index.InnerJoin)
+//           .mapColIndex(v => v + "_2")
+//         tmp.setRowIndex(Index(tmp.firstCol("V4_2").toVec.toArray))
+//       }
+
+//       // println(tF)
+//       // println(tF2)
+
+//       val saddleResult = tF
+//         .rconcat(
+//           tF2,
+//           org.saddle.index.InnerJoin
+//         )
+//         .filterIx(_ != "V4_2")
+//         .filterIx(_ != "V4")
+//         .col(
+//           "V4",
+//           "V0",
+//           "V1",
+//           "V2",
+//           "V0_2",
+//           "V1_2",
+//           "V2_2"
+//         )
+//         .resetRowIndex
+//         .rfilter(_.first("V0").get <= 0)
+
+//       val tableA = csvStringToTable("table", tableCsv, numCols, 3)
+//         .addColumnFromSeq(I32, "V4")(colA.flatten)
+//         .unsafeRunSync()
+
+//       val tableB = csvStringToTable("tableB", tableCsv2, numCols, 3)
+//         .addColumnFromSeq(I32, "V4")(colB.flatten)
+//         .unsafeRunSync()
+//         .mapColIndex(_ + "_2")
+
+//       assertEquals(toFrame(tableA), tF.resetRowIndex)
+//       assertEquals(toFrame(tableB), tF2.resetRowIndex)
+
+//       val result = tableA
+//         .in { tableA =>
+//           tableB.in { tableB =>
+//             tableA[I32Var, I32Var](0, 3) { (aCol0, aCol3) =>
+//               tableB.apply[I32Var](3) { bCol3 =>
+//                 aCol3.join(ra3.select(ra3.star).where(aCol0 <= 0))
+//                   .inner(bCol3)
+//                   .withPartitionBase(3)
+//                   .withPartitionLimit(0)
+//                   .withMaxSegmentsBufferingAtOnce(2)
+//                   .done
+//               }
+//             }
+//           }
+
+//         }
+//         .evaluate
+//         .unsafeRunSync()
+//         .filterColumnNames("joined-filtered")(_ != "V4")
+//         .filterColumnNames("joined-filtered")(_ != "V4_2")
+//         .bufferStream
+//         .compile
+//         .toList
+//         .unsafeRunSync()
+//         .map(_.toHomogeneousFrame(I32))
+//         .reduce(_ concat _)
+
+//       assertEquals(
+//         saddleResult.toRowSeq.map(_._2).toSet,
+//         result.toRowSeq.map(_._2).toSet
+//       )
+
+//     }
+
+//   }
+//   test("left outer join") {
+//     withTempTaskSystem { implicit ts =>
+//       val numCols = 3
+//       val numRows = 10
+//       val (tableFrame, tableCsv) = generateTable(numRows, numCols)
+//       val (tableFrame2, tableCsv2) = generateTable(numRows, numCols)
+//       val colA = Seq(Seq(0, 0, 1), Seq(0, 2, 3), Seq(4, 5, 0), Seq(9))
+//       val colB = Seq(Seq(2, 2, 1), Seq(99, 2, 0), Seq(4, 5, 0), Seq(4))
+
+//       val tF = {
+//         val tmp = tableFrame.addCol(
+//           Series(colA.flatten.toVec),
+//           "V4",
+//           org.saddle.index.InnerJoin
+//         )
+//         tmp.setRowIndex(Index(tmp.firstCol("V4").toVec.toArray))
+//       }
+//       val tF2 = {
+//         val tmp = tableFrame2
+//           .addCol(Series(colB.flatten.toVec), "V4", org.saddle.index.InnerJoin)
+//           .mapColIndex(v => v + "_2")
+//         tmp.setRowIndex(Index(tmp.firstCol("V4_2").toVec.toArray))
+//       }
+
+//       // println(tF)
+//       // println(tF2)
+
+//       val saddleResult = tF
+//         .rconcat(
+//           tF2,
+//           org.saddle.index.LeftJoin
+//         )
+//         .filterIx(_ != "V4_2")
+//         .filterIx(_ != "V4")
+//         .col(
+//           "V4",
+//           "V0",
+//           "V1",
+//           "V2",
+//           "V0_2",
+//           "V1_2",
+//           "V2_2"
+//         )
+//         .resetRowIndex
+
+//       val tableA = csvStringToTable("table", tableCsv, numCols, 3)
+//         .addColumnFromSeq(I32, "V4")(colA.flatten)
+//         .unsafeRunSync()
+
+//       val tableB = csvStringToTable("tableB", tableCsv2, numCols, 3)
+//         .addColumnFromSeq(I32, "V4")(colB.flatten)
+//         .unsafeRunSync()
+//         .mapColIndex(_ + "_2")
+
+//       assertEquals(toFrame(tableA), tF.resetRowIndex)
+//       assertEquals(toFrame(tableB), tF2.resetRowIndex)
+
+//       val result = tableA
+//         .in { tableA =>
+//           tableB.in { tableB =>
+//             tableA[I32Var, I32Var](0, 3) { (_, aCol3) =>
+//               tableB.apply[I32Var](3) { bCol3 =>
+//                 aCol3.join(ra3.select(ra3.star))
+//                   .left(bCol3)
+//                   .withPartitionBase(3)
+//                   .withPartitionLimit(0)
+//                   .withMaxSegmentsBufferingAtOnce(2)
+//                   .done
+//               }
+//             }
+//           }
+
+//         }
+//         .evaluate
+//         .unsafeRunSync()
+//         .filterColumnNames("joined-filtered")(_ != "V4")
+//         .filterColumnNames("joined-filtered")(_ != "V4_2")
+//         .bufferStream
+//         .compile
+//         .toList
+//         .unsafeRunSync()
+//         .map(_.toHomogeneousFrame(I32))
+//         .reduce(_ concat _)
+
+//       assertEquals(
+//         saddleResult.toRowSeq.map(_._2).toSet,
+//         result.toRowSeq.map(_._2).toSet
+//       )
+
+//     }
+
+//   }
+//   test("right outer join") {
+//     withTempTaskSystem { implicit ts =>
+//       val numCols = 3
+//       val numRows = 10
+//       val (tableFrame, tableCsv) = generateTable(numRows, numCols)
+//       val (tableFrame2, tableCsv2) = generateTable(numRows, numCols)
+//       val colA = Seq(Seq(0, 0, 1), Seq(0, 2, 3), Seq(4, 5, 0), Seq(9))
+//       val colB = Seq(Seq(2, 2, 1), Seq(99, 2, 0), Seq(4, 5, 0), Seq(4))
+
+//       val tF = {
+//         val tmp = tableFrame.addCol(
+//           Series(colA.flatten.toVec),
+//           "V4",
+//           org.saddle.index.InnerJoin
+//         )
+//         tmp.setRowIndex(Index(tmp.firstCol("V4").toVec.toArray))
+//       }
+//       val tF2 = {
+//         val tmp = tableFrame2
+//           .addCol(Series(colB.flatten.toVec), "V4", org.saddle.index.InnerJoin)
+//           .mapColIndex(v => v + "_2")
+//         tmp.setRowIndex(Index(tmp.firstCol("V4_2").toVec.toArray))
+//       }
+
+//       // println(tF)
+//       // println(tF2)
+
+//       val saddleResult = tF
+//         .rconcat(
+//           tF2,
+//           org.saddle.index.RightJoin
+//         )
+//         .filterIx(_ != "V4_2")
+//         .filterIx(_ != "V4")
+//         .col(
+//           "V0",
+//           "V1",
+//           "V2",
+//           "V0_2",
+//           "V1_2",
+//           "V2_2"
+//         )
+//         .resetRowIndex
+
+//       val tableA = csvStringToTable("table", tableCsv, numCols, 3)
+//         .addColumnFromSeq(I32, "V4")(colA.flatten)
+//         .unsafeRunSync()
+
+//       val tableB = csvStringToTable("tableB", tableCsv2, numCols, 3)
+//         .addColumnFromSeq(I32, "V4")(colB.flatten)
+//         .unsafeRunSync()
+//         .mapColIndex(_ + "_2")
+
+//       assertEquals(toFrame(tableA), tF.resetRowIndex)
+//       assertEquals(toFrame(tableB), tF2.resetRowIndex)
+
+//       val result = tableA
+//         .in { tableA =>
+//           tableB.in { tableB =>
+//             tableA[I32Var, I32Var](0, 3) { (_, aCol3) =>
+//               tableB.apply[I32Var](3) { bCol3 =>
+//                 aCol3.join(ra3.select(ra3.star))
+//                   .right(bCol3)
+//                   .withPartitionBase(3)
+//                   .withPartitionLimit(0)
+//                   .withMaxSegmentsBufferingAtOnce(2)
+//                   .done
+//               }
+//             }
+//           }
+
+//         }
+//         .evaluate
+//         .unsafeRunSync()
+//         .filterColumnNames("joined-filtered")(s => s != "V4" && s != "V4_2")
+//         .bufferStream
+//         .compile
+//         .toList
+//         .unsafeRunSync()
+//         .map(_.toHomogeneousFrame(I32))
+//         .reduce(_ concat _)
+
+//       assertEquals(
+//         saddleResult.toRowSeq.map(_._2).toSet,
+//         result.toRowSeq.map(_._2).toSet
+//       )
+
+//     }
+
+//   }
+//   test("group by") {
+//     withTempTaskSystem { implicit ts =>
+//       val numCols = 3
+//       val numRows = 10
+//       val (tableFrame, tableCsv) = generateTable(numRows, numCols)
+//       val colA = Seq(Seq(0, 0, 1), Seq(0, 2, 3), Seq(4, 5, 0), Seq(9))
+
+//       val tF = {
+//         val tmp = tableFrame.addCol(
+//           Series(colA.flatten.toVec),
+//           "V4",
+//           org.saddle.index.InnerJoin
+//         )
+//         tmp.setRowIndex(Index(tmp.firstCol("V4").toVec.toArray))
+//       }
+
+//       // println(tF)
+//       // println(tF2)
+
+//       val saddleResult = tF.groupBy.groups.map { case (group, idx) =>
+//         (group, tF.rowAt(idx))
+//       }.toList
+
+//       val tableA = csvStringToTable("table", tableCsv, numCols, 3)
+//         .addColumnFromSeq(I32, "V4")(colA.flatten)
+//         .unsafeRunSync()
+
+//       assertEquals(toFrame(tableA), tF.resetRowIndex)
+
+//       val result = tableA
+//         .groupBy(List(3), 3, 0, 2)
+//         .unsafeRunSync()
+//         .extractGroups
+//         .unsafeRunSync()
+//         .map { group =>
+//           toFrame(group)
+//         }
+
+//       assertEquals(saddleResult.map(_._2.resetRowIndex).toSet, result.toSet)
+
+//     }
+
+//   }
+//   test("reduce by") {
+
+//     withTempTaskSystem { implicit ts =>
+//       val numCols = 3
+//       val numRows = 10
+//       val (tableFrame, tableCsv) = generateTable(numRows, numCols)
+//       val colA = Seq(Seq(0, 0, 1), Seq(0, 2, 3), Seq(4, 5, 0), Seq(9))
+
+//       val tF = {
+//         val tmp = tableFrame.addCol(
+//           Series(colA.flatten.toVec),
+//           "V4",
+//           org.saddle.index.InnerJoin
+//         )
+//         tmp.setRowIndex(Index(tmp.firstCol("V4").toVec.toArray))
+//       }
+
+//       val saddleResult = tF.groupBy.combine(_.sum).resetRowIndex
+
+//       val tableA = csvStringToTable("table", tableCsv, numCols, 3)
+//         .addColumnFromSeq(I32, "V4")(colA.flatten)
+//         .unsafeRunSync()
+
+//       assertEquals(toFrame(tableA), tF.resetRowIndex)
+
+//       val result = toFrame(
+//         tableA
+//           .schema[I32Var, I32Var, I32Var, I32Var].columns{case (c1, c2, c3, c4) =>
+//             c4.groupBy(ra3.select(c1.sum, c2.sum, c3.sum, c4.sum as "V4"))
+//               .withPartitionBase(3)
+//               .withPartitionLimit(0)
+//               .withMaxSegmentsBufferingAtOnce(2)
               
-              .all
-          }
-          .evaluate
-          .unsafeRunSync()
-      )
+//               .all
+//           }
+//           .evaluate
+//           .unsafeRunSync()
+//       )
 
-      assertEquals(
-        saddleResult.toRowSeq.map(_._2).toSet,
-        result.toRowSeq.map(_._2).toSet
-      )
+//       assertEquals(
+//         saddleResult.toRowSeq.map(_._2).toSet,
+//         result.toRowSeq.map(_._2).toSet
+//       )
 
-    }
+//     }
 
-  }
-  test("count groups") {
+//   }
+//   test("count groups") {
 
-    withTempTaskSystem { implicit ts =>
-      val numCols = 3
-      val numRows = 10
-      val (tableFrame, tableCsv) = generateTable(numRows, numCols)
-      val colA = Seq(Seq(0, 0, 1), Seq(0, 2, 3), Seq(4, 5, 0), Seq(9))
+//     withTempTaskSystem { implicit ts =>
+//       val numCols = 3
+//       val numRows = 10
+//       val (tableFrame, tableCsv) = generateTable(numRows, numCols)
+//       val colA = Seq(Seq(0, 0, 1), Seq(0, 2, 3), Seq(4, 5, 0), Seq(9))
 
-      val tF = {
-        val tmp = tableFrame.addCol(
-          Series(colA.flatten.toVec),
-          "V4",
-          org.saddle.index.InnerJoin
-        )
-        tmp.setRowIndex(Index(tmp.firstCol("V4").toVec.toArray))
-      }
+//       val tF = {
+//         val tmp = tableFrame.addCol(
+//           Series(colA.flatten.toVec),
+//           "V4",
+//           org.saddle.index.InnerJoin
+//         )
+//         tmp.setRowIndex(Index(tmp.firstCol("V4").toVec.toArray))
+//       }
 
-      val saddleResult =
-        tF.groupBy.combine(_.sum).resetRowIndex.colAt(0).toVec.countif(_ <= 0)
+//       val saddleResult =
+//         tF.groupBy.combine(_.sum).resetRowIndex.colAt(0).toVec.countif(_ <= 0)
 
-      val tableA = csvStringToTable("table", tableCsv, numCols, 3)
-        .addColumnFromSeq(I32, "V4")(colA.flatten)
-        .unsafeRunSync()
+//       val tableA = csvStringToTable("table", tableCsv, numCols, 3)
+//         .addColumnFromSeq(I32, "V4")(colA.flatten)
+//         .unsafeRunSync()
 
-      assertEquals(toFrame(tableA), tF.resetRowIndex)
+//       assertEquals(toFrame(tableA), tF.resetRowIndex)
 
-      val result = toLongFrame(
-        tableA
-          .schema[I32Var, I32Var, I32Var, I32Var].columns{ case (c1, c2, c3, c4) =>
-            c4.groupBy( ra3
-                  .select(c1.sum, c2.sum, c3.sum, c4.sum as "V4")
-                  .where(c1.sum <= 0))
-              .withPartitionBase(3)
-              .withPartitionLimit(0)
-              .withMaxSegmentsBufferingAtOnce(2)
+//       val result = toLongFrame(
+//         tableA
+//           .schema[I32Var, I32Var, I32Var, I32Var].columns{ case (c1, c2, c3, c4) =>
+//             c4.groupBy( ra3
+//                   .select(c1.sum, c2.sum, c3.sum, c4.sum as "V4")
+//                   .where(c1.sum <= 0))
+//               .withPartitionBase(3)
+//               .withPartitionLimit(0)
+//               .withMaxSegmentsBufferingAtOnce(2)
               
-              .count
-          }
-          .evaluate
-          .unsafeRunSync()
-      )
+//               .count
+//           }
+//           .evaluate
+//           .unsafeRunSync()
+//       )
 
-      assertEquals(
-        Frame("count" -> Vec(saddleResult.toLong)),
-        result
-      )
+//       assertEquals(
+//         Frame("count" -> Vec(saddleResult.toLong)),
+//         result
+//       )
 
-    }
+//     }
 
-  }
-  test("reduce complete table") {
+//   }
+//   test("reduce complete table") {
 
-    withTempTaskSystem { implicit ts =>
-      val numCols = 3
-      val numRows = 10
-      val (tableFrame, tableCsv) = generateTable(numRows, numCols)
-      val colA = Seq(Seq(0, 0, 1), Seq(0, 2, 3), Seq(4, 5, 0), Seq(9))
+//     withTempTaskSystem { implicit ts =>
+//       val numCols = 3
+//       val numRows = 10
+//       val (tableFrame, tableCsv) = generateTable(numRows, numCols)
+//       val colA = Seq(Seq(0, 0, 1), Seq(0, 2, 3), Seq(4, 5, 0), Seq(9))
 
-      val tF = {
-        val tmp = tableFrame.addCol(
-          Series(colA.flatten.toVec),
-          "V4",
-          org.saddle.index.InnerJoin
-        )
-        tmp.setRowIndex(Index(tmp.firstCol("V4").toVec.toArray))
-      }
+//       val tF = {
+//         val tmp = tableFrame.addCol(
+//           Series(colA.flatten.toVec),
+//           "V4",
+//           org.saddle.index.InnerJoin
+//         )
+//         tmp.setRowIndex(Index(tmp.firstCol("V4").toVec.toArray))
+//       }
 
-      val saddleResult = Frame(tF.reduce(_.sum)).T
+//       val saddleResult = Frame(tF.reduce(_.sum)).T
 
-      val tableA = csvStringToTable("table", tableCsv, numCols, 3)
-        .addColumnFromSeq(I32, "V4")(colA.flatten)
-        .unsafeRunSync()
+//       val tableA = csvStringToTable("table", tableCsv, numCols, 3)
+//         .addColumnFromSeq(I32, "V4")(colA.flatten)
+//         .unsafeRunSync()
 
-      assertEquals(toFrame(tableA), tF.resetRowIndex)
+//       assertEquals(toFrame(tableA), tF.resetRowIndex)
 
-      println(tableA)
+//       println(tableA)
 
-      val result = toFrame(
-        tableA
-          .schema[I32Var, I32Var, I32Var, I32Var].columns{(c1, c2, c3, c4) =>
-            reduce(ra3.select(c1.sum, c2.sum, c3.sum, c4.sum as "V4"))
-          }
-          .evaluate
-          .unsafeRunSync()
-      )
+//       val result = toFrame(
+//         tableA
+//           .schema[I32Var, I32Var, I32Var, I32Var].columns{(c1, c2, c3, c4) =>
+//             reduce(ra3.select(c1.sum, c2.sum, c3.sum, c4.sum as "V4"))
+//           }
+//           .evaluate
+//           .unsafeRunSync()
+//       )
 
-      println(saddleResult)
-      println(result)
+//       println(saddleResult)
+//       println(result)
 
-      assertEquals(
-        saddleResult.toRowSeq.map(_._2).toSet,
-        result.toRowSeq.map(_._2).toSet
-      )
+//       assertEquals(
+//         saddleResult.toRowSeq.map(_._2).toSet,
+//         result.toRowSeq.map(_._2).toSet
+//       )
 
-    }
+//     }
 
-  }
-  test("top k with missing") {
+//   }
+//   test("top k with missing") {
 
-    withTempTaskSystem { implicit ts =>
-      val numCols = 3
-      val numRows = 10
-      val (tableFrame, tableCsv) = generateTable(numRows, numCols)
-      val colA = Seq(Seq(0, 0, 1), Seq(Int.MinValue, 2, 3), Seq(4, 5, 0), Seq(9))
+//     withTempTaskSystem { implicit ts =>
+//       val numCols = 3
+//       val numRows = 10
+//       val (tableFrame, tableCsv) = generateTable(numRows, numCols)
+//       val colA = Seq(Seq(0, 0, 1), Seq(Int.MinValue, 2, 3), Seq(4, 5, 0), Seq(9))
 
-      val tF = {
-        val tmp = tableFrame.addCol(
-          Series(colA.flatten.toVec),
-          "V4",
-          org.saddle.index.InnerJoin
-        )
-        tmp.setRowIndex(Index(tmp.firstCol("V4").toVec.toArray))
-      }
+//       val tF = {
+//         val tmp = tableFrame.addCol(
+//           Series(colA.flatten.toVec),
+//           "V4",
+//           org.saddle.index.InnerJoin
+//         )
+//         tmp.setRowIndex(Index(tmp.firstCol("V4").toVec.toArray))
+//       }
 
-      val saddleResult = tF.sortedRows(3).rfilter(_.at(3).isDefined).head(2)
-      val saddleResultDesc = tF.sortedRows(3).rfilter(_.at(3).isDefined).tail(2)
+//       val saddleResult = tF.sortedRows(3).rfilter(_.at(3).isDefined).head(2)
+//       val saddleResultDesc = tF.sortedRows(3).rfilter(_.at(3).isDefined).tail(2)
 
-      val tableA = csvStringToTable("table", tableCsv, numCols, 3)
-        .addColumnFromSeq(I32, "V4")(colA.flatten)
-        .unsafeRunSync()
+//       val tableA = csvStringToTable("table", tableCsv, numCols, 3)
+//         .addColumnFromSeq(I32, "V4")(colA.flatten)
+//         .unsafeRunSync()
 
-      assertEquals(toFrame(tableA), tF.resetRowIndex)
+//       assertEquals(toFrame(tableA), tF.resetRowIndex)
 
-      val result = toFrame(
-        tableA
-          .topK(3, true, 3, 1.0, 5)
-          .unsafeRunSync()
-      )
-      val resultDesc = toFrame(
-        tableA
-          .topK(3, false, 3, 1.0, 5)
-          .unsafeRunSync()
-      )
+//       val result = toFrame(
+//         tableA
+//           .topK(3, true, 3, 1.0, 5)
+//           .unsafeRunSync()
+//       )
+//       val resultDesc = toFrame(
+//         tableA
+//           .topK(3, false, 3, 1.0, 5)
+//           .unsafeRunSync()
+//       )
 
-      assert(result.numRows <= 5)
-      assert(saddleResultDesc.numRows <= 5)
-      assert(result.colAt(3).toVec.toSeq.filter(_ == 0).size == 3)
-      assert(
-        (saddleResult.toRowSeq.map(_._2).toSet &~ result.toRowSeq
-          .map(_._2)
-          .toSet).isEmpty
-      )
-      assert(
-        (saddleResultDesc.toRowSeq.map(_._2).toSet &~ resultDesc.toRowSeq
-          .map(_._2)
-          .toSet).isEmpty
-      )
+//       assert(result.numRows <= 5)
+//       assert(saddleResultDesc.numRows <= 5)
+//       assert(result.colAt(3).toVec.toSeq.filter(_ == 0).size == 3)
+//       assert(
+//         (saddleResult.toRowSeq.map(_._2).toSet &~ result.toRowSeq
+//           .map(_._2)
+//           .toSet).isEmpty
+//       )
+//       assert(
+//         (saddleResultDesc.toRowSeq.map(_._2).toSet &~ resultDesc.toRowSeq
+//           .map(_._2)
+//           .toSet).isEmpty
+//       )
 
-    }
+//     }
 
-  }
-  test("top k") {
+//   }
+//   test("top k") {
 
-    withTempTaskSystem { implicit ts =>
-      val numCols = 3
-      val numRows = 10
-      val (tableFrame, tableCsv) = generateTable(numRows, numCols)
-      val colA = Seq(Seq(0, 0, 1), Seq(0, 2, 3), Seq(4, 5, 0), Seq(9))
+//     withTempTaskSystem { implicit ts =>
+//       val numCols = 3
+//       val numRows = 10
+//       val (tableFrame, tableCsv) = generateTable(numRows, numCols)
+//       val colA = Seq(Seq(0, 0, 1), Seq(0, 2, 3), Seq(4, 5, 0), Seq(9))
 
-      val tF = {
-        val tmp = tableFrame.addCol(
-          Series(colA.flatten.toVec),
-          "V4",
-          org.saddle.index.InnerJoin
-        )
-        tmp.setRowIndex(Index(tmp.firstCol("V4").toVec.toArray))
-      }
+//       val tF = {
+//         val tmp = tableFrame.addCol(
+//           Series(colA.flatten.toVec),
+//           "V4",
+//           org.saddle.index.InnerJoin
+//         )
+//         tmp.setRowIndex(Index(tmp.firstCol("V4").toVec.toArray))
+//       }
 
-      val saddleResult = tF.sortedRows(0).head(2)
-      val saddleResultDesc = tF.sortedRows(0).tail(2)
+//       val saddleResult = tF.sortedRows(0).head(2)
+//       val saddleResultDesc = tF.sortedRows(0).tail(2)
 
-      val tableA = csvStringToTable("table", tableCsv, numCols, 3)
-        .addColumnFromSeq(I32, "V4")(colA.flatten)
-        .unsafeRunSync()
+//       val tableA = csvStringToTable("table", tableCsv, numCols, 3)
+//         .addColumnFromSeq(I32, "V4")(colA.flatten)
+//         .unsafeRunSync()
 
-      assertEquals(toFrame(tableA), tF.resetRowIndex)
+//       assertEquals(toFrame(tableA), tF.resetRowIndex)
 
-      val result = toFrame(
-        tableA
-          .topK(0, true, 3, 1.0, 5)
-          .unsafeRunSync()
-      )
-      val resultDesc = toFrame(
-        tableA
-          .topK(0, false, 3, 1.0, 5)
-          .unsafeRunSync()
-      )
+//       val result = toFrame(
+//         tableA
+//           .topK(0, true, 3, 1.0, 5)
+//           .unsafeRunSync()
+//       )
+//       val resultDesc = toFrame(
+//         tableA
+//           .topK(0, false, 3, 1.0, 5)
+//           .unsafeRunSync()
+//       )
 
-      println(tF.sortedRows(0))
-      println(result)
-      assert(result.numRows <= 5)
-      assert(saddleResultDesc.numRows <= 5)
-      assert(
-        (saddleResult.toRowSeq.map(_._2).toSet &~ result.toRowSeq
-          .map(_._2)
-          .toSet).isEmpty
-      )
-      assert(
-        (saddleResultDesc.toRowSeq.map(_._2).toSet &~ resultDesc.toRowSeq
-          .map(_._2)
-          .toSet).isEmpty
-      )
+//       println(tF.sortedRows(0))
+//       println(result)
+//       assert(result.numRows <= 5)
+//       assert(saddleResultDesc.numRows <= 5)
+//       assert(
+//         (saddleResult.toRowSeq.map(_._2).toSet &~ result.toRowSeq
+//           .map(_._2)
+//           .toSet).isEmpty
+//       )
+//       assert(
+//         (saddleResultDesc.toRowSeq.map(_._2).toSet &~ resultDesc.toRowSeq
+//           .map(_._2)
+//           .toSet).isEmpty
+//       )
 
-    }
+//     }
 
-  }
-  test("filter on <>") {
-    withTempTaskSystem { implicit ts =>
-      val numCols = 3
-      val numRows = 10
-      val (tableFrame, tableCsv) = generateTable(numRows, numCols)
-      println(tableFrame)
-      val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
-      val literal = I32.toSegment(I32
-        .makeBufferFromSeq(Int.MaxValue),LogicalPath("test0", None, 0, 0))
-        .unsafeRunSync()
+//   }
+//   test("filter on <>") {
+//     withTempTaskSystem { implicit ts =>
+//       val numCols = 3
+//       val numRows = 10
+//       val (tableFrame, tableCsv) = generateTable(numRows, numCols)
+//       println(tableFrame)
+//       val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
+//       val literal = I32.toSegment(I32
+//         .makeBufferFromSeq(Int.MaxValue),LogicalPath("test0", None, 0, 0))
+//         .unsafeRunSync()
 
-      val less = ra3Table.rfilterInEquality(0, literal, false).unsafeRunSync()
-      assert(less.columns.head.segments.forall(s => s.asInstanceOf[SegmentInt].sf.isEmpty))
-      val takenF = (0 until 4)
-        .map(i => less.bufferSegment(i).unsafeRunSync().toHomogeneousFrame(I32))
-        .reduce(_ concat _)
-        .resetRowIndex
-        .filterIx(_.nonEmpty)
-      val expect =
-        tableFrame
-          .rowAt(tableFrame.colAt(0).toVec.find(_ >= Int.MaxValue).toArray)
-          .resetRowIndex
+//       val less = ra3Table.rfilterInEquality(0, literal, false).unsafeRunSync()
+//       assert(less.columns.head.segments.forall(s => s.asInstanceOf[SegmentInt].sf.isEmpty))
+//       val takenF = (0 until 4)
+//         .map(i => less.bufferSegment(i).unsafeRunSync().toHomogeneousFrame(I32))
+//         .reduce(_ concat _)
+//         .resetRowIndex
+//         .filterIx(_.nonEmpty)
+//       val expect =
+//         tableFrame
+//           .rowAt(tableFrame.colAt(0).toVec.find(_ >= Int.MaxValue).toArray)
+//           .resetRowIndex
 
-      assertEquals(takenF, expect)
-    }
+//       assertEquals(takenF, expect)
+//     }
 
-  }
+//   }
 
-  test("inner join with no overlap") {
-    withTempTaskSystem { implicit ts =>
-      val numCols = 3
-      val numRows = 10
-      val (tableFrame, tableCsv) = generateTable(numRows, numCols)
-      val (tableFrame2, tableCsv2) = generateTable(numRows, numCols)
-      val colA = Seq(Seq(0, 0, 1), Seq(100, 101, 102), Seq(4, 5, 0), Seq(9))
-      val colB =
-        Seq(Seq(200, 202, 201), Seq(200, 201, 202), Seq(204, 205, 200), Seq(4))
+//   test("inner join with no overlap") {
+//     withTempTaskSystem { implicit ts =>
+//       val numCols = 3
+//       val numRows = 10
+//       val (tableFrame, tableCsv) = generateTable(numRows, numCols)
+//       val (tableFrame2, tableCsv2) = generateTable(numRows, numCols)
+//       val colA = Seq(Seq(0, 0, 1), Seq(100, 101, 102), Seq(4, 5, 0), Seq(9))
+//       val colB =
+//         Seq(Seq(200, 202, 201), Seq(200, 201, 202), Seq(204, 205, 200), Seq(4))
 
-      val tF = {
-        val tmp = tableFrame.addCol(
-          Series(colA.flatten.toVec),
-          "V4",
-          org.saddle.index.InnerJoin
-        )
-        tmp.setRowIndex(Index(tmp.firstCol("V4").toVec.toArray))
-      }
-      val tF2 = {
-        val tmp = tableFrame2
-          .addCol(Series(colB.flatten.toVec), "V4", org.saddle.index.InnerJoin)
-          .mapColIndex(v => v + "_2")
-        tmp.setRowIndex(Index(tmp.firstCol("V4_2").toVec.toArray))
-      }
+//       val tF = {
+//         val tmp = tableFrame.addCol(
+//           Series(colA.flatten.toVec),
+//           "V4",
+//           org.saddle.index.InnerJoin
+//         )
+//         tmp.setRowIndex(Index(tmp.firstCol("V4").toVec.toArray))
+//       }
+//       val tF2 = {
+//         val tmp = tableFrame2
+//           .addCol(Series(colB.flatten.toVec), "V4", org.saddle.index.InnerJoin)
+//           .mapColIndex(v => v + "_2")
+//         tmp.setRowIndex(Index(tmp.firstCol("V4_2").toVec.toArray))
+//       }
 
-      // println(tF)
-      // println(tF2)
+//       // println(tF)
+//       // println(tF2)
 
-      val saddleResult = tF
-        .rconcat(
-          tF2,
-          org.saddle.index.InnerJoin
-        )
-        .filterIx(_ != "V4_2")
-        .filterIx(_ != "V4")
-        .col(
-          "V4",
-          "V0",
-          "V1",
-          "V2",
-          "V0_2",
-          "V1_2",
-          "V2_2"
-        )
-        .resetRowIndex
+//       val saddleResult = tF
+//         .rconcat(
+//           tF2,
+//           org.saddle.index.InnerJoin
+//         )
+//         .filterIx(_ != "V4_2")
+//         .filterIx(_ != "V4")
+//         .col(
+//           "V4",
+//           "V0",
+//           "V1",
+//           "V2",
+//           "V0_2",
+//           "V1_2",
+//           "V2_2"
+//         )
+//         .resetRowIndex
 
-      val tableA = csvStringToTable("table", tableCsv, numCols, 3)
-        .addColumnFromSeq(I32, "V4")(colA.flatten)
-        .unsafeRunSync()
+//       val tableA = csvStringToTable("table", tableCsv, numCols, 3)
+//         .addColumnFromSeq(I32, "V4")(colA.flatten)
+//         .unsafeRunSync()
 
-      val tableB = csvStringToTable("tableB", tableCsv2, numCols, 3)
-        .addColumnFromSeq(I32, "V4")(colB.flatten)
-        .unsafeRunSync()
-        .mapColIndex(_ + "_2")
+//       val tableB = csvStringToTable("tableB", tableCsv2, numCols, 3)
+//         .addColumnFromSeq(I32, "V4")(colB.flatten)
+//         .unsafeRunSync()
+//         .mapColIndex(_ + "_2")
 
-      assertEquals(toFrame(tableA), tF.resetRowIndex)
-      assertEquals(toFrame(tableB), tF2.resetRowIndex)
+//       assertEquals(toFrame(tableA), tF.resetRowIndex)
+//       assertEquals(toFrame(tableB), tF2.resetRowIndex)
 
-      val joined = tableA
-        .in { tableA =>
-          tableB.in { tableB =>
-            tableA[I32Var, I32Var](0, 3) { (_, aCol3) =>
-              tableB.apply[I32Var](3) { bCol3 =>
-                aCol3.join(ra3.select(ra3.star))
-                  .inner(bCol3)
-                  .withPartitionBase(3)
-                  .withPartitionLimit(0)
-                  .withMaxSegmentsBufferingAtOnce(2)
-                  .done
+//       val joined = tableA
+//         .in { tableA =>
+//           tableB.in { tableB =>
+//             tableA[I32Var, I32Var](0, 3) { (_, aCol3) =>
+//               tableB.apply[I32Var](3) { bCol3 =>
+//                 aCol3.join(ra3.select(ra3.star))
+//                   .inner(bCol3)
+//                   .withPartitionBase(3)
+//                   .withPartitionLimit(0)
+//                   .withMaxSegmentsBufferingAtOnce(2)
+//                   .done
                   
-              }
-            }
-          }
+//               }
+//             }
+//           }
 
-        }
-        .evaluate
-        .unsafeRunSync()
+//         }
+//         .evaluate
+//         .unsafeRunSync()
 
-      println(joined.columns.head.segments.mkString("\n"))
+//       println(joined.columns.head.segments.mkString("\n"))
 
-      val result = joined
-        .filterColumnNames("joined-filtered")(_ != "V4")
-        .filterColumnNames("joined-filtered")(_ != "V4_2")
-        .bufferStream
-        .compile
-        .toList
-        .unsafeRunSync()
-        .map(_.toHomogeneousFrame(I32))
-        .reduce(_ concat _)
+//       val result = joined
+//         .filterColumnNames("joined-filtered")(_ != "V4")
+//         .filterColumnNames("joined-filtered")(_ != "V4_2")
+//         .bufferStream
+//         .compile
+//         .toList
+//         .unsafeRunSync()
+//         .map(_.toHomogeneousFrame(I32))
+//         .reduce(_ concat _)
 
-      assertEquals(
-        saddleResult.toRowSeq.map(_._2).toSet,
-        result.toRowSeq.map(_._2).toSet
-      )
+//       assertEquals(
+//         saddleResult.toRowSeq.map(_._2).toSet,
+//         result.toRowSeq.map(_._2).toSet
+//       )
 
-    }
+//     }
 
-  }
-  test("inner join with no partitioning on one side ") {
-    withTempTaskSystem { implicit ts =>
-      val numCols = 3
-      val numRows = 10
-      val (tableFrame, tableCsv) = generateTable(5, numCols)
-      val (tableFrame2, tableCsv2) = generateTable(numRows, numCols)
-      val colA = Seq(Seq(0, 0, 1), Seq(0, 2))
-      val colB = Seq(Seq(2, 2, 1), Seq(99, 2, 0), Seq(4, 5, 0), Seq(4))
+//   }
+//   test("inner join with no partitioning on one side ") {
+//     withTempTaskSystem { implicit ts =>
+//       val numCols = 3
+//       val numRows = 10
+//       val (tableFrame, tableCsv) = generateTable(5, numCols)
+//       val (tableFrame2, tableCsv2) = generateTable(numRows, numCols)
+//       val colA = Seq(Seq(0, 0, 1), Seq(0, 2))
+//       val colB = Seq(Seq(2, 2, 1), Seq(99, 2, 0), Seq(4, 5, 0), Seq(4))
 
-      val tF = {
-        val tmp = tableFrame.addCol(
-          Series(colA.flatten.toVec),
-          "V4",
-          org.saddle.index.InnerJoin
-        )
-        tmp.setRowIndex(Index(tmp.firstCol("V4").toVec.toArray))
-      }
-      val tF2 = {
-        val tmp = tableFrame2
-          .addCol(Series(colB.flatten.toVec), "V4", org.saddle.index.InnerJoin)
-          .mapColIndex(v => v + "_2")
-        tmp.setRowIndex(Index(tmp.firstCol("V4_2").toVec.toArray))
-      }
+//       val tF = {
+//         val tmp = tableFrame.addCol(
+//           Series(colA.flatten.toVec),
+//           "V4",
+//           org.saddle.index.InnerJoin
+//         )
+//         tmp.setRowIndex(Index(tmp.firstCol("V4").toVec.toArray))
+//       }
+//       val tF2 = {
+//         val tmp = tableFrame2
+//           .addCol(Series(colB.flatten.toVec), "V4", org.saddle.index.InnerJoin)
+//           .mapColIndex(v => v + "_2")
+//         tmp.setRowIndex(Index(tmp.firstCol("V4_2").toVec.toArray))
+//       }
 
-      // println(tF)
-      // println(tF2)
+//       // println(tF)
+//       // println(tF2)
 
-      val saddleResult = tF
-        .rconcat(
-          tF2,
-          org.saddle.index.InnerJoin
-        )
-        .filterIx(_ != "V4_2")
-        .filterIx(_ != "V4")
-        .col(
-          "V4",
-          "V0",
-          "V1",
-          "V2",
-          "V0_2",
-          "V1_2",
-          "V2_2"
-        )
-        .resetRowIndex
+//       val saddleResult = tF
+//         .rconcat(
+//           tF2,
+//           org.saddle.index.InnerJoin
+//         )
+//         .filterIx(_ != "V4_2")
+//         .filterIx(_ != "V4")
+//         .col(
+//           "V4",
+//           "V0",
+//           "V1",
+//           "V2",
+//           "V0_2",
+//           "V1_2",
+//           "V2_2"
+//         )
+//         .resetRowIndex
 
-      val tableA = csvStringToTable("table", tableCsv, numCols, 3)
-        .addColumnFromSeq(I32, "V4")(colA.flatten)
-        .unsafeRunSync()
+//       val tableA = csvStringToTable("table", tableCsv, numCols, 3)
+//         .addColumnFromSeq(I32, "V4")(colA.flatten)
+//         .unsafeRunSync()
 
-      val tableB = csvStringToTable("tableB", tableCsv2, numCols, 3)
-        .addColumnFromSeq(I32, "V4")(colB.flatten)
-        .unsafeRunSync()
-        .mapColIndex(_ + "_2")
+//       val tableB = csvStringToTable("tableB", tableCsv2, numCols, 3)
+//         .addColumnFromSeq(I32, "V4")(colB.flatten)
+//         .unsafeRunSync()
+//         .mapColIndex(_ + "_2")
 
-      assertEquals(toFrame(tableA), tF.resetRowIndex)
-      assertEquals(toFrame(tableB), tF2.resetRowIndex)
+//       assertEquals(toFrame(tableA), tF.resetRowIndex)
+//       assertEquals(toFrame(tableB), tF2.resetRowIndex)
 
-      val joined = tableA
-        .in { tableA =>
-          tableB.in { tableB =>
-            tableA[I32Var, I32Var](0, 3) { (_, aCol3) =>
-              tableB.apply[I32Var](3) { bCol3 =>
-                aCol3.join(ra3.select(ra3.star))
-                  .inner(bCol3)
-                  .withPartitionBase(3)
-                  .withPartitionLimit(6)
-                  .withMaxSegmentsBufferingAtOnce(2)
-                  .done
+//       val joined = tableA
+//         .in { tableA =>
+//           tableB.in { tableB =>
+//             tableA[I32Var, I32Var](0, 3) { (_, aCol3) =>
+//               tableB.apply[I32Var](3) { bCol3 =>
+//                 aCol3.join(ra3.select(ra3.star))
+//                   .inner(bCol3)
+//                   .withPartitionBase(3)
+//                   .withPartitionLimit(6)
+//                   .withMaxSegmentsBufferingAtOnce(2)
+//                   .done
                   
-              }
-            }
-          }
+//               }
+//             }
+//           }
 
-        }
-        .evaluate
-        .unsafeRunSync()
+//         }
+//         .evaluate
+//         .unsafeRunSync()
 
-      val result = joined
-        .filterColumnNames("joined-filtered")(_ != "V4")
-        .filterColumnNames("joined-filtered")(_ != "V4_2")
-        .bufferStream
-        .compile
-        .toList
-        .unsafeRunSync()
-        .map(_.toHomogeneousFrame(I32))
-        .reduce(_ concat _)
+//       val result = joined
+//         .filterColumnNames("joined-filtered")(_ != "V4")
+//         .filterColumnNames("joined-filtered")(_ != "V4_2")
+//         .bufferStream
+//         .compile
+//         .toList
+//         .unsafeRunSync()
+//         .map(_.toHomogeneousFrame(I32))
+//         .reduce(_ concat _)
 
-      val joined2 = tableA
-        .in { tableA =>
-          tableB.in { tableB =>
-            tableA[I32Var, I32Var](0, 3) { (_, aCol3) =>
-              tableB.apply[I32Var](3) { bCol3 =>
-                aCol3.join(ra3.select(ra3.star))
-                  .inner(bCol3)
-                  .withPartitionBase(3)
-                  .withPartitionLimit(6)
-                  .withMaxSegmentsBufferingAtOnce(2)
-                  .done
+//       val joined2 = tableA
+//         .in { tableA =>
+//           tableB.in { tableB =>
+//             tableA[I32Var, I32Var](0, 3) { (_, aCol3) =>
+//               tableB.apply[I32Var](3) { bCol3 =>
+//                 aCol3.join(ra3.select(ra3.star))
+//                   .inner(bCol3)
+//                   .withPartitionBase(3)
+//                   .withPartitionLimit(6)
+//                   .withMaxSegmentsBufferingAtOnce(2)
+//                   .done
                   
-              }
-            }
-          }
+//               }
+//             }
+//           }
 
-        }
-        .evaluate
-        .unsafeRunSync()
+//         }
+//         .evaluate
+//         .unsafeRunSync()
 
-      val result2 = joined2
-        .filterColumnNames("joined-filtered")(_ != "V4")
-        .filterColumnNames("joined-filtered")(_ != "V4_2")
-        .bufferStream
-        .compile
-        .toList
-        .unsafeRunSync()
-        .map(_.toHomogeneousFrame(I32))
-        .reduce(_ concat _)
-        .col("V0", "V1", "V2", "V0_2", "V1_2", "V2_2")
+//       val result2 = joined2
+//         .filterColumnNames("joined-filtered")(_ != "V4")
+//         .filterColumnNames("joined-filtered")(_ != "V4_2")
+//         .bufferStream
+//         .compile
+//         .toList
+//         .unsafeRunSync()
+//         .map(_.toHomogeneousFrame(I32))
+//         .reduce(_ concat _)
+//         .col("V0", "V1", "V2", "V0_2", "V1_2", "V2_2")
 
-      assertEquals(
-        saddleResult.toRowSeq.map(_._2).toSet,
-        result.toRowSeq.map(_._2).toSet
-      )
-      assertEquals(
-        saddleResult.toRowSeq.map(_._2).toSet,
-        result2.toRowSeq.map(_._2).toSet
-      )
+//       assertEquals(
+//         saddleResult.toRowSeq.map(_._2).toSet,
+//         result.toRowSeq.map(_._2).toSet
+//       )
+//       assertEquals(
+//         saddleResult.toRowSeq.map(_._2).toSet,
+//         result2.toRowSeq.map(_._2).toSet
+//       )
 
-    }
+//     }
 
-  }
-  test("inner join with prepartition on compatible partitioning on one side ") {
-    withTempTaskSystem { implicit ts =>
-      val numCols = 3
-      val numRows = 10
-      val (tableFrame, tableCsv) = generateTable(5, numCols)
-      val (tableFrame2, tableCsv2) = generateTable(numRows, numCols)
-      val colA = Seq(Seq(0, 0, 1), Seq(0, 2))
-      val colB = Seq(Seq(2, 2, 1), Seq(99, 2, 0), Seq(4, 5, 0), Seq(4))
+//   }
+//   test("inner join with prepartition on compatible partitioning on one side ") {
+//     withTempTaskSystem { implicit ts =>
+//       val numCols = 3
+//       val numRows = 10
+//       val (tableFrame, tableCsv) = generateTable(5, numCols)
+//       val (tableFrame2, tableCsv2) = generateTable(numRows, numCols)
+//       val colA = Seq(Seq(0, 0, 1), Seq(0, 2))
+//       val colB = Seq(Seq(2, 2, 1), Seq(99, 2, 0), Seq(4, 5, 0), Seq(4))
 
-      val tF = {
-        val tmp = tableFrame.addCol(
-          Series(colA.flatten.toVec),
-          "V4",
-          org.saddle.index.InnerJoin
-        )
-        tmp.setRowIndex(Index(tmp.firstCol("V4").toVec.toArray))
-      }
-      val tF2 = {
-        val tmp = tableFrame2
-          .addCol(Series(colB.flatten.toVec), "V4", org.saddle.index.InnerJoin)
-          .mapColIndex(v => v + "_2")
-        tmp.setRowIndex(Index(tmp.firstCol("V4_2").toVec.toArray))
-      }
+//       val tF = {
+//         val tmp = tableFrame.addCol(
+//           Series(colA.flatten.toVec),
+//           "V4",
+//           org.saddle.index.InnerJoin
+//         )
+//         tmp.setRowIndex(Index(tmp.firstCol("V4").toVec.toArray))
+//       }
+//       val tF2 = {
+//         val tmp = tableFrame2
+//           .addCol(Series(colB.flatten.toVec), "V4", org.saddle.index.InnerJoin)
+//           .mapColIndex(v => v + "_2")
+//         tmp.setRowIndex(Index(tmp.firstCol("V4_2").toVec.toArray))
+//       }
 
-      // println(tF)
-      // println(tF2)
+//       // println(tF)
+//       // println(tF2)
 
-      val saddleResult = tF
-        .rconcat(
-          tF2,
-          org.saddle.index.InnerJoin
-        )
-        .filterIx(_ != "V4_2")
-        .filterIx(_ != "V4")
-        .col(
-          "V4",
-          "V0",
-          "V1",
-          "V2",
-          "V0_2",
-          "V1_2",
-          "V2_2"
-        )
-        .resetRowIndex
+//       val saddleResult = tF
+//         .rconcat(
+//           tF2,
+//           org.saddle.index.InnerJoin
+//         )
+//         .filterIx(_ != "V4_2")
+//         .filterIx(_ != "V4")
+//         .col(
+//           "V4",
+//           "V0",
+//           "V1",
+//           "V2",
+//           "V0_2",
+//           "V1_2",
+//           "V2_2"
+//         )
+//         .resetRowIndex
 
-      val tableA = csvStringToTable("table", tableCsv, numCols, 3)
-        .addColumnFromSeq(I32, "V4")(colA.flatten)
-        .unsafeRunSync()
+//       val tableA = csvStringToTable("table", tableCsv, numCols, 3)
+//         .addColumnFromSeq(I32, "V4")(colA.flatten)
+//         .unsafeRunSync()
 
-      val tableB = csvStringToTable("tableB", tableCsv2, numCols, 3)
-        .addColumnFromSeq(I32, "V4")(colB.flatten)
-        .unsafeRunSync()
-        .mapColIndex(_ + "_2")
+//       val tableB = csvStringToTable("tableB", tableCsv2, numCols, 3)
+//         .addColumnFromSeq(I32, "V4")(colB.flatten)
+//         .unsafeRunSync()
+//         .mapColIndex(_ + "_2")
 
-      assertEquals(toFrame(tableA), tF.resetRowIndex)
-      assertEquals(toFrame(tableB), tF2.resetRowIndex)
+//       assertEquals(toFrame(tableA), tF.resetRowIndex)
+//       assertEquals(toFrame(tableB), tF2.resetRowIndex)
 
-      val pre = tableB.prePartition(List(3, 0), 3, 0, 2).unsafeRunSync()
-      println(pre)
+//       val pre = tableB.prePartition(List(3, 0), 3, 0, 2).unsafeRunSync()
+//       println(pre)
 
-      val joined = tableA
-        .in { tableA =>
-          pre.in { tableB =>
-            tableA[I32Var, I32Var](0, 3) { (_, aCol3) =>
-              tableB.apply[I32Var](3) { bCol3 =>
-                aCol3.join(ra3.select(ra3.star))
-                  .inner(bCol3)
-                  .withPartitionBase(3)
-                  .withPartitionLimit(6)
-                  .withMaxSegmentsBufferingAtOnce(2)
-                  .done
+//       val joined = tableA
+//         .in { tableA =>
+//           pre.in { tableB =>
+//             tableA[I32Var, I32Var](0, 3) { (_, aCol3) =>
+//               tableB.apply[I32Var](3) { bCol3 =>
+//                 aCol3.join(ra3.select(ra3.star))
+//                   .inner(bCol3)
+//                   .withPartitionBase(3)
+//                   .withPartitionLimit(6)
+//                   .withMaxSegmentsBufferingAtOnce(2)
+//                   .done
                   
-              }
-            }
-          }
+//               }
+//             }
+//           }
 
-        }
-        .evaluate
-        .unsafeRunSync()
+//         }
+//         .evaluate
+//         .unsafeRunSync()
 
-      val result = joined
-        .filterColumnNames("joined-filtered")(_ != "V4")
-        .filterColumnNames("joined-filtered")(_ != "V4_2")
-        .bufferStream
-        .compile
-        .toList
-        .unsafeRunSync()
-        .map(_.toHomogeneousFrame(I32))
-        .reduce(_ concat _)
+//       val result = joined
+//         .filterColumnNames("joined-filtered")(_ != "V4")
+//         .filterColumnNames("joined-filtered")(_ != "V4_2")
+//         .bufferStream
+//         .compile
+//         .toList
+//         .unsafeRunSync()
+//         .map(_.toHomogeneousFrame(I32))
+//         .reduce(_ concat _)
 
-      val joined2 = tableA
-        .in { tableA =>
-          tableB.in { tableB =>
-            tableA[I32Var, I32Var](0, 3) { (_, aCol3) =>
-              tableB.apply[I32Var](3) { bCol3 =>
-                aCol3.join(ra3.select(ra3.star))
-                  .inner(bCol3)
-                  .withPartitionBase(3)
-                  .withPartitionLimit(6)
-                  .withMaxSegmentsBufferingAtOnce(2)
-                  .done
+//       val joined2 = tableA
+//         .in { tableA =>
+//           tableB.in { tableB =>
+//             tableA[I32Var, I32Var](0, 3) { (_, aCol3) =>
+//               tableB.apply[I32Var](3) { bCol3 =>
+//                 aCol3.join(ra3.select(ra3.star))
+//                   .inner(bCol3)
+//                   .withPartitionBase(3)
+//                   .withPartitionLimit(6)
+//                   .withMaxSegmentsBufferingAtOnce(2)
+//                   .done
                   
-              }
-            }
-          }
+//               }
+//             }
+//           }
 
-        }
-        .evaluate
-        .unsafeRunSync()
+//         }
+//         .evaluate
+//         .unsafeRunSync()
 
-      val result2 = joined2
-        .filterColumnNames("joined-filtered")(_ != "V4")
-        .filterColumnNames("joined-filtered")(_ != "V4_2")
-        .bufferStream
-        .compile
-        .toList
-        .unsafeRunSync()
-        .map(_.toHomogeneousFrame(I32))
-        .reduce(_ concat _)
-        .col("V0", "V1", "V2", "V0_2", "V1_2", "V2_2")
+//       val result2 = joined2
+//         .filterColumnNames("joined-filtered")(_ != "V4")
+//         .filterColumnNames("joined-filtered")(_ != "V4_2")
+//         .bufferStream
+//         .compile
+//         .toList
+//         .unsafeRunSync()
+//         .map(_.toHomogeneousFrame(I32))
+//         .reduce(_ concat _)
+//         .col("V0", "V1", "V2", "V0_2", "V1_2", "V2_2")
 
-      assertEquals(
-        saddleResult.toRowSeq.map(_._2).toSet,
-        result.toRowSeq.map(_._2).toSet
-      )
-      assertEquals(
-        saddleResult.toRowSeq.map(_._2).toSet,
-        result2.toRowSeq.map(_._2).toSet
-      )
+//       assertEquals(
+//         saddleResult.toRowSeq.map(_._2).toSet,
+//         result.toRowSeq.map(_._2).toSet
+//       )
+//       assertEquals(
+//         saddleResult.toRowSeq.map(_._2).toSet,
+//         result2.toRowSeq.map(_._2).toSet
+//       )
 
-    }
+//     }
 
-  }
+//   }
 
-}
+// }

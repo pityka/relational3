@@ -119,7 +119,7 @@ private[ra3] object MultipleTableQuery {
             })
 
             val selected: IO[List[NamedColumnSpec[?]]] = IO
-              .parSequenceN(32)(returnValue.list.zipWithIndex.map {
+              .parSequenceN(32)(ReturnValue.list(returnValue).zipWithIndex.map {
                 case (v: NamedColumnSpec[?], _) =>
                   IO.pure(List(v))
                 case (v: UnnamedColumnSpec[?], idx) =>

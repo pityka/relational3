@@ -4,7 +4,9 @@ import ra3.lang
 import ra3.lang.ops.Op3.*
 import ra3.lang.ops.Op2.*
 import ra3.lang.ops.Op1.*
+import ra3.lang.ops.OpN.*
 import ra3.lang.Expr.*
+import ra3.lang.ops.OpAny
 // import ra3.lang.ops.OpStar.MkSelect
 private[ra3] object Render {
 
@@ -232,6 +234,7 @@ private[ra3] object Render {
       if (noParens) s"${render(arg0)} ${render(op)} ${render(arg1)}"
       else
         s"(${render(arg0)} ${render(op)} ${render(arg1)})"
+    
     case BuiltInOp1(arg0, op) =>
       s"${renderOp1(op, arg0)}"
     case BuiltInOp3(arg0, arg1, arg2, op) =>
@@ -262,13 +265,12 @@ private[ra3] object Render {
       if (args.size == 1) s"${render(args.head)}.${render(op)}"
       else s"${render(op)}(${args.map(render).mkString(", ")})"
     case LitNum(s) => s"$s"
-    // case BuiltInOpStar(args, op) =>
-    //   op match {
-    //     case MkSelect =>  
-    //         s"SELECT ${args.map(a => render(a)).mkString(", ")}"
-    //     case _ => 
-    //         s"${render(op)}(${args.map(a => render(a)).mkString(", ")})"
-    //   }
+    case BuiltInOpAny(args, op) =>
+      op match {
+        case OpAny.MkReturnValueStar =>  
+            s"SELECT ${args.map(a => render(a)).mkString(", ")}"
+       
+      }
       
     case Expr.Ident(name) =>
       name match {
