@@ -188,7 +188,7 @@ package object ra3 {
   def select[T0](
       arg0: ColumnSpecExpr[T0]
   ): Expr { type T = ra3.lang.ReturnValue1[T0] } = ra3.lang.Expr
-    .BuiltInOp1(arg0.a, ops.Op1.MkReturnValue1)
+    .BuiltInOp1(arg0, ops.Op1.MkReturnValue1)
     .asInstanceOf[Expr { type T = ReturnValue1[T0] }]
 
   def select[T0, T1](
