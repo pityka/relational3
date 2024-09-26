@@ -172,7 +172,7 @@ object Expr {
       this
     def replaceDelayed(map: DelayedTableSchema) = this
   }
-  private[ra3] case class LitStrSet(s: Set[String]) extends Expr {
+  private[ra3] final  case class LitStrSet(s: Set[String]) extends Expr {
 
     private[ra3] def referredTables = Set.empty
     type T = Set[String]
@@ -185,7 +185,7 @@ object Expr {
       this
     def replaceDelayed(map: DelayedTableSchema) = this
   }
-  private[ra3] case class LitStr(s: String) extends Expr {
+  private[ra3] final case class LitStr(s: String) extends Expr {
 
     private[ra3] def referredTables = Set.empty
     type T = String
@@ -198,7 +198,7 @@ object Expr {
       this
     def replaceDelayed(map: DelayedTableSchema) = this
   }
-  private[ra3] case class LitNum(s: Int) extends Expr {
+  private[ra3] final case class LitNum(s: Int) extends Expr {
 
     private[ra3] def referredTables = Set.empty
     type T = Int
@@ -211,7 +211,7 @@ object Expr {
       this
     def replaceDelayed(map: DelayedTableSchema) = this
   }
-  private[ra3] case class LitF64(s: Double) extends Expr {
+  private[ra3] final case class LitF64(s: Double) extends Expr {
 
     private[ra3] def referredTables = Set.empty
     type T = Double
@@ -224,7 +224,7 @@ object Expr {
       this
     def replaceDelayed(map: DelayedTableSchema) = this
   }
-  private[ra3] case class LitF64Set(s: Set[Double]) extends Expr {
+  private[ra3] final  case class LitF64Set(s: Set[Double]) extends Expr {
 
     private[ra3] def referredTables = Set.empty
     type T = Set[Double]
@@ -237,7 +237,7 @@ object Expr {
       this
     def replaceDelayed(map: DelayedTableSchema) = this
   }
-  private[ra3] case class LitI32Set(s: Set[Int]) extends Expr {
+  private[ra3] final  case class LitI32Set(s: Set[Int]) extends Expr {
 
     private[ra3] def referredTables = Set.empty
     type T = Set[Int]
@@ -251,7 +251,7 @@ object Expr {
     def replaceDelayed(map: DelayedTableSchema) = this
   }
 
-  private[ra3] case class LitI64(s: Long) extends Expr {
+  private[ra3] final case class LitI64(s: Long) extends Expr {
 
     private[ra3] def referredTables = Set.empty
     type T = Long
@@ -265,7 +265,7 @@ object Expr {
     def replaceDelayed(map: DelayedTableSchema) = this
   }
 
-  case class DelayedIdent private[ra3] (private[ra3] val name: Delayed)
+  final case class DelayedIdent private[ra3] (private[ra3] val name: Delayed)
       extends Expr {
 
     type R
@@ -305,7 +305,7 @@ object Expr {
     private[ra3] override def replaceDelayed(i: DelayedTableSchema) =
        Ident(i.replace(name))
   }
-  private[ra3] case class Ident(name: Key) extends Expr {
+  private[ra3] final  case class Ident(name: Key) extends Expr {
 
     private[ra3] def referredTables = name match {
 
@@ -344,7 +344,7 @@ object Expr {
     }
   }
 
-  private[ra3] case class BuiltInOp1(arg0: Expr, op: ops.Op1) extends Expr {
+  private[ra3] final  case class BuiltInOp1(arg0: Expr, op: ops.Op1) extends Expr {
     type T = op.T
 
     private[ra3] def referredTables = arg0.referredTables
@@ -364,7 +364,7 @@ object Expr {
         .flatMap(v => op.op(v.v).map(Value.Const(_)))
 
   }
-  private[ra3] case class BuiltInOp2(arg0: Expr, arg1: Expr, op: ops.Op2)
+  private[ra3] final  case class BuiltInOp2(arg0: Expr, arg1: Expr, op: ops.Op2)
       extends Expr {
     type T = op.T
 
@@ -388,7 +388,7 @@ object Expr {
       } yield Value.Const(r)
 
   }
-  private[ra3] case class BuiltInOp3(
+  private[ra3] final  case class BuiltInOp3(
       arg0: Expr,
       arg1: Expr,
       arg2: Expr,
@@ -427,7 +427,7 @@ object Expr {
       } yield Value.Const(r)
 
   }
-  private[ra3] case class BuiltInOp4(
+  private[ra3] final  case class BuiltInOp4(
       arg0: Expr,
       arg1: Expr,
       arg2: Expr,
@@ -470,7 +470,7 @@ object Expr {
       } yield Value.Const(r)
 
   }
-  private[ra3] case class BuiltInOp5(
+  private[ra3] final  case class BuiltInOp5(
       arg0: Expr,
       arg1: Expr,
       arg2: Expr,
@@ -519,7 +519,7 @@ object Expr {
 
   }
 
-  private[ra3] case class BuiltInOpAny(args: Seq[Expr],  op: ops.OpAny)
+  private[ra3] final  case class BuiltInOpAny(args: Seq[Expr],  op: ops.OpAny)
       extends Expr {
     
 
@@ -564,7 +564,7 @@ object Expr {
   // ): Expr { type T = op.T } =
   //   BuiltInOpStar(args, op).asInstanceOf[Expr { type T = op.T }]
 
-  private[ra3] case class Local(name: Key, assigned: Expr, body: Expr)
+  private[ra3] final case class Local(name: Key, assigned: Expr, body: Expr)
       extends Expr {
     self =>
     type T = body.T
