@@ -81,9 +81,9 @@ private[ra3] trait SyntaxF64ColumnImpl {
     .asInstanceOf[ColumnSpecExpr[DF64]]
 
   infix def as(arg1: Expr { type T = String }) =
-    ColumnSpecExpr(ra3.lang.Expr
+    ra3.lang.Expr
       .BuiltInOp2(arg0, arg1, ops.Op2.MkNamedColumnSpecChunkF64)
-      .asInstanceOf[Expr{type T = ColumnSpec[DF64]}])
+      .asInstanceOf[Expr{type T = ColumnSpec[DF64]}]
 
   infix def as(arg1: String): ColumnSpecExpr[DF64] = as(Expr.LitStr(arg1))
 

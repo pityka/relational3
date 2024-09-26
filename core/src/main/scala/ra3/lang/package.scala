@@ -33,7 +33,9 @@ package object lang {
 
   private[ra3] type ReturnExpr1[A] = Expr { type T = ReturnValue1[A] }
   private[ra3] type ReturnExpr2[A,B] = Expr { type T = ReturnValue2[A,B] }
-  case class ColumnSpecExpr[A](a: Expr { type T = ColumnSpec[A] }) 
+  type ColumnSpecExpr[A] = Expr { type T = ColumnSpec[A] }
+
+  type ExprT[A] = Expr{ type T = A}
 
   private[ra3] type GenericExpr[T0] = Expr { type T = T0 }
   type DelayedIdent[T0] = Expr.DelayedIdent { type T = T0 }
