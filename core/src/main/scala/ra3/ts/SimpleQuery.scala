@@ -38,7 +38,7 @@ private[ra3] case class SegmentWithName(
 
 private[ra3] case class SimpleQuery(
     input: Seq[(ColumnTag, SegmentWithName)],
-    predicate: ra3.lang.Expr,
+    predicate: ra3.lang.Expr[?],
     outputPath: LogicalPath,
     groupMap: Option[(SegmentInt, Int)]
 )
@@ -48,7 +48,7 @@ private[ra3] object SimpleQuery {
 
   def doit(
       input: Seq[(ColumnTag, SegmentWithName)],
-      predicate: ra3.lang.Expr,
+      predicate: ra3.lang.Query[Any],
       outputPath: LogicalPath,
       groupMap: Option[(SegmentInt, Int)]
   )(implicit tsc: TaskSystemComponents): IO[List[(TaggedSegment, String)]] = {
@@ -92,7 +92,7 @@ private[ra3] object SimpleQuery {
 
       ra3.lang
         .evaluate(predicate, env)
-        .map(_.v.asInstanceOf[ReturnValue])
+        .map(_.v)
         .flatMap { returnValue =>
           val mask = returnValue.filter
 
@@ -122,7 +122,7 @@ private[ra3] object SimpleQuery {
               case (v: UnnamedColumnSpec[?], idx) =>
                 IO.pure(List(v.withName(s"V$idx")))
               case (ra3.lang.StarColumnSpec, _) =>
-                val r: IO[Seq[NamedColumnChunk]] =
+                val r: IO[Seq[NamedColumnSpecWithColumnChunkValue[?]]] =
                   IO.parSequenceN(32)(
                     input
                       .map {
@@ -132,25 +132,14 @@ private[ra3] object SimpleQuery {
                             ) =>
                           if (maskIsEmpty)
                             IO.pure(
-                              NamedColumnChunk(
-                                Left(
-                                  tag.makeTaggedBuffer(tag.makeBufferFromSeq())
-                                ),
-                                columnName
-                              )
+                              tag.makeNamedColumnSpecFromBuffer(tag.makeBufferFromSeq(),columnName)                              
                             )
                           else if (maskIsComplete && segmentParts.size == 1)
                             IO.pure(
-                              NamedColumnChunk(
-                                Right(
-                                  tag.makeTaggedSegments(
-                                    segmentParts.map(s =>
+                              tag.makeNamedColumnSpecFromSegments(segmentParts.map(s =>
                                       (s: Segment).asInstanceOf[tag.SegmentType]
-                                    )
-                                  )
-                                ),
-                                columnName
-                              )
+                                    ),columnName)
+                              
                             )
                           else
                             Utils.bufferMultiple(tag)(
@@ -158,14 +147,15 @@ private[ra3] object SimpleQuery {
                                 .map((_: Segment).asInstanceOf[tag.SegmentType])
                             )
                               .map(b =>
-                                NamedColumnChunk(
-                                  Left(tag.makeTaggedBuffer(b)),
-                                  columnName
-                                )
+                                tag.makeNamedColumnSpecFromBuffer(b,columnName)
                               )
+                        case null => 
+                          throw new RuntimeException("Unexpected unmatched case null")
                       }
                   )
                 r
+              case x => 
+                throw new RuntimeException("Unexpected unmatched case "+x)
             })
             .map(_.flatten)
 
@@ -173,10 +163,10 @@ private[ra3] object SimpleQuery {
             list =>
               IO.parSequenceN(32)(list.map { case value =>
                 value match {
-                  case NamedColumnChunk(Right(x), name)
+                  case NamedColumnSpecWithColumnChunkValueExtractor(Right(x), name)
                       if x.segments.size > 1 =>
                     Utils.bufferMultiple(x.tag)(x.segments).map(b =>
-                      NamedColumnChunk(Left(x.tag.makeTaggedBuffer(b)), name)
+                      x.tag.makeNamedColumnSpecFromBuffer(b,name)
                     )
                   case x => IO.pure(x)
                 }
@@ -190,21 +180,21 @@ private[ra3] object SimpleQuery {
               case (columnSpec, columnIdx) =>
                 val columnName = columnSpec.name
                 val bufferOrSegment  :Either[TaggedBuffer,TaggedSegment] = columnSpec match {
-                  case NamedColumnChunk(Left(x), _)
+                  case NamedColumnSpecWithColumnChunkValueExtractor(Left(x), _)
                       if x.buffer.length == outputNumElems =>
                     Left(x)
-                  case NamedColumnChunk(Left(x), _) if outputNumElems == 0 =>
+                  case NamedColumnSpecWithColumnChunkValueExtractor(Left(x), _) if outputNumElems == 0 =>
                     Left(x.tag.makeTaggedBuffer(x.tag.makeBufferFromSeq()))
-                  case NamedColumnChunk(Left(_), _) =>
+                  case NamedColumnSpecWithColumnChunkValueExtractor(Left(_), _) =>
                     require(
                       false,
                       "in grouped query you must use an aggregator function on the columns. Use .first to take first item per group"
                     )
                     ???
                   // x.take(BufferInt.apply(Array.fill(outputNumElems)(0)))
-                  case NamedColumnChunk(Right(x), _) if x.segments.size == 1 =>
+                  case NamedColumnSpecWithColumnChunkValueExtractor(Right(x), _) if x.segments.size == 1 =>
                     Right(x.tag.makeTaggedSegment(x.segments.head))
-                  case NamedColumnChunk(Right(_), _) =>
+                  case NamedColumnSpecWithColumnChunkValueExtractor(Right(_), _) =>
                     throw new AssertionError(
                       "Error, unexpected Right[Seq[Segment]] at this point. Should have been handed in fuseSegments"
                     )
@@ -231,6 +221,8 @@ private[ra3] object SimpleQuery {
                         BufferString.constant(x, outputNumElems)
                       )
                     )
+                  case x => 
+                    throw new RuntimeException("Unexpected unmatched case "+x)
 
                 }
                 val filteredSegment : IO[TaggedSegment] =
@@ -278,7 +270,7 @@ private[ra3] object SimpleQuery {
   def queue(
       // (segment, table unique id)
       input: Seq[TypedSegmentWithName],
-      predicate: ra3.lang.Expr { type T <: ReturnValue },
+      predicate: ra3.lang.Query[Any],
       outputPath: LogicalPath,
       groupMap: Option[(SegmentInt, Int)]
   )(implicit
@@ -306,7 +298,7 @@ private[ra3] object SimpleQuery {
   val task = Task[SimpleQuery, Seq[(TaggedSegment, String)]]("SimpleQuery", 1) {
     case input =>
       implicit ce =>
-        doit(input.input, input.predicate, input.outputPath, input.groupMap)
+        doit(input.input, input.predicate.asInstanceOf[ra3.lang.Expr[ReturnValue[Any]]], input.outputPath, input.groupMap)
 
   }
 }

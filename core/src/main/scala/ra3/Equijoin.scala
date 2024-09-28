@@ -1,6 +1,7 @@
 package ra3
 import cats.effect.IO
 import tasks.TaskSystemComponents
+import ra3.lang.ReturnValue
 private[ra3] object Equijoin {
 
   def equijoinPlanner(
@@ -10,9 +11,7 @@ private[ra3] object Equijoin {
       partitionBase: Int,
       partitionLimit: Int,
       maxSegmentsToBufferAtOnce: Int,
-      program: ra3.lang.Expr {
-        type T <: ra3.lang.ReturnValue
-      }
+      program: ra3.lang.Expr[ReturnValue[?]]
   )(implicit tsc: TaskSystemComponents): IO[Table] = {
     if (others.size == 0) {
       scribe.info("Nothing to join")
@@ -77,9 +76,7 @@ private[ra3] object Equijoin {
       partitionBase: Int,
       partitionLimit: Int,
       maxSegmentsToBufferAtOnce: Int,
-      program: ra3.lang.Expr {
-        type T <: ra3.lang.ReturnValue
-      }
+      program: ra3.lang.Expr[ReturnValue[?]]
   )(implicit tsc: TaskSystemComponents) = {
 
     assert(
@@ -238,9 +235,7 @@ private[ra3] object Equijoin {
       others: Seq[(Table, Int, String, Int)],
       partitionBase: Int,
       partitionLimit: Int,
-      program: ra3.lang.Expr {
-        type T <: ra3.lang.ReturnValue
-      }
+      program: ra3.lang.Expr[ReturnValue[?]]
   )(implicit tsc: TaskSystemComponents) = {
     val name = ts.MakeUniqueId.queueM(
       self +: others.map(_._1),

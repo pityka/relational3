@@ -2,74 +2,74 @@ package ra3.lang
 import ra3.tablelang.TableExpr
 
 private[ra3] object Join {
-  def apply(a: Expr.DelayedIdent, prg: ra3.lang.Query) =
-    JoinBuilderSyntax(a, Vector.empty, prg, None, None, None)
+  def apply[J,R](a: Expr.DelayedIdent[J], prg: ra3.lang.Query[R]) =
+    JoinBuilderSyntax[J,R](a, Vector.empty, prg, None, None, None)
 }
 
 /** Builder pattern for joins. Exit the builder with the done method or elementwise method */
-case class JoinBuilderSyntax(
-    private val first: Expr.DelayedIdent,
+case class JoinBuilderSyntax[J,R](
+    private val first: Expr.DelayedIdent[J],
     private val others: Vector[
-      (Expr.DelayedIdent, String, ra3.tablelang.Key)
+      (Expr.DelayedIdent[J], String, ra3.tablelang.Key)
     ],
-    tracked val prg: ra3.lang.Query,
+    val prg: ra3.lang.Query[R],
     private val partitionBase: Option[Int],
     private val partitionLimit: Option[Int],
     private val maxSegmentsToBufferAtOnce: Option[Int]
-) {
+) { self =>
   def withMaxSegmentsBufferingAtOnce(num: Int) =
     copy(maxSegmentsToBufferAtOnce = Some(num))
 
-  def inner(ref: Expr.DelayedIdent, other: TableExpr.Ident) = {
+  def inner(ref: Expr.DelayedIdent[J], other: TableExpr.Ident) = {
     copy(
       others = others.appended(
         (ref, "inner", other.key)
       )
     )
   }
-  def inner(ref: Expr.DelayedIdent) = {
+  def inner(ref: Expr.DelayedIdent[J]) = {
     copy(
       others = others.appended(
         (ref, "inner", first.name.table)
       )
     )
   }
-  def outer(ref: Expr.DelayedIdent, other: TableExpr.Ident) = {
+  def outer(ref: Expr.DelayedIdent[J], other: TableExpr.Ident) = {
     copy(
       others = others.appended(
         (ref, "outer", other.key)
       )
     )
   }
-  def outer(ref: Expr.DelayedIdent) = {
+  def outer(ref: Expr.DelayedIdent[J]) = {
     copy(
       others = others.appended(
         (ref, "outer", first.name.table)
       )
     )
   }
-  def left(ref: Expr.DelayedIdent, other: TableExpr.Ident) = {
+  def left(ref: Expr.DelayedIdent[J], other: TableExpr.Ident) = {
     copy(
       others = others.appended(
         (ref, "left", other.key)
       )
     )
   }
-  def left(ref: Expr.DelayedIdent) = {
+  def left(ref: Expr.DelayedIdent[J]) = {
     copy(
       others = others.appended(
         (ref, "left", first.name.table)
       )
     )
   }
-  def right(ref: Expr.DelayedIdent, other: TableExpr.Ident) = {
+  def right(ref: Expr.DelayedIdent[J], other: TableExpr.Ident) = {
     copy(
       others = others.appended(
         (ref, "right", other.key)
       )
     )
   }
-  def right(ref: Expr.DelayedIdent) = {
+  def right(ref: Expr.DelayedIdent[J]) = {
     copy(
       others = others.appended(
         (ref, "right", first.name.table)
@@ -78,7 +78,6 @@ case class JoinBuilderSyntax(
   }
   def withPartitionBase(num: Int) = copy(partitionBase = Some(num))
   def withPartitionLimit(num: Int) = copy(partitionLimit = Some(num))
-  def elementwise(q: ra3.lang.Query) = copy(prg = q).done
   def done = {
     ra3.tablelang.TableExpr.Join(
       first,
@@ -88,6 +87,6 @@ case class JoinBuilderSyntax(
       maxSegmentsToBufferAtOnce.getOrElse(10),
       prg
       // prg.getOrElse(ra3.select(ra3.star))
-    ).asInstanceOf[ra3.tablelang.TableExpr{type T = prg.T}]
+    ).asInstanceOf[ra3.tablelang.TableExpr{type T = self.R}]
   }
 }

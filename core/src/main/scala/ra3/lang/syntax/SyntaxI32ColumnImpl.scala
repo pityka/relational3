@@ -72,58 +72,56 @@ private[ra3] trait SyntaxI32ColumnImpl {
 
   def count = Expr.makeOp3(ops.Op3.BufferCountInGroupsOpI)(
     arg0,
-    ra3.lang.Expr.Ident(ra3.lang.GroupMap).as[BufferInt],
-    ra3.lang.Expr.Ident(ra3.lang.Numgroups).as[Int]
+    ra3.lang.Expr.Ident[BufferInt](ra3.lang.GroupMap),
+    ra3.lang.Expr.Ident[Int](ra3.lang.Numgroups)
   )
   def sum = Expr.makeOp3(ops.Op3.BufferSumGroupsOpII)(
     arg0,
-    ra3.lang.Expr.Ident(ra3.lang.GroupMap).as[BufferInt],
-    ra3.lang.Expr.Ident(ra3.lang.Numgroups).as[Int]
+    ra3.lang.Expr.Ident[BufferInt](ra3.lang.GroupMap),
+    ra3.lang.Expr.Ident[Int](ra3.lang.Numgroups)
   )
   def min = Expr.makeOp3(ops.Op3.BufferMinGroupsOpI)(
     arg0,
-    ra3.lang.Expr.Ident(ra3.lang.GroupMap).as[BufferInt],
-    ra3.lang.Expr.Ident(ra3.lang.Numgroups).as[Int]
+    ra3.lang.Expr.Ident[BufferInt](ra3.lang.GroupMap),
+    ra3.lang.Expr.Ident[Int](ra3.lang.Numgroups)
   )
   def max = Expr.makeOp3(ops.Op3.BufferMaxGroupsOpI)(
     arg0,
-    ra3.lang.Expr.Ident(ra3.lang.GroupMap).as[BufferInt],
-    ra3.lang.Expr.Ident(ra3.lang.Numgroups).as[Int]
+    ra3.lang.Expr.Ident[BufferInt](ra3.lang.GroupMap),
+    ra3.lang.Expr.Ident[Int](ra3.lang.Numgroups)
   )
   def first = Expr.makeOp3(ops.Op3.BufferFirstGroupsOpIIi)(
     arg0,
-    ra3.lang.Expr.Ident(ra3.lang.GroupMap).as[BufferInt],
-    ra3.lang.Expr.Ident(ra3.lang.Numgroups).as[Int]
+    ra3.lang.Expr.Ident[BufferInt](ra3.lang.GroupMap),
+    ra3.lang.Expr.Ident[Int](ra3.lang.Numgroups)
   )
   def hasMissing = Expr.makeOp3(ops.Op3.BufferHasMissingInGroupsOpI)(
     arg0,
-    ra3.lang.Expr.Ident(ra3.lang.GroupMap).as[BufferInt],
-    ra3.lang.Expr.Ident(ra3.lang.Numgroups).as[Int]
+    ra3.lang.Expr.Ident[BufferInt](ra3.lang.GroupMap),
+    ra3.lang.Expr.Ident[Int](ra3.lang.Numgroups)
   )
   def all = Expr.makeOp3(ops.Op3.BufferAllInGroupsOpI)(
     arg0,
-    ra3.lang.Expr.Ident(ra3.lang.GroupMap).as[BufferInt],
-    ra3.lang.Expr.Ident(ra3.lang.Numgroups).as[Int]
+    ra3.lang.Expr.Ident[BufferInt](ra3.lang.GroupMap),
+    ra3.lang.Expr.Ident[Int](ra3.lang.Numgroups)
   )
   def any = Expr.makeOp3(ops.Op3.BufferAnyInGroupsOpI)(
     arg0,
-    ra3.lang.Expr.Ident(ra3.lang.GroupMap).as[BufferInt],
-    ra3.lang.Expr.Ident(ra3.lang.Numgroups).as[Int]
+    ra3.lang.Expr.Ident[BufferInt](ra3.lang.GroupMap),
+    ra3.lang.Expr.Ident[Int](ra3.lang.Numgroups)
   )
   def none = Expr.makeOp3(ops.Op3.BufferNoneInGroupsOpI)(
     arg0,
-    ra3.lang.Expr.Ident(ra3.lang.GroupMap).as[BufferInt],
-    ra3.lang.Expr.Ident(ra3.lang.Numgroups).as[Int]
+    ra3.lang.Expr.Ident[BufferInt](ra3.lang.GroupMap),
+    ra3.lang.Expr.Ident[Int](ra3.lang.Numgroups)
   )
 
   def unnamed = ra3.lang.Expr
-    .BuiltInOp1(arg0, ops.Op1.MkUnnamedColumnSpecChunk)
-    .asInstanceOf[ColumnSpecExpr[ra3.DI32]]
+    .BuiltInOp1(ops.Op1.MkUnnamedColumnSpecChunkI32)(arg0 )
 
-  infix def as(arg1: Expr { type T = String }) = ra3.lang.Expr
-    .BuiltInOp2(arg0, arg1, ops.Op2.MkNamedColumnSpecChunkI32)
-    .asInstanceOf[Expr { type T = ColumnSpec[ra3.DI32] }]
+  infix def as(arg1: Expr[String]) = ra3.lang.Expr
+    .BuiltInOp2(ops.Op2.MkNamedColumnSpecChunkI32)(arg0, arg1 )
 
-  infix def as(arg1: String): Expr { type T = ColumnSpec[ra3.DI32] } = as(Expr.LitStr(arg1))
+  infix def as(arg1: String): Expr[ColumnSpec[ra3.DI32]] = as(Expr.LitStr(arg1))
 
 }

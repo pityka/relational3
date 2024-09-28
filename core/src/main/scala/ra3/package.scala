@@ -81,7 +81,7 @@ package object ra3 {
   private[ra3] type DI64 = Either[BufferLong, Seq[SegmentLong]]
 
   /** Data type of F64 columns */
-  private[ra3] type DF64 = Either[BufferDouble, Seq[SegmentDouble]]
+  private[ra3] type DF64 = Either[BufferDouble,Seq[SegmentDouble]]
 
   /** Data type of String columns */
   private[ra3] type DStr = Either[BufferString, Seq[SegmentString]]
@@ -89,24 +89,26 @@ package object ra3 {
   /** Data type of Instant columns */
   private[ra3] type DInst = Either[BufferInstant, Seq[SegmentInstant]]
 
+  type ColumnSpecExpr[T] = Expr[ColumnSpec[T]]
+
   import scala.language.implicitConversions
   implicit def conversionDI32(
-      a: Expr { type T = DI32 }
-  ): ColumnSpecExpr[DI32] = a.unnamed
+      a: Expr[DI32]
+  ): ColumnSpecExpr[DI32] = ???//a.unnamed
 
   implicit def conversionDF64(
-      a: Expr { type T = DF64 }
-  ): ColumnSpecExpr[DF64] = a.unnamed
+      a: Expr[DF64]
+  ): ColumnSpecExpr[DF64] = ???//a.unnamed
   implicit def conversionDI64(
-      a: Expr { type T = DI64 }
-  ): Expr { type T = ColumnSpec[DI64] } = ??? // a.unnamed
+      a: Expr[DI64]
+  ): ColumnSpecExpr[DI64] = ??? // a.unnamed
   implicit def conversionDInst(
-      a: Expr { type T = DInst }
-  ): Expr { type T = ColumnSpec[DInst] } = ??? // a.unnamed
+      a: Expr[DInst]
+  ): ColumnSpecExpr[DInst] = ??? // a.unnamed
 
   implicit def conversionStr(
-      a: Expr { type T = DStr }
-  ): Expr { type T = ColumnSpec[DStr] } = ??? // a.unnamed
+      a: Expr[DStr]
+  ): ColumnSpecExpr[DStr] = ??? // a.unnamed
 
   /** Import CSV data into ra3
     *
@@ -169,7 +171,7 @@ package object ra3 {
   //
 
   /** The expression which selects all column as is */
-  val star: Expr { type T = ra3.lang.ColumnSpec[Any] } = ra3.lang.Expr.Star
+  // val star: Expr { type T = ra3.lang.ColumnSpec[Any] } = ra3.lang.Expr.Star
 
   /** Variable assigning let expression.
     *
@@ -179,56 +181,49 @@ package object ra3 {
     *   the variable (the scala variable which is bound in the lambda) and the
     *   expression which is using the variable
     */
-  def let[T1](assigned: Expr)(body: Expr { type T = assigned.T } => Expr {
-    type T = T1
-  }): Expr { type T = T1 } =
+  def let[T1,R](assigned: Expr[T1])(body: Expr[T1] => Expr[R]): Expr[R] =
     ra3.lang.local(assigned)(body)
 
   /** Elementwise or group wise projection */
   def select[T0](
       arg0: ColumnSpecExpr[T0]
-  ): Expr { type T = ra3.lang.ReturnValue1[T0] } = ra3.lang.Expr
-    .BuiltInOp1(arg0, ops.Op1.MkReturnValue1)
-    .asInstanceOf[Expr { type T = ReturnValue1[T0] }]
+  ): Expr[ra3.lang.ReturnValue1[T0]] = ra3.lang.Expr
+    .BuiltInOp1(new ops.Op1.MkReturnValue1[T0])(arg0 )
 
   def select[T0, T1](
-      arg0: Expr { type T = ColumnSpec[T0] },
-      arg1: Expr { type T = ColumnSpec[T1] }
+      arg0: ColumnSpecExpr[T0],
+      arg1: ColumnSpecExpr[T1]
   ) = ra3.lang.Expr
-    .BuiltInOp2(arg0, arg1, ops.Op2.MkReturnValue2)
-    .asInstanceOf[Expr { type T = ReturnValue2[T0, T1] }]
+    .BuiltInOp2(new ops.Op2.MkReturnValue2[T0,T1])(arg0, arg1 )
   def select[T0, T1, T2](
-      arg0: Expr { type T = ColumnSpec[T0] },
-      arg1: Expr { type T = ColumnSpec[T1] },
-      arg2: Expr { type T = ColumnSpec[T2] }
+      arg0: ColumnSpecExpr[T0],
+      arg1: ColumnSpecExpr[T1],
+      arg2: ColumnSpecExpr[T2],
   ) = ra3.lang.Expr
-    .BuiltInOp3(arg0, arg1,arg2, ops.Op3.MkReturnValue3)
-    .asInstanceOf[Expr { type T = ReturnValue3[T0, T1, T2] }]
+    .BuiltInOp3(new ops.Op3.MkReturnValue3[T0,T1,T2])(arg0, arg1,arg2 )
   def select[T0, T1, T2,T3](
-      arg0: Expr { type T = ColumnSpec[T0] },
-      arg1: Expr { type T = ColumnSpec[T1] },
-      arg2: Expr { type T = ColumnSpec[T2] },
-      arg3: Expr { type T = ColumnSpec[T3] },
+      arg0: ColumnSpecExpr[T0],
+      arg1: ColumnSpecExpr[T1],
+      arg2: ColumnSpecExpr[T2],
+      arg3: ColumnSpecExpr[T3]
   ) = ra3.lang.Expr
-    .BuiltInOp4(arg0, arg1,arg2, arg3, ops.OpN.MkReturnValue4)
-    .asInstanceOf[Expr { type T = ReturnValue4[T0, T1, T2, T3] }]
+    .BuiltInOp4(new ops.OpN.MkReturnValue4[T0,T1,T2,T3])(arg0, arg1,arg2, arg3 )
   def select[T0, T1, T2,T3,T4](
-      arg0: Expr { type T = ColumnSpec[T0] },
-      arg1: Expr { type T = ColumnSpec[T1] },
-      arg2: Expr { type T = ColumnSpec[T2] },
-      arg3: Expr { type T = ColumnSpec[T3] },
-      arg4: Expr { type T = ColumnSpec[T4] },
+      arg0: ColumnSpecExpr[T0],
+      arg1: ColumnSpecExpr[T1],
+      arg2: ColumnSpecExpr[T2],
+      arg3: ColumnSpecExpr[T3],
+      arg4: ColumnSpecExpr[T4]
   ) = ra3.lang.Expr
-    .BuiltInOp5(arg0, arg1,arg2, arg3,arg4, ops.OpN.MkReturnValue5)
-    .asInstanceOf[Expr { type T = ReturnValue5[T0, T1, T2, T3,T4] }]
+    .BuiltInOp5(new ops.OpN.MkReturnValue5[T0,T1,T2,T3,T4])(arg0, arg1,arg2, arg3,arg4 )
 
-   inline def selectTuple[T0<:Tuple](
-    tup: T0
-  )  = 
-    ra3.lang.Expr.BuiltInOpAny(tup.productIterator.map(_.asInstanceOf[Expr]).toList,ops.OpAny.MkReturnValueStar).asInstanceOf[Expr { 
+  //  inline def selectTuple[T0<:Tuple:Tuple.IsMappedBy[ColumnSpecExpr]](
+  //   tup: T0
+  // )  = 
+  //   ra3.lang.Expr.BuiltInOpAny(tup.productIterator.map(_.asInstanceOf[Expr]).toList,ops.OpAny.MkReturnValueStar).asInstanceOf[Expr { 
 
-      type T = ReturnValueTuple[T0] 
-    }]
+  //     type T = ReturnValueTuple[Tuple.InverseMap[T0,ColumnSpecExpr]] 
+  //   }]
   
 
   // def where(arg0: I32ColumnExpr) =
@@ -237,26 +232,26 @@ package object ra3 {
   //   where(arg0)
 
   /** Simple query consisting of elementwise (row-wise) projection and filter */
-  def query(prg: ra3.lang.Query) = {
+  def query[T](prg: ra3.lang.Query[T]) = {
     val tables = prg.referredTables
     require(
       tables.size == 1,
       s"0 or more than 1 tables referenced in this query $prg"
     )
-    ra3.tablelang.TableExpr.SimpleQuery(tables.head, prg).asInstanceOf[TableExpr { type T = prg.T }]
+    ra3.tablelang.TableExpr.SimpleQuery(tables.head, prg)
   }
 
   /** Count query consisting of elementwise (row-wise) filter and counting those
     * rows which pass the filter
     */
 
-  def count(prg: ra3.lang.Query) = {
+  def count[T](prg: ra3.lang.Query[T]) = {
     val tables = prg.referredTables
     require(
       tables.size == 1,
       s"0 or more than 1 tables referenced in this query $prg"
     )
-    ra3.tablelang.TableExpr.SimpleQueryCount(tables.head, prg).asInstanceOf[TableExpr { type T = prg.T }]
+    ra3.tablelang.TableExpr.SimpleQueryCount(tables.head, prg)
   }
 
   /** Full table reduction
@@ -267,8 +262,8 @@ package object ra3 {
     * This will read all rows of the needed columns into memory. You may want to
     * consult with partialReduce if the reduction is distributable.
     */
-  def reduce(
-      prg: ra3.lang.Query
+  def reduce[T](
+      prg: ra3.lang.Query[T]
   ) = {
     val tables = prg.referredTables
 
@@ -279,15 +274,15 @@ package object ra3 {
     ra3.tablelang.TableExpr.ReduceTable(
       arg0 = tables.head,
       groupwise = prg
-    ).asInstanceOf[TableExpr { type T = prg.T }]
+    )
   }
 
   /** Partial reduction
     *
     * Reduces each segment independently. Returns a single row per segment.
     */
-  def partialReduce(
-      prg: ra3.lang.Query
+  def partialReduce[T](
+      prg: ra3.lang.Query[T]
   ) = {
     val tables = prg.referredTables
 
@@ -298,7 +293,7 @@ package object ra3 {
     ra3.tablelang.TableExpr.FullTablePartialReduce(
       arg0 = tables.head,
       groupwise = prg
-    ).asInstanceOf[TableExpr { type T = prg.T }]
+    )
   }
 
 

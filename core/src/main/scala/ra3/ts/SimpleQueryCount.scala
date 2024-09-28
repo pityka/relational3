@@ -10,14 +10,14 @@ import ra3.lang.ReturnValue
 
 private[ra3] case class SimpleQueryCount(
     input: Seq[SegmentWithName],
-    predicate: ra3.lang.Expr,
+    predicate: ra3.lang.Expr[?],
     groupMap: Option[(SegmentInt, Int)]
 )
 private[ra3] object SimpleQueryCount {
 
   def doit(
       input: Seq[SegmentWithName],
-      predicate: ra3.lang.Expr,
+      predicate: ra3.lang.Query[Any],
       groupMap: Option[(SegmentInt, Int)]
   )(implicit tsc: TaskSystemComponents): IO[Int] = {
     scribe.debug(
@@ -59,7 +59,7 @@ private[ra3] object SimpleQueryCount {
 
       ra3.lang
         .evaluate(predicate, env)
-        .map(_.v.asInstanceOf[ReturnValue])
+        .map(_.v)
         .flatMap { returnValue =>
           val mask = returnValue.filter
 
@@ -108,7 +108,7 @@ private[ra3] object SimpleQueryCount {
   def queue(
       // (segment, table unique id)
       input: Seq[SegmentWithName],
-      predicate: ra3.lang.Expr { type T <: ReturnValue },
+      predicate: ra3.lang.Query[Any],
       groupMap: Option[(SegmentInt, Int)]
   )(implicit
       tsc: TaskSystemComponents
@@ -127,7 +127,7 @@ private[ra3] object SimpleQueryCount {
   implicit val codec: JsonValueCodec[SimpleQueryCount] = JsonCodecMaker.make
   val task = Task[SimpleQueryCount, Long]("SimpleQueryCount", 1) { case input =>
     implicit ce =>
-      doit(input.input, input.predicate, input.groupMap).map(_.toLong)
+      doit(input.input, input.predicate.asInstanceOf[ra3.lang.Expr[ReturnValue[Any]]], input.groupMap).map(_.toLong)
 
   }
 }

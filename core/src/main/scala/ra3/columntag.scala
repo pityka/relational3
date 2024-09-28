@@ -6,7 +6,20 @@ import bufferimpl.CharSequenceOrdering
 
 sealed trait ColumnTag { self =>
   type Elem
-  
+
+  def makeNamedColumnSpecFromBuffer(
+      buffer: BufferType,
+      name: String
+  ): ra3.lang.NamedColumnSpecWithColumnChunkValue[
+    Either[BufferType, Seq[SegmentType]]
+  ]
+  def makeNamedColumnSpecFromSegments(
+      segments: Seq[SegmentType],
+      name: String
+  ): ra3.lang.NamedColumnSpecWithColumnChunkValue[
+    Either[BufferType, Seq[SegmentType]]
+  ]
+
   type SegmentType <: Segment {
     type Elem = self.Elem
   }
@@ -162,15 +175,25 @@ sealed trait ColumnTag { self =>
 object ColumnTag {
   object I32 extends ColumnTag {
     override def toString = "I32"
-    
+
+    def makeNamedColumnSpecFromBuffer(
+        buffer: BufferType,
+        name: String
+    ) = ra3.lang.NamedColumnChunkI32(Left(buffer), name)
+
+    def makeNamedColumnSpecFromSegments(
+        segments: Seq[SegmentType],
+        name: String
+    ) = ra3.lang.NamedColumnChunkI32(Right(segments), name)
+
     def broadcast(
         buffer: ra3.ColumnTag.I32.BufferType,
         numElems: Int
     ): ra3.ColumnTag.I32.BufferType = buffer match {
       case b: BufferIntConstant => b.broadcast(numElems)
-      case b:BufferIntInArray => b.broadcast(numElems)
+      case b: BufferIntInArray  => b.broadcast(numElems)
     }
-    
+
     def buffer(
         bs: ra3.ColumnTag.I32.TaggedBufferType
     ): ra3.ColumnTag.I32.BufferType = bs.buffer
@@ -181,27 +204,28 @@ object ColumnTag {
         first: ra3.ColumnTag.I32.BufferType,
         other: ra3.ColumnTag.I32.BufferType,
         how: String
-    ): (Option[ra3.BufferInt], Option[ra3.BufferInt]) = first match{
-      case b1: BufferIntConstant =>  b1.computeJoinIndexes(other,how)
-      case b1:BufferIntInArray => b1.computeJoinIndexes(other,how)}
-    
+    ): (Option[ra3.BufferInt], Option[ra3.BufferInt]) = first match {
+      case b1: BufferIntConstant => b1.computeJoinIndexes(other, how)
+      case b1: BufferIntInArray  => b1.computeJoinIndexes(other, how)
+    }
+
     def findInequalityVsHead(
         one: ra3.ColumnTag.I32.BufferType,
         other: ra3.ColumnTag.I32.BufferType,
         lessThan: Boolean
     ): ra3.BufferInt = one match {
-      case b1: BufferIntConstant => b1.findInequalityVsHead(other,lessThan)
-      case b1: BufferIntInArray => b1.findInequalityVsHead(other,lessThan )
+      case b1: BufferIntConstant => b1.findInequalityVsHead(other, lessThan)
+      case b1: BufferIntInArray  => b1.findInequalityVsHead(other, lessThan)
     }
     def firstInGroup(
         buffer: ra3.ColumnTag.I32.BufferType,
         partitionMap: ra3.BufferInt,
         numGroups: Int
-    ): ra3.ColumnTag.I32.BufferType = buffer match{
-      case b1:BufferIntConstant => b1.firstInGroup(partitionMap,numGroups)
-      case b1:BufferIntInArray => b1.firstInGroup(partitionMap,numGroups)
-        }
-    
+    ): ra3.ColumnTag.I32.BufferType = buffer match {
+      case b1: BufferIntConstant => b1.firstInGroup(partitionMap, numGroups)
+      case b1: BufferIntInArray  => b1.firstInGroup(partitionMap, numGroups)
+    }
+
     def makeTaggedBuffer(
         b: ra3.ColumnTag.I32.BufferType
     ): ra3.ColumnTag.I32.TaggedBufferType = b
@@ -220,29 +244,32 @@ object ColumnTag {
     def mergeNonMissing(
         first: ra3.ColumnTag.I32.BufferType,
         other: ra3.ColumnTag.I32.BufferType
-    ): ra3.ColumnTag.I32.BufferType = first match{
-      case b1:BufferIntConstant =>  b1.mergeNonMissing(other)
-      case b1:BufferIntInArray => b1.mergeNonMissing(other)
+    ): ra3.ColumnTag.I32.BufferType = first match {
+      case b1: BufferIntConstant => b1.mergeNonMissing(other)
+      case b1: BufferIntInArray  => b1.mergeNonMissing(other)
     }
-    
+
     def nonMissingMinMax(
         segment: ra3.ColumnTag.I32.BufferType
-    ): Option[(ra3.ColumnTag.I32.Elem, ra3.ColumnTag.I32.Elem)] = segment.nonMissingMinMax
+    ): Option[(ra3.ColumnTag.I32.Elem, ra3.ColumnTag.I32.Elem)] =
+      segment.nonMissingMinMax
     def nonMissingMinMax(
         segment: ra3.ColumnTag.I32.SegmentType
-    ): Option[(ra3.ColumnTag.I32.Elem, ra3.ColumnTag.I32.Elem)] = segment.nonMissingMinMax
+    ): Option[(ra3.ColumnTag.I32.Elem, ra3.ColumnTag.I32.Elem)] =
+      segment.nonMissingMinMax
     def nonMissingMinMax(
         segment: ra3.ColumnTag.I32.ColumnType
-    ): Option[(ra3.ColumnTag.I32.Elem, ra3.ColumnTag.I32.Elem)] = segment.nonMissingMinMax
+    ): Option[(ra3.ColumnTag.I32.Elem, ra3.ColumnTag.I32.Elem)] =
+      segment.nonMissingMinMax
     def partition(
         buffer: ra3.ColumnTag.I32.BufferType,
         numPartitions: Int,
         map: ra3.BufferInt
-    ): Vector[ra3.ColumnTag.I32.BufferType] = buffer match{
-      case b1:BufferIntConstant => b1.partition(numPartitions,map)
-      case b1:BufferIntInArray => b1.partition(numPartitions,map)
+    ): Vector[ra3.ColumnTag.I32.BufferType] = buffer match {
+      case b1: BufferIntConstant => b1.partition(numPartitions, map)
+      case b1: BufferIntInArray  => b1.partition(numPartitions, map)
     }
-    
+
     def segments(
         column: ra3.ColumnTag.I32.ColumnType
     ): Vector[ra3.ColumnTag.I32.SegmentType] = column.segments
@@ -252,16 +279,16 @@ object ColumnTag {
     def take(
         buffer: ra3.ColumnTag.I32.BufferType,
         locs: ra3.Location
-    ): ra3.ColumnTag.I32.BufferType = buffer match{
-      case b1:BufferIntConstant =>  b1.take(locs)
-      case b1:BufferIntInArray => b1.take(locs)
+    ): ra3.ColumnTag.I32.BufferType = buffer match {
+      case b1: BufferIntConstant => b1.take(locs)
+      case b1: BufferIntInArray  => b1.take(locs)
     }
-    
+
     def toSegment(buffer: ra3.ColumnTag.I32.BufferType, name: ra3.LogicalPath)(
         implicit tsc: tasks.TaskSystemComponents
-    ): cats.effect.IO[ra3.ColumnTag.I32.SegmentType] = buffer match{
-      case b1:BufferIntConstant =>  b1.toSegment(name)
-      case b1:BufferIntInArray => b1.toSegment(name)
+    ): cats.effect.IO[ra3.ColumnTag.I32.SegmentType] = buffer match {
+      case b1: BufferIntConstant => b1.toSegment(name)
+      case b1: BufferIntInArray  => b1.toSegment(name)
     }
 
     def ++(
@@ -328,7 +355,17 @@ object ColumnTag {
   object I64 extends ColumnTag {
     override def toString = "I64"
 
-   
+
+    def makeNamedColumnSpecFromBuffer(
+        buffer: BufferType,
+        name: String
+    ) = ra3.lang.NamedColumnChunkI64(Left(buffer), name)
+    
+    def makeNamedColumnSpecFromSegments(
+        segments: Seq[SegmentType],
+        name: String
+    ) = ra3.lang.NamedColumnChunkI64(Right(segments), name)
+
     def ++(
         first: ra3.ColumnTag.I64.ColumnType,
         other: ra3.ColumnTag.I64.ColumnType
@@ -347,17 +384,19 @@ object ColumnTag {
         first: ra3.ColumnTag.I64.BufferType,
         other: ra3.ColumnTag.I64.BufferType,
         how: String
-    ): (Option[ra3.BufferInt], Option[ra3.BufferInt]) = first.computeJoinIndexes(other,how)
+    ): (Option[ra3.BufferInt], Option[ra3.BufferInt]) =
+      first.computeJoinIndexes(other, how)
     def findInequalityVsHead(
         one: ra3.ColumnTag.I64.BufferType,
         other: ra3.ColumnTag.I64.BufferType,
         lessThan: Boolean
-    ): ra3.BufferInt = one.findInequalityVsHead(other,lessThan)
+    ): ra3.BufferInt = one.findInequalityVsHead(other, lessThan)
     def firstInGroup(
         buffer: ra3.ColumnTag.I64.BufferType,
         partitionMap: ra3.BufferInt,
         numGroups: Int
-    ): ra3.ColumnTag.I64.BufferType = buffer.firstInGroup(partitionMap,numGroups)
+    ): ra3.ColumnTag.I64.BufferType =
+      buffer.firstInGroup(partitionMap, numGroups)
     def makeTaggedBuffer(
         b: ra3.ColumnTag.I64.BufferType
     ): ra3.ColumnTag.I64.TaggedBufferType = b
@@ -379,18 +418,22 @@ object ColumnTag {
     ): ra3.ColumnTag.I64.BufferType = first.mergeNonMissing(other)
     def nonMissingMinMax(
         segment: ra3.ColumnTag.I64.BufferType
-    ): Option[(ra3.ColumnTag.I64.Elem, ra3.ColumnTag.I64.Elem)] = segment.nonMissingMinMax
+    ): Option[(ra3.ColumnTag.I64.Elem, ra3.ColumnTag.I64.Elem)] =
+      segment.nonMissingMinMax
     def nonMissingMinMax(
         segment: ra3.ColumnTag.I64.SegmentType
-    ): Option[(ra3.ColumnTag.I64.Elem, ra3.ColumnTag.I64.Elem)] = segment.nonMissingMinMax
+    ): Option[(ra3.ColumnTag.I64.Elem, ra3.ColumnTag.I64.Elem)] =
+      segment.nonMissingMinMax
     def nonMissingMinMax(
         segment: ra3.ColumnTag.I64.ColumnType
-    ): Option[(ra3.ColumnTag.I64.Elem, ra3.ColumnTag.I64.Elem)] = segment.nonMissingMinMax
+    ): Option[(ra3.ColumnTag.I64.Elem, ra3.ColumnTag.I64.Elem)] =
+      segment.nonMissingMinMax
     def partition(
         buffer: ra3.ColumnTag.I64.BufferType,
         numPartitions: Int,
         map: ra3.BufferInt
-    ): Vector[ra3.ColumnTag.I64.BufferType] = buffer.partition(numPartitions,map)
+    ): Vector[ra3.ColumnTag.I64.BufferType] =
+      buffer.partition(numPartitions, map)
     def segments(
         column: ra3.ColumnTag.I64.ColumnType
     ): Vector[ra3.ColumnTag.I64.SegmentType] = column.segments
@@ -431,11 +474,11 @@ object ColumnTag {
     type BufferType = BufferLong
     type ColumnType = Column.I64Column
     type SegmentType = SegmentLong
-    type TaggedBufferType = BufferLong 
+    type TaggedBufferType = BufferLong
     type TaggedBuffersType = TaggedBuffersI64
-    type TaggedSegmentType = SegmentLong 
+    type TaggedSegmentType = SegmentLong
     type TaggedSegmentsType = TaggedSegmentsI64
-    
+
     def makeBuffer(elems: Array[Long]): BufferType = BufferLong(elems)
     def makeBufferFromSeq(elems: Elem*): BufferType = BufferLong(elems.toArray)
     def makeColumn(segments: Vector[SegmentType]): ColumnType =
@@ -458,7 +501,17 @@ object ColumnTag {
   object Instant extends ColumnTag {
     override def toString = "Instant"
 
-   
+
+    def makeNamedColumnSpecFromBuffer(
+        buffer: BufferType,
+        name: String
+    ) = ra3.lang.NamedColumnChunkInst(Left(buffer), name)
+    
+    def makeNamedColumnSpecFromSegments(
+        segments: Seq[SegmentType],
+        name: String
+    ) = ra3.lang.NamedColumnChunkInst(Right(segments), name)
+
     def ++(
         first: ra3.ColumnTag.Instant.ColumnType,
         other: ra3.ColumnTag.Instant.ColumnType
@@ -477,17 +530,19 @@ object ColumnTag {
         first: ra3.ColumnTag.Instant.BufferType,
         other: ra3.ColumnTag.Instant.BufferType,
         how: String
-    ): (Option[ra3.BufferInt], Option[ra3.BufferInt]) = first.computeJoinIndexes(other,how)
+    ): (Option[ra3.BufferInt], Option[ra3.BufferInt]) =
+      first.computeJoinIndexes(other, how)
     def findInequalityVsHead(
         one: ra3.ColumnTag.Instant.BufferType,
         other: ra3.ColumnTag.Instant.BufferType,
         lessThan: Boolean
-    ): ra3.BufferInt = one.findInequalityVsHead(other,lessThan)
+    ): ra3.BufferInt = one.findInequalityVsHead(other, lessThan)
     def firstInGroup(
         buffer: ra3.ColumnTag.Instant.BufferType,
         partitionMap: ra3.BufferInt,
         numGroups: Int
-    ): ra3.ColumnTag.Instant.BufferType = buffer.firstInGroup(partitionMap,numGroups)
+    ): ra3.ColumnTag.Instant.BufferType =
+      buffer.firstInGroup(partitionMap, numGroups)
     def makeTaggedBuffer(
         b: ra3.ColumnTag.Instant.BufferType
     ): ra3.ColumnTag.Instant.TaggedBufferType = b
@@ -509,18 +564,22 @@ object ColumnTag {
     ): ra3.ColumnTag.Instant.BufferType = first.mergeNonMissing(other)
     def nonMissingMinMax(
         segment: ra3.ColumnTag.Instant.BufferType
-    ): Option[(ra3.ColumnTag.Instant.Elem, ra3.ColumnTag.Instant.Elem)] = segment.nonMissingMinMax
+    ): Option[(ra3.ColumnTag.Instant.Elem, ra3.ColumnTag.Instant.Elem)] =
+      segment.nonMissingMinMax
     def nonMissingMinMax(
         segment: ra3.ColumnTag.Instant.SegmentType
-    ): Option[(ra3.ColumnTag.Instant.Elem, ra3.ColumnTag.Instant.Elem)] = segment.nonMissingMinMax
+    ): Option[(ra3.ColumnTag.Instant.Elem, ra3.ColumnTag.Instant.Elem)] =
+      segment.nonMissingMinMax
     def nonMissingMinMax(
         segment: ra3.ColumnTag.Instant.ColumnType
-    ): Option[(ra3.ColumnTag.Instant.Elem, ra3.ColumnTag.Instant.Elem)] = segment.nonMissingMinMax
+    ): Option[(ra3.ColumnTag.Instant.Elem, ra3.ColumnTag.Instant.Elem)] =
+      segment.nonMissingMinMax
     def partition(
         buffer: ra3.ColumnTag.Instant.BufferType,
         numPartitions: Int,
         map: ra3.BufferInt
-    ): Vector[ra3.ColumnTag.Instant.BufferType] = buffer.partition(numPartitions,map)
+    ): Vector[ra3.ColumnTag.Instant.BufferType] =
+      buffer.partition(numPartitions, map)
     def segments(
         column: ra3.ColumnTag.Instant.ColumnType
     ): Vector[ra3.ColumnTag.Instant.SegmentType] = column.segments
@@ -536,7 +595,8 @@ object ColumnTag {
         name: ra3.LogicalPath
     )(implicit
         tsc: tasks.TaskSystemComponents
-    ): cats.effect.IO[ra3.ColumnTag.Instant.SegmentType] = buffer.toSegment(name)
+    ): cats.effect.IO[ra3.ColumnTag.Instant.SegmentType] =
+      buffer.toSegment(name)
 
     def cdf(
         buffer: BufferType,
@@ -568,8 +628,8 @@ object ColumnTag {
     type BufferType = BufferInstant
     type ColumnType = Column.InstantColumn
     type SegmentType = SegmentInstant
-    
-    type TaggedBufferType = BufferInstant 
+
+    type TaggedBufferType = BufferInstant
     type TaggedBuffersType = TaggedBuffersInstant
     type TaggedSegmentType = SegmentInstant
     type TaggedSegmentsType = TaggedSegmentsInstant
@@ -596,7 +656,17 @@ object ColumnTag {
   }
   object StringTag extends ColumnTag {
 
-   
+
+    def makeNamedColumnSpecFromBuffer(
+        buffer: BufferType,
+        name: String
+    ) = ra3.lang.NamedColumnChunkStr(Left(buffer), name)
+    
+    def makeNamedColumnSpecFromSegments(
+        segments: Seq[SegmentType],
+        name: String
+    ) = ra3.lang.NamedColumnChunkStr(Right(segments), name)
+
     def ++(
         first: ra3.ColumnTag.StringTag.ColumnType,
         other: ra3.ColumnTag.StringTag.ColumnType
@@ -614,22 +684,25 @@ object ColumnTag {
     def cdf(
         buffer: ra3.ColumnTag.StringTag.BufferType,
         numPoints: Int
-    ): (ra3.ColumnTag.StringTag.BufferType, ra3.BufferDouble) = buffer.cdf(numPoints)
+    ): (ra3.ColumnTag.StringTag.BufferType, ra3.BufferDouble) =
+      buffer.cdf(numPoints)
     def computeJoinIndexes(
         first: ra3.ColumnTag.StringTag.BufferType,
         other: ra3.ColumnTag.StringTag.BufferType,
         how: String
-    ): (Option[ra3.BufferInt], Option[ra3.BufferInt]) = first.computeJoinIndexes(other,how)
+    ): (Option[ra3.BufferInt], Option[ra3.BufferInt]) =
+      first.computeJoinIndexes(other, how)
     def findInequalityVsHead(
         one: ra3.ColumnTag.StringTag.BufferType,
         other: ra3.ColumnTag.StringTag.BufferType,
         lessThan: Boolean
-    ): ra3.BufferInt = one.findInequalityVsHead(other,lessThan)
+    ): ra3.BufferInt = one.findInequalityVsHead(other, lessThan)
     def firstInGroup(
         buffer: ra3.ColumnTag.StringTag.BufferType,
         partitionMap: ra3.BufferInt,
         numGroups: Int
-    ): ra3.ColumnTag.StringTag.BufferType = buffer.firstInGroup(partitionMap,numGroups)
+    ): ra3.ColumnTag.StringTag.BufferType =
+      buffer.firstInGroup(partitionMap, numGroups)
     def makeTaggedBuffer(
         b: ra3.ColumnTag.StringTag.BufferType
     ): ra3.ColumnTag.StringTag.TaggedBufferType = b
@@ -665,7 +738,8 @@ object ColumnTag {
         buffer: ra3.ColumnTag.StringTag.BufferType,
         numPartitions: Int,
         map: ra3.BufferInt
-    ): Vector[ra3.ColumnTag.StringTag.BufferType] = buffer.partition(numPartitions,map)
+    ): Vector[ra3.ColumnTag.StringTag.BufferType] =
+      buffer.partition(numPartitions, map)
     def segments(
         column: ra3.ColumnTag.StringTag.ColumnType
     ): Vector[ra3.ColumnTag.StringTag.SegmentType] = column.segments
@@ -681,7 +755,8 @@ object ColumnTag {
         name: ra3.LogicalPath
     )(implicit
         tsc: tasks.TaskSystemComponents
-    ): cats.effect.IO[ra3.ColumnTag.StringTag.SegmentType] = buffer.toSegment(name)
+    ): cats.effect.IO[ra3.ColumnTag.StringTag.SegmentType] =
+      buffer.toSegment(name)
 
     def broadcastBuffer(elem: Elem, size: Int): BufferType = BufferString(
       Array.fill[CharSequence](size)(elem)
@@ -696,9 +771,8 @@ object ColumnTag {
     type ColumnTagType = StringTag.type
     type ColumnType = Column.StringColumn
     type SegmentType = SegmentString
-    
 
-    type TaggedBufferType = BufferString 
+    type TaggedBufferType = BufferString
     type TaggedBuffersType = TaggedBuffersString
     type TaggedSegmentType = SegmentString
     type TaggedSegmentsType = TaggedSegmentsString
@@ -729,7 +803,17 @@ object ColumnTag {
   object F64 extends ColumnTag {
     override def toString = "F64"
 
-   
+
+    def makeNamedColumnSpecFromBuffer(
+        buffer: BufferType,
+        name: String
+    ) = ra3.lang.NamedColumnChunkF64(Left(buffer), name)
+    
+    def makeNamedColumnSpecFromSegments(
+        segments: Seq[SegmentType],
+        name: String
+    ) = ra3.lang.NamedColumnChunkF64(Right(segments), name)
+
     def ++(
         first: ra3.ColumnTag.F64.ColumnType,
         other: ra3.ColumnTag.F64.ColumnType
@@ -752,12 +836,13 @@ object ColumnTag {
         one: ra3.ColumnTag.F64.BufferType,
         other: ra3.ColumnTag.F64.BufferType,
         lessThan: Boolean
-    ): ra3.BufferInt = one.findInequalityVsHead(other,lessThan)
+    ): ra3.BufferInt = one.findInequalityVsHead(other, lessThan)
     def firstInGroup(
         buffer: ra3.ColumnTag.F64.BufferType,
         partitionMap: ra3.BufferInt,
         numGroups: Int
-    ): ra3.ColumnTag.F64.BufferType = buffer.firstInGroup(partitionMap,numGroups)
+    ): ra3.ColumnTag.F64.BufferType =
+      buffer.firstInGroup(partitionMap, numGroups)
     def makeTaggedBuffer(
         b: ra3.ColumnTag.F64.BufferType
     ): ra3.ColumnTag.F64.TaggedBufferType = b
@@ -779,18 +864,22 @@ object ColumnTag {
     ): ra3.ColumnTag.F64.BufferType = first.mergeNonMissing(other)
     def nonMissingMinMax(
         segment: ra3.ColumnTag.F64.BufferType
-    ): Option[(ra3.ColumnTag.F64.Elem, ra3.ColumnTag.F64.Elem)] = segment.nonMissingMinMax
+    ): Option[(ra3.ColumnTag.F64.Elem, ra3.ColumnTag.F64.Elem)] =
+      segment.nonMissingMinMax
     def nonMissingMinMax(
         segment: ra3.ColumnTag.F64.SegmentType
-    ): Option[(ra3.ColumnTag.F64.Elem, ra3.ColumnTag.F64.Elem)] = segment.nonMissingMinMax
+    ): Option[(ra3.ColumnTag.F64.Elem, ra3.ColumnTag.F64.Elem)] =
+      segment.nonMissingMinMax
     def nonMissingMinMax(
         segment: ra3.ColumnTag.F64.ColumnType
-    ): Option[(ra3.ColumnTag.F64.Elem, ra3.ColumnTag.F64.Elem)] = segment.nonMissingMinMax
+    ): Option[(ra3.ColumnTag.F64.Elem, ra3.ColumnTag.F64.Elem)] =
+      segment.nonMissingMinMax
     def partition(
         buffer: ra3.ColumnTag.F64.BufferType,
         numPartitions: Int,
         map: ra3.BufferInt
-    ): Vector[ra3.ColumnTag.F64.BufferType] = buffer.partition(numPartitions,map)
+    ): Vector[ra3.ColumnTag.F64.BufferType] =
+      buffer.partition(numPartitions, map)
     def segments(
         column: ra3.ColumnTag.F64.ColumnType
     ): Vector[ra3.ColumnTag.F64.SegmentType] = column.segments
@@ -839,7 +928,7 @@ object ColumnTag {
     type TaggedBufferType = BufferDouble
     type TaggedBuffersType = TaggedBuffersF64
     type TaggedSegmentType = SegmentDouble
-    type TaggedSegmentsType = TaggedSegmentsF64    
+    type TaggedSegmentsType = TaggedSegmentsF64
     def makeBuffer(elems: Array[Double]): BufferType =
       BufferDouble(elems)
     def makeBufferFromSeq(elems: Double*): BufferType =
@@ -861,4 +950,3 @@ object ColumnTag {
       SegmentDouble(None, 0, StatisticDouble.empty)
   }
 }
-

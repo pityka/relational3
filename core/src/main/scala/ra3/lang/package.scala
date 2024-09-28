@@ -4,53 +4,43 @@ import tasks.TaskSystemComponents
 import ra3.tablelang.TableExpr
 package object lang {
 
-  type Query = ra3.lang.Expr { type T <: ra3.lang.ReturnValue}
+  type Query[+T] = ra3.lang.Expr[ra3.lang.ReturnValue[T]]
   
-  type IntExpr = Expr { type T = Int }
-  type StrExpr = Expr { type T = String }
-  type LongExpr = Expr { type T = Long }
-  type DoubleExpr = Expr { type T = Double }
-  private[ra3] type BufferExpr = Expr { type T <: Buffer }  
+  type IntExpr = Expr [ Int ]
+  type StrExpr = Expr [ String ]
+  type LongExpr = Expr [ Long ]
+  type DoubleExpr = Expr [ Double ]
 
-  type ColumnExpr = Expr {
-    type T = Either[Buffer, Seq[Segment]]
-  }
-  type I32ColumnExpr = Expr {
-    type T = DI32
-  }
-  type I64ColumnExpr = Expr {
-    type T = DI64
-  }
-  type F64ColumnExpr = Expr {
-    type T = Either[BufferDouble, Seq[SegmentDouble]]
-  }
-  type StrColumnExpr = Expr {
-    type T = Either[BufferString, Seq[SegmentString]]
-  }
-  type InstColumnExpr = Expr {
-    type T = Either[BufferInstant, Seq[SegmentInstant]]
-  }
+  // type ColumnExpr[T] = Expr[ Either[Ta, TaggedSegments]]
+  type I32ColumnExpr = Expr[ DI32
+  ]
+  type I64ColumnExpr = Expr[ DI64
+  ]
+  type F64ColumnExpr = Expr[ DF64
+  ]
+  type StrColumnExpr = Expr[ DStr
+  ]
+  type InstColumnExpr = Expr[ DInst
+  ]
 
-  private[ra3] type ReturnExpr1[A] = Expr { type T = ReturnValue1[A] }
-  private[ra3] type ReturnExpr2[A,B] = Expr { type T = ReturnValue2[A,B] }
-  type ColumnSpecExpr[A] = Expr { type T = ColumnSpec[A] }
+  private[ra3] type ReturnExpr1[A] = Expr [ ReturnValue1[A] ]
+  private[ra3] type ReturnExpr2[A,B] = Expr [ ReturnValue2[A,B] ]
 
-  type ExprT[A] = Expr{ type T = A}
 
-  private[ra3] type GenericExpr[T0] = Expr { type T = T0 }
-  type DelayedIdent[T0] = Expr.DelayedIdent { type T = T0 }
+  private[ra3] type GenericExpr[T0] = Expr [ T0 ]
+  type DelayedIdent[T0] = Expr.DelayedIdent [ T0 ]
 
-  private[ra3] def global[T0](n: ColumnKey): Identifier[T0] = {
-    val id = Expr.Ident(n).as[T0]
-    new Identifier(id)
-  }
+  // private[ra3] def global[T0](n: ColumnKey): Identifier[T0] = {
+  //   val id = Expr.Ident(n).as[T0]
+  //   new Identifier(id)
+  // }
 
-  private[ra3] def evaluate(expr: Expr)(implicit
+  private[ra3] def evaluate[T](expr: Expr[T])(implicit
       tsc: TaskSystemComponents
-  ): IO[Value[expr.T]] = expr.evalWith(Map.empty)
-  private[ra3] def evaluate(expr: Expr, map: Map[Key, Value[?]])(implicit
+  ): IO[Value[T]] = expr.evalWith(Map.empty)
+  private[ra3] def evaluate[T](expr: Expr[T], map: Map[Key, Value[?]])(implicit
       tsc: TaskSystemComponents
-  ): IO[Value[expr.T]] =
+  ): IO[Value[T]] =
     expr.evalWith(map)
 
   private[ra3] def bufferIfNeededI32(
@@ -125,15 +115,11 @@ package object lang {
         else IO.pure(Left(s.map(_.numElems).sum))
     }
 
-  private[ra3] def local[T1](assigned: Expr)(body: Expr {
-    type T = assigned.T
-  } => Expr {
-    type T = T1
-  }): Expr { type T = T1 } = {
+  private[ra3] def local[T1,R](assigned: Expr[T1])(body: Expr[T1] => Expr[R]): Expr [R]  = {
     val n = ra3.lang.TagKey(new ra3.lang.KeyTag)
-    val b = body(Expr.Ident(n).as[assigned.T])
+    val b = body(Expr.Ident[T1](n))
 
-    Expr.Local(n, assigned, b).asInstanceOf[Expr { type T = T1 }]
+    Expr.Local(n, assigned, b)
   }
 
 

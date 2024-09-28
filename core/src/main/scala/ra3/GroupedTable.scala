@@ -2,6 +2,7 @@ package ra3
 
 import cats.effect.IO
 import tasks.{TaskSystemComponents}
+import ra3.lang.ReturnValue
 
 private[ra3] case class GroupedTable(
     partitions: Seq[(PartitionedTable, Segment.GroupMap)],
@@ -84,7 +85,7 @@ private[ra3] case class GroupedTable(
 private[ra3] object GroupedTable {
   def reduceGroups(
       self: GroupedTable,
-      program: ra3.lang.Expr { type T <: ra3.lang.ReturnValue }
+      program: ra3.lang.Expr[ReturnValue[?]]
   )(implicit
       tsc: TaskSystemComponents
   ): IO[Table] = {
@@ -142,7 +143,7 @@ private[ra3] object GroupedTable {
   }
   def countGroups(
       self: GroupedTable,
-      program: ra3.lang.Expr { type T <: ra3.lang.ReturnValue }
+      program: ra3.lang.Expr[ReturnValue[?]]
   )(implicit
       tsc: TaskSystemComponents
   ): IO[Table] = {

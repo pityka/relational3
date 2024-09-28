@@ -2,6 +2,7 @@ package ra3.lang.syntax
 import ra3.lang.*
 import ra3.BufferInt
 import ra3.DF64
+import ra3.ColumnSpecExpr
 
 private[ra3] trait SyntaxF64ColumnImpl {
   protected def arg0: F64ColumnExpr
@@ -42,48 +43,46 @@ private[ra3] trait SyntaxF64ColumnImpl {
 
   def mean = Expr.makeOp3(ops.Op3.BufferMeanGroupsOpDI)(
     arg0,
-    ra3.lang.Expr.Ident(ra3.lang.GroupMap).as[BufferInt],
-    ra3.lang.Expr.Ident(ra3.lang.Numgroups).as[Int]
+    ra3.lang.Expr.Ident[BufferInt](ra3.lang.GroupMap),
+    ra3.lang.Expr.Ident[Int](ra3.lang.Numgroups)
   )
   def sum = Expr.makeOp3(ops.Op3.BufferSumGroupsOpDI)(
     arg0,
-    ra3.lang.Expr.Ident(ra3.lang.GroupMap).as[BufferInt],
-    ra3.lang.Expr.Ident(ra3.lang.Numgroups).as[Int]
+    ra3.lang.Expr.Ident[BufferInt](ra3.lang.GroupMap),
+    ra3.lang.Expr.Ident[Int](ra3.lang.Numgroups)
   )
   def min = Expr.makeOp3(ops.Op3.BufferMinGroupsOpD)(
     arg0,
-    ra3.lang.Expr.Ident(ra3.lang.GroupMap).as[BufferInt],
-    ra3.lang.Expr.Ident(ra3.lang.Numgroups).as[Int]
+    ra3.lang.Expr.Ident[BufferInt](ra3.lang.GroupMap),
+    ra3.lang.Expr.Ident[Int](ra3.lang.Numgroups)
   )
   def max = Expr.makeOp3(ops.Op3.BufferMaxGroupsOpD)(
     arg0,
-    ra3.lang.Expr.Ident(ra3.lang.GroupMap).as[BufferInt],
-    ra3.lang.Expr.Ident(ra3.lang.Numgroups).as[Int]
+    ra3.lang.Expr.Ident[BufferInt](ra3.lang.GroupMap),
+    ra3.lang.Expr.Ident[Int](ra3.lang.Numgroups)
   )
   def hasMissing = Expr.makeOp3(ops.Op3.BufferHasMissingInGroupsOpD)(
     arg0,
-    ra3.lang.Expr.Ident(ra3.lang.GroupMap).as[BufferInt],
-    ra3.lang.Expr.Ident(ra3.lang.Numgroups).as[Int]
+    ra3.lang.Expr.Ident[BufferInt](ra3.lang.GroupMap),
+    ra3.lang.Expr.Ident[Int](ra3.lang.Numgroups)
   )
   def count = Expr.makeOp3(ops.Op3.BufferCountGroupsOpDI)(
     arg0,
-    ra3.lang.Expr.Ident(ra3.lang.GroupMap).as[BufferInt],
-    ra3.lang.Expr.Ident(ra3.lang.Numgroups).as[Int]
+    ra3.lang.Expr.Ident[BufferInt](ra3.lang.GroupMap),
+    ra3.lang.Expr.Ident[Int](ra3.lang.Numgroups)
   )
   def first = Expr.makeOp3(ops.Op3.BufferFirstGroupsOpDIi)(
     arg0,
-    ra3.lang.Expr.Ident(ra3.lang.GroupMap).as[BufferInt],
-    ra3.lang.Expr.Ident(ra3.lang.Numgroups).as[Int]
+    ra3.lang.Expr.Ident[BufferInt](ra3.lang.GroupMap),
+    ra3.lang.Expr.Ident[Int](ra3.lang.Numgroups)
   )
 
   def unnamed = ra3.lang.Expr
-    .BuiltInOp1(arg0, ops.Op1.MkUnnamedColumnSpecChunk)
-    .asInstanceOf[ColumnSpecExpr[DF64]]
+    .BuiltInOp1(ops.Op1.MkUnnamedColumnSpecChunkF64)(arg0)
 
-  infix def as(arg1: Expr { type T = String }) =
+  infix def as(arg1: Expr[String]) =
     ra3.lang.Expr
-      .BuiltInOp2(arg0, arg1, ops.Op2.MkNamedColumnSpecChunkF64)
-      .asInstanceOf[Expr{type T = ColumnSpec[DF64]}]
+      .BuiltInOp2(ops.Op2.MkNamedColumnSpecChunkF64)(arg0, arg1)
 
   infix def as(arg1: String): ColumnSpecExpr[DF64] = as(Expr.LitStr(arg1))
 

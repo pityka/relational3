@@ -16,11 +16,11 @@ private[ra3] trait SyntaxIntImpl {
   
 
   def unnamed = ra3.lang.Expr
-    .BuiltInOp1(arg0, ops.Op1.MkUnnamedConstantI32)
-    .asInstanceOf[Expr { type T = ColumnSpec[Int] }]
+    .BuiltInOp1(ops.Op1.MkUnnamedConstantI32)(arg0 )
 
-  infix def as(arg1: Expr { type T = String }) = ra3.lang.Expr
-    .BuiltInOp2(arg0, arg1, ops.Op2.MkNamedConstantI32)
-    .asInstanceOf[Expr { type T = ColumnSpec[ra3.DI32] }]
-  infix def as(arg1: String): Expr { type T = ColumnSpec[ra3.DI32] } = as(Expr.LitStr(arg1))
+  infix def as(arg1: Expr[String]) = ra3.lang.Expr
+    .BuiltInOp2(ops.Op2.MkNamedConstantI32)(arg0, arg1 )
+  infix def as(arg1: String): Expr[ ColumnSpec[Int] ] = 
+    ra3.lang.Expr
+    .BuiltInOp2(ops.Op2.MkNamedConstantI32)(arg0, Expr.LitStr(arg1) )
 }

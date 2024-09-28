@@ -15,39 +15,38 @@ private[ra3] sealed trait Op2 {
 
 private[ra3] object Op2 {
 
-  object MkReturnValue2 extends Op2 {
-    type A0 = ra3.lang.ColumnSpec[?]
-    type A1 = ra3.lang.ColumnSpec[?]
-    type T = ra3.lang.ReturnValue2[?, ?]
+  class MkReturnValue2[T0,T1] extends Op2 {
+    type A0 = ra3.lang.ColumnSpec[T0]
+    type A1 = ra3.lang.ColumnSpec[T1]
+    type T = ra3.lang.ReturnValue2[T0, T1]
     def op(a0: A0, a1: A1)(implicit tsc: TaskSystemComponents) =
       IO.pure(ra3.lang.ReturnValue2(a0, a1, None))
   }
 
-  object Tap extends Op2 {
+  class Tap[B] extends Op2 {
 
-    type A0
+    type A0 = B
     type A1 = String
     type T = A0
     def op(a: A0, b: A1)(implicit tsc: TaskSystemComponents) = IO {
 
-      scribe.info(s"$b : ${a.toString}")
+      scribe.info(scribe.LogFeature.string2LoggableMessage(s"$b : ${a.toString}"))
       a
     }
   }
 
-  case object Cons extends Op2 {
-    type A
+  class Cons[A] extends Op2 {
     type A0 = A
     type A1 = List[A]
     type T = List[A]
     def op(a: A, b: List[A])(implicit tsc: TaskSystemComponents) =
       IO.pure(a :: b)
   }
-  case object MkReturnWhere extends Op2 {
+  class MkReturnWhere[K] extends Op2 {
 
-    type A0 = ra3.lang.ReturnValue
+    type A0 = ra3.lang.ReturnValue[K]
     type A1 = DI32
-    type T = ReturnValue
+    type T = ReturnValue[K]
     def op(a: A0, b: A1)(implicit tsc: TaskSystemComponents) =
       (a.filter match {
         case None => IO.pure(Some(b))
@@ -63,13 +62,11 @@ private[ra3] object Op2 {
 
     type A0 = ra3.DI32
     type A1 = String
-    type T = NamedColumnChunk
+    type T = NamedColumnChunkI32
     def op(a: A0, b: String)(implicit tsc: TaskSystemComponents) =
       IO.pure(
-        NamedColumnChunk(
-          a.map(ColumnTag.I32.makeTaggedSegments)
-            .left
-            .map(ColumnTag.I32.makeTaggedBuffer),
+        NamedColumnChunkI32(
+          a,
           b
         )
       )
@@ -78,13 +75,11 @@ private[ra3] object Op2 {
 
     type A0 = ra3.DF64
     type A1 = String
-    type T = NamedColumnChunk
+    type T = NamedColumnChunkF64
     def op(a: A0, b: String)(implicit tsc: TaskSystemComponents) =
       IO.pure(
-        NamedColumnChunk(
-          a.map(ColumnTag.F64.makeTaggedSegments)
-            .left
-            .map(ColumnTag.F64.makeTaggedBuffer),
+        NamedColumnChunkF64(
+          a,
           b
         )
       )
@@ -93,13 +88,11 @@ private[ra3] object Op2 {
 
     type A0 = ra3.DI64
     type A1 = String
-    type T = NamedColumnChunk
+    type T = NamedColumnChunkI64
     def op(a: A0, b: String)(implicit tsc: TaskSystemComponents) =
       IO.pure(
-        NamedColumnChunk(
-          a.map(ColumnTag.I64.makeTaggedSegments)
-            .left
-            .map(ColumnTag.I64.makeTaggedBuffer),
+        NamedColumnChunkI64(
+          a,
           b
         )
       )
@@ -108,13 +101,11 @@ private[ra3] object Op2 {
 
     type A0 = ra3.DStr
     type A1 = String
-    type T = NamedColumnChunk
+    type T = NamedColumnChunkStr
     def op(a: A0, b: String)(implicit tsc: TaskSystemComponents) =
       IO.pure(
-        NamedColumnChunk(
-          a.map(ColumnTag.StringTag.makeTaggedSegments)
-            .left
-            .map(ColumnTag.StringTag.makeTaggedBuffer),
+        NamedColumnChunkStr(
+          a,
           b
         )
       )
@@ -123,13 +114,11 @@ private[ra3] object Op2 {
 
     type A0 = ra3.DInst
     type A1 = String
-    type T = NamedColumnChunk
+    type T = NamedColumnChunkInst
     def op(a: A0, b: String)(implicit tsc: TaskSystemComponents) =
       IO.pure(
-        NamedColumnChunk(
-          a.map(ColumnTag.Instant.makeTaggedSegments)
-            .left
-            .map(ColumnTag.Instant.makeTaggedBuffer),
+        NamedColumnChunkInst(
+          a,
           b
         )
       )

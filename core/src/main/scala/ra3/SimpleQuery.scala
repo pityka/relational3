@@ -4,7 +4,7 @@ import tasks.TaskSystemComponents
 import cats.effect.IO
 
 private[ra3] object SimpleQuery {
-  def simpleQuery(self: Table, program: ra3.lang.Query)(implicit
+  def simpleQuery(self: Table, program: ra3.lang.Query[Any])(implicit
       tsc: TaskSystemComponents
   ) = {
     val nSegments = self.columns.head.segments.size
@@ -52,7 +52,7 @@ private[ra3] object SimpleQuery {
         )
       }
   }
-  def simpleQueryCount(self: Table, program: ra3.lang.Query)(implicit
+  def simpleQueryCount(self: Table, program: ra3.lang.Query[Any])(implicit
       tsc: TaskSystemComponents
   ): IO[Table] = {
     val nSegments = self.columns.head.segments.size

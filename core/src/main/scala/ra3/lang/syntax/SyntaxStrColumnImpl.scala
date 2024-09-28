@@ -42,23 +42,23 @@ private[ra3] trait SyntaxStrColumnImpl {
 
   def first = Expr.makeOp3(ops.Op3.BufferFirstGroupsOpSIi)(
     arg0,
-    ra3.lang.Expr.Ident(ra3.lang.GroupMap).as[BufferInt],
-    ra3.lang.Expr.Ident(ra3.lang.Numgroups).as[Int]
+    ra3.lang.Expr.Ident[BufferInt](ra3.lang.GroupMap),
+    ra3.lang.Expr.Ident[Int](ra3.lang.Numgroups)
   )
   def count = Expr.makeOp3(ops.Op3.BufferCountInGroupsOpS)(
     arg0,
-    ra3.lang.Expr.Ident(ra3.lang.GroupMap).as[BufferInt],
-    ra3.lang.Expr.Ident(ra3.lang.Numgroups).as[Int]
+    ra3.lang.Expr.Ident[BufferInt](ra3.lang.GroupMap),
+    ra3.lang.Expr.Ident[Int](ra3.lang.Numgroups)
   )
   def countDistinct = Expr.makeOp3(ops.Op3.BufferCountDistinctInGroupsOpS)(
     arg0,
-    ra3.lang.Expr.Ident(ra3.lang.GroupMap).as[BufferInt],
-    ra3.lang.Expr.Ident(ra3.lang.Numgroups).as[Int]
+    ra3.lang.Expr.Ident[BufferInt](ra3.lang.GroupMap),
+    ra3.lang.Expr.Ident[Int](ra3.lang.Numgroups)
   )
   def hasMissing = Expr.makeOp3(ops.Op3.BufferHasMissingInGroupsOpS)(
     arg0,
-    ra3.lang.Expr.Ident(ra3.lang.GroupMap).as[BufferInt],
-    ra3.lang.Expr.Ident(ra3.lang.Numgroups).as[Int]
+    ra3.lang.Expr.Ident[BufferInt](ra3.lang.GroupMap),
+    ra3.lang.Expr.Ident[Int](ra3.lang.Numgroups)
   )
   def substring(start: Int, len: Int) =
     Expr.makeOp3(ops.Op3.BufferSubstringOpS)(
@@ -68,14 +68,12 @@ private[ra3] trait SyntaxStrColumnImpl {
     )
 
   def unnamed = ra3.lang.Expr
-    .BuiltInOp1(arg0, ops.Op1.MkUnnamedColumnSpecChunk)
-    .asInstanceOf[ColumnSpecExpr[ra3.DStr] ]
+    .BuiltInOp1(ops.Op1.MkUnnamedColumnSpecChunkStr)(arg0 )
 
-  infix def as(arg1: Expr { type T = String }) = ra3.lang.Expr
-    .BuiltInOp2(arg0, arg1, ops.Op2.MkNamedColumnSpecChunkString)
-    .asInstanceOf[ColumnSpecExpr[ra3.DStr]]
+  infix def as(arg1: Expr[String]) = ra3.lang.Expr
+    .BuiltInOp2(ops.Op2.MkNamedColumnSpecChunkString)(arg0, arg1 )
 
-  infix def as(arg1: String): ColumnSpecExpr[ra3.DStr]  = as(Expr.LitStr(arg1))
+  infix def as(arg1: String): Expr[ColumnSpec[ra3.DStr]]  = as(Expr.LitStr(arg1))
 
   def <=(arg1: StrColumnExpr) =
     Expr.makeOp2(ops.Op2.ColumnLtEqOpStrStr)(arg0, arg1)

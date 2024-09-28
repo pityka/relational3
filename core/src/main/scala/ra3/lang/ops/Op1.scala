@@ -15,8 +15,8 @@ private[ra3] sealed trait Op1 {
 
 private[ra3] object Op1 {
 
-  object List1 extends Op1 {
-    type A0
+  class List1[B] extends Op1 {
+    type A0 = B
     type T = List[A0]
     def op(a: A0)(implicit tsc: TaskSystemComponents) = IO.pure(List(a))
 
@@ -29,10 +29,10 @@ private[ra3] object Op1 {
   //   def op(a: Proj)(implicit tsc: TaskSystemComponents) =
   //     IO.pure(ra3.lang.ReturnValue(a, None))
   // }
-  object MkReturnValue1 extends Op1 {
-    type A0 = ra3.lang.ColumnSpec[?]
-    type T = ra3.lang.ReturnValue1[?]
-    def op(a: ra3.lang.ColumnSpec[?])(implicit tsc: TaskSystemComponents) =
+  class MkReturnValue1[B] extends Op1 {
+    type A0 = ra3.lang.ColumnSpec[B]
+    type T = ra3.lang.ReturnValue1[B]
+    def op(a: ra3.lang.ColumnSpec[B])(implicit tsc: TaskSystemComponents) =
       IO.pure(ra3.lang.ReturnValue1(a, None))
   }
 
@@ -43,11 +43,35 @@ private[ra3] object Op1 {
   //     IO.pure(ra3.lang.ReturnValue(projections = List(ra3.lang.Star),filter = Some(a)))
   // }
 
-  case object MkUnnamedColumnSpecChunk extends Op1 {
-    type A0 = Either[TaggedBuffer, TaggedSegments]
-    type T = ra3.lang.UnnamedColumnChunk
+  case object MkUnnamedColumnSpecChunkI32 extends Op1 {
+    type A0 = DI32
+    type T = ra3.lang.UnnamedColumnChunkI32
     def op(a: A0)(implicit tsc: TaskSystemComponents) =
-      IO.pure(ra3.lang.UnnamedColumnChunk(a))
+      IO.pure(ra3.lang.UnnamedColumnChunkI32(a))
+  }
+  case object MkUnnamedColumnSpecChunkI64 extends Op1 {
+    type A0 = DI64
+    type T = ra3.lang.UnnamedColumnChunkI64
+    def op(a: A0)(implicit tsc: TaskSystemComponents) =
+      IO.pure(ra3.lang.UnnamedColumnChunkI64(a))
+  }
+  case object MkUnnamedColumnSpecChunkF64 extends Op1 {
+    type A0 = DF64
+    type T = ra3.lang.UnnamedColumnChunkF64
+    def op(a: A0)(implicit tsc: TaskSystemComponents) =
+      IO.pure(ra3.lang.UnnamedColumnChunkF64(a))
+  }
+  case object MkUnnamedColumnSpecChunkStr extends Op1 {
+    type A0 = DStr
+    type T = ra3.lang.UnnamedColumnChunkStr
+    def op(a: A0)(implicit tsc: TaskSystemComponents) =
+      IO.pure(ra3.lang.UnnamedColumnChunkStr(a))
+  }
+  case object MkUnnamedColumnSpecChunkInst extends Op1 {
+    type A0 = DInst
+    type T = ra3.lang.UnnamedColumnChunkInst
+    def op(a: A0)(implicit tsc: TaskSystemComponents) =
+      IO.pure(ra3.lang.UnnamedColumnChunkInst(a))
   }
   case object MkUnnamedConstantI32 extends Op1 {
     type A0 = Int

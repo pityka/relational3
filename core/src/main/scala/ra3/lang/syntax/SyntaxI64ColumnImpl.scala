@@ -17,8 +17,8 @@ private[ra3] trait SyntaxI64ColumnImpl {
 
   def count = Expr.makeOp3(ops.Op3.BufferCountInGroupsOpL)(
     arg0,
-    ra3.lang.Expr.Ident(ra3.lang.GroupMap).as[BufferInt],
-    ra3.lang.Expr.Ident(ra3.lang.Numgroups).as[Int]
+    ra3.lang.Expr.Ident[BufferInt](ra3.lang.GroupMap),
+    ra3.lang.Expr.Ident[Int](ra3.lang.Numgroups)
   )
   // def sum = Expr.makeOp3(ops.Op3.BufferSumGroupsOpL)(
   //   arg0,
@@ -37,24 +37,22 @@ private[ra3] trait SyntaxI64ColumnImpl {
   // )
   def first = Expr.makeOp3(ops.Op3.BufferFirstGroupsOpL)(
     arg0,
-    ra3.lang.Expr.Ident(ra3.lang.GroupMap).as[BufferInt],
-    ra3.lang.Expr.Ident(ra3.lang.Numgroups).as[Int]
+    ra3.lang.Expr.Ident[BufferInt](ra3.lang.GroupMap),
+    ra3.lang.Expr.Ident[Int](ra3.lang.Numgroups)
   )
   def hasMissing = Expr.makeOp3(ops.Op3.BufferHasMissingInGroupsOpL)(
     arg0,
-    ra3.lang.Expr.Ident(ra3.lang.GroupMap).as[BufferInt],
-    ra3.lang.Expr.Ident(ra3.lang.Numgroups).as[Int]
+    ra3.lang.Expr.Ident[BufferInt](ra3.lang.GroupMap),
+    ra3.lang.Expr.Ident[Int](ra3.lang.Numgroups)
   )
 
   def unnamed = ra3.lang.Expr
-    .BuiltInOp1(arg0, ops.Op1.MkUnnamedColumnSpecChunk)
-    .asInstanceOf[Expr { type T = ColumnSpec[ra3.DI64] }]
+    .BuiltInOp1(ops.Op1.MkUnnamedColumnSpecChunkI64)(arg0 )
 
-  infix def as(arg1: Expr { type T = String }) = ra3.lang.Expr
-    .BuiltInOp2(arg0, arg1, ops.Op2.MkNamedColumnSpecChunkI64)
-    .asInstanceOf[Expr { type T = ColumnSpec[ra3.DI64] }]
+  infix def as(arg1: Expr[String]) = ra3.lang.Expr
+    .BuiltInOp2(ops.Op2.MkNamedColumnSpecChunkI64)(arg0, arg1 )
 
-  infix def as(arg1: String): Expr { type T = ColumnSpec[ra3.DI64] } = as(Expr.LitStr(arg1))
+  infix def as(arg1: String): Expr[ColumnSpec[ra3.DI64]] = as(Expr.LitStr(arg1))
 
   // def <=(arg1: I32ColumnExpr) = Expr.makeOp2(ops.Op2.ColumnLtEqOpII)(arg0, arg1)
   // def <=(arg1: Int) = Expr.makeOp2(ops.Op2.ColumnLtEqOpIcI)(arg0, arg1)

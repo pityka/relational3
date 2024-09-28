@@ -21,22 +21,22 @@ private[ra3] sealed trait Op5 {
   def op(a: A0, b: A1, c: A2, d: A3, e:A4)(implicit tsc: TaskSystemComponents): IO[T]
 }
 object OpN {
-  object MkReturnValue4 extends Op4 {
-    type A0 = ra3.lang.ColumnSpec[?]
-    type A1 = ra3.lang.ColumnSpec[?]
-    type A2 = ra3.lang.ColumnSpec[?]
-    type A3 = ra3.lang.ColumnSpec[?]
-    type T = ra3.lang.ReturnValue4[?, ?, ?,?]
+  class MkReturnValue4[T0,T1,T2,T3] extends Op4 {
+    type A0 = ra3.lang.ColumnSpec[T0]
+    type A1 = ra3.lang.ColumnSpec[T1]
+    type A2 = ra3.lang.ColumnSpec[T2]
+    type A3 = ra3.lang.ColumnSpec[T3]
+    type T = ra3.lang.ReturnValue4[T0,T1,T2,T3]
     def op(a0: A0, a1: A1, a2: A2, a3: A3)(implicit tsc: TaskSystemComponents) =
       IO.pure(ra3.lang.ReturnValue4(a0, a1, a2,a3, None))
   }
-  object MkReturnValue5 extends Op5 {
-    type A0 = ra3.lang.ColumnSpec[?]
-    type A1 = ra3.lang.ColumnSpec[?]
-    type A2 = ra3.lang.ColumnSpec[?]
-    type A3 = ra3.lang.ColumnSpec[?]
-    type A4 = ra3.lang.ColumnSpec[?]
-    type T = ra3.lang.ReturnValue5[?, ?, ?,?,?]
+  class MkReturnValue5[T0,T1,T2,T3,T4] extends Op5 {
+  type A0 = ra3.lang.ColumnSpec[T0]
+    type A1 = ra3.lang.ColumnSpec[T1]
+    type A2 = ra3.lang.ColumnSpec[T2]
+    type A3 = ra3.lang.ColumnSpec[T3]
+    type A4 = ra3.lang.ColumnSpec[T4]
+    type T = ra3.lang.ReturnValue5[T0,T1,T2,T3,T4]
     def op(a0: A0, a1: A1, a2: A2, a3: A3, a4:A4)(implicit tsc: TaskSystemComponents) =
       IO.pure(ra3.lang.ReturnValue5(a0, a1, a2,a3,a4, None))
   }

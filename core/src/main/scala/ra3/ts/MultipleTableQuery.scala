@@ -17,7 +17,7 @@ import ra3.lang.*
   */
 private[ra3] case class MultipleTableQuery(
     input: Seq[(ColumnTag, SegmentWithName)],
-    predicate: ra3.lang.Expr,
+    predicate: ra3.lang.Expr[?],
     outputPath: LogicalPath,
     takes: Seq[(String, Option[SegmentInt])]
 )
@@ -25,7 +25,7 @@ private[ra3] object MultipleTableQuery {
 
   def doit(
       input: Seq[(ColumnTag, SegmentWithName)],
-      predicate: ra3.lang.Expr,
+      predicate: ra3.lang.Expr[ReturnValue[?]],
       outputPath: LogicalPath,
       takes: Seq[(String, Option[SegmentInt])]
   )(implicit tsc: TaskSystemComponents): IO[List[(Segment, String)]] = {
@@ -106,7 +106,7 @@ private[ra3] object MultipleTableQuery {
 
         ra3.lang
           .evaluate(predicate, env)
-          .map(_.v.asInstanceOf[ReturnValue])
+          .map(_.v)
           .flatMap { returnValue =>
             val mask = returnValue.filter
 
@@ -127,7 +127,7 @@ private[ra3] object MultipleTableQuery {
                 case (ra3.lang.StarColumnSpec, _) =>
                   // get those columns who are not yet buffered
                   // buffer them and 'take' them
-                  val r: IO[Seq[ra3.lang.NamedColumnChunk]] =
+                  val r =
                     IO.parSequenceN(32)(
                       input
                         .map { s =>
@@ -140,10 +140,9 @@ private[ra3] object MultipleTableQuery {
                           )
                         }
                         .map {
-                          case (_, Some((_, Left(buffer), columnName))) =>
+                          case ((tag,_), Some((_, Left(buffer), columnName))) =>
                             IO.pure(
-                              ra3.lang
-                                .NamedColumnChunk(Left(buffer), columnName)
+                              tag.makeNamedColumnSpecFromBuffer(buffer.asInstanceOf[tag.BufferType],columnName)
                             )
                           case (
                                 (tag,SegmentWithName(
@@ -156,32 +155,28 @@ private[ra3] object MultipleTableQuery {
                               ) =>
                             if (maskIsEmpty)
                               IO.pure(
-                                NamedColumnChunk(
-                                  Left(
-                                    tag.makeTaggedBuffer(tag.makeBufferFromSeq())
-                                  ),
-                                  columnName
-                                )
+                                tag.makeNamedColumnSpecFromBuffer(tag.makeBufferFromSeq(),columnName)
                               )
                             else
                               ra3.Utils
                                 .bufferMultiple(tag)(segmentParts.map(_.asInstanceOf[tag.SegmentType]))
                                 .map(b =>
-                                  NamedColumnChunk(
-                                    Left(
-                                      tag.makeTaggedBuffer(takeBuffers
+                                  tag.makeNamedColumnSpecFromBuffer(
+                                      takeBuffers
                                         .find(_._1 == tableId)
                                         .get
                                         ._2
                                         .map(tag.take(b,_))
-                                        .getOrElse(b))
-                                    ),
+                                        .getOrElse(b)
+                                    ,
                                     columnName
                                   )
                                 )
                         }
                     )
                   r
+                case x => 
+                  throw new RuntimeException("Unexpected unmatched case "+x)
               })
               .map(_.flatten)
 
@@ -191,18 +186,19 @@ private[ra3] object MultipleTableQuery {
               IO.parSequenceN(32)(selected.toList.zipWithIndex.map {
                 case (columnSpec, columnIdx) =>
                   val columnName = columnSpec.name
+
                   val taggedBuffer = columnSpec match {
-                    case NamedColumnChunk(Right(_), _) =>
+                    case NamedColumnSpecWithColumnChunkValueExtractor(Right(_), _) =>
                       throw new AssertionError(
                         "unexpected Right[Seq[Segment]] returned from program"
                       )
-                    case NamedColumnChunk(Left(x), _)
+                    case NamedColumnSpecWithColumnChunkValueExtractor(Left(x), _)
                         if x.buffer.length == outputNumElemsBeforeFiltering =>
-                      x
-                    case NamedColumnChunk(Left(x), _)
+                      x.tag.makeTaggedBuffer(x.buffer)
+                    case NamedColumnSpecWithColumnChunkValueExtractor(Left(x), _)
                         if outputNumElemsBeforeFiltering == 0 =>
                       x.tag.makeTaggedBuffer(x.tag.makeBufferFromSeq())
-                    case NamedColumnChunk(Left(x), _) =>
+                    case NamedColumnSpecWithColumnChunkValueExtractor(Left(x), _) =>
                       require(
                         false,
                         s"program returned a buffer of size ${x.buffer.length} instead of ${outputNumElemsBeforeFiltering}. In this invocation the program must be element wise"
@@ -216,7 +212,8 @@ private[ra3] object MultipleTableQuery {
                       ColumnTag.I64.makeTaggedBuffer(BufferLong.constant(x, outputNumElemsBeforeFiltering))
                     case NamedConstantString(x, _) =>
                       ColumnTag.StringTag.makeTaggedBuffer(BufferString.constant(x, outputNumElemsBeforeFiltering))
-
+                    case x => 
+                      throw new RuntimeException("Unexpected unmatched case "+x)
                   }
                   val tag = taggedBuffer.tag
                   val buffer = taggedBuffer.buffer
@@ -242,7 +239,7 @@ private[ra3] object MultipleTableQuery {
   }
   def queue(
       input: Seq[TypedSegmentWithName],
-      predicate: ra3.lang.Expr { type T <: ReturnValue },
+      predicate: ra3.lang.Expr[ReturnValue[?]],
       outputPath: LogicalPath,
       takes: Seq[(String, Option[SegmentInt])]
   )(implicit
@@ -271,7 +268,7 @@ private[ra3] object MultipleTableQuery {
     Task[MultipleTableQuery, Seq[(Segment, String)]]("MultipleTableQuery", 1) {
       case input =>
         implicit ce =>
-          doit(input.input, input.predicate, input.outputPath, input.takes)
+          doit(input.input, input.predicate.asInstanceOf[Expr[ReturnValue[?]]], input.outputPath, input.takes)
 
     }
 }

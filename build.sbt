@@ -129,7 +129,7 @@ lazy val core = project
       "io.github.pityka" %% "saddle-core" % "4.0.0-M11",
       "io.github.pityka" %% "tasks-core" % "3.0.0-M13",
       "de.lhns" %% "fs2-compress-gzip" % "1.0.0",
-      "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % "2.13.31" % "compile-internal"
+      "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % "2.30.13" % "compile-internal"
     ) ++ akkaProvided ++ specs
   )
 

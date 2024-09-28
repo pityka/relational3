@@ -11,10 +11,10 @@ import ra3.lang.ops.OpAny
 private[ra3] object Render {
 
   def render(op: ra3.lang.ops.Op4): String = op match {
-    case MkReturnValue4 => "return"
+    case _:MkReturnValue4[?,?,?,?] => "return"
   }
   def render(op: ra3.lang.ops.Op5): String = op match {
-    case MkReturnValue5 => "return"
+    case _:MkReturnValue5[?,?,?,?,?] => "return"
   }
   def render(op: ra3.lang.ops.Op3): String = op match {
     case BufferCountInGroupsOpL            => "in"
@@ -87,7 +87,7 @@ private[ra3] object Render {
     case ColumnDivOpDD                 => "/"
     case ColumnMulOpDD                 => "*"
     case ColumnSubtractOpDD            => "-"
-    case Cons                          => "::"
+    case _:Cons[?]                          => "::"
     case ColumnEqOpInstcL              => "=="
     case ColumnNEqOpInstcL             => "!="
     case ColumnGtEqOpInstcL            => ">="
@@ -110,7 +110,7 @@ private[ra3] object Render {
     case ColumnGtEqOpStrcStr           => ">="
     case ColumnGtOpStrcStr             => ">"
     case ColumnMatchesOpStrcStr        => "~"
-    case MkReturnWhere                 => "WHERE"
+    case _:MkReturnWhere[?]                 => "WHERE"
     case ColumnEqOpLcL                 => "=="
     case ColumnNEqOpII                 => "!="
     case ColumnEqOpII                  => "=="
@@ -127,7 +127,7 @@ private[ra3] object Render {
     case ColumnGtOpInstInst            => "."
     case ColumnLtOpInstInst            => "<"
     case MkNamedConstantF64            => "as"
-    case lang.ops.Op2.Tap              => "tap"
+    case _:lang.ops.Op2.Tap[?]              => "tap"
     case ColumnPrintfOpDcStr           => "printf"
     case MkNamedColumnSpecChunkI32        => "as"
     case MkNamedColumnSpecChunkI64        => "as"
@@ -169,10 +169,14 @@ private[ra3] object Render {
     case ColumnConcatOpStrStr          => "++"
     case x                             => x.toString()
   }
-  def renderOp1(op: ra3.lang.ops.Op1, arg: ra3.lang.Expr): String = op match {
+  def renderOp1(op: ra3.lang.ops.Op1, arg: ra3.lang.Expr[?]): String = op match {
     case ColumnToInstantEpochMilliOpL => render(arg) + ".toEpochMilli"
     case MkUnnamedConstantI32         => render(arg)
-    case MkUnnamedColumnSpecChunk     => render(arg)
+    case MkUnnamedColumnSpecChunkI32     => render(arg)
+    case MkUnnamedColumnSpecChunkI64     => render(arg)
+    case MkUnnamedColumnSpecChunkF64     => render(arg)
+    case MkUnnamedColumnSpecChunkStr     => render(arg)
+    case MkUnnamedColumnSpecChunkInst     => render(arg)
     case MkUnnamedConstantI64         => render(arg)
     case ColumnIsMissingOpL           => render(arg) + ".isnull"
     case ColumnIsMissingOpD           => render(arg) + ".isnull"
@@ -187,7 +191,7 @@ private[ra3] object Render {
     case ColumnHoursOpInst            => render(arg) + ".hours"
     case ColumnMonthsOpInst           => render(arg) + ".months"
     case ColumnDaysOpInst             => render(arg) + ".days"
-    case List1                        => "list"
+    case _:List1[?]                        => "list"
     case ToString                     => render(arg) + ".toString"
     case MkUnnamedConstantStr         => render(arg)
     case ColumnToISOOpInst            => render(arg) + ".toInstISO"
@@ -217,10 +221,10 @@ private[ra3] object Render {
 
   // }
 
-  def render(expr: Expr): String = expr match {
+  def render(expr: Expr[?]): String = expr match {
     case Expr.Local(name,assigned,body) => 
       val rAssigned = assigned match {
-          case _: Local =>
+          case _: Local[?] =>
             s"(${render(assigned)})"
           case _ => render(assigned)
         }
@@ -228,17 +232,17 @@ private[ra3] object Render {
         f"${render(body)} WITH ($rLet = $rAssigned)"
     case LitI64(s)           => s"${s}L"
     case LitStr(s)           => s"\"$s\""
-    case BuiltInOp2(arg0, arg1, op) =>
+    case e@BuiltInOp2(op) =>
       val rOp = render(op)
       val noParens = if (rOp == "as") true else false
-      if (noParens) s"${render(arg0)} ${render(op)} ${render(arg1)}"
+      if (noParens) s"${render(e.arg0)} ${render(op)} ${render(e.arg1)}"
       else
-        s"(${render(arg0)} ${render(op)} ${render(arg1)})"
+        s"(${render(e.arg0)} ${render(op)} ${render(e.arg1)})"
     
-    case BuiltInOp1(arg0, op) =>
-      s"${renderOp1(op, arg0)}"
-    case BuiltInOp3(arg0, arg1, arg2, op) =>
-      val args = List(arg0, arg1, arg2).filter {
+    case e@BuiltInOp1(op) =>
+      s"${renderOp1(op, e.arg0)}"
+    case e@BuiltInOp3(op) =>
+      val args = List(e.arg0, e.arg1, e.arg2).filter {
         _ match {
           case Expr.Ident(_: SingletonKey) => false
           case _                           => true
@@ -246,8 +250,8 @@ private[ra3] object Render {
       }
       if (args.size == 1) s"${render(args.head)}.${render(op)}"
       else s"${render(op)}(${args.map(render).mkString(", ")})"
-    case BuiltInOp4(arg0, arg1, arg2, arg3, op) =>
-      val args = List(arg0, arg1, arg2, arg3).filter {
+    case e@BuiltInOp4(op) =>
+      val args = List(e.arg0, e.arg1, e.arg2, e.arg3).filter {
         _ match {
           case Expr.Ident(_: SingletonKey) => false
           case _                           => true
@@ -255,8 +259,8 @@ private[ra3] object Render {
       }
       if (args.size == 1) s"${render(args.head)}.${render(op)}"
       else s"${render(op)}(${args.map(render).mkString(", ")})"
-    case BuiltInOp5(arg0, arg1, arg2, arg3,arg4, op) =>
-      val args = List(arg0, arg1, arg2, arg3,arg4).filter {
+    case e@BuiltInOp5(op) =>
+      val args = List(e.arg0, e.arg1, e.arg2, e.arg3,e.arg4).filter {
         _ match {
           case Expr.Ident(_: SingletonKey) => false
           case _                           => true
@@ -265,12 +269,12 @@ private[ra3] object Render {
       if (args.size == 1) s"${render(args.head)}.${render(op)}"
       else s"${render(op)}(${args.map(render).mkString(", ")})"
     case LitNum(s) => s"$s"
-    case BuiltInOpAny(args, op) =>
-      op match {
-        case OpAny.MkReturnValueStar =>  
-            s"SELECT ${args.map(a => render(a)).mkString(", ")}"
+    // case BuiltInOpAny(args, op) =>
+    //   op match {
+    //     case OpAny.MkReturnValueStar =>  
+    //         s"SELECT ${args.map(a => render(a)).mkString(", ")}"
        
-      }
+    //   }
       
     case Expr.Ident(name) =>
       name match {
@@ -288,7 +292,7 @@ private[ra3] object Render {
           }
         case lang.IntKey(s) => s"$$C$s"
       }
-    case ra3.lang.Expr.Star => "*"
+    // case ra3.lang.Expr.Star => "*"
     case LitF64Set(s)       => s"(${s.mkString(", ")})"
     case LitStrSet(s)       => s"(${s.mkString(", ")})"
     case DelayedIdent(Delayed(table, selection)) =>

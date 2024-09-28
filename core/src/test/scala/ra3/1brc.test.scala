@@ -60,12 +60,13 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
           .columnsTuple { 
             case (station, sum) =>
 
+            val tup = (station.first.unnamed,
+                  sum.sum.unnamed)
 
             station
               .groupBy(
                 selectTuple(
-                 (station.first,
-                  sum.sum)// / count.sum
+                 tup// / count.sum
                 )
               )
               .all
