@@ -9,5 +9,5 @@ private[ra3] trait SyntaxLongImpl {
 
   infix def as(arg1: Expr[String]) = ra3.lang.Expr
     .BuiltInOp2( ops.Op2.MkNamedConstantI64)(arg0, arg1)
-  infix def as(arg1: String): Expr [ColumnSpec[Long] ] = as(Expr.LitStr(arg1))
+  infix def as(arg1: String): Expr [ColumnSpec[Long] ] = as(ra3.const(arg1))
 }

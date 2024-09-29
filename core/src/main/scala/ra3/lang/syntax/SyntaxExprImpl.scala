@@ -11,5 +11,5 @@ private[ra3] trait SyntaxExprImpl[T0] {
 
   def tap(arg1: StrExpr): Expr[T0] = ra3.lang.Expr
     .BuiltInOp2(new ops.Op2.Tap[T0])(arg0, arg1 )
-  def tap(arg1: String): Expr[T0] = tap(Expr.LitStr(arg1))
+  def tap(arg1: String): Expr[T0] = tap(ra3.const(arg1))
 }

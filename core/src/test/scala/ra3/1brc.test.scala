@@ -38,48 +38,45 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
 
        
 
-        val t0 : ra3.tablelang.TableExpr{
-          type T = ra3.lang.ReturnValueTuple[(ra3.StrVar, ra3.F64Var)]
-        }= station
+        val t0 = station
           .groupBy(
-            selectTuple(
-              (station.first as "station",
-              value.sum as "sum")
+            ra3.select0.extend(station.first as "station")
+            .extend(value.sum as "sum")
+            
+              
               // value.count as "count"
-            )
+            
           )
           .partial
           
-        t0.t0 
-        t0.mm
-        // val ct : ra3.tablelang.TableExpr.curryColumnsTuple[(ra3.StrVar, ra3.F64Var)] = t0.columnsTuple
-
+        
+        
         
 
-        val t = t0
+        val t  = t0
           .columnsTuple { 
             case (station, sum) =>
 
-            val tup = (station.first.unnamed,
-                  sum.sum.unnamed)
 
             station
               .groupBy(
-                selectTuple(
-                 tup// / count.sum
-                )
+                ra3.select0.extend(station.first).extend(sum.sum.unnamed)
+                 
+                  // / count.sum
+                
               )
               .all
             
           }
-          .columns { case (station, sum) =>
+
+
+          t.columnsTuple { case (station, sum) =>
 
             station
               .groupBy(
-                selectTuple(
-                  station.first,
-                  sum.sum// / count.sum
-                )
+                ra3.select0.extend(station.first).extend(sum.sum)// / count.sum)
+                  
+                
               )
               .all
 

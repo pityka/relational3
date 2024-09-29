@@ -22,5 +22,5 @@ private[ra3] trait SyntaxIntImpl {
     .BuiltInOp2(ops.Op2.MkNamedConstantI32)(arg0, arg1 )
   infix def as(arg1: String): Expr[ ColumnSpec[Int] ] = 
     ra3.lang.Expr
-    .BuiltInOp2(ops.Op2.MkNamedConstantI32)(arg0, Expr.LitStr(arg1) )
+    .BuiltInOp2(ops.Op2.MkNamedConstantI32)(arg0, ra3.const(arg1) )
 }

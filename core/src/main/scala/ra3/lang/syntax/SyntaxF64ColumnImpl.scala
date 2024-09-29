@@ -7,9 +7,9 @@ import ra3.ColumnSpecExpr
 private[ra3] trait SyntaxF64ColumnImpl {
   protected def arg0: F64ColumnExpr
   import scala.language.implicitConversions
-  implicit private def conversionF64Lit(a: Double): Expr.LitF64 = Expr.LitF64(a)
-  implicit private def conversionF64LitSet(a: Set[Double]): Expr.LitF64Set =
-    Expr.LitF64Set(a)
+  implicit private def conversionF64Lit(a: Double): Expr[Double] = ra3.const(a)
+  implicit private def conversionF64LitSet(a: Set[Double]): Expr[Set[Double]] =
+    ra3.LitF64S(a)
   def isMissing = Expr.makeOp1(ops.Op1.ColumnIsMissingOpD)(arg0)
   def abs = Expr.makeOp1(ops.Op1.ColumnAbsOpD)(arg0)
   def roundToDouble = Expr.makeOp1(ops.Op1.ColumnRoundToDoubleOpD)(arg0)
@@ -39,7 +39,7 @@ private[ra3] trait SyntaxF64ColumnImpl {
     Expr.makeOp2(ops.Op2.ColumnContainedInOpDcDSet)(arg0, arg1)
 
   def printf(arg1: String) =
-    Expr.makeOp2(ops.Op2.ColumnPrintfOpDcStr)(arg0, Expr.LitStr(arg1))
+    Expr.makeOp2(ops.Op2.ColumnPrintfOpDcStr)(arg0, ra3.const(arg1))
 
   def mean = Expr.makeOp3(ops.Op3.BufferMeanGroupsOpDI)(
     arg0,
@@ -84,6 +84,6 @@ private[ra3] trait SyntaxF64ColumnImpl {
     ra3.lang.Expr
       .BuiltInOp2(ops.Op2.MkNamedColumnSpecChunkF64)(arg0, arg1)
 
-  infix def as(arg1: String): ColumnSpecExpr[DF64] = as(Expr.LitStr(arg1))
+  infix def as(arg1: String): ColumnSpecExpr[DF64] = as(ra3.const(arg1))
 
 }

@@ -9,12 +9,12 @@ private[ra3] trait SyntaxI32ColumnImpl {
   protected def arg0: I32ColumnExpr
   import scala.language.implicitConversions
 
-  implicit private def conversionI32LitSet(a: Set[Int]): Expr.LitI32Set =
-    Expr.LitI32Set(a)
-  implicit private def conversionIntLit(a: Int): Expr.LitNum = Expr.LitNum(a)
-  implicit private def conversionLongLit(a: Long): Expr.LitI64 = Expr.LitI64(a)
-  implicit private def conversionStrLit(a: String): Expr.LitStr = Expr.LitStr(a)
-  implicit private def conversionF64Lit(a: Double): Expr.LitF64 = Expr.LitF64(a)
+  implicit private def conversionI32LitSet(a: Set[Int]): Expr[Set[Int]] =
+    ra3.LitI32S(a)
+  implicit private def conversionIntLit(a: Int): Expr[Int] = ra3.const(a)
+  implicit private def conversionLongLit(a: Long) : Expr[Long] = ra3.const(a)
+  implicit private def conversionStrLit(a: String): Expr[String] = ra3.const(a)
+  implicit private def conversionF64Lit(a: Double): Expr[Double] = ra3.const(a)
 
   def abs = Expr.makeOp1(ops.Op1.ColumnAbsOpI)(arg0)
   def isMissing = Expr.makeOp1(ops.Op1.ColumnIsMissingOpI)(arg0)
@@ -68,7 +68,7 @@ private[ra3] trait SyntaxI32ColumnImpl {
   def ||(arg1: I32ColumnExpr) = Expr.makeOp2(ops.Op2.ColumnOrOpII)(arg0, arg1)
 
   def printf(arg1: String) =
-    Expr.makeOp2(ops.Op2.ColumnPrintfOpIcStr)(arg0, Expr.LitStr(arg1))
+    Expr.makeOp2(ops.Op2.ColumnPrintfOpIcStr)(arg0, ra3.const(arg1))
 
   def count = Expr.makeOp3(ops.Op3.BufferCountInGroupsOpI)(
     arg0,
@@ -122,6 +122,6 @@ private[ra3] trait SyntaxI32ColumnImpl {
   infix def as(arg1: Expr[String]) = ra3.lang.Expr
     .BuiltInOp2(ops.Op2.MkNamedColumnSpecChunkI32)(arg0, arg1 )
 
-  infix def as(arg1: String): Expr[ColumnSpec[ra3.DI32]] = as(Expr.LitStr(arg1))
+  infix def as(arg1: String): Expr[ColumnSpec[ra3.DI32]] = as(ra3.const(arg1))
 
 }

@@ -7,9 +7,9 @@ private[ra3] trait SyntaxStrColumnImpl {
   protected def arg0: StrColumnExpr
   import scala.language.implicitConversions
 
-  implicit private def conversionStrLit(a: String): Expr.LitStr = Expr.LitStr(a)
-  implicit private def conversionStrSetLit(a: Set[String]): Expr.LitStrSet =
-    Expr.LitStrSet(a)
+  implicit private def conversionStrLit(a: String): Expr[String] = ra3.const(a)
+  implicit private def conversionStrSetLit(a: Set[String]): Expr[Set[String]] =
+    ra3.LitStringS(a)
   def parseInt = Expr.makeOp1(ops.Op1.ColumnParseI32OpStr)(arg0)
   def toInt = Expr.makeOp1(ops.Op1.ColumnParseI32OpStr)(arg0)
   def parseDouble = Expr.makeOp1(ops.Op1.ColumnParseF64OpStr)(arg0)
@@ -63,8 +63,8 @@ private[ra3] trait SyntaxStrColumnImpl {
   def substring(start: Int, len: Int) =
     Expr.makeOp3(ops.Op3.BufferSubstringOpS)(
       arg0,
-      Expr.LitNum(start),
-      Expr.LitNum(len)
+      ra3.const(start),
+      ra3.const(len)
     )
 
   def unnamed = ra3.lang.Expr
@@ -73,7 +73,7 @@ private[ra3] trait SyntaxStrColumnImpl {
   infix def as(arg1: Expr[String]) = ra3.lang.Expr
     .BuiltInOp2(ops.Op2.MkNamedColumnSpecChunkString)(arg0, arg1 )
 
-  infix def as(arg1: String): Expr[ColumnSpec[ra3.DStr]]  = as(Expr.LitStr(arg1))
+  infix def as(arg1: String): Expr[ColumnSpec[ra3.DStr]]  = as(ra3.const(arg1))
 
   def <=(arg1: StrColumnExpr) =
     Expr.makeOp2(ops.Op2.ColumnLtEqOpStrStr)(arg0, arg1)

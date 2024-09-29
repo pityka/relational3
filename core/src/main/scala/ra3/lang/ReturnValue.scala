@@ -9,14 +9,14 @@ object ReturnValue {
 
   def list(r:ReturnValue[?]): List[ColumnSpec[?]] = 
     r match
-      // case ReturnValueTuple(a0, filter) =>  ???
+      case ReturnValueTuple(list, _) =>  list
       case ReturnValueList(a0, filter) => a0.toList
       case ReturnValue1(a0, filter) => List(a0)
       case ReturnValue2(a0, a1, filter) => List(a0,a1)
       case ReturnValue3(a0, a1, a2, filter) => List(a0,a1,a2)
       case ReturnValue4(a0, a1, a2, a3, filter) => List(a0,a1,a2,a3)
       case ReturnValue5(a0, a1, a2, a3, a4, filter) => List(a0,a1,a2,a3,a4)
-      case _:ReturnValueTuple[?] => ??? // ReturnValueTuple is a trait without values
+      // case _:ReturnValueTuple[?] => ??? // ReturnValueTuple is a trait without values
     
   // inline def rvtolist[A<:Tuple](r: ReturnValueTuple[A]) : List[ColumnSpec[?]] = tupleToList[A](r.a0)
   //  case class Is[T <: Tuple](value: Tuple.Map[T, ColumnSpec])
@@ -37,18 +37,22 @@ sealed trait ReturnValue[+T] { self =>
   }
 
   
-trait ReturnValueTuple[A<:Tuple] extends ReturnValue[A] {
-   type B = A
-    type MM =  Tuple.Map[B,ra3.lang.DelayedIdent]
-}
+// trait ReturnValueTuple[A<:Tuple] extends ReturnValue[A] {
+//    type B = A
+// }
 
-  // case class ReturnValueTuple[A <: Tuple](
-  //     a0: Tuple.Map[A,ColumnSpec],
-  //     filter: Option[DI32]
-  // ) extends ReturnValue {
-  //   type T = A
-  //   def replacePredicate(i: Option[DI32]) = ReturnValueTuple(a0, i)
-  // }
+case class ReturnValueTuple[A <: Tuple](
+  list: List[ColumnSpec[Any]],
+  filter: Option[DI32],
+  ) extends ReturnValue[A] {
+    type MM =  Tuple.Map[A,ra3.lang.DelayedIdent]
+    def replacePredicate(i: Option[DI32]) = ReturnValueTuple(list, i)
+
+    def extend[T](v: ColumnSpec[T]) = ReturnValueTuple[Tuple.Append[A,T]](list ++ List(v),filter)
+  }
+object ReturnValueTuple {
+  val empty = ReturnValueTuple[EmptyTuple](Nil,None)
+}
 
 
 case class ReturnValueList[A](

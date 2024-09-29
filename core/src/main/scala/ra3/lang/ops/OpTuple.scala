@@ -7,17 +7,18 @@ sealed trait OpAny {
   type A
   type T
 
-  def op(a: A)(implicit tsc: TaskSystemComponents): IO[T]
+  def op(a: List[A])(implicit tsc: TaskSystemComponents): IO[T]
 
 }
 
 object OpAny {
 
-  object MkReturnValueStar extends OpAny {
-    type A = Seq[ColumnSpec[Any]]
-    type T = ReturnValueList[Any]
-    def op(a: A)(implicit tsc: TaskSystemComponents) =
-      IO.pure(ReturnValueList(a, None))
+ 
+  class MkReturnValueTuple[B<:Tuple] extends OpAny  {
+    type A = ColumnSpec[Any]
+    type T = ReturnValueTuple[B]
+    def op(a: List[A])(implicit tsc: TaskSystemComponents) =
+      IO.pure(ReturnValueTuple[B](a, None))
 
   }
 }

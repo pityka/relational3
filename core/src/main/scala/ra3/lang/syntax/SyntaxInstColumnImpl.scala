@@ -6,10 +6,10 @@ private[ra3] trait SyntaxInstColumnImpl {
   protected def arg0: InstColumnExpr
   import scala.language.implicitConversions
 
-  implicit private def conversionStrLit(a: String): Expr.LitStr = Expr.LitStr(a)
+  implicit private def conversionStrLit(a: String): Expr[String] = ra3.const(a)
 
-  implicit private def conversionIntLit(a: Int): Expr.LitNum = Expr.LitNum(a)
-  implicit private def conversionIntLit(a: Long): Expr.LitI64 = Expr.LitI64(a)
+  implicit private def conversionIntLit(a: Int): Expr[Int] = ra3.const(a)
+  implicit private def conversionIntLit(a: Long): Expr[Long] = ra3.const(a)
   def isMissing = Expr.makeOp1(ops.Op1.ColumnIsMissingOpInst)(arg0)
   def toDoubleEpochMillis = Expr.makeOp1(ops.Op1.ColumnToDoubleOpInst)(arg0)
   def toLongEpochMillis = Expr.makeOp1(ops.Op1.ColumnToLongOpInst)(arg0)
@@ -95,5 +95,5 @@ private[ra3] trait SyntaxInstColumnImpl {
 
   infix def as(arg1: Expr[String]) = ra3.lang.Expr
     .BuiltInOp2(ops.Op2.MkNamedColumnSpecChunkInst)(arg0, arg1)
-  infix def as(arg1: String): Expr [ColumnSpec[ra3.DInst] ] = as(Expr.LitStr(arg1))
+  infix def as(arg1: String): Expr [ColumnSpec[ra3.DInst] ] = as(ra3.const(arg1))
 }

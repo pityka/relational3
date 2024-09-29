@@ -21,18 +21,18 @@
 //   // case class Is[T <: Tuple](value: T)
 //   type Extract[T<:Tuple] <: Tuple = T match {
 //     case EmptyTuple => EmptyTuple 
-//     case ColumnSpecExpr[h] *: t => h *: Extract[t]
+//     case Expr[ColumnSpec[h]] *: t => h *: Extract[t]
 //   }
 //   type Checked[T<:Tuple] <: Tuple = T match {
 //     case EmptyTuple => EmptyTuple 
 //     case h *: t => 
 //       h match {
-//         case ColumnSpecExpr[DStr] => ColumnSpecExpr[DStr] *: Checked[t]                          
-//         case ColumnSpecExpr[DF64] => ColumnSpecExpr[DF64] *: Checked[t] 
-//         case I64ColumnExpr => ColumnSpecExpr[DI64] *: Checked[t]
-//         case F64ColumnExpr => ColumnSpecExpr[DF64] *: Checked[t]
-//         case ExprT[String] => ColumnSpecExpr[String] *: Checked[t]
-//         case ExprT[DStr] => ColumnSpecExpr[DStr] *: Checked[t]
+//         case Expr[ColumnSpec[DStr]] => ColumnSpecExpr[DStr] *: Checked[t]                          
+//         case Expr[ColumnSpec[DF64]] => ColumnSpecExpr[DF64] *: Checked[t] 
+//         case Expr[DI64] => ColumnSpecExpr[DI64] *: Checked[t]
+//         case Expr[DF64] => ColumnSpecExpr[DF64] *: Checked[t]
+//         case Expr[String] => ColumnSpecExpr[String] *: Checked[t]
+//         case Expr[DStr] => ColumnSpecExpr[DStr] *: Checked[t]
 //       }
 //   }
 //   import scala.compiletime.asMatchable
@@ -46,8 +46,8 @@
 //             case ce: ColumnSpecExpr[DF64] => ce *: check(tail)
 //             case ce:I64ColumnExpr => ce.unnamed *: check(tail)
 //             case ce:F64ColumnExpr => ce.unnamed *: check(tail)
-//             case ce: ExprT[String] => ce.unnamed *: check(tail)
-//             case ce: ExprT[DStr] => ce.unnamed *: check(tail)
+//             case ce: Expr[String] => ce.unnamed *: check(tail)
+//             case ce: Expr[DStr] => ce.unnamed *: check(tail)
 //           }
           
 //      }}

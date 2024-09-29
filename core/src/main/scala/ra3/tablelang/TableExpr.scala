@@ -273,7 +273,7 @@ object TableExpr {
   }
 
   import scala.language.implicitConversions
-  implicit def convertJoinBuilder[J,R](j: ra3.lang.JoinBuilderSyntax[J,R]): TableExpr =
+  implicit def convertJoinBuilder[J,K,R<:ReturnValue[K]](j: ra3.lang.JoinBuilderSyntax[J,K,R]): TableExpr =
     j.done
 
   implicit val codec: JsonValueCodec[TableExpr] = ???
@@ -467,7 +467,7 @@ object TableExpr {
       val size   = scala.compiletime.constValue[scala.Tuple.Size[T]]
       val list = 0 until size map {i =>
         Expr.DelayedIdent(ra3.lang.Delayed(this.key, Right(i)))
-      }
+      }      
       val tup = scala.Tuple.fromArray(list.toArray).asInstanceOf[Tuple.Map[T,ra3.lang.DelayedIdent]]
 
       curryT(tup)

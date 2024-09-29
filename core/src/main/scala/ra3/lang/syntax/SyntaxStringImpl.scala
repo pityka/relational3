@@ -9,5 +9,5 @@ private[ra3] trait SyntaxStringImpl {
 
   infix def as(arg1: Expr[String]) = ra3.lang.Expr
     .BuiltInOp2(ops.Op2.MkNamedConstantStr)(arg0, arg1 )
-  infix def as(arg1: String) :Expr[ColumnSpec[String]] = as(Expr.LitStr(arg1))
+  infix def as(arg1: String) :Expr[ColumnSpec[String]] = as(ra3.const(arg1))
 }

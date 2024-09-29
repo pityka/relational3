@@ -2,17 +2,17 @@ package ra3.lang
 import ra3.tablelang.TableExpr
 
 private[ra3] object Join {
-  def apply[J,R](a: Expr.DelayedIdent[J], prg: ra3.lang.Query[R]) =
-    JoinBuilderSyntax[J,R](a, Vector.empty, prg, None, None, None)
+  def apply[J,K,R<:ReturnValue[K]](a: Expr.DelayedIdent[J], prg: ra3.lang.Expr[R]) =
+    JoinBuilderSyntax[J,K,R](a, Vector.empty, prg, None, None, None)
 }
 
 /** Builder pattern for joins. Exit the builder with the done method or elementwise method */
-case class JoinBuilderSyntax[J,R](
+case class JoinBuilderSyntax[J,K,R<:ReturnValue[K]](
     private val first: Expr.DelayedIdent[J],
     private val others: Vector[
       (Expr.DelayedIdent[J], String, ra3.tablelang.Key)
     ],
-    val prg: ra3.lang.Query[R],
+    val prg: ra3.lang.Expr[R],
     private val partitionBase: Option[Int],
     private val partitionLimit: Option[Int],
     private val maxSegmentsToBufferAtOnce: Option[Int]

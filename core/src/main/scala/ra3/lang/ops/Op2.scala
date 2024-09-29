@@ -22,6 +22,13 @@ private[ra3] object Op2 {
     def op(a0: A0, a1: A1)(implicit tsc: TaskSystemComponents) =
       IO.pure(ra3.lang.ReturnValue2(a0, a1, None))
   }
+  class ExtendReturn[T0<:Tuple,T1] extends Op2 {
+    type A0 = ra3.lang.ReturnValueTuple[T0]
+    type A1 = ra3.lang.ColumnSpec[T1]
+    type T = ra3.lang.ReturnValueTuple[Tuple.Append[T0,T1]]
+    def op(a0: A0, a1: A1)(implicit tsc: TaskSystemComponents) =
+      IO.pure(a0.extend(a1))
+  }
 
   class Tap[B] extends Op2 {
 

@@ -4,12 +4,16 @@ import ra3.lang
 import ra3.lang.ops.Op3.*
 import ra3.lang.ops.Op2.*
 import ra3.lang.ops.Op1.*
+import ra3.lang.ops.Op0.*
 import ra3.lang.ops.OpN.*
 import ra3.lang.Expr.*
 import ra3.lang.ops.OpAny
 // import ra3.lang.ops.OpStar.MkSelect
 private[ra3] object Render {
 
+  def render(op: ra3.lang.ops.Op0): String = op match {
+    case op:ra3.lang.ops.Op0.Constant[?] => s"`${op.op().toString}`"
+  }
   def render(op: ra3.lang.ops.Op4): String = op match {
     case _:MkReturnValue4[?,?,?,?] => "return"
   }
@@ -230,8 +234,18 @@ private[ra3] object Render {
         }
         val rLet = s"${render(Ident(name))}"
         f"${render(body)} WITH ($rLet = $rAssigned)"
-    case LitI64(s)           => s"${s}L"
-    case LitStr(s)           => s"\"$s\""
+    case e@BuiltInOpAny(op) =>
+      val args = e.args.filter {
+        _ match {
+          case Expr.Ident(_: SingletonKey) => false
+          case _                           => true
+        }
+      }
+      if (args.size == 1) s"${render(args.head)}.${op.toString}"
+      else s"${op.toString}(${args.map(render).mkString(", ")})"
+    case e@BuiltInOp0(op) =>
+      render(op)
+      
     case e@BuiltInOp2(op) =>
       val rOp = render(op)
       val noParens = if (rOp == "as") true else false
@@ -268,7 +282,6 @@ private[ra3] object Render {
       }
       if (args.size == 1) s"${render(args.head)}.${render(op)}"
       else s"${render(op)}(${args.map(render).mkString(", ")})"
-    case LitNum(s) => s"$s"
     // case BuiltInOpAny(args, op) =>
     //   op match {
     //     case OpAny.MkReturnValueStar =>  
@@ -293,8 +306,6 @@ private[ra3] object Render {
         case lang.IntKey(s) => s"$$C$s"
       }
     // case ra3.lang.Expr.Star => "*"
-    case LitF64Set(s)       => s"(${s.mkString(", ")})"
-    case LitStrSet(s)       => s"(${s.mkString(", ")})"
     case DelayedIdent(Delayed(table, selection)) =>
       table match {
         case ra3.tablelang.IntKey(s) =>
@@ -304,8 +315,6 @@ private[ra3] object Render {
           s"$$$tableUniqueId[${selection.fold(identity, identity)}]"
       }
 
-    case LitI32Set(s) => s"(${s.mkString(", ")})"
-    case LitF64(s)    => s"${s}d"
   }
 
   def render(expr: TableExpr, indent: Int): String = {
