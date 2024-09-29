@@ -4,6 +4,7 @@ import tasks.TaskSystemComponents
 import ra3.*
 import ra3.lang.bufferIfNeededWithPrecondition
 import ra3.Utils.* 
+import java.time.Instant
 
 private[ra3] sealed trait Op1 {
   type A0
@@ -22,15 +23,6 @@ private[ra3] object Op1 {
 
   }
 
- 
-
-  // object MkReturnValue extends Op1 {
-
-  //   type A0 = ra3.lang.Proj
-  //   type T = ra3.lang.ReturnValue
-  //   def op(a: Proj)(implicit tsc: TaskSystemComponents) =
-  //     IO.pure(ra3.lang.ReturnValue(a, None))
-  // }
   class MkReturnValue1[B] extends Op1 {
     type A0 = ra3.lang.ColumnSpec[B]
     type T = ra3.lang.ReturnValue1[B]
@@ -38,13 +30,48 @@ private[ra3] object Op1 {
       IO.pure(ra3.lang.ReturnValue1(a, None))
   }
 
-  // case object MkRawWhere extends Op1 {
-  //   type A0 = ra3.DI32
-  //   type T = ra3.lang.ReturnValue
-  //   def op(a: A0)(implicit tsc: TaskSystemComponents) =
-  //     IO.pure(ra3.lang.ReturnValue(projections = List(ra3.lang.Star),filter = Some(a)))
-  // }
+  case object DynamicUnnamed extends Op1 {
+    type A0 = Any
+    type T = ra3.lang.ColumnSpec[Any]
+    def op(a: A0)(implicit tsc: TaskSystemComponents) =
+      IO.pure({
+        val p = (a.asInstanceOf[Primitives])
+        p match
+          case e: Instant => ra3.lang.UnnamedConstantInstant(e)
+          case e: String => ra3.lang.UnnamedConstantString(e)
+          case e: Double => ra3.lang.UnnamedConstantF64(e)
+          case e: Long => ra3.lang.UnnamedConstantI64(e) 
+          case e: Int =>ra3.lang.UnnamedConstantI32(e) 
+          case Left(buffer) => 
+              buffer.asInstanceOf[Buffer] match
+                case e: BufferDouble => ra3.lang.UnnamedColumnChunkF64(Left(e))
+                case e: BufferInt => ra3.lang.UnnamedColumnChunkI32(Left(e))
+                case e: BufferLong => ra3.lang.UnnamedColumnChunkI64(Left(e))
+                case e: BufferInstant => ra3.lang.UnnamedColumnChunkInst(Left(e))
+                case e: BufferString => ra3.lang.UnnamedColumnChunkStr(Left(e))
+          case Right(segments) =>
+              segments.asInstanceOf[Seq[Segment]].head match
+                case _: SegmentDouble => ra3.lang.UnnamedColumnChunkF64(Right(segments.asInstanceOf[Seq[SegmentDouble]]))
+                case _: SegmentInt => ra3.lang.UnnamedColumnChunkI32(Right(segments.asInstanceOf[Seq[SegmentInt]]))
+                case _: SegmentLong => ra3.lang.UnnamedColumnChunkI64(Right(segments.asInstanceOf[Seq[SegmentLong]]))
+                case _: SegmentString => ra3.lang.UnnamedColumnChunkStr(Right(segments.asInstanceOf[Seq[SegmentString]]))
+                case _: SegmentInstant => ra3.lang.UnnamedColumnChunkInst(Right(segments.asInstanceOf[Seq[SegmentInstant]]))
+                
+              
 
+                
+                
+              
+        
+        ???
+      })
+  }
+  // case object UntypedReturnValue extends Op1 {
+  //   type A0 = List[ra3.lang.ColumnSpec[Any]]
+  //   type T = ra3.lang.ReturnValue[Any]
+  //   def op(a: A0)(implicit tsc: TaskSystemComponents) =
+  //     IO.pure(ra3.lang.ReturnValueTuple[EmptyTuple](a,None))
+  // }
   case object MkUnnamedColumnSpecChunkI32 extends Op1 {
     type A0 = DI32
     type T = ra3.lang.UnnamedColumnChunkI32

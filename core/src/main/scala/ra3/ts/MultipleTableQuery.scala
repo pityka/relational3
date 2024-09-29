@@ -121,64 +121,12 @@ private[ra3] object MultipleTableQuery {
             val selected: IO[List[NamedColumnSpec[?]]] = IO
               .parSequenceN(32)(ReturnValue.list(returnValue).zipWithIndex.map {
                 case (v: NamedColumnSpec[?], _) =>
-                  IO.pure(List(v))
+                  IO.pure((v))
                 case (v: UnnamedColumnSpec[?], idx) =>
-                  IO.pure(List(v.withName(s"V$idx")))
-                case (ra3.lang.StarColumnSpec, _) =>
-                  // get those columns who are not yet buffered
-                  // buffer them and 'take' them
-                  val r =
-                    IO.parSequenceN(32)(
-                      input
-                        .map { s =>
-                          (
-                            s,
-                            takenBuffers.find(
-                              _._1 == ra3.lang
-                                .ColumnKey(s._2.tableUniqueId, s._2.columnIdx)
-                            )
-                          )
-                        }
-                        .map {
-                          case ((tag,_), Some((_, Left(buffer), columnName))) =>
-                            IO.pure(
-                              tag.makeNamedColumnSpecFromBuffer(buffer.asInstanceOf[tag.BufferType],columnName)
-                            )
-                          case (
-                                (tag,SegmentWithName(
-                                  segmentParts,
-                                  tableId,
-                                  columnName,
-                                  _
-                                )),
-                                _
-                              ) =>
-                            if (maskIsEmpty)
-                              IO.pure(
-                                tag.makeNamedColumnSpecFromBuffer(tag.makeBufferFromSeq(),columnName)
-                              )
-                            else
-                              ra3.Utils
-                                .bufferMultiple(tag)(segmentParts.map(_.asInstanceOf[tag.SegmentType]))
-                                .map(b =>
-                                  tag.makeNamedColumnSpecFromBuffer(
-                                      takeBuffers
-                                        .find(_._1 == tableId)
-                                        .get
-                                        ._2
-                                        .map(tag.take(b,_))
-                                        .getOrElse(b)
-                                    ,
-                                    columnName
-                                  )
-                                )
-                        }
-                    )
-                  r
-                case x => 
-                  throw new RuntimeException("Unexpected unmatched case "+x)
+                  IO.pure((v.withName(s"V$idx")))                
+                // case x => 
+                //   throw new RuntimeException("Unexpected unmatched case "+x)
               })
-              .map(_.flatten)
 
             selected.flatMap { selected =>
               val outputNumElemsBeforeFiltering =
@@ -212,6 +160,8 @@ private[ra3] object MultipleTableQuery {
                       ColumnTag.I64.makeTaggedBuffer(BufferLong.constant(x, outputNumElemsBeforeFiltering))
                     case NamedConstantString(x, _) =>
                       ColumnTag.StringTag.makeTaggedBuffer(BufferString.constant(x, outputNumElemsBeforeFiltering))
+                    case NamedConstantInstant(x, _) =>
+                      ColumnTag.Instant.makeTaggedBuffer(BufferInstant.constant(x.toEpochMilli(), outputNumElemsBeforeFiltering))
                     case x => 
                       throw new RuntimeException("Unexpected unmatched case "+x)
                   }

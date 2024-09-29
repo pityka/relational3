@@ -81,7 +81,7 @@ package object ra3 {
   private[ra3] type DI64 = Either[BufferLong, Seq[SegmentLong]]
 
   /** Data type of F64 columns */
-  private[ra3] type DF64 = Either[BufferDouble,Seq[SegmentDouble]]
+  private[ra3] type DF64 = Either[BufferDouble, Seq[SegmentDouble]]
 
   /** Data type of String columns */
   private[ra3] type DStr = Either[BufferString, Seq[SegmentString]]
@@ -89,8 +89,9 @@ package object ra3 {
   /** Data type of Instant columns */
   private[ra3] type DInst = Either[BufferInstant, Seq[SegmentInstant]]
 
-  type Primitives = DI32|DStr|DInst|DF64|DI64|String|Int|Long|Double|String|java.time.Instant
-  type ColumnSpecExpr[T<:Primitives] = Expr[ColumnSpec[T]]
+  type Primitives =
+    DI32 | DStr | DInst | DF64 | DI64 | String | Int | Long | Double | String | java.time.Instant
+  type ColumnSpecExpr[T <: Primitives] = Expr[ColumnSpec[T]]
 
   import scala.language.implicitConversions
   implicit def conversionDI32(
@@ -102,14 +103,14 @@ package object ra3 {
   ): ColumnSpecExpr[DF64] = a.unnamed
   implicit def conversionDI64(
       a: Expr[DI64]
-  ): ColumnSpecExpr[DI64] =  a.unnamed
+  ): ColumnSpecExpr[DI64] = a.unnamed
   implicit def conversionDInst(
       a: Expr[DInst]
-  ): ColumnSpecExpr[DInst] =  a.unnamed
+  ): ColumnSpecExpr[DInst] = a.unnamed
 
   implicit def conversionStr(
       a: Expr[DStr]
-  ): ColumnSpecExpr[DStr] =  a.unnamed
+  ): ColumnSpecExpr[DStr] = a.unnamed
 
   /** Import CSV data into ra3
     *
@@ -182,57 +183,87 @@ package object ra3 {
     *   the variable (the scala variable which is bound in the lambda) and the
     *   expression which is using the variable
     */
-  def let[T1,R](assigned: Expr[T1])(body: Expr[T1] => Expr[R]): Expr[R] =
+  def let[T1, R](assigned: Expr[T1])(body: Expr[T1] => Expr[R]): Expr[R] =
     ra3.lang.local(assigned)(body)
 
-  
-  def const(s: Long)  : Expr[Long] = ra3.lang.Expr.makeOp0(new ops.Op0.Constant(s))
-  def const(s: Int) :Expr[Int] = ra3.lang.Expr.makeOp0(new ops.Op0.Constant(s))
-  def const(s: String) : Expr[String] = ra3.lang.Expr.makeOp0(new ops.Op0.Constant(s))
-  def const(s: Double)  :Expr[Double]= ra3.lang.Expr.makeOp0(new ops.Op0.Constant(s))
-  def const(s: java.time.Instant) :Expr[java.time.Instant]  = ra3.lang.Expr.makeOp0(new ops.Op0.Constant(s))
+  def const(s: Long): Expr[Long] =
+    ra3.lang.Expr.makeOp0(new ops.Op0.Constant(s))
+  def const(s: Int): Expr[Int] = ra3.lang.Expr.makeOp0(new ops.Op0.Constant(s))
+  def const(s: String): Expr[String] =
+    ra3.lang.Expr.makeOp0(new ops.Op0.Constant(s))
+  def const(s: Double): Expr[Double] =
+    ra3.lang.Expr.makeOp0(new ops.Op0.Constant(s))
+  def const(s: java.time.Instant): Expr[java.time.Instant] =
+    ra3.lang.Expr.makeOp0(new ops.Op0.Constant(s))
 
-  def LitI64S(s: Set[Long])  : Expr[Set[Long]] = ra3.lang.Expr.makeOp0(new ops.Op0.Constant(s))
-  def LitI32S(s: Set[Int]) :Expr[Set[Int]] = ra3.lang.Expr.makeOp0(new ops.Op0.Constant(s))
-  def LitStringS(s: Set[String]) : Expr[Set[String]] = ra3.lang.Expr.makeOp0(new ops.Op0.Constant(s))
-  def LitF64S(s: Set[Double])  :Expr[Set[Double]] = ra3.lang.Expr.makeOp0(new ops.Op0.Constant(s))
-  def LitInstS(s: Set[java.time.Instant]) :Expr[Set[java.time.Instant]]  = ra3.lang.Expr.makeOp0(new ops.Op0.Constant(s))
+  def LitI64S(s: Set[Long]): Expr[Set[Long]] =
+    ra3.lang.Expr.makeOp0(new ops.Op0.Constant(s))
+  def LitI32S(s: Set[Int]): Expr[Set[Int]] =
+    ra3.lang.Expr.makeOp0(new ops.Op0.Constant(s))
+  def LitStringS(s: Set[String]): Expr[Set[String]] =
+    ra3.lang.Expr.makeOp0(new ops.Op0.Constant(s))
+  def LitF64S(s: Set[Double]): Expr[Set[Double]] =
+    ra3.lang.Expr.makeOp0(new ops.Op0.Constant(s))
+  def LitInstS(s: Set[java.time.Instant]): Expr[Set[java.time.Instant]] =
+    ra3.lang.Expr.makeOp0(new ops.Op0.Constant(s))
 
   /** Elementwise or group wise projection */
   def select0: Expr[ra3.lang.ReturnValueTuple[EmptyTuple]] = ra3.lang.Expr
     .makeOp0(new ops.Op0.Constant(ReturnValueTuple.empty))
 
-  def select[T0<:Primitives](
+  def select[T0 <: Primitives](
       arg0: ColumnSpecExpr[T0]
   ): Expr[ra3.lang.ReturnValue1[T0]] = ra3.lang.Expr
-    .BuiltInOp1(new ops.Op1.MkReturnValue1[T0])(arg0 )
+    .BuiltInOp1(new ops.Op1.MkReturnValue1[T0])(arg0)
 
-  def select[T0<:Primitives, T1<:Primitives](
+  def select[T0 <: Primitives, T1 <: Primitives](
       arg0: ColumnSpecExpr[T0],
       arg1: ColumnSpecExpr[T1]
   ) = ra3.lang.Expr
-    .BuiltInOp2(new ops.Op2.MkReturnValue2[T0,T1])(arg0, arg1 )
-  def select[T0<:Primitives, T1<:Primitives, T2<:Primitives](
+    .BuiltInOp2(new ops.Op2.MkReturnValue2[T0, T1])(arg0, arg1)
+  def select[T0 <: Primitives, T1 <: Primitives, T2 <: Primitives](
       arg0: ColumnSpecExpr[T0],
       arg1: ColumnSpecExpr[T1],
-      arg2: ColumnSpecExpr[T2],
+      arg2: ColumnSpecExpr[T2]
   ) = ra3.lang.Expr
-    .BuiltInOp3(new ops.Op3.MkReturnValue3[T0,T1,T2])(arg0, arg1,arg2 )
-  def select[T0<:Primitives, T1<:Primitives, T2<:Primitives,T3<:Primitives](
+    .BuiltInOp3(new ops.Op3.MkReturnValue3[T0, T1, T2])(arg0, arg1, arg2)
+  def select[
+      T0 <: Primitives,
+      T1 <: Primitives,
+      T2 <: Primitives,
+      T3 <: Primitives
+  ](
       arg0: ColumnSpecExpr[T0],
       arg1: ColumnSpecExpr[T1],
       arg2: ColumnSpecExpr[T2],
       arg3: ColumnSpecExpr[T3]
   ) = ra3.lang.Expr
-    .BuiltInOp4(new ops.OpN.MkReturnValue4[T0,T1,T2,T3])(arg0, arg1,arg2, arg3 )
-  def select[T0<:Primitives, T1<:Primitives, T2<:Primitives,T3<:Primitives,T4<:Primitives](
+    .BuiltInOp4(new ops.OpN.MkReturnValue4[T0, T1, T2, T3])(
+      arg0,
+      arg1,
+      arg2,
+      arg3
+    )
+  def select[
+      T0 <: Primitives,
+      T1 <: Primitives,
+      T2 <: Primitives,
+      T3 <: Primitives,
+      T4 <: Primitives
+  ](
       arg0: ColumnSpecExpr[T0],
       arg1: ColumnSpecExpr[T1],
       arg2: ColumnSpecExpr[T2],
       arg3: ColumnSpecExpr[T3],
       arg4: ColumnSpecExpr[T4]
   ) = ra3.lang.Expr
-    .BuiltInOp5(new ops.OpN.MkReturnValue5[T0,T1,T2,T3,T4])(arg0, arg1,arg2, arg3,arg4 )
+    .BuiltInOp5(new ops.OpN.MkReturnValue5[T0, T1, T2, T3, T4])(
+      arg0,
+      arg1,
+      arg2,
+      arg3,
+      arg4
+    )
 
   // inline def selectTuple[T0<:Tuple](
   //   tup: T0
@@ -242,12 +273,11 @@ package object ra3 {
   //     new ops.OpAny.MkReturnValueTuple[Tupler.Extract[Tupler.Checked[T0]]])(
   //       checked.productIterator.toList.map(_.asInstanceOf[Expr[ColumnSpec[Any]]]))
   //   }
-  
 
-  // def where(arg0: I32ColumnExpr) =
-  //   Expr.makeOp1(ops.Op1.MkRawWhere)(arg0)
-  // def filter(arg0: I32ColumnExpr): ReturnExpr =
-  //   where(arg0)
+  def where(arg0: I32ColumnExpr) =
+    select0.where(arg0)
+  def filter(arg0: I32ColumnExpr) =
+    where(arg0)
 
   /** Simple query consisting of elementwise (row-wise) projection and filter */
   def query[T](prg: ra3.lang.Query[T]) = {
@@ -313,9 +343,6 @@ package object ra3 {
       groupwise = prg
     )
   }
-
-
- 
 
   /** Concatenate the list of rows of multiple tables ('grows downwards') */
   def concatenate(

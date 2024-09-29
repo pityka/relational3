@@ -49,6 +49,14 @@ case class ReturnValueTuple[A <: Tuple](
     def replacePredicate(i: Option[DI32]) = ReturnValueTuple(list, i)
 
     def extend[T](v: ColumnSpec[T]) = ReturnValueTuple[Tuple.Append[A,T]](list ++ List(v),filter)
+    inline def drop[N<:Int] = {
+      val i = scala.compiletime.constValue[N]
+      ReturnValueTuple[Tuple.Drop[A,N]](list.drop(i),filter)
+    }
+   
+    def concat[B<:Tuple](b:ReturnValueTuple[B]) = {      
+      ReturnValueTuple[Tuple.Concat[A,B]](list ++ b.list,b.filter.orElse(filter))
+    }    
   }
 object ReturnValueTuple {
   val empty = ReturnValueTuple[EmptyTuple](Nil,None)

@@ -252,7 +252,7 @@ object Expr {
       IO.pure(Value.Const(op.op()))
 
   }
-  private[ra3] final  case class BuiltInOp1[R](op:ops.Op1{type T = R})(val arg0: Expr[op.A0]) extends Expr[R] {
+  private[ra3] final  case class BuiltInOp1[R](tracked val op:ops.Op1{type T = R})(val arg0: Expr[op.A0]) extends Expr[R] {
 
     private[ra3] def referredTables = arg0.referredTables
     val tags: Set[KeyTag] = arg0.tags

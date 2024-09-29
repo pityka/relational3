@@ -34,7 +34,9 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
 
       val tpe = table.schema[StrVar, F64Var]
 
-      val result = tpe.columns { case (station, value) =>
+
+      val result = tpe.columnsTuple.all { 
+        case (station, value) =>
 
        
 
@@ -54,23 +56,26 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
         
 
         val t  = t0
-          .columnsTuple { 
-            case (station, sum) =>
+          .columnsTuple { schema =>
+
+
+            schema.columns{ case (station,sum) =>
 
 
             station
               .groupBy(
-                ra3.select0.extend(station.first).extend(sum.sum.unnamed)
+                schema.none.extend(station.first).extend(sum.sum.unnamed)
                  
                   // / count.sum
                 
               )
               .all
-            
+            }
           }
 
 
-          t.columnsTuple { case (station, sum) =>
+          val t2 = t.columnsTuple { schema =>
+            schema.columns{case (station, sum) =>
 
             station
               .groupBy(
@@ -80,9 +85,9 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
               )
               .all
 
-          }
+          }}  
 
-          t
+          t2
       }.evaluate
         .unsafeRunSync()
         .bufferStream

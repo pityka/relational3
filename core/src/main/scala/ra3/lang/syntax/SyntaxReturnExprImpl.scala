@@ -20,6 +20,29 @@ private[ra3] trait SyntaxReturnExprImpl[T0<:Tuple] {
         arg0,
         arg1
       )
+  def extend[T1<:Tuple](arg1: ra3.tablelang.Schema[T1]) : Expr[ReturnValueTuple[Tuple.Concat[T0,T1]]] =
+     Expr
+      .makeOp2(new ops.Op2.ConcatReturn[T0,T1])(
+        arg0,
+        arg1.all
+      )
+     
+  // def drop[T1,N<:Int] : Expr[ReturnValueTuple[Tuple.Drop[T0,N]]] =
+  //    Expr
+  //     .makeOp1(new ops.Op1.DropReturn[T0,T1,N])(
+  //       arg0,
+  //     )
+  // def take[T1,N<:Int] : Expr[ReturnValueTuple[Tuple.Take[T0,N]]] =
+  //    Expr
+  //     .makeOp1(new ops.Op1.TakeReturn[T0,T1,N])(
+  //       arg0,
+  //     )
+  // def concat[T1](arg1: Expr[ReturnValueTuple[T1]]) : Expr[ReturnValueTuple[Tuple.Concat[T0,T1]]] =
+  //    Expr
+  //     .makeOp2(new ops.Op2.ConcatReturn[T0,T1])(
+  //       arg0,
+  //       arg1
+  //     )
 
   def where(arg1: I32ColumnExpr): Expr[ReturnValue[T0]] =
     Expr

@@ -160,7 +160,7 @@ case class Table(
     * Table
     */
   def schema[T1: NotNothing] =
-    TableExpr.const[T1](this)
+    TableExpr.const[T1*:EmptyTuple](this)
 
   /** Variable assigning let expression where the assigned part is a single
     * Table
@@ -186,6 +186,8 @@ case class Table(
       
   ] =
     TableExpr.const[(T1, T2, T3, T4, T5)](this)
+  def schema[T0<:Tuple] =
+    TableExpr.const[T0](this)
 
 
   import ra3.lang.Expr

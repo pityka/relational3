@@ -29,6 +29,13 @@ private[ra3] object Op2 {
     def op(a0: A0, a1: A1)(implicit tsc: TaskSystemComponents) =
       IO.pure(a0.extend(a1))
   }
+  class ConcatReturn[T0<:Tuple,T1<:Tuple] extends Op2 {
+    type A0 = ra3.lang.ReturnValueTuple[T0]
+    type A1 = ra3.lang.ReturnValueTuple[T1]
+    type T = ra3.lang.ReturnValueTuple[Tuple.Concat[T0,T1]]
+    def op(a0: A0, a1: A1)(implicit tsc: TaskSystemComponents) =
+      IO.pure(a0.concat(a1))
+  }
 
   class Tap[B] extends Op2 {
 

@@ -8,6 +8,7 @@ import ra3.lang.Expr
 import ra3.NotNothing
 import ra3.lang.Expr.DelayedIdent
 import ra3.lang.ReturnValue
+import ra3.lang.ReturnValueTuple
 
 private[ra3] class KeyTag
 private[ra3] sealed trait Key
@@ -68,209 +69,49 @@ sealed trait TableExpr { self =>
 }
 object TableExpr {
 
-  implicit class ColumnSyntax1[T0](a: TableExpr {
-    type T = ConstMarker[T0]
-  }) {
-    def columns[R](
-        body: DelayedIdent[T0] => TableExpr{type T = R}
-    ): TableExpr{type T = R} =
-       a.in { t =>
-        t[T0](0) { case (c0) =>
-          body(c0)
-        }
-      }
+  
 
-  }
-  implicit class ColumnSyntax2[T0,T1](a: TableExpr {
-    type T = ConstMarker[(T0,T1)]
-  }) {
-    def columns[R](
-        body: (
-          DelayedIdent[T0],
-          DelayedIdent[T1]
-          ) => TableExpr{type T = R}
-    ): TableExpr{type T = R} =
-       a.in { (t) =>
-        t[T0,T1](0,1) { case (c0,c1) =>
-          body(c0,c1)
-        }
-      }
+  
 
-  }
-  implicit class ColumnSyntax3[T0,T1,T2](a: TableExpr {
-    type T = ConstMarker[(T0,T1,T2)]
-  }) {
-    def columns[R](
-        body: (
-          DelayedIdent[T0],
-          DelayedIdent[T1],
-          DelayedIdent[T2],
-          ) => TableExpr{type T = R}
-    ): TableExpr{type T = R} =
-       a.in { (t) =>
-        t[T0,T1,T2](0,1,2) { case (c0,c1,c2) =>
-          body(c0,c1,c2)
-        }
-      }
-
-  }
-  implicit class ColumnSyntax4[T0,T1,T2,T3](a: TableExpr {
-    type T = ConstMarker[(T0,T1,T2,T3)]
-  }) {
-    def columns[R](
-        body: (
-          DelayedIdent[T0],
-          DelayedIdent[T1],
-          DelayedIdent[T2],
-          DelayedIdent[T3],
-          ) => TableExpr{type T = R}
-    ): TableExpr{type T = R} =
-       a.in { (t) =>
-        t[T0,T1,T2,T3](0,1,2,3) { case (c0,c1,c2,c3) =>
-          body(c0,c1,c2,c3)
-        }
-      }
-
-  }
-  implicit class ColumnSyntax5[T0,T1,T2,T3,T4](a: TableExpr {
-    type T = ConstMarker[(T0,T1,T2,T3,T4)]
-  }) {
-    def columns[R](
-        body: (
-          DelayedIdent[T0],
-          DelayedIdent[T1],
-          DelayedIdent[T2],
-          DelayedIdent[T3],
-          DelayedIdent[T4],
-          ) => TableExpr{type T = R}
-    ) : TableExpr{type T = R} =
-       a.in { (t) =>
-        t[T0,T1,T2,T3,T4](0,1,2,3,4) { case (c0,c1,c2,c3,c4) =>
-          body(c0,c1,c2,c3,c4)
-        }
-      }
-
-  }
   case class curryColumnsTuple[T0<:Tuple]( a: TableExpr {
     type T = ra3.lang.ReturnValueTuple[T0]
   }){
     inline def apply[R](
-        inline body: a.T#MM => TableExpr{type T = R}
+        inline body: (Schema[T0]) => TableExpr{type T = R}
     ) : TableExpr{type T = R}=
-       a.in { (t) =>
-        t.tuple[T0].apply { case (c0) =>
-          body(c0)
-        }
+       a.in { (t:Ident{type T = ReturnValueTuple[T0]}) =>
+        body(Schema.fromIdent(t))      
+      }
+    inline def all[R](
+        inline body: (a.T#MM) => TableExpr{type T = R}
+    ) : TableExpr{type T = R}=
+       a.in { (t:Ident{type T = ReturnValueTuple[T0]}) =>
+        Schema.fromIdent(t).columns.apply(b => body(b))
+      }
+  }
+  case class curryColumnsByName[T0<:Tuple,A]( columnName:String, a: TableExpr {
+    type T = ra3.lang.ReturnValueTuple[T0]
+  }){
+    inline def apply[R](
+        inline body: (Schema[A*:EmptyTuple]) => TableExpr{type T = R}
+    ) : TableExpr{type T = R}=
+       a.in { (t:Ident{type T = ReturnValueTuple[T0]}) =>
+        body(Schema.fromDelayedIdent[A](Expr.DelayedIdent[A](ra3.lang.Delayed(t.key, Left(columnName))) )    )
       }
   }
   extension [T0<:Tuple]( a: TableExpr {
     type T = ra3.lang.ReturnValueTuple[T0]
   }) {
-    // inline def t0 : T0 = ???
-    // inline def mm : a.T#MM = ???
+    
     inline def columnsTuple = curryColumnsTuple[T0](a)
-  }
 
-  // implicit class ReturnValueSyntaxStar[T0<:Tuple](a: TableExpr {
-  //   type T = ra3.lang.ReturnValue.ReturnValueTuple[T0]
-  // }) {
-  //   def columns[R](
-  //       body: Tuple.Map[T0,ra3.lang.DelayedIdent] => TableExpr{type T = R}
-  //   ) : TableExpr{type T = R}=
-  //      a.in { (t) =>
-  //       t.tuple[T0] { case (c0) =>
-  //         body(c0)
-  //       }
-  //     }
-
-  // }
-  implicit class ReturnValueSyntax1[T0](a: TableExpr {
-    type T = ra3.lang.ReturnValue1[T0]
-  }) {
-    def columns[R](
-        body: DelayedIdent[T0] => TableExpr{type T = R}
-    ) : TableExpr{type T = R}=
-       a.in { (t) =>
-        t[T0](0) { case (c0) =>
-          body(c0)
-        }
-      }
-
-  }
-  implicit class ReturnValueSyntax2[T0, T1](a: TableExpr {
-    type T = ra3.lang.ReturnValue2[T0, T1]
-  }) {
-    def columns[R](
-        body: (
-            DelayedIdent[T0],
-            DelayedIdent[T1]
-        ) => TableExpr{type T = R}
-    ) : TableExpr{type T = R} = 
-      a.in { t =>
-        t[T0, T1](0, 1) { case (c0, c1) =>
-          body(c0, c1)
-        }
-      }
+    inline def byName[A: NotNothing](
+        n1: String
+    )= 
+        curryColumnsByName[T0,A](n1,a)
     
-
   }
-  implicit class ReturnValueSyntax3[T0, T1, T2](a: TableExpr {
-    type T = ra3.lang.ReturnValue3[T0, T1,T2]
-  }) {
-    def columns[R](
-        body: (
-            DelayedIdent[T0],
-            DelayedIdent[T1],
-            DelayedIdent[T2],
-        ) => TableExpr{type T = R}
-    ) : TableExpr{type T = R}= 
-      a.in { t =>
-        t[T0, T1,T2](0, 1,2) { case (c0, c1, c2) =>
-          body(c0, c1,c2)
-        }
-      }
-    
 
-  }
-  implicit class ReturnValueSyntax4[T0, T1, T2, T3](a: TableExpr {
-    type T = ra3.lang.ReturnValue4[T0, T1,T2, T3]
-  }) {
-    def columns[R](
-        body: (
-            DelayedIdent[T0],
-            DelayedIdent[T1],
-            DelayedIdent[T2],
-            DelayedIdent[T3],
-        ) => TableExpr{type T = R}
-    ) : TableExpr{type T = R}= 
-      a.in { t =>
-        t[T0, T1,T2,T3](0, 1,2,3) { case (c0, c1, c2, c3) =>
-          body(c0, c1,c2, c3)
-        }
-      }
-    
-
-  }
-  implicit class ReturnValueSyntax5[T0, T1, T2, T3,T4](a: TableExpr {
-    type T = ra3.lang.ReturnValue5[T0, T1,T2, T3,T4]
-  }) {
-    def columns[R](
-        body: (
-            DelayedIdent[T0],
-            DelayedIdent[T1],
-            DelayedIdent[T2],
-            DelayedIdent[T3],
-            DelayedIdent[T4],
-        ) => TableExpr{type T = R}
-    ) : TableExpr{type T = R}= 
-      a.in { t =>
-        t[T0, T1,T2,T3,T4](0, 1,2,3,4) { case (c0, c1, c2, c3,c4) =>
-          body(c0, c1,c2, c3,c4)
-        }
-      }
-    
-
-  }
 
   import scala.language.implicitConversions
   implicit def convertJoinBuilder[J,K,R<:ReturnValue[K]](j: ra3.lang.JoinBuilderSyntax[J,K,R]): TableExpr =
@@ -279,10 +120,9 @@ object TableExpr {
   implicit val codec: JsonValueCodec[TableExpr] = ???
     // JsonCodecMaker.make(CodecMakerConfig.withAllowRecursiveTypes(true))
 
-  type ConstMarker[A]
 
-  def const[T1](table: ra3.Table): TableExpr { type T = ConstMarker[T1] } =
-    TableExpr.Const(table).asInstanceOf[TableExpr { type T = ConstMarker[T1] }]
+  def const[T1<:Tuple](table: ra3.Table): TableExpr { type T = ReturnValueTuple[T1] } =
+    TableExpr.Const(table).asInstanceOf[TableExpr { type T = ReturnValueTuple[T1] }]
 
   case class Const(table: ra3.Table) extends TableExpr {
 
@@ -346,137 +186,6 @@ object TableExpr {
 
     }
  
-
-    case class curry1[T0: NotNothing](
-      d1: DelayedIdent[T0],
-    ) {
-      def apply[R](body:(
-            DelayedIdent[T0],
-        ) => TableExpr{type T = R}) : TableExpr{type T = R} = body(d1)
-    }
-    def apply[T0: NotNothing](
-        n1: Int,
-    ) = {
-      val d1 = Expr.DelayedIdent[T0](ra3.lang.Delayed(this.key, Right(n1)))
-      curry1(d1)
-    }
-    case class curry2[T0: NotNothing, T1: NotNothing](
-      d1: DelayedIdent[T0],
-      d2: DelayedIdent[T1],
-    ) {
-      def apply[R](body:(
-            DelayedIdent[T0],
-            DelayedIdent[T1],
-        ) => TableExpr{type T = R}) : TableExpr{type T = R} = body(d1,d2)
-    }
-    def apply[T0: NotNothing, T1: NotNothing](
-        n1: Int,
-        n2: Int,
-    ) = {
-      val d1 = Expr.DelayedIdent[T0](ra3.lang.Delayed(this.key, Right(n1)))
-      val d2 = Expr.DelayedIdent[T1](ra3.lang.Delayed(this.key, Right(n2)))
-      curry2(d1, d2)
-    }
-    case class curry3[T0: NotNothing, T1: NotNothing, T2: NotNothing](
-      d1: DelayedIdent[T0],
-      d2: DelayedIdent[T1],
-      d3: DelayedIdent[T2],
-    ) {
-      def apply[R](body:(
-            DelayedIdent[T0],
-            DelayedIdent[T1],
-            DelayedIdent[T2],
-        ) => TableExpr{type T = R}) : TableExpr{type T = R} = body(d1,d2,d3)
-    }
-    def apply[T0: NotNothing, T1: NotNothing, T2: NotNothing](
-        n1: Int,
-        n2: Int,
-        n3: Int,
-    ) = {
-      val d1 = Expr.DelayedIdent[T0](ra3.lang.Delayed(this.key, Right(n1)))
-      val d2 = Expr.DelayedIdent[T1](ra3.lang.Delayed(this.key, Right(n2)))
-      val d3 = Expr.DelayedIdent[T2](ra3.lang.Delayed(this.key, Right(n3)))
-      curry3(d1, d2, d3)
-    }
-
-    case class curry4[T0: NotNothing, T1: NotNothing, T2: NotNothing, T3: NotNothing](
-      d1: DelayedIdent[T0],
-      d2: DelayedIdent[T1],
-      d3: DelayedIdent[T2],
-      d4: DelayedIdent[T3],
-    ) {
-      def apply[R](body:(
-            DelayedIdent[T0],
-            DelayedIdent[T1],
-            DelayedIdent[T2],
-            DelayedIdent[T3]
-        ) => TableExpr{type T = R}) : TableExpr{type T = R} = body(d1,d2,d3,d4)
-    }
-    def apply[T0: NotNothing, T1: NotNothing, T2: NotNothing, T3: NotNothing](
-        n1: Int,
-        n2: Int,
-        n3: Int,
-        n4: Int
-    ) = {
-      val d1 = Expr.DelayedIdent[T0](ra3.lang.Delayed(this.key, Right(n1)))
-      val d2 = Expr.DelayedIdent[T1](ra3.lang.Delayed(this.key, Right(n2)))
-      val d3 = Expr.DelayedIdent[T2](ra3.lang.Delayed(this.key, Right(n3)))
-      val d4 = Expr.DelayedIdent[T3](ra3.lang.Delayed(this.key, Right(n4)))
-      curry4(d1, d2, d3, d4)
-    }
-
-    case class curry5[T0: NotNothing, T1: NotNothing, T2: NotNothing, T3: NotNothing, T4: NotNothing](
-      d1: DelayedIdent[T0],
-      d2: DelayedIdent[T1],
-      d3: DelayedIdent[T2],
-      d4: DelayedIdent[T3],
-      d5: DelayedIdent[T4],
-    ) {
-      def apply[R](body:(
-            DelayedIdent[T0],
-            DelayedIdent[T1],
-            DelayedIdent[T2],
-            DelayedIdent[T3],
-            DelayedIdent[T4],
-        ) => TableExpr{type T = R}) : TableExpr{type T = R} = body(d1,d2,d3,d4,d5)
-    }
-    def apply[T0: NotNothing, T1: NotNothing, T2: NotNothing, T3: NotNothing, T4: NotNothing](
-        n1: Int,
-        n2: Int,
-        n3: Int,
-        n4: Int,
-        n5: Int,
-    ) = {
-      val d1 = Expr.DelayedIdent[T0](ra3.lang.Delayed(this.key, Right(n1)))
-      val d2 = Expr.DelayedIdent[T1](ra3.lang.Delayed(this.key, Right(n2)))
-      val d3 = Expr.DelayedIdent[T2](ra3.lang.Delayed(this.key, Right(n3)))
-      val d4 = Expr.DelayedIdent[T3](ra3.lang.Delayed(this.key, Right(n4)))
-      val d5 = Expr.DelayedIdent[T4](ra3.lang.Delayed(this.key, Right(n5)))
-      curry5(d1, d2, d3, d4, d5)
-    }
-
-    case class curryT[T0<:Tuple](
-      d: Tuple.Map[T0,ra3.lang.DelayedIdent]
-    ) {
-      
-      inline def apply[R](body:(
-            Tuple.Map[T0,ra3.lang.DelayedIdent]
-        ) => TableExpr{type T = R}) : TableExpr{type T = R} = body(d)
-    }
-    inline def tuple[T<:Tuple] = {
-      val size   = scala.compiletime.constValue[scala.Tuple.Size[T]]
-      val list = 0 until size map {i =>
-        Expr.DelayedIdent(ra3.lang.Delayed(this.key, Right(i)))
-      }      
-      val tup = scala.Tuple.fromArray(list.toArray).asInstanceOf[Tuple.Map[T,ra3.lang.DelayedIdent]]
-
-      curryT(tup)
-      
-
-    }
-
-   
-
   }
 
   case class Local(name: Key, assigned: TableExpr, body: TableExpr)
@@ -1012,34 +721,5 @@ object TableExpr {
 
     }
   }
-
-  // implicit class SyntaxIdent[A: NotNothing, B: NotNothing](a: TableExpr.Ident {
-  //   type T = ra3.lang.ReturnValue2[A, B]
-  // }) {
-  //   def in[R](
-  //       body: (
-  //           Expr.DelayedIdent {
-  //             type T = A; type R = ra3.lang.ReturnValue2[A, B]
-  //           },
-  //           Expr.DelayedIdent {
-  //             type T = B; type R = ra3.lang.ReturnValue2[A, B]
-  //           }
-  //       ) => TableExpr { type T = R }
-  //   ): TableExpr { type T = R } = {
-  //     val aa = Expr
-  //       .DelayedIdent(ra3.lang.Delayed(a.key, Right(0)))
-  //       .asInstanceOf[
-  //         Expr.DelayedIdent { type T = A; type R = ra3.lang.ReturnValue2[A, B] }
-  //       ]
-  //     val bb = Expr
-  //       .DelayedIdent(ra3.lang.Delayed(a.key, Right(1)))
-  //       .asInstanceOf[
-  //         Expr.DelayedIdent { type T = B; type R = ra3.lang.ReturnValue2[A, B] }
-  //       ]
-
-  //     body(aa, bb)
-
-  //   }
-  // }
 
 }
