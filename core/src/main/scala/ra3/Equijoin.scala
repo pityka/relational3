@@ -11,7 +11,7 @@ private[ra3] object Equijoin {
       partitionBase: Int,
       partitionLimit: Int,
       maxSegmentsToBufferAtOnce: Int,
-      program: ra3.lang.Expr[ReturnValue[?]]
+      program: ra3.lang.runtime.Expr
   )(implicit tsc: TaskSystemComponents): IO[Table] = {
     if (others.size == 0) {
       scribe.info("Nothing to join")
@@ -76,7 +76,7 @@ private[ra3] object Equijoin {
       partitionBase: Int,
       partitionLimit: Int,
       maxSegmentsToBufferAtOnce: Int,
-      program: ra3.lang.Expr[ReturnValue[?]]
+      program: ra3.lang.runtime.Expr
   )(implicit tsc: TaskSystemComponents) = {
 
     assert(
@@ -235,7 +235,7 @@ private[ra3] object Equijoin {
       others: Seq[(Table, Int, String, Int)],
       partitionBase: Int,
       partitionLimit: Int,
-      program: ra3.lang.Expr[ReturnValue[?]]
+      program: ra3.lang.runtime.Expr
   )(implicit tsc: TaskSystemComponents) = {
     val name = ts.MakeUniqueId.queueM(
       self +: others.map(_._1),

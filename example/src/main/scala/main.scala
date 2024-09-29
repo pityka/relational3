@@ -4,7 +4,7 @@
 // import com.typesafe.config.ConfigFactory
 // import scala.util.Random
 // import mainargs.{main, arg, ParserForMethods, Flag}
-// import ra3.{StrVar, I32Var, F64Var, select,  TableExpr, let, Table}
+// import ra3.{StrVar, I32Var, F64Var, select,  TableExpr,  Table}
 // import ra3.lang.DelayedIdent
 
 // object Main extends App {
@@ -106,9 +106,9 @@
 //       )
 //       object TransactionsSchema {
 //         def schema[R](a: ra3.Table)(
-//             f: TransactionsSchema => TableExpr{type T = R}
+//             f: TransactionsSchema => TableExpr[R]
 //         ) = 
-//           a.schema[StrVar, StrVar, StrVar, I32Var, F64Var].columns {
+//           a.schema[StrVar, StrVar, StrVar, I32Var, F64Var].columnsTuple.all {
 //             case (c0, c1, c2, c3, c4) =>
 //               f(TransactionsSchema(c0, c1, c2, c3, c4))
 //           }
@@ -124,28 +124,28 @@
 //         def apply(
 //             customer: DelayedIdent[StrVar],
 //             price: DelayedIdent[F64Var]
-//         )(use: [R] => CustomerSummary => TableExpr{type T = R}): TableExpr = {
-//           val summary = customer.groupBy(select(
-//                 customer.first,
-//                 price.sum,
-//                 price.count,
-//                 price.max
-//               ))            
+//         )(use: [R] => CustomerSummary => TableExpr[R]) = {
+//           val summary = customer.groupBy(ra3.select0.extend(
+//                 customer.first.unnamed).extend(
+//                 price.sum.unnamed).extend(
+//                 price.count.unnamed).extend(
+//                 price.max.unnamed)
+//               )            
 //             .partial
-//             .columns {
+//             .columnsTuple.all {
 //               case (customer, sum, count,  max) =>
 //                 customer
 //                   .groupBy(
-//                     select(
-//                       customer.first as "customer",
-//                       (sum.sum / count.sum) as "avg",
-//                       max.max as "max"
+//                     ra3.select0.extend(
+//                       customer.first as "customer").extend(
+//                       (sum.sum / count.sum) as "avg").extend(
+//                       max.max as "max")
 //                     )
-//                   )
+                  
 //                   .all
 //             }
 
-//           summary.columns{ case (customer,avg,max) =>
+//           summary.columnsTuple.all{ case (customer,avg,max) =>
 //             use(
 //               CustomerSummary(
 //                 customer,
@@ -193,7 +193,7 @@
 //       }
 //       def avgInAndOutWithoutAbstractions(transactions: Table) = {
 //         val query = transactions
-//           .schema[StrVar, StrVar, StrVar, StrVar, F64Var].columns {
+//           .schema[StrVar, StrVar, StrVar, StrVar, F64Var].columnsTuple.all {
 //             (customerIn, customerOut, _, _, value) =>
 //               customerIn.groupBy
 //                 (

@@ -10,14 +10,14 @@ import ra3.lang.ReturnValue
 
 private[ra3] case class SimpleQueryCount(
     input: Seq[SegmentWithName],
-    predicate: ra3.lang.Expr[?],
+    predicate: ra3.lang.runtime.Expr,
     groupMap: Option[(SegmentInt, Int)]
 )
 private[ra3] object SimpleQueryCount {
 
   def doit(
       input: Seq[SegmentWithName],
-      predicate: ra3.lang.Query[Any],
+      predicate: ra3.lang.runtime.Expr,
       groupMap: Option[(SegmentInt, Int)]
   )(implicit tsc: TaskSystemComponents): IO[Int] = {
     scribe.debug(
@@ -38,28 +38,27 @@ private[ra3] object SimpleQueryCount {
       case Some((map, num)) => map.buffer.map(s => Some((s, num)))
     }
     groupMapBuffer.flatMap { case groupMapBuffer =>
-      val env1: Map[ra3.lang.Key, ra3.lang.Value[?]] =
+      val env1: Map[ra3.lang.Key, ra3.lang.runtime.Value] =
         input
           .map { case segmentWithName =>
             val columnKey = ra3.lang.ColumnKey(
               segmentWithName.tableUniqueId,
               segmentWithName.columnIdx
             )
-            (columnKey, ra3.lang.Value.Const(Right(segmentWithName.segment)))
+            (columnKey, ra3.lang.runtime.Value(Right(segmentWithName.segment)))
           }
           .filter(v => neededColumns.contains(v._1))
           .toMap
       val env = env1 ++ groupMapBuffer.toList.flatMap { case (map, num) =>
         Seq(
-          ra3.lang.GroupMap -> ra3.lang.Value
-            .Const(map),
-          ra3.lang.Numgroups -> ra3.lang.Value.Const(num)
+          ra3.lang.GroupMap -> ra3.lang.runtime.Value(map),
+          ra3.lang.Numgroups -> ra3.lang.runtime.Value(num)
         )
       }
 
-      ra3.lang
+      ra3.lang.runtime.Expr
         .evaluate(predicate, env)
-        .map(_.v)
+        .map(_.v.asInstanceOf[ReturnValue[?]])
         .flatMap { returnValue =>
           val mask = returnValue.filter
 
@@ -108,13 +107,13 @@ private[ra3] object SimpleQueryCount {
   def queue(
       // (segment, table unique id)
       input: Seq[SegmentWithName],
-      predicate: ra3.lang.Query[Any],
+      predicate: ra3.lang.runtime.Expr,
       groupMap: Option[(SegmentInt, Int)]
   )(implicit
       tsc: TaskSystemComponents
   ): IO[Long] =
     task(
-      SimpleQueryCount(input, predicate.replaceTags(Map.empty), groupMap)
+      SimpleQueryCount(input, predicate, groupMap)
     )(
       ResourceRequest(
         cpu = (1, 1),
@@ -127,7 +126,7 @@ private[ra3] object SimpleQueryCount {
   implicit val codec: JsonValueCodec[SimpleQueryCount] = JsonCodecMaker.make
   val task = Task[SimpleQueryCount, Long]("SimpleQueryCount", 1) { case input =>
     implicit ce =>
-      doit(input.input, input.predicate.asInstanceOf[ra3.lang.Expr[ReturnValue[Any]]], input.groupMap).map(_.toLong)
+      doit(input.input, input.predicate, input.groupMap).map(_.toLong)
 
   }
 }

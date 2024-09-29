@@ -6,6 +6,7 @@ import ra3.*
 import tasks.TaskSystemComponents
 import cats.effect.*
 import ra3.DInst
+import ra3.lang.util.*
 private[ra3] sealed trait Op3 {
   type A0
   type A1
@@ -17,14 +18,7 @@ private[ra3] sealed trait Op3 {
 
 private[ra3] object Op3 {
 
-  class MkReturnValue3[T0,T1,T2] extends Op3 {
-    type A0 = ra3.lang.ColumnSpec[T0]
-    type A1 = ra3.lang.ColumnSpec[T1]
-    type A2 = ra3.lang.ColumnSpec[T2]
-    type T = ra3.lang.ReturnValue3[T0,T1,T2]
-    def op(a0: A0, a1: A1, a2: A2)(implicit tsc: TaskSystemComponents) =
-      IO.pure(ra3.lang.ReturnValue3(a0, a1, a2, None))
-  }
+ 
   
 
   case object StringMatchAndReplaceOp extends Op3 {

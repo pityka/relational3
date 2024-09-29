@@ -3,7 +3,7 @@ import ra3.*
 import ra3.lang.*
 import ra3.DI32
 import ra3.lang.ReturnValue
-import ra3.lang.bufferIfNeeded
+import ra3.lang.util.*
 import tasks.TaskSystemComponents
 import cats.effect.IO
 private[ra3] sealed trait Op2 {
@@ -12,33 +12,54 @@ private[ra3] sealed trait Op2 {
   type T
   def op(a: A0, b: A1)(implicit tsc: TaskSystemComponents): IO[T]
 }
+private[ra3] sealed trait Op2Unserializable {
+  type A0
+  type A1
+  type T
+  def op(a: A0, b: A1)(implicit tsc: TaskSystemComponents): IO[T]
+  def erase : Op2
+}
 
 private[ra3] object Op2 {
 
-  class MkReturnValue2[T0,T1] extends Op2 {
-    type A0 = ra3.lang.ColumnSpec[T0]
-    type A1 = ra3.lang.ColumnSpec[T1]
-    type T = ra3.lang.ReturnValue2[T0, T1]
+  
+  case object ExtendReturnUntyped extends Op2 {
+    // types here are fake
+    type A0 = ra3.lang.ReturnValueTuple[EmptyTuple]
+    type A1 = ra3.lang.ColumnSpec[Int]
+    type T = ra3.lang.ReturnValueTuple[Tuple.Append[EmptyTuple,Int]]
     def op(a0: A0, a1: A1)(implicit tsc: TaskSystemComponents) =
-      IO.pure(ra3.lang.ReturnValue2(a0, a1, None))
+      IO.pure(a0.extend(a1))
   }
-  class ExtendReturn[T0<:Tuple,T1] extends Op2 {
+  class ExtendReturn[T0<:Tuple,T1] extends Op2Unserializable {
+
+    def erase = ExtendReturnUntyped
     type A0 = ra3.lang.ReturnValueTuple[T0]
     type A1 = ra3.lang.ColumnSpec[T1]
     type T = ra3.lang.ReturnValueTuple[Tuple.Append[T0,T1]]
     def op(a0: A0, a1: A1)(implicit tsc: TaskSystemComponents) =
       IO.pure(a0.extend(a1))
   }
-  class ConcatReturn[T0<:Tuple,T1<:Tuple] extends Op2 {
+  
+  class ConcatReturn[T0<:Tuple,T1<:Tuple] extends Op2Unserializable {
+
+    def erase = ConcatReturnUntyped
     type A0 = ra3.lang.ReturnValueTuple[T0]
     type A1 = ra3.lang.ReturnValueTuple[T1]
     type T = ra3.lang.ReturnValueTuple[Tuple.Concat[T0,T1]]
     def op(a0: A0, a1: A1)(implicit tsc: TaskSystemComponents) =
       IO.pure(a0.concat(a1))
   }
+  case object ConcatReturnUntyped extends Op2 {
+    type A0 = ra3.lang.ReturnValueTuple[EmptyTuple]
+    type A1 = ra3.lang.ReturnValueTuple[EmptyTuple]
+    type T = ra3.lang.ReturnValueTuple[Tuple.Concat[EmptyTuple,EmptyTuple]]
+    def op(a0: A0, a1: A1)(implicit tsc: TaskSystemComponents) =
+      IO.pure(a0.concat(a1))
+  }
 
-  class Tap[B] extends Op2 {
-
+  class Tap[B] extends Op2Unserializable {
+    def erase = TapUntyped
     type A0 = B
     type A1 = String
     type T = A0
@@ -48,19 +69,39 @@ private[ra3] object Op2 {
       a
     }
   }
+  case object TapUntyped extends Op2 {
 
-  class Cons[A] extends Op2 {
-    type A0 = A
-    type A1 = List[A]
-    type T = List[A]
-    def op(a: A, b: List[A])(implicit tsc: TaskSystemComponents) =
-      IO.pure(a :: b)
+    type A0 = Any
+    type A1 = String
+    type T = A0
+    def op(a: A0, b: A1)(implicit tsc: TaskSystemComponents) = IO {
+
+      scribe.info(scribe.LogFeature.string2LoggableMessage(s"$b : ${a.toString}"))
+      a
+    }
   }
-  class MkReturnWhere[K] extends Op2 {
 
+  class MkReturnWhere[K] extends Op2Unserializable {
+    def erase = MkReturnWhereUntyped
     type A0 = ra3.lang.ReturnValue[K]
     type A1 = DI32
     type T = ReturnValue[K]
+    def op(a: A0, b: A1)(implicit tsc: TaskSystemComponents) =
+      (a.filter match {
+        case None => IO.pure(Some(b))
+        case Some(f) =>
+          for {
+            f <- bufferIfNeededI32(f)
+            b <- bufferIfNeededI32(b)
+          } yield Some(Left(b.elementwise_&&(f)))
+      }).map(f => a.replacePredicate(f))
+
+  }
+  case object MkReturnWhereUntyped extends Op2 {
+
+    type A0 = ra3.lang.ReturnValue[EmptyTuple]
+    type A1 = DI32
+    type T = A0
     def op(a: A0, b: A1)(implicit tsc: TaskSystemComponents) =
       (a.filter match {
         case None => IO.pure(Some(b))

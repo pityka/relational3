@@ -10,15 +10,36 @@ sealed trait OpAny {
   def op(a: List[A])(implicit tsc: TaskSystemComponents): IO[T]
 
 }
+sealed trait OpAnyUnserializable {
+  def erased : OpAny
+  type A
+  type T
 
-object OpAny {
+  def op(a: List[A])(implicit tsc: TaskSystemComponents): IO[T]
 
- 
-  class MkReturnValueTuple[B<:Tuple] extends OpAny  {
+}
+object OpAnyUnserializable {
+  class MkReturnValueTuple[B<:Tuple] extends OpAnyUnserializable  {
+
+    def erased  = OpAny.MkReturnValueTupleUntyped
     type A = ColumnSpec[Any]
     type T = ReturnValueTuple[B]
     def op(a: List[A])(implicit tsc: TaskSystemComponents) =
       IO.pure(ReturnValueTuple[B](a, None))
 
   }
+  
+}
+
+object OpAny {
+
+  case object MkReturnValueTupleUntyped extends OpAny  {
+    type A = ColumnSpec[Any]
+    type T = ReturnValueTuple[EmptyTuple]
+    def op(a: List[A])(implicit tsc: TaskSystemComponents) =
+      IO.pure(ReturnValueTuple[EmptyTuple](a, None))
+
+  } 
+  
+
 }

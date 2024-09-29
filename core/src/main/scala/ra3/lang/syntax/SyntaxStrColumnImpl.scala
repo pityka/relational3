@@ -1,7 +1,7 @@
 package ra3.lang.syntax
 import ra3.lang.*
 import ra3.BufferInt
-import ra3.lang.StrColumnExpr
+import ra3.lang.util.*
 
 private[ra3] trait SyntaxStrColumnImpl {
   protected def arg0: StrColumnExpr

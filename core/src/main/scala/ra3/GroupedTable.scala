@@ -85,7 +85,7 @@ private[ra3] case class GroupedTable(
 private[ra3] object GroupedTable {
   def reduceGroups(
       self: GroupedTable,
-      program: ra3.lang.Expr[ReturnValue[?]]
+      program: ra3.lang.runtime.Expr
   )(implicit
       tsc: TaskSystemComponents
   ): IO[Table] = {
@@ -143,7 +143,7 @@ private[ra3] object GroupedTable {
   }
   def countGroups(
       self: GroupedTable,
-      program: ra3.lang.Expr[ReturnValue[?]]
+      program: ra3.lang.runtime.Expr
   )(implicit
       tsc: TaskSystemComponents
   ): IO[Table] = {

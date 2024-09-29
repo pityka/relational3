@@ -38,7 +38,7 @@ private[ra3] case class SegmentWithName(
 
 private[ra3] case class SimpleQuery(
     input: Seq[(ColumnTag, SegmentWithName)],
-    predicate: ra3.lang.Expr[?],
+    predicate: ra3.lang.runtime.Expr,
     outputPath: LogicalPath,
     groupMap: Option[(SegmentInt, Int)]
 )
@@ -46,7 +46,7 @@ private[ra3] object SimpleQuery {
 
   def doit(
       input: Seq[(ColumnTag, SegmentWithName)],
-      predicate: ra3.lang.Query[Any],
+      predicate: ra3.lang.runtime.Expr,
       outputPath: LogicalPath,
       groupMap: Option[(SegmentInt, Int)]
   )(implicit tsc: TaskSystemComponents): IO[List[(TaggedSegment, String)]] = {
@@ -69,28 +69,27 @@ private[ra3] object SimpleQuery {
     }
     // IO.both(bIn, groupMapBuffer)
     groupMapBuffer.flatMap { case groupMapBuffer =>
-      val env1: Map[ra3.lang.Key, ra3.lang.Value[?]] =
+      val env1: Map[ra3.lang.Key, ra3.lang.runtime.Value] =
         input
           .map { case (tag, segmentWithName) =>
             val columnKey = ra3.lang.ColumnKey(
               segmentWithName.tableUniqueId,
               segmentWithName.columnIdx
             )
-            (columnKey, ra3.lang.Value.Const(Right(segmentWithName.segment)))
+            (columnKey, ra3.lang.runtime.Value(Right(segmentWithName.segment)))
           }
           .filter(v => neededColumns.contains(v._1))
           .toMap
       val env = env1 ++ groupMapBuffer.toList.flatMap { case (map, num) =>
         Seq(
-          ra3.lang.GroupMap -> ra3.lang.Value
-            .Const(map),
-          ra3.lang.Numgroups -> ra3.lang.Value.Const(num)
+          ra3.lang.GroupMap -> ra3.lang.runtime.Value(map),
+          ra3.lang.Numgroups -> ra3.lang.runtime.Value(num)
         )
       }
 
-      ra3.lang
+      ra3.lang.runtime.Expr
         .evaluate(predicate, env)
-        .map(_.v)
+        .map(_.v.asInstanceOf[ReturnValue[?]])
         .flatMap { returnValue =>
           val mask = returnValue.filter
 
@@ -244,7 +243,7 @@ private[ra3] object SimpleQuery {
                       (mask match {
                         case None => IO.pure(maskableBuffer)
                         case Some(mask) =>
-                          ra3.lang
+                          ra3.lang.util
                             .bufferIfNeeded(ColumnTag.I32)(mask)
                             .map(mask =>
                               maskableBuffer.tag.makeTaggedBuffer(
@@ -275,7 +274,7 @@ private[ra3] object SimpleQuery {
   def queue(
       // (segment, table unique id)
       input: Seq[TypedSegmentWithName],
-      predicate: ra3.lang.Query[Any],
+      predicate: ra3.lang.runtime.Expr,
       outputPath: LogicalPath,
       groupMap: Option[(SegmentInt, Int)]
   )(implicit
@@ -284,7 +283,7 @@ private[ra3] object SimpleQuery {
     task(
       SimpleQuery(
         input.map(v => v.tag -> v.erase),
-        predicate.replaceTags(Map.empty),
+        predicate,
         outputPath,
         groupMap
       )
@@ -305,7 +304,7 @@ private[ra3] object SimpleQuery {
       implicit ce =>
         doit(
           input.input,
-          input.predicate.asInstanceOf[ra3.lang.Expr[ReturnValue[Any]]],
+          input.predicate,
           input.outputPath,
           input.groupMap
         )

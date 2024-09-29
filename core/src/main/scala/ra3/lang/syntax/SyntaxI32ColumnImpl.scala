@@ -1,7 +1,7 @@
 package ra3.lang.syntax
 import ra3.lang.*
 import ra3.BufferInt
-
+import ra3.lang.util.*
 
 
 private[ra3] trait SyntaxI32ColumnImpl {

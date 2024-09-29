@@ -2,33 +2,18 @@ package ra3.lang.ops
 import cats.effect.IO
 import tasks.TaskSystemComponents
 import ra3.*
-import ra3.lang.bufferIfNeededWithPrecondition
-import ra3.Utils.* 
+import ra3.lang.util.*
+import ra3.Utils.*
 import java.time.Instant
 
 private[ra3] sealed trait Op1 {
   type A0
   type T
 
-  
   def op(a: A0)(implicit tsc: TaskSystemComponents): IO[T]
 }
 
 private[ra3] object Op1 {
-
-  class List1[B] extends Op1 {
-    type A0 = B
-    type T = List[A0]
-    def op(a: A0)(implicit tsc: TaskSystemComponents) = IO.pure(List(a))
-
-  }
-
-  class MkReturnValue1[B] extends Op1 {
-    type A0 = ra3.lang.ColumnSpec[B]
-    type T = ra3.lang.ReturnValue1[B]
-    def op(a: ra3.lang.ColumnSpec[B])(implicit tsc: TaskSystemComponents) =
-      IO.pure(ra3.lang.ReturnValue1(a, None))
-  }
 
   case object DynamicUnnamed extends Op1 {
     type A0 = Any
@@ -36,42 +21,48 @@ private[ra3] object Op1 {
     def op(a: A0)(implicit tsc: TaskSystemComponents) =
       IO.pure({
         val p = (a.asInstanceOf[Primitives])
-        p match
+        p match {
           case e: Instant => ra3.lang.UnnamedConstantInstant(e)
-          case e: String => ra3.lang.UnnamedConstantString(e)
-          case e: Double => ra3.lang.UnnamedConstantF64(e)
-          case e: Long => ra3.lang.UnnamedConstantI64(e) 
-          case e: Int =>ra3.lang.UnnamedConstantI32(e) 
-          case Left(buffer) => 
-              buffer.asInstanceOf[Buffer] match
-                case e: BufferDouble => ra3.lang.UnnamedColumnChunkF64(Left(e))
-                case e: BufferInt => ra3.lang.UnnamedColumnChunkI32(Left(e))
-                case e: BufferLong => ra3.lang.UnnamedColumnChunkI64(Left(e))
-                case e: BufferInstant => ra3.lang.UnnamedColumnChunkInst(Left(e))
-                case e: BufferString => ra3.lang.UnnamedColumnChunkStr(Left(e))
+          case e: String  => ra3.lang.UnnamedConstantString(e)
+          case e: Double  => ra3.lang.UnnamedConstantF64(e)
+          case e: Long    => ra3.lang.UnnamedConstantI64(e)
+          case e: Int     => ra3.lang.UnnamedConstantI32(e)
+          case Left(buffer) =>
+            buffer.asInstanceOf[Buffer] match {
+              case e: BufferDouble  => ra3.lang.UnnamedColumnChunkF64(Left(e))
+              case e: BufferInt     => ra3.lang.UnnamedColumnChunkI32(Left(e))
+              case e: BufferLong    => ra3.lang.UnnamedColumnChunkI64(Left(e))
+              case e: BufferInstant => ra3.lang.UnnamedColumnChunkInst(Left(e))
+              case e: BufferString  => ra3.lang.UnnamedColumnChunkStr(Left(e))
+            }
           case Right(segments) =>
-              segments.asInstanceOf[Seq[Segment]].head match
-                case _: SegmentDouble => ra3.lang.UnnamedColumnChunkF64(Right(segments.asInstanceOf[Seq[SegmentDouble]]))
-                case _: SegmentInt => ra3.lang.UnnamedColumnChunkI32(Right(segments.asInstanceOf[Seq[SegmentInt]]))
-                case _: SegmentLong => ra3.lang.UnnamedColumnChunkI64(Right(segments.asInstanceOf[Seq[SegmentLong]]))
-                case _: SegmentString => ra3.lang.UnnamedColumnChunkStr(Right(segments.asInstanceOf[Seq[SegmentString]]))
-                case _: SegmentInstant => ra3.lang.UnnamedColumnChunkInst(Right(segments.asInstanceOf[Seq[SegmentInstant]]))
-                
-              
+            segments.asInstanceOf[Seq[Segment]].head match {
+              case _: SegmentDouble =>
+                ra3.lang.UnnamedColumnChunkF64(
+                  Right(segments.asInstanceOf[Seq[SegmentDouble]])
+                )
+              case _: SegmentInt =>
+                ra3.lang.UnnamedColumnChunkI32(
+                  Right(segments.asInstanceOf[Seq[SegmentInt]])
+                )
+              case _: SegmentLong =>
+                ra3.lang.UnnamedColumnChunkI64(
+                  Right(segments.asInstanceOf[Seq[SegmentLong]])
+                )
+              case _: SegmentString =>
+                ra3.lang.UnnamedColumnChunkStr(
+                  Right(segments.asInstanceOf[Seq[SegmentString]])
+                )
+              case _: SegmentInstant =>
+                ra3.lang.UnnamedColumnChunkInst(
+                  Right(segments.asInstanceOf[Seq[SegmentInstant]])
+                )
+            }
+        }
 
-                
-                
-              
-        
-        ???
       })
   }
-  // case object UntypedReturnValue extends Op1 {
-  //   type A0 = List[ra3.lang.ColumnSpec[Any]]
-  //   type T = ra3.lang.ReturnValue[Any]
-  //   def op(a: A0)(implicit tsc: TaskSystemComponents) =
-  //     IO.pure(ra3.lang.ReturnValueTuple[EmptyTuple](a,None))
-  // }
+
   case object MkUnnamedColumnSpecChunkI32 extends Op1 {
     type A0 = DI32
     type T = ra3.lang.UnnamedColumnChunkI32
@@ -212,12 +203,14 @@ private[ra3] object Op1 {
   case object ColumnAbsOpI extends ColumnOp1II {
     def op(
         a: ra3.DI32
-    )(implicit tsc: TaskSystemComponents) = bufferBeforeI32(a)(_.elementwise_abs)
+    )(implicit tsc: TaskSystemComponents) =
+      bufferBeforeI32(a)(_.elementwise_abs)
   }
   case object ColumnNotOpI extends ColumnOp1II {
     def op(
         a: ra3.DI32
-    )(implicit tsc: TaskSystemComponents) = bufferBeforeI32(a)(_.elementwise_not)
+    )(implicit tsc: TaskSystemComponents) =
+      bufferBeforeI32(a)(_.elementwise_not)
   }
 
   case object ColumnIsMissingOpL extends ColumnOp1LI {
@@ -225,8 +218,8 @@ private[ra3] object Op1 {
         a: ra3.DI64
     )(implicit tsc: TaskSystemComponents) =
       for {
-        a <- bufferIfNeededWithPrecondition(ColumnTag.I64)(a)((segment: SegmentLong) =>
-          segment.statistic.hasMissing
+        a <- bufferIfNeededWithPrecondition(ColumnTag.I64)(a)(
+          (segment: SegmentLong) => segment.statistic.hasMissing
         )
       } yield (a match {
         case Right(a) => Left(a.elementwise_isMissing)
@@ -239,8 +232,8 @@ private[ra3] object Op1 {
         a: ra3.DF64
     )(implicit tsc: TaskSystemComponents) =
       for {
-        a <- bufferIfNeededWithPrecondition(ColumnTag.F64)(a)((segment: SegmentDouble) =>
-          segment.statistic.hasMissing
+        a <- bufferIfNeededWithPrecondition(ColumnTag.F64)(a)(
+          (segment: SegmentDouble) => segment.statistic.hasMissing
         )
       } yield (a match {
         case Right(a) => Left(a.elementwise_isMissing)
@@ -253,8 +246,8 @@ private[ra3] object Op1 {
         a: ra3.DStr
     )(implicit tsc: TaskSystemComponents) =
       for {
-        a <- bufferIfNeededWithPrecondition(ColumnTag.StringTag)(a)((segment: SegmentString) =>
-          segment.statistic.hasMissing
+        a <- bufferIfNeededWithPrecondition(ColumnTag.StringTag)(a)(
+          (segment: SegmentString) => segment.statistic.hasMissing
         )
       } yield (a match {
         case Right(a) => Left(a.elementwise_isMissing)
@@ -265,7 +258,8 @@ private[ra3] object Op1 {
   case object ColumnAbsOpD extends ColumnOp1DD {
     def op(
         a: ra3.DF64
-    )(implicit tsc: TaskSystemComponents) = bufferBeforeF64(a)(_.elementwise_abs)
+    )(implicit tsc: TaskSystemComponents) =
+      bufferBeforeF64(a)(_.elementwise_abs)
   }
   case object ColumnRoundToDoubleOpD extends ColumnOp1DD {
     def op(
@@ -285,8 +279,8 @@ private[ra3] object Op1 {
         a: ra3.DI32
     )(implicit tsc: TaskSystemComponents) =
       for {
-        a <- bufferIfNeededWithPrecondition(ColumnTag.I32)(a)((segment: SegmentInt) =>
-          segment.statistic.hasMissing
+        a <- bufferIfNeededWithPrecondition(ColumnTag.I32)(a)(
+          (segment: SegmentInt) => segment.statistic.hasMissing
         )
       } yield (a match {
         case Right(a) => Left(a.elementwise_isMissing)
@@ -306,8 +300,8 @@ private[ra3] object Op1 {
         a: ra3.DInst
     )(implicit tsc: TaskSystemComponents) =
       for {
-        a <- bufferIfNeededWithPrecondition(ColumnTag.Instant)(a)((segment: SegmentInstant) =>
-          segment.statistic.hasMissing
+        a <- bufferIfNeededWithPrecondition(ColumnTag.Instant)(a)(
+          (segment: SegmentInstant) => segment.statistic.hasMissing
         )
       } yield (a match {
         case Right(a) => Left(a.elementwise_isMissing)
@@ -330,7 +324,8 @@ private[ra3] object Op1 {
   case object ColumnYearsOpInst extends ColumnOp1InstI {
     def op(
         a: ra3.DInst
-    )(implicit tsc: TaskSystemComponents) = bufferBeforeInstant(a)(_.elementwise_years)
+    )(implicit tsc: TaskSystemComponents) =
+      bufferBeforeInstant(a)(_.elementwise_years)
   }
   case object ColumnMonthsOpInst extends ColumnOp1InstI {
     def op(
@@ -341,12 +336,14 @@ private[ra3] object Op1 {
   case object ColumnDaysOpInst extends ColumnOp1InstI {
     def op(
         a: ra3.DInst
-    )(implicit tsc: TaskSystemComponents) = bufferBeforeInstant(a)(_.elementwise_days)
+    )(implicit tsc: TaskSystemComponents) =
+      bufferBeforeInstant(a)(_.elementwise_days)
   }
   case object ColumnHoursOpInst extends ColumnOp1InstI {
     def op(
         a: ra3.DInst
-    )(implicit tsc: TaskSystemComponents) = bufferBeforeInstant(a)(_.elementwise_hours)
+    )(implicit tsc: TaskSystemComponents) =
+      bufferBeforeInstant(a)(_.elementwise_hours)
   }
   case object ColumnMinutesOpInst extends ColumnOp1InstI {
     def op(
@@ -419,7 +416,8 @@ private[ra3] object Op1 {
   case object ColumnToISOOpInst extends ColumnOp1InstStr {
     def op(
         a: ra3.DInst
-    )(implicit tsc: TaskSystemComponents) = bufferBeforeInstant(a)(_.elementwise_toISO)
+    )(implicit tsc: TaskSystemComponents) =
+      bufferBeforeInstant(a)(_.elementwise_toISO)
   }
   case object ColumnToDoubleOpL extends ColumnOp1LD {
     def op(

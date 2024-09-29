@@ -127,7 +127,6 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
   override def toString =
     s"BufferString(n=${values.length}: ${values.take(5).mkString(", ")} ..})"
 
-  // def sumGroups(partitionMap: BufferInt, numGroups: Int): BufferType = ???
 
   /** Find locations at which _ <= other[0] or _ >= other[0] holds returns
     * indexes

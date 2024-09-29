@@ -1,6 +1,7 @@
 package ra3.lang.syntax
 
 import ra3.lang.*
+import ra3.lang.util.*
 private[ra3] trait SyntaxIntImpl {
   protected def arg0: IntExpr
   def +(arg1: IntExpr) = Expr.makeOp2(ops.Op2.AddOp)(arg0, arg1)

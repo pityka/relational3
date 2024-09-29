@@ -35,8 +35,7 @@ private[ra3] object MakeGroupMap {
       val GroupMap(groupMap, numGroups, groupSizes) = Buffer
         .computeGroups(taggedBuffers)
       
-      val intTag : ColumnTag{type BufferType = BufferInt
-         type SegmentType = SegmentInt}= ???
+      val intTag = ColumnTag.I32
 
       IO.both(
         intTag.toSegment(groupMap,outputPath),

@@ -17,7 +17,7 @@ import ra3.lang.*
   */
 private[ra3] case class MultipleTableQuery(
     input: Seq[(ColumnTag, SegmentWithName)],
-    predicate: ra3.lang.Expr[?],
+    predicate: ra3.lang.runtime.Expr,
     outputPath: LogicalPath,
     takes: Seq[(String, Option[SegmentInt])]
 )
@@ -25,7 +25,7 @@ private[ra3] object MultipleTableQuery {
 
   def doit(
       input: Seq[(ColumnTag, SegmentWithName)],
-      predicate: ra3.lang.Expr[ReturnValue[?]],
+      predicate: ra3.lang.runtime.Expr,
       outputPath: LogicalPath,
       takes: Seq[(String, Option[SegmentInt])]
   )(implicit tsc: TaskSystemComponents): IO[List[(Segment, String)]] = {
@@ -98,15 +98,15 @@ private[ra3] object MultipleTableQuery {
       )
 
       takenBuffers.flatMap { takenBuffers =>
-        val env1: Map[ra3.lang.Key, ra3.lang.Value[?]] =
+        val env1: Map[ra3.lang.Key, ra3.lang.runtime.Value] =
           takenBuffers.map { case (key, bufAsLeft, _) =>
-            (key, ra3.lang.Value.Const(bufAsLeft))
+            (key, ra3.lang.runtime.Value(bufAsLeft))
           }.toMap
         val env = env1
 
-        ra3.lang
+        ra3.lang.runtime.Expr
           .evaluate(predicate, env)
-          .map(_.v)
+          .map(_.v.asInstanceOf[ReturnValue[?]])
           .flatMap { returnValue =>
             val mask = returnValue.filter
 
@@ -173,7 +173,7 @@ private[ra3] object MultipleTableQuery {
                       mask match {
                         case None => IO.pure(buffer)
                         case Some(mask) =>
-                          ra3.lang.bufferIfNeeded(ColumnTag.I32)(mask).map(tag.filter(buffer,_))
+                          ra3.lang.util.bufferIfNeeded(ColumnTag.I32)(mask).map(tag.filter(buffer,_))
                       }
                     }
 
@@ -189,7 +189,7 @@ private[ra3] object MultipleTableQuery {
   }
   def queue(
       input: Seq[TypedSegmentWithName],
-      predicate: ra3.lang.Expr[ReturnValue[?]],
+      predicate: ra3.lang.runtime.Expr,
       outputPath: LogicalPath,
       takes: Seq[(String, Option[SegmentInt])]
   )(implicit
@@ -198,7 +198,7 @@ private[ra3] object MultipleTableQuery {
     task(
       MultipleTableQuery(
         input.map(v => v.tag -> v.erase),
-        predicate.replaceTags(Map.empty),
+        predicate,
         outputPath,
         takes
       )
@@ -218,7 +218,7 @@ private[ra3] object MultipleTableQuery {
     Task[MultipleTableQuery, Seq[(Segment, String)]]("MultipleTableQuery", 1) {
       case input =>
         implicit ce =>
-          doit(input.input, input.predicate.asInstanceOf[Expr[ReturnValue[?]]], input.outputPath, input.takes)
+          doit(input.input, input.predicate, input.outputPath, input.takes)
 
     }
 }

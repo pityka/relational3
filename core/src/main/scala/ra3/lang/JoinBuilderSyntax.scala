@@ -20,7 +20,7 @@ case class JoinBuilderSyntax[J,K,R<:ReturnValue[K]](
   def withMaxSegmentsBufferingAtOnce(num: Int) =
     copy(maxSegmentsToBufferAtOnce = Some(num))
 
-  def inner(ref: Expr.DelayedIdent[J], other: TableExpr.Ident) = {
+  def inner[A](ref: Expr.DelayedIdent[J], other: TableExpr.Ident[ReturnValue[A]]) = {
     copy(
       others = others.appended(
         (ref, "inner", other.key)
@@ -34,7 +34,7 @@ case class JoinBuilderSyntax[J,K,R<:ReturnValue[K]](
       )
     )
   }
-  def outer(ref: Expr.DelayedIdent[J], other: TableExpr.Ident) = {
+  def outer[A](ref: Expr.DelayedIdent[J], other: TableExpr.Ident[ReturnValue[A]]) = {
     copy(
       others = others.appended(
         (ref, "outer", other.key)
@@ -48,7 +48,7 @@ case class JoinBuilderSyntax[J,K,R<:ReturnValue[K]](
       )
     )
   }
-  def left(ref: Expr.DelayedIdent[J], other: TableExpr.Ident) = {
+  def left[A](ref: Expr.DelayedIdent[J], other: TableExpr.Ident[ReturnValue[A]]) = {
     copy(
       others = others.appended(
         (ref, "left", other.key)
@@ -62,7 +62,7 @@ case class JoinBuilderSyntax[J,K,R<:ReturnValue[K]](
       )
     )
   }
-  def right(ref: Expr.DelayedIdent[J], other: TableExpr.Ident) = {
+  def right[A](ref: Expr.DelayedIdent[J], other: TableExpr.Ident[ReturnValue[A]]) = {
     copy(
       others = others.appended(
         (ref, "right", other.key)
@@ -87,6 +87,6 @@ case class JoinBuilderSyntax[J,K,R<:ReturnValue[K]](
       maxSegmentsToBufferAtOnce.getOrElse(10),
       prg
       // prg.getOrElse(ra3.select(ra3.star))
-    ).asInstanceOf[ra3.tablelang.TableExpr{type T = self.R}]
+    )
   }
 }

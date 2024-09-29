@@ -5,20 +5,13 @@ import ra3.lang.ops.Op3.*
 import ra3.lang.ops.Op2.*
 import ra3.lang.ops.Op1.*
 import ra3.lang.ops.Op0.*
-import ra3.lang.ops.OpN.*
 import ra3.lang.Expr.*
 import ra3.lang.ops.OpAny
 // import ra3.lang.ops.OpStar.MkSelect
 private[ra3] object Render {
 
   def render(op: ra3.lang.ops.Op0): String = op match {
-    case op:ra3.lang.ops.Op0.Constant[?] => s"`${op.op().toString}`"
-  }
-  def render(op: ra3.lang.ops.Op4): String = op match {
-    case _:MkReturnValue4[?,?,?,?] => "return"
-  }
-  def render(op: ra3.lang.ops.Op5): String = op match {
-    case _:MkReturnValue5[?,?,?,?,?] => "return"
+    case op => s"`${op.op().toString}`"
   }
   def render(op: ra3.lang.ops.Op3): String = op match {
     case BufferCountInGroupsOpL            => "in"
@@ -75,7 +68,6 @@ private[ra3] object Render {
     case IfElseInst                        => "ifelse"
     case IfElseInstC                       => "ifelse"
     case BufferFirstGroupsOpInst           => "first"
-    case x                                 => x.toString
   }
 
   @scala.annotation.nowarn
@@ -91,7 +83,6 @@ private[ra3] object Render {
     case ColumnDivOpDD                 => "/"
     case ColumnMulOpDD                 => "*"
     case ColumnSubtractOpDD            => "-"
-    case _:Cons[?]                          => "::"
     case ColumnEqOpInstcL              => "=="
     case ColumnNEqOpInstcL             => "!="
     case ColumnGtEqOpInstcL            => ">="
@@ -195,7 +186,6 @@ private[ra3] object Render {
     case ColumnHoursOpInst            => render(arg) + ".hours"
     case ColumnMonthsOpInst           => render(arg) + ".months"
     case ColumnDaysOpInst             => render(arg) + ".days"
-    case _:List1[?]                        => "list"
     case ToString                     => render(arg) + ".toString"
     case MkUnnamedConstantStr         => render(arg)
     case ColumnToISOOpInst            => render(arg) + ".toInstISO"
@@ -264,30 +254,7 @@ private[ra3] object Render {
       }
       if (args.size == 1) s"${render(args.head)}.${render(op)}"
       else s"${render(op)}(${args.map(render).mkString(", ")})"
-    case e@BuiltInOp4(op) =>
-      val args = List(e.arg0, e.arg1, e.arg2, e.arg3).filter {
-        _ match {
-          case Expr.Ident(_: SingletonKey) => false
-          case _                           => true
-        }
-      }
-      if (args.size == 1) s"${render(args.head)}.${render(op)}"
-      else s"${render(op)}(${args.map(render).mkString(", ")})"
-    case e@BuiltInOp5(op) =>
-      val args = List(e.arg0, e.arg1, e.arg2, e.arg3,e.arg4).filter {
-        _ match {
-          case Expr.Ident(_: SingletonKey) => false
-          case _                           => true
-        }
-      }
-      if (args.size == 1) s"${render(args.head)}.${render(op)}"
-      else s"${render(op)}(${args.map(render).mkString(", ")})"
-    // case BuiltInOpAny(args, op) =>
-    //   op match {
-    //     case OpAny.MkReturnValueStar =>  
-    //         s"SELECT ${args.map(a => render(a)).mkString(", ")}"
-       
-    //   }
+    
       
     case Expr.Ident(name) =>
       name match {
@@ -300,8 +267,6 @@ private[ra3] object Render {
             case ra3.tablelang.IntKey(s) =>
               s"$$T$s[${selection.fold(identity, identity)}]"
             case ra3.tablelang.TagKey(_) => ???
-            case ra3.tablelang.TableKey(tableUniqueId) =>
-              s"$$$tableUniqueId[${selection.fold(identity, identity)}]"
           }
         case lang.IntKey(s) => s"$$C$s"
       }
@@ -311,13 +276,11 @@ private[ra3] object Render {
         case ra3.tablelang.IntKey(s) =>
           s"$$T$s[${selection.fold(identity, identity)}]"
         case ra3.tablelang.TagKey(_) => ???
-        case ra3.tablelang.TableKey(tableUniqueId) =>
-          s"$$$tableUniqueId[${selection.fold(identity, identity)}]"
       }
-
+    case e => e.toString
   }
 
-  def render(expr: TableExpr, indent: Int): String = {
+  def render[T](expr: TableExpr[T], indent: Int): String = {
     import TableExpr.*
     val padInt = (0 until indent).map(_ => "  ").mkString
     expr match {
@@ -327,11 +290,10 @@ private[ra3] object Render {
         key match {
           case ra3.tablelang.IntKey(s)               => s"$$T$s"
           case ra3.tablelang.TagKey(_)               => ???
-          case ra3.tablelang.TableKey(tableUniqueId) => s"$$$tableUniqueId"
         }
       case Local(name, assigned, body) =>
         val rAssigned = assigned match {
-          case _: Local =>
+          case _: Local[?,?] =>
             s"{\n$padInt${render(assigned, indent + 1)}\n$padInt}"
           case _ => render(assigned, indent)
         }

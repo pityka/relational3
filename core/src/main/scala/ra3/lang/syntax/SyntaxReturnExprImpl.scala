@@ -1,18 +1,12 @@
 package ra3.lang.syntax
 
 import ra3.lang.*
+import ra3.lang.util.*
 private[ra3] trait SyntaxReturnExprImpl[T0<:Tuple] {
 
   
   protected def arg0: Expr[ReturnValueTuple[T0]]
-
-  //   class ExtendReturn[T0<:Tuple,T1] extends Op2 {
-  //   type A0 = ra3.lang.ReturnValueTuple[T0]
-  //   type A1 = ra3.lang.ColumnSpec[T1]
-  //   type T = ra3.lang.ReturnValueTuple[Tuple.Append[T0,T1]]
-  //   def op(a0: A0, a1: A1)(implicit tsc: TaskSystemComponents) =
-  //     IO.pure(a0.extend(a1))
-  // }
+ 
   
   def extend[T1](arg1: Expr[ColumnSpec[T1]]) : Expr[ReturnValueTuple[Tuple.Append[T0,T1]]] =
      Expr
@@ -27,22 +21,6 @@ private[ra3] trait SyntaxReturnExprImpl[T0<:Tuple] {
         arg1.all
       )
      
-  // def drop[T1,N<:Int] : Expr[ReturnValueTuple[Tuple.Drop[T0,N]]] =
-  //    Expr
-  //     .makeOp1(new ops.Op1.DropReturn[T0,T1,N])(
-  //       arg0,
-  //     )
-  // def take[T1,N<:Int] : Expr[ReturnValueTuple[Tuple.Take[T0,N]]] =
-  //    Expr
-  //     .makeOp1(new ops.Op1.TakeReturn[T0,T1,N])(
-  //       arg0,
-  //     )
-  // def concat[T1](arg1: Expr[ReturnValueTuple[T1]]) : Expr[ReturnValueTuple[Tuple.Concat[T0,T1]]] =
-  //    Expr
-  //     .makeOp2(new ops.Op2.ConcatReturn[T0,T1])(
-  //       arg0,
-  //       arg1
-  //     )
 
   def where(arg1: I32ColumnExpr): Expr[ReturnValue[T0]] =
     Expr

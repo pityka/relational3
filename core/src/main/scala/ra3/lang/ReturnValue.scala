@@ -16,17 +16,7 @@ object ReturnValue {
       case ReturnValue3(a0, a1, a2, filter) => List(a0,a1,a2)
       case ReturnValue4(a0, a1, a2, a3, filter) => List(a0,a1,a2,a3)
       case ReturnValue5(a0, a1, a2, a3, a4, filter) => List(a0,a1,a2,a3,a4)
-      // case _:ReturnValueTuple[?] => ??? // ReturnValueTuple is a trait without values
-    
-  // inline def rvtolist[A<:Tuple](r: ReturnValueTuple[A]) : List[ColumnSpec[?]] = tupleToList[A](r.a0)
-  //  case class Is[T <: Tuple](value: Tuple.Map[T, ColumnSpec])
-
-  // // import compiletime.asMatchable
-  // inline def tupleToList[A<:Tuple](tuple: Tuple.Map[A,ColumnSpec]) : List[ColumnSpec[?]]= 
-  //   inline Is(tuple) match
-  //     case _:Is[EmptyTuple] => Nil
-  //     case tup : Is[h *: t] =>
-  //       tup.value.head :: tupleToList(tup.value.tail) 
+       
 }
 
 sealed trait ReturnValue[+T] { self =>
@@ -36,16 +26,12 @@ sealed trait ReturnValue[+T] { self =>
 
   }
 
-  
-// trait ReturnValueTuple[A<:Tuple] extends ReturnValue[A] {
-//    type B = A
-// }
 
 case class ReturnValueTuple[A <: Tuple](
   list: List[ColumnSpec[Any]],
   filter: Option[DI32],
   ) extends ReturnValue[A] {
-    type MM =  Tuple.Map[A,ra3.lang.DelayedIdent]
+    type MM =  Tuple.Map[A,ra3.lang.Expr.DelayedIdent]
     def replacePredicate(i: Option[DI32]) = ReturnValueTuple(list, i)
 
     def extend[T](v: ColumnSpec[T]) = ReturnValueTuple[Tuple.Append[A,T]](list ++ List(v),filter)

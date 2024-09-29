@@ -1,21 +1,17 @@
-package ra3
+// package ra3
 
-package object tablelang {
-    private[ra3] def local(
-      assigned: TableExpr
-  )(body: Function1[TableExpr.Ident { type T = assigned.T} , TableExpr]) : TableExpr = {
-    val n = ra3.tablelang.TagKey(new ra3.tablelang.KeyTag)
-    val b = body(TableExpr.Ident(n).asInstanceOf[TableExpr.Ident { type T = assigned.T}])
+// package object tablelang {
+//     val x = 1
+//     private[ra3] def local[A,B](
+//       assigned: TableExpr[A]
+//   )(body: Function1[TableExpr.Ident[A] , TableExpr[B]]) : TableExpr[B] = {
+//     val n = ra3.tablelang.TagKey(new ra3.tablelang.KeyTag)
+//     val b = body(TableExpr.Ident(n))
 
-    TableExpr.Local(n, assigned, b).asInstanceOf[TableExpr]
-  }
+//     TableExpr.Local(n, assigned, b)
+//   }
   
-    private[ra3] def localR[R](
-      assigned: TableExpr
-  )(body: TableExpr.Ident { type T = assigned.T} => TableExpr{type T = R})  = {
-    val n = ra3.tablelang.TagKey(new ra3.tablelang.KeyTag)
-    val b = body(TableExpr.Ident(n).asInstanceOf[TableExpr.Ident { type T = assigned.T}])
-
-    TableExpr.Local(n, assigned, b).asInstanceOf[TableExpr{type T = R}]
-  }
-}
+//     private[ra3] def localR[A,R](
+//       assigned: TableExpr[A]
+//   )(body: TableExpr.Ident[A] => TableExpr[R])  = local(assigned)(body)
+// }

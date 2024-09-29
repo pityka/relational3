@@ -17,15 +17,6 @@ private[ra3] sealed trait UnnamedColumnSpec[T] extends ColumnSpec[T] {
 }
 
 
-// private[lang] case class UnnamedAnyColumnSpec(value:Any) extends UnnamedColumnSpec[Any] {
-//   def withName(s: String) : NamedColumnSpec[Any] = NamedAnyColumnSpec(value,s)
-// }
-// private[lang] case class NamedAnyColumnSpec(value:Any, name: String) extends NamedColumnSpec[Any] 
-
-
-
-
-// Columns
 
    
     

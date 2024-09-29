@@ -27,11 +27,11 @@ private[ra3] final class BitSetBuilder(final val elems: Array[Long]) {
     }.mkString
   }
 
-  @inline
-  def capacity = elems.length * WordLength
+  
+  inline def capacity = elems.length * WordLength
 
-  @inline
-  def contains(elem: Int): Boolean = {
+  
+  inline def contains(elem: Int): Boolean = {
     val idx = elem >> LogWL
     val n = elems.length
 
@@ -58,11 +58,11 @@ private[ra3] final case class BitSet(final val elems: Vector[Long]) {
     }.mkString
   }
 
-  @inline
-  def capacity = elems.length * WordLength
+  
+  inline def capacity = elems.length * WordLength
 
-  @inline
-  def contains(elem: Int): Boolean = {
+  
+  inline def contains(elem: Int): Boolean = {
     val idx = elem >> LogWL
     val n = elems.length
 

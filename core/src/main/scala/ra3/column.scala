@@ -175,7 +175,7 @@ private[ra3] sealed trait TaggedColumn { self =>
   def column: tag.ColumnType
   def segments: Vector[tag.SegmentType]
   def castAndConcatenate(other: TaggedColumn) = tag.makeTaggedColumn(
-    tag.castAndConcatenate(this.column, other.asInstanceOf[tag.ColumnType])
+    tag.castAndConcatenate(this.column, (other.column:Column).asInstanceOf[tag.ColumnType])
   )
 }
 

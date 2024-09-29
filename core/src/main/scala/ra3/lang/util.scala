@@ -1,8 +1,9 @@
-package ra3
+package ra3.lang
 import cats.effect.IO
 import tasks.TaskSystemComponents
 import ra3.tablelang.TableExpr
-package object lang {
+import ra3.*
+object util {
 
   type Query[+T] = ra3.lang.Expr[ra3.lang.ReturnValue[T]]
 
@@ -22,20 +23,10 @@ package object lang {
   private[ra3] type ReturnExpr2[A, B] = Expr[ReturnValue2[A, B]]
 
   private[ra3] type GenericExpr[T0] = Expr[T0]
-  type DelayedIdent[T0] = Expr.DelayedIdent[T0]
 
-  // private[ra3] def global[T0](n: ColumnKey): Identifier[T0] = {
-  //   val id = Expr.Ident(n).as[T0]
-  //   new Identifier(id)
-  // }
+  
 
-  private[ra3] def evaluate[T](expr: Expr[T])(implicit
-      tsc: TaskSystemComponents
-  ): IO[Value[T]] = expr.evalWith(Map.empty)
-  private[ra3] def evaluate[T](expr: Expr[T], map: Map[Key, Value[?]])(implicit
-      tsc: TaskSystemComponents
-  ): IO[Value[T]] =
-    expr.evalWith(map)
+ 
 
   private[ra3] def bufferIfNeededI32(
       arg: Either[BufferInt, Seq[SegmentInt]]
