@@ -93,7 +93,7 @@ private[ra3] object Utils {
 
     IO
       .parSequenceN(32)(s.map(tag.buffer))
-      .map(b => tag.cat(b *))
+      .map(b => tag.cat(b*))
   }
 
   def compress(bb: ByteBuffer) = {

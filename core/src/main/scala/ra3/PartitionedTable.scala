@@ -39,7 +39,10 @@ private[ra3] case class PartitionedTable(
 
   def numCols = columns.size
   def numRows =
-    columns.map(c => c.tag.segments(c.column).map(_.numElems.toLong).sum).headOption.getOrElse(0L)
+    columns
+      .map(c => c.tag.segments(c.column).map(_.numElems.toLong).sum)
+      .headOption
+      .getOrElse(0L)
   def segmentation =
     columns.map(_.segments.map(_.numElems)).headOption.getOrElse(Nil)
   override def toString =
@@ -53,7 +56,9 @@ private[ra3] case class PartitionedTable(
     assert(columns.size == other.columns.size)
     assert(columns.map(_.tag) == other.columns.map(_.tag))
     PartitionedTable(
-      columns.zip(other.columns).map { case (a, b) => a `castAndConcatenate` b },
+      columns.zip(other.columns).map { case (a, b) =>
+        a `castAndConcatenate` b
+      },
       partitionMeta
     )
   }
@@ -61,12 +66,12 @@ private[ra3] case class PartitionedTable(
   def bufferSegment(
       idx: Int
   )(implicit tsc: TaskSystemComponents): IO[BufferedTable] = {
-    IO.parSequenceN(32)(columns.map{ column =>
+    IO.parSequenceN(32)(columns.map { column =>
       val segment = column.segments(idx)
-      column.tag.buffer(segment): IO[Buffer]})
-      .map { buffers =>
-        BufferedTable(buffers, columns.zipWithIndex.map(v => s"V${v._2}"))
-      }
+      column.tag.buffer(segment): IO[Buffer]
+    }).map { buffers =>
+      BufferedTable(buffers, columns.zipWithIndex.map(v => s"V${v._2}"))
+    }
   }
 
   def bufferStream(implicit
@@ -86,7 +91,9 @@ private[ra3] object PartitionedTable {
     (0 until self.columns.head.segments.size).toVector map { segmentIdx =>
       PartitionedTable(
         self.columns.map(col =>
-          col.tag.makeTaggedColumn(col.tag.makeColumn(Vector(col.segments(segmentIdx))))
+          col.tag.makeTaggedColumn(
+            col.tag.makeColumn(Vector(col.segments(segmentIdx)))
+          )
         ),
         PartitionMeta(Nil, 1)
       )
@@ -100,7 +107,7 @@ private[ra3] object PartitionedTable {
   )(implicit tsc: TaskSystemComponents): IO[Vector[PartitionedTable]] = {
     assert(columnIdx.nonEmpty)
     val partitionColumns = columnIdx.map(inputColumns.apply)
-    
+
     val numSegments = {
       val head = partitionColumns.head
       head.tag.segments(head.column).size
@@ -109,7 +116,11 @@ private[ra3] object PartitionedTable {
     val numPartitions =
       (1 to columnIdx.size).foldLeft(1)((acc, _) => acc * partitionBase)
     IO.parTraverseN(math.min(32, numSegments))(segmentIdxs) { segmentIdx =>
-      val segmentsOfP = partitionColumns.map(tc => tc.tag.makeTaggedSegment(tc.tag.segments(tc.column)(segmentIdx))).toVector
+      val segmentsOfP = partitionColumns
+        .map(tc =>
+          tc.tag.makeTaggedSegment(tc.tag.segments(tc.column)(segmentIdx))
+        )
+        .toVector
       val partitionMap = ts.MakePartitionMap.queue(
         input = segmentsOfP,
         partitionBase = partitionBase,
@@ -137,7 +148,12 @@ private[ra3] object PartitionedTable {
           IO.parSequenceN(32)(groups.map { case (groupOfSegments, groupIdx) =>
             val segmentsWithPartitionmapOfThisColumn =
               groupOfSegments.map { case (segmentIdx, partitionMap) =>
-                (column.tag.makeTaggedSegment(column.tag.segments(column.column)(segmentIdx)), partitionMap)
+                (
+                  column.tag.makeTaggedSegment(
+                    column.tag.segments(column.column)(segmentIdx)
+                  ),
+                  partitionMap
+                )
               }
 
             ts.TakePartition.queue(
@@ -178,7 +194,12 @@ private[ra3] object PartitionedTable {
             PartitionedTable(
               columns = columns.zipWithIndex.map { case (segments, columnIdx) =>
                 val column = inputColumns(columnIdx)
-                column.tag.makeTaggedColumn(column.tag.makeColumn(segments.toVector.asInstanceOf[Vector[column.tag.SegmentType]]))
+                column.tag.makeTaggedColumn(
+                  column.tag.makeColumn(
+                    segments.toVector
+                      .asInstanceOf[Vector[column.tag.SegmentType]]
+                  )
+                )
               },
               partitionMeta = PartitionMeta(
                 columns = columnIdx,

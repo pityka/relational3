@@ -342,7 +342,7 @@ object ColumnTag {
       IO.parSequenceN(32)(elems.zipWithIndex.map { case (s, idx) =>
         this.toSegment(
           this
-            .makeBufferFromSeq(s *),
+            .makeBufferFromSeq(s*),
           LogicalPath(name, None, idx, colIdx)
         )
       }).map(_.toVector)
@@ -355,12 +355,11 @@ object ColumnTag {
   object I64 extends ColumnTag {
     override def toString = "I64"
 
-
     def makeNamedColumnSpecFromBuffer(
         buffer: BufferType,
         name: String
     ) = ra3.lang.NamedColumnChunkI64(Left(buffer), name)
-    
+
     def makeNamedColumnSpecFromSegments(
         segments: Seq[SegmentType],
         name: String
@@ -489,7 +488,7 @@ object ColumnTag {
     )(implicit tsc: TaskSystemComponents): IO[ColumnType] =
       IO.parSequenceN(32)(elems.zipWithIndex.map { case (s, idx) =>
         this
-          .makeBufferFromSeq(s *)
+          .makeBufferFromSeq(s*)
           .toSegment(LogicalPath(name, None, idx, colIdx))
       }).map(_.toVector)
         .map(this.makeColumn)
@@ -501,12 +500,11 @@ object ColumnTag {
   object Instant extends ColumnTag {
     override def toString = "Instant"
 
-
     def makeNamedColumnSpecFromBuffer(
         buffer: BufferType,
         name: String
     ) = ra3.lang.NamedColumnChunkInst(Left(buffer), name)
-    
+
     def makeNamedColumnSpecFromSegments(
         segments: Seq[SegmentType],
         name: String
@@ -645,7 +643,7 @@ object ColumnTag {
     )(implicit tsc: TaskSystemComponents): IO[ColumnType] =
       IO.parSequenceN(32)(elems.zipWithIndex.map { case (s, idx) =>
         this
-          .makeBufferFromSeq(s *)
+          .makeBufferFromSeq(s*)
           .toSegment(LogicalPath(name, None, idx, colIdx))
       }).map(_.toVector)
         .map(this.makeColumn)
@@ -656,12 +654,11 @@ object ColumnTag {
   }
   object StringTag extends ColumnTag {
 
-
     def makeNamedColumnSpecFromBuffer(
         buffer: BufferType,
         name: String
     ) = ra3.lang.NamedColumnChunkStr(Left(buffer), name)
-    
+
     def makeNamedColumnSpecFromSegments(
         segments: Seq[SegmentType],
         name: String
@@ -790,7 +787,7 @@ object ColumnTag {
     )(implicit tsc: TaskSystemComponents): IO[ColumnType] =
       IO.parSequenceN(32)(elems.zipWithIndex.map { case (s, idx) =>
         this
-          .makeBufferFromSeq(s *)
+          .makeBufferFromSeq(s*)
           .toSegment(LogicalPath(name, None, idx, colIdx))
       }).map(_.toVector)
         .map(this.makeColumn)
@@ -803,12 +800,11 @@ object ColumnTag {
   object F64 extends ColumnTag {
     override def toString = "F64"
 
-
     def makeNamedColumnSpecFromBuffer(
         buffer: BufferType,
         name: String
     ) = ra3.lang.NamedColumnChunkF64(Left(buffer), name)
-    
+
     def makeNamedColumnSpecFromSegments(
         segments: Seq[SegmentType],
         name: String
@@ -941,7 +937,7 @@ object ColumnTag {
     )(implicit tsc: TaskSystemComponents): IO[ColumnType] =
       IO.parSequenceN(32)(elems.zipWithIndex.map { case (s, idx) =>
         this
-          .makeBufferFromSeq(s *)
+          .makeBufferFromSeq(s*)
           .toSegment(LogicalPath(name, None, idx, colIdx))
       }).map(_.toVector)
         .map(this.makeColumn)

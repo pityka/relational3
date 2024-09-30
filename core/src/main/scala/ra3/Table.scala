@@ -59,17 +59,28 @@ case class Table(
 ) extends RelationalAlgebra {
 
   def lift = ra3.tablelang.TableExpr.Const(this)
-  assert(columns.map(c => c.tag.segments(c.column).map(_.numElems)).distinct.size == 1)
+  assert(
+    columns
+      .map(c => c.tag.segments(c.column).map(_.numElems))
+      .distinct
+      .size == 1
+  )
 
   def numCols = columns.size
   def numRows =
-    columns.map(c => c.tag.segments(c.column).map(_.numElems.toLong).sum).headOption.getOrElse(0L)
+    columns
+      .map(c => c.tag.segments(c.column).map(_.numElems.toLong).sum)
+      .headOption
+      .getOrElse(0L)
 
   /** Returns one integer list, of the same size as the number of segments,
     * items being the size of segments
     */
   def segmentation =
-    columns.map(c => c.tag.segments(c.column).map(_.numElems)).headOption.getOrElse(Nil)
+    columns
+      .map(c => c.tag.segments(c.column).map(_.numElems))
+      .headOption
+      .getOrElse(Nil)
 
   def mapColIndex(f: String => String) = copy(colNames = colNames.map(f))
 
@@ -109,12 +120,12 @@ case class Table(
   def bufferSegment(
       idx: Int
   )(implicit tsc: TaskSystemComponents): IO[BufferedTable] = {
-    IO.parSequenceN(32)(columns.map{v => 
+    IO.parSequenceN(32)(columns.map { v =>
       val segment = v.tag.segments(v.column)(idx)
-      v.tag.buffer(segment): IO[Buffer]})
-      .map { buffers =>
-        BufferedTable(buffers, colNames)
-      }
+      v.tag.buffer(segment): IO[Buffer]
+    }).map { buffers =>
+      BufferedTable(buffers, colNames)
+    }
   }
 
   /** Returns an fs2 Stream with a BufferedTable for each segment number */
@@ -122,12 +133,12 @@ case class Table(
       tsc: TaskSystemComponents
   ): fs2.Stream[IO, BufferedTable] = {
     if (columns.isEmpty) fs2.Stream.empty
-    else
-      {val c = columns.head
-        fs2.Stream
+    else {
+      val c = columns.head
+      fs2.Stream
         .apply(0 until c.tag.segments(c.column).size*)
         .evalMap(idx => bufferSegment(idx))
-      }
+    }
   }
 
   /** Returns a string summary of the table without data itself
@@ -149,18 +160,21 @@ case class Table(
       }
       ._2
       .map(_.toSeq)
-    val col = tag.makeColumnFromSeq(this.uniqueId, idx)(segmented).map(tag.makeTaggedColumn)
+    val col = tag
+      .makeColumnFromSeq(this.uniqueId, idx)(segmented)
+      .map(tag.makeTaggedColumn)
     col.flatMap { col =>
       this.addColOfSameSegmentation(col, columnName)
     }
   }
 
   import ra3.tablelang.TableExpr
+
   /** Variable assigning let expression where the assigned part is a single
     * Table
     */
   def schema[T1: NotNothing] =
-    TableExpr.const[T1*:EmptyTuple](this)
+    TableExpr.const[T1 *: EmptyTuple](this)
 
   /** Variable assigning let expression where the assigned part is a single
     * Table
@@ -174,7 +188,7 @@ case class Table(
   def schema[T1: NotNothing, T2: NotNothing, T3: NotNothing] =
     TableExpr.const[(T1, T2, T3)](this)
 
-  def schema[T1: NotNothing, T2: NotNothing, T3: NotNothing, T4: NotNothing]  =
+  def schema[T1: NotNothing, T2: NotNothing, T3: NotNothing, T4: NotNothing] =
     TableExpr.const[(T1, T2, T3, T4)](this)
 
   def schema[
@@ -182,13 +196,11 @@ case class Table(
       T2: NotNothing,
       T3: NotNothing,
       T4: NotNothing,
-      T5: NotNothing,
-      
+      T5: NotNothing
   ] =
     TableExpr.const[(T1, T2, T3, T4, T5)](this)
-  def schema[T0<:Tuple] =
+  def schema[T0 <: Tuple] =
     TableExpr.const[T0](this)
-
 
   import ra3.lang.Expr
 

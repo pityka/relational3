@@ -107,7 +107,7 @@
 //       object TransactionsSchema {
 //         def schema[R](a: ra3.Table)(
 //             f: TransactionsSchema => TableExpr[R]
-//         ) = 
+//         ) =
 //           a.schema[StrVar, StrVar, StrVar, I32Var, F64Var].columnsTuple.all {
 //             case (c0, c1, c2, c3, c4) =>
 //               f(TransactionsSchema(c0, c1, c2, c3, c4))
@@ -130,7 +130,7 @@
 //                 price.sum.unnamed).extend(
 //                 price.count.unnamed).extend(
 //                 price.max.unnamed)
-//               )            
+//               )
 //             .partial
 //             .columnsTuple.all {
 //               case (customer, sum, count,  max) =>
@@ -141,7 +141,7 @@
 //                       (sum.sum / count.sum) as "avg").extend(
 //                       max.max as "max")
 //                     )
-                  
+
 //                   .all
 //             }
 
@@ -183,7 +183,6 @@
 //                       summaryByCustomerOut.avg as "outAvg"
 //                     ))
 //                   .outer(c2)
-                  
 
 //               }
 //             }

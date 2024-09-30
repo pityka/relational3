@@ -163,7 +163,7 @@ trait WithTempTaskSystem {
       .toOption
       .get
   }
-  
+
 }
 
 // class RelationlAlgebraSuite extends munit.FunSuite with WithTempTaskSystem {
@@ -613,7 +613,7 @@ trait WithTempTaskSystem {
 //                   .withPartitionLimit(0)
 //                   .withMaxSegmentsBufferingAtOnce(2)
 //                   .done
-                  
+
 //               }
 //             }
 //           }
@@ -1484,7 +1484,7 @@ trait WithTempTaskSystem {
 //               .withPartitionBase(3)
 //               .withPartitionLimit(0)
 //               .withMaxSegmentsBufferingAtOnce(2)
-              
+
 //               .all
 //           }
 //           .evaluate
@@ -1534,7 +1534,7 @@ trait WithTempTaskSystem {
 //               .withPartitionBase(3)
 //               .withPartitionLimit(0)
 //               .withMaxSegmentsBufferingAtOnce(2)
-              
+
 //               .count
 //           }
 //           .evaluate
@@ -1802,7 +1802,7 @@ trait WithTempTaskSystem {
 //                   .withPartitionLimit(0)
 //                   .withMaxSegmentsBufferingAtOnce(2)
 //                   .done
-                  
+
 //               }
 //             }
 //           }
@@ -1899,7 +1899,7 @@ trait WithTempTaskSystem {
 //                   .withPartitionLimit(6)
 //                   .withMaxSegmentsBufferingAtOnce(2)
 //                   .done
-                  
+
 //               }
 //             }
 //           }
@@ -1929,7 +1929,7 @@ trait WithTempTaskSystem {
 //                   .withPartitionLimit(6)
 //                   .withMaxSegmentsBufferingAtOnce(2)
 //                   .done
-                  
+
 //               }
 //             }
 //           }
@@ -2032,7 +2032,7 @@ trait WithTempTaskSystem {
 //                   .withPartitionLimit(6)
 //                   .withMaxSegmentsBufferingAtOnce(2)
 //                   .done
-                  
+
 //               }
 //             }
 //           }
@@ -2062,7 +2062,7 @@ trait WithTempTaskSystem {
 //                   .withPartitionLimit(6)
 //                   .withMaxSegmentsBufferingAtOnce(2)
 //                   .done
-                  
+
 //               }
 //             }
 //           }

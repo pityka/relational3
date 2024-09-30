@@ -92,9 +92,9 @@ private[ra3] trait SyntaxInstColumnImpl {
   )
 
   def unnamed = ra3.lang.Expr
-    .BuiltInOp1(ops.Op1.MkUnnamedColumnSpecChunkInst)(arg0 )
+    .BuiltInOp1(ops.Op1.MkUnnamedColumnSpecChunkInst)(arg0)
 
   infix def as(arg1: Expr[String]) = ra3.lang.Expr
     .BuiltInOp2(ops.Op2.MkNamedColumnSpecChunkInst)(arg0, arg1)
-  infix def as(arg1: String): Expr [ColumnSpec[ra3.DInst] ] = as(ra3.const(arg1))
+  infix def as(arg1: String): Expr[ColumnSpec[ra3.DInst]] = as(ra3.const(arg1))
 }

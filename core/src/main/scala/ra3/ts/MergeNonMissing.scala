@@ -16,13 +16,13 @@ private[ra3] case class MergeNonMissing(
 private[ra3] object MergeNonMissing {
   def doit(tag: ColumnTag)(
       inputA: tag.SegmentType,
-    inputB: tag.SegmentType,
+      inputB: tag.SegmentType,
       outputPath: LogicalPath
   )(implicit tsc: TaskSystemComponents) = {
     val a = tag.buffer(inputA)
     val b = tag.buffer(inputB)
     IO.both(a, b).flatMap { case (a, b) =>
-      tag.toSegment(tag.mergeNonMissing(a,b),outputPath)
+      tag.toSegment(tag.mergeNonMissing(a, b), outputPath)
     }
   }
   def queue(tpe: ColumnTag)(
@@ -33,7 +33,7 @@ private[ra3] object MergeNonMissing {
       tsc: TaskSystemComponents
   ): IO[tpe.SegmentType] = {
 
-    task(MergeNonMissing(tpe,input1,input2, outputPath))(
+    task(MergeNonMissing(tpe, input1, input2, outputPath))(
       ResourceRequest(
         cpu = (1, 1),
         memory = ra3.Utils.guessMemoryUsageInMB(input1) + ra3.Utils
@@ -41,13 +41,18 @@ private[ra3] object MergeNonMissing {
         scratch = 0,
         gpu = 0
       )
-    ).map((_:Segment).asInstanceOf[tpe.SegmentType])
+    ).map((_: Segment).asInstanceOf[tpe.SegmentType])
   }
   implicit val codec: JsonValueCodec[MergeNonMissing] = JsonCodecMaker.make
   implicit val codecOut: JsonValueCodec[Segment] = JsonCodecMaker.make
   val task = Task[MergeNonMissing, Segment]("mergenonmissing", 1) {
     case input =>
-      implicit ce => doit(input.tag)(input.inputA.asInstanceOf[input.tag.SegmentType],input.inputB.asInstanceOf[input.tag.SegmentType], input.outputPath)
+      implicit ce =>
+        doit(input.tag)(
+          input.inputA.asInstanceOf[input.tag.SegmentType],
+          input.inputB.asInstanceOf[input.tag.SegmentType],
+          input.outputPath
+        )
 
   }
 }

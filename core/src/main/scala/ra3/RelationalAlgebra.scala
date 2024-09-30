@@ -32,7 +32,9 @@ private[ra3] trait RelationalAlgebra { self: Table =>
             idx = segment,
             outputPath = LogicalPath(name, None, segmentIdx, columnIdx)
           )
-        }.map { segments => column.tag.makeTaggedColumn(column.tag.makeColumn(segments)) }
+        }.map { segments =>
+          column.tag.makeTaggedColumn(column.tag.makeColumn(segments))
+        }
 
       }.map(columns =>
         Table(
@@ -62,36 +64,44 @@ private[ra3] trait RelationalAlgebra { self: Table =>
   def rfilter(
       predicate: TaggedColumn
   )(implicit tsc: TaskSystemComponents): IO[Table] = {
-    assert(self.columns.head.segments.size == predicate.tag.segments(predicate.column).size)
-    ts.MakeUniqueId.queue(self, "rfilter", List(predicate.column)).flatMap { name =>
-      IO.parTraverseN(math.min(32, self.columns.size))(
-        self.columns.zipWithIndex
-      ) { case (column, columnIdx) =>
-        IO.parTraverseN(math.min(32, predicate.tag.segments(predicate.column).size))(
-          predicate.tag.segments(predicate.column).zipWithIndex
-        ) { case (segment, segmentIdx) =>
-          ts.Filter.queue(tag = column.tag, predicateTag = predicate.tag)(
-            input = column.segments(segmentIdx),
-            predicate = segment,
-            outputPath = LogicalPath(name, None, segmentIdx, columnIdx)
+    assert(
+      self.columns.head.segments.size == predicate.tag
+        .segments(predicate.column)
+        .size
+    )
+    ts.MakeUniqueId.queue(self, "rfilter", List(predicate.column)).flatMap {
+      name =>
+        IO.parTraverseN(math.min(32, self.columns.size))(
+          self.columns.zipWithIndex
+        ) { case (column, columnIdx) =>
+          IO.parTraverseN(
+            math.min(32, predicate.tag.segments(predicate.column).size)
+          )(
+            predicate.tag.segments(predicate.column).zipWithIndex
+          ) { case (segment, segmentIdx) =>
+            ts.Filter.queue(tag = column.tag, predicateTag = predicate.tag)(
+              input = column.segments(segmentIdx),
+              predicate = segment,
+              outputPath = LogicalPath(name, None, segmentIdx, columnIdx)
+            )
+          }.map(segments =>
+            column.tag.makeTaggedColumn(column.tag.makeColumn(segments))
           )
-        }.map(segments => column.tag.makeTaggedColumn(column.tag.makeColumn(segments)))
 
-      }.map(columns =>
-        Table(
-          columns,
-          self.colNames,
-          name,
-          self.partitions
+        }.map(columns =>
+          Table(
+            columns,
+            self.colNames,
+            name,
+            self.partitions
+          )
         )
-      )
     }
   }
   // def in(
   //     body: ra3.tablelang.TableExpr.Ident => ra3.tablelang.TableExpr
   // ): ra3.tablelang.TableExpr =
   //   ra3.tablelang.local(ra3.tablelang.TableExpr.Const(this))(body)
-
 
   def rfilterInEquality(
       columnIdx: Int,
@@ -126,7 +136,10 @@ private[ra3] trait RelationalAlgebra { self: Table =>
               outputPath = LogicalPath(name, None, segmentIdx, columnIdx),
               lessThan = lessThan
             )
-          }.map(segments => column.tag.makeTaggedColumn(column.tag.makeColumn(segments.toVector)))
+          }.map(segments =>
+            column.tag
+              .makeTaggedColumn(column.tag.makeColumn(segments.toVector))
+          )
 
         }.map(sx =>
           Table(
@@ -197,7 +210,9 @@ private[ra3] trait RelationalAlgebra { self: Table =>
               .filter(_._1 == pIdx)
               .map(_._2)
           val columns = self.columns.map { col =>
-            col.tag.makeTaggedColumn(col.tag.makeColumn(segmentIdx.map(col.segments)))
+            col.tag.makeTaggedColumn(
+              col.tag.makeColumn(segmentIdx.map(col.segments))
+            )
           }
           PartitionedTable(columns, PartitionMeta(columnIdx, partitionBase))
         }
@@ -220,7 +235,9 @@ private[ra3] trait RelationalAlgebra { self: Table =>
             .filter(_._1 == pIdx)
             .map(_._2)
         val columns = self.columns.map { col =>
-          col.tag.makeTaggedColumn(col.tag.makeColumn(segmentIdx.map(col.segments)))
+          col.tag.makeTaggedColumn(
+            col.tag.makeColumn(segmentIdx.map(col.segments))
+          )
         }
         PartitionedTable(columns, pmetaPrefix)
       }
@@ -450,7 +467,11 @@ private[ra3] trait RelationalAlgebra { self: Table =>
       val col = self
         .columns(sortColumn)
       Column
-        .estimateCDF(col.tag)(col.column, cdfCoverage, cdfNumberOfSamplesPerSegment)
+        .estimateCDF(col.tag)(
+          col.column,
+          cdfCoverage,
+          cdfNumberOfSamplesPerSegment
+        )
     }
 
     val name = ts.MakeUniqueId.queue(
@@ -499,7 +520,9 @@ private[ra3] trait RelationalAlgebra { self: Table =>
   )(implicit tsc: TaskSystemComponents) = {
     IO.parSequenceN(32)((0 until self.segmentation.size).toList map {
       segmentIdx =>
-        val cols = self.columns.map(tc => tc.tag.makeTaggedSegment(tc.tag.segments(tc.column)(segmentIdx)))
+        val cols = self.columns.map(tc =>
+          tc.tag.makeTaggedSegment(tc.tag.segments(tc.column)(segmentIdx))
+        )
         ts.ExportCsv.queue(
           segments = cols,
           columnSeparator = columnSeparator,

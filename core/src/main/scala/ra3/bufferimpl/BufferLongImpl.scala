@@ -103,7 +103,7 @@ private[ra3] trait BufferLongImpl { self: BufferLong =>
   /** Find locations at which _ <= other[0] or _ >= other[0] holds returns
     * indexes
     */
-   def findInequalityVsHead(
+  def findInequalityVsHead(
       other: BufferType,
       lessThan: Boolean
   ): BufferInt = {
@@ -121,8 +121,6 @@ private[ra3] trait BufferLongImpl { self: BufferLong =>
   }
 
   def toSeq = values.toSeq
-
-  
 
   def length = values.length
 
@@ -182,7 +180,7 @@ private[ra3] trait BufferLongImpl { self: BufferLong =>
     (reindexer.lTake.map(BufferInt(_)), reindexer.rTake.map(BufferInt(_)))
   }
 
-   def take(locs: Location): BufferLong = locs match {
+  def take(locs: Location): BufferLong = locs match {
     case Slice(start, until) =>
       val r = Array.ofDim[Long](until - start)
       System.arraycopy(values, start, r, 0, until - start)
@@ -211,7 +209,7 @@ private[ra3] trait BufferLongImpl { self: BufferLong =>
     tag.makeBuffer(ar)
 
   }
-   def toSegment(
+  def toSegment(
       name: LogicalPath
   )(implicit tsc: TaskSystemComponents): IO[SegmentLong] = {
     if (values.length == 0) IO.pure(SegmentLong(None, 0, StatisticLong.empty))

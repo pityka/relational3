@@ -69,7 +69,6 @@ private[ra3] object Column {
       if (s.isEmpty) None
       else Some((s.map(_._1).min, s.map(_._2).max))
     }
-    
 
     type Elem = Int
     type BufferType = BufferInt
@@ -175,36 +174,41 @@ private[ra3] sealed trait TaggedColumn { self =>
   def column: tag.ColumnType
   def segments: Vector[tag.SegmentType]
   def castAndConcatenate(other: TaggedColumn) = tag.makeTaggedColumn(
-    tag.castAndConcatenate(this.column, (other.column:Column).asInstanceOf[tag.ColumnType])
+    tag.castAndConcatenate(
+      this.column,
+      (other.column: Column).asInstanceOf[tag.ColumnType]
+    )
   )
 }
 
 private[ra3] object TaggedColumn {
   implicit val codec: JsonValueCodec[TaggedColumn] = JsonCodecMaker.make
 
-  case class TaggedColumnI32(column:Column.Int32Column) extends TaggedColumn {
+  case class TaggedColumnI32(column: Column.Int32Column) extends TaggedColumn {
     type ColumnType = Column.Int32Column
-    val tag : ColumnTag.I32.type = ColumnTag.I32
+    val tag: ColumnTag.I32.type = ColumnTag.I32
     def segments = column.segments
   }
-  case class TaggedColumnI64(column:Column.I64Column) extends TaggedColumn {
+  case class TaggedColumnI64(column: Column.I64Column) extends TaggedColumn {
     type ColumnType = Column.I64Column
-    val tag : ColumnTag.I64.type = ColumnTag.I64
+    val tag: ColumnTag.I64.type = ColumnTag.I64
     def segments = column.segments
   }
-  case class TaggedColumnF64(column:Column.F64Column) extends TaggedColumn {
+  case class TaggedColumnF64(column: Column.F64Column) extends TaggedColumn {
     type ColumnType = Column.F64Column
-    val tag : ColumnTag.F64.type = ColumnTag.F64
+    val tag: ColumnTag.F64.type = ColumnTag.F64
     def segments = column.segments
   }
-  case class TaggedColumnString(column:Column.StringColumn) extends TaggedColumn {
+  case class TaggedColumnString(column: Column.StringColumn)
+      extends TaggedColumn {
     type ColumnType = Column.StringColumn
-    val tag : ColumnTag.StringTag.type = ColumnTag.StringTag
+    val tag: ColumnTag.StringTag.type = ColumnTag.StringTag
     def segments = column.segments
   }
-  case class TaggedColumnInstant(column:Column.InstantColumn) extends TaggedColumn {
+  case class TaggedColumnInstant(column: Column.InstantColumn)
+      extends TaggedColumn {
     type ColumnType = Column.InstantColumn
-    val tag : ColumnTag.Instant.type = ColumnTag.Instant
+    val tag: ColumnTag.Instant.type = ColumnTag.Instant
     def segments = column.segments
   }
 
@@ -216,6 +220,5 @@ private[ra3] sealed trait Column { self =>
 
   // override def toString =
   //   s"$tag\tN_segments=${segments.size}\tN_elem=${segments.map(_.numElems).sum}"
-
 
 }

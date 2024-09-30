@@ -149,10 +149,9 @@ private[ra3] object Equijoin {
               val pColumnSelf = pSelf.columns(joinColumnSelf)
               val joinColumnTag = pColumnSelf.tag
               val pColumnOther = pOther
-                .columns(joinColumnOther).column
+                .columns(joinColumnOther)
+                .column
                 .asInstanceOf[joinColumnTag.ColumnType]
-
-          
 
               val joinIndex = ts.ComputeJoinIndex
                 .queue(joinColumnTag)(
@@ -172,8 +171,8 @@ private[ra3] object Equijoin {
                 joinIndex
                   .flatMap { case (takeSelf, takeOther) =>
                     ts.MultipleTableQuery.queue(
-                      input =
-                        pSelf.columns.zipWithIndex.map { case (taggedColumn, columnIdx) =>
+                      input = pSelf.columns.zipWithIndex.map {
+                        case (taggedColumn, columnIdx) =>
                           val tag = taggedColumn.tag
                           ra3.ts.TypedSegmentWithName(
                             tag = tag,
@@ -182,17 +181,17 @@ private[ra3] object Equijoin {
                             columnName = self.colNames(columnIdx),
                             columnIdx = columnIdx
                           )
-                        } ++ pOther.columns.zipWithIndex.map {
-                          case (taggedColumn, columnIdx) =>
-                            val tag = taggedColumn.tag
-                            ra3.ts.TypedSegmentWithName(
-                              tag = tag,
-                              segment = tag.segments(taggedColumn.column),
-                              tableUniqueId = other.uniqueId,
-                              columnName = other.colNames(columnIdx),
-                              columnIdx = columnIdx
-                            )
-                        },
+                      } ++ pOther.columns.zipWithIndex.map {
+                        case (taggedColumn, columnIdx) =>
+                          val tag = taggedColumn.tag
+                          ra3.ts.TypedSegmentWithName(
+                            tag = tag,
+                            segment = tag.segments(taggedColumn.column),
+                            tableUniqueId = other.uniqueId,
+                            columnName = other.colNames(columnIdx),
+                            columnIdx = columnIdx
+                          )
+                      },
                       predicate = program,
                       outputPath = LogicalPath(name, None, pIdx, 0),
                       takes = List(
@@ -205,8 +204,12 @@ private[ra3] object Equijoin {
               joinedPartition.map { columnsAsSingleSegment =>
                 (
                   TableHelper(
-                    columnsAsSingleSegment.map { case (tag,segment, _) =>
-                      tag.makeTaggedColumn(tag.makeColumn(Vector(segment.asInstanceOf[tag.SegmentType])))
+                    columnsAsSingleSegment.map { case (tag, segment, _) =>
+                      tag.makeTaggedColumn(
+                        tag.makeColumn(
+                          Vector(segment.asInstanceOf[tag.SegmentType])
+                        )
+                      )
                     }.toVector
                   ),
                   columnsAsSingleSegment.map(_._3) // colnames
@@ -262,7 +265,9 @@ private[ra3] object Equijoin {
         (0 until self.columns.head.segments.size).toVector map { segmentIdx =>
           PartitionedTable(
             self.columns.map(col =>
-              col.tag.makeTaggedColumn(col.tag.makeColumn(Vector(col.segments(segmentIdx))))
+              col.tag.makeTaggedColumn(
+                col.tag.makeColumn(Vector(col.segments(segmentIdx)))
+              )
             ),
             PartitionMeta(Nil, 1)
           )
@@ -275,7 +280,9 @@ private[ra3] object Equijoin {
         (0 until other.columns.head.segments.size).toVector map { segmentIdx =>
           PartitionedTable(
             other.columns.map(col =>
-              col.tag.makeTaggedColumn(col.tag.makeColumn(Vector(col.segments(segmentIdx))))
+              col.tag.makeTaggedColumn(
+                col.tag.makeColumn(Vector(col.segments(segmentIdx)))
+              )
             ),
             PartitionMeta(Nil, 1)
           )
@@ -305,58 +312,71 @@ private[ra3] object Equijoin {
               val pFirst = partitionOfTables.head
               val pRest = partitionOfTables.tail
 
-
               val partitionOfTablesWithTables =
                 partitionOfTables zip (List(self) ++ others.map(_._1))
 
               val pFirstJoinTaggedColumn = pFirst.columns(joinColumnSelf)
 
-              val joinIndex = ts.ComputeJoinIndex.queue(pFirstJoinTaggedColumn.tag)(
-                first = pFirstJoinTaggedColumn.column,
-                rest = pRest.zip(others).map {
-                  case (p, (_, joinColIdx, how, joinTarget)) =>
-                    (p.columns(joinColIdx).column.asInstanceOf[pFirstJoinTaggedColumn.tag.ColumnType], how, joinTarget)
-                },
-                outputPath = LogicalPath(
-                  table = name + ".joinindex",
-                  partition =
-                    Some(PartitionPath(Nil, zippedPartitions.size, pIdx)),
-                  segment = 0,
-                  column = 0
+              val joinIndex =
+                ts.ComputeJoinIndex.queue(pFirstJoinTaggedColumn.tag)(
+                  first = pFirstJoinTaggedColumn.column,
+                  rest = pRest.zip(others).map {
+                    case (p, (_, joinColIdx, how, joinTarget)) =>
+                      (
+                        p.columns(joinColIdx)
+                          .column
+                          .asInstanceOf[pFirstJoinTaggedColumn.tag.ColumnType],
+                        how,
+                        joinTarget
+                      )
+                  },
+                  outputPath = LogicalPath(
+                    table = name + ".joinindex",
+                    partition =
+                      Some(PartitionPath(Nil, zippedPartitions.size, pIdx)),
+                    segment = 0,
+                    column = 0
+                  )
                 )
-              )
 
               val joinedPartition =
                 joinIndex
-                  .flatMap { case takes =>
-                    ts.MultipleTableQuery.queue(
-                      input = partitionOfTablesWithTables.flatMap {
-                        case (partitionedTable, table) =>
-                          partitionedTable.columns.zipWithIndex.map {
-                            case (taggedColumn, columnIdx) =>
-                                val tag = taggedColumn.tag
-                                ra3.ts.TypedSegmentWithName(
-                                tag = tag,
-                                segment = tag.segments(taggedColumn.column),
-                                tableUniqueId = table.uniqueId,
-                                columnName = table.colNames(columnIdx),
-                                columnIdx = columnIdx
-                              )
+                  .flatMap {
+                    case takes =>
+                      ts.MultipleTableQuery.queue(
+                        input =
+                          partitionOfTablesWithTables
+                            .flatMap { case (partitionedTable, table) =>
+                              partitionedTable.columns.zipWithIndex.map {
+                                case (taggedColumn, columnIdx) =>
+                                  val tag = taggedColumn.tag
+                                  ra3.ts.TypedSegmentWithName(
+                                    tag = tag,
+                                    segment = tag.segments(taggedColumn.column),
+                                    tableUniqueId = table.uniqueId,
+                                    columnName = table.colNames(columnIdx),
+                                    columnIdx = columnIdx
+                                  )
+                              }
+                            },
+                        predicate = program,
+                        outputPath = LogicalPath(name, None, pIdx, 0),
+                        takes =
+                          (List(self) ++ others.map(_._1)).zip(takes).map {
+                            case (table, take) => (table.uniqueId, take)
                           }
-                      },
-                      predicate = program,
-                      outputPath = LogicalPath(name, None, pIdx, 0),
-                      takes = (List(self) ++ others.map(_._1)).zip(takes).map {
-                        case (table, take) => (table.uniqueId, take)
-                      }
-                    )
+                      )
 
                   }
               joinedPartition.map { columnsAsSingleSegment =>
                 (
                   TableHelper(
-                    columnsAsSingleSegment.map { case (tag,segment, _) =>
-                      tag.makeTaggedColumn(tag.makeColumn(Vector(segment.asInstanceOf[tag.SegmentType])))
+                    columnsAsSingleSegment.map { case (tag, segment, _) =>
+                      tag.makeTaggedColumn(
+                        tag.makeColumn(
+                          Vector(segment.asInstanceOf[tag.SegmentType])
+                        )
+                      )
                     }.toVector
                   ),
                   columnsAsSingleSegment.map(_._3) // colnames

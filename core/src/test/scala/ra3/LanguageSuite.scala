@@ -29,7 +29,7 @@
 //         evaluate(let(Expr.LitNum(1)) { e1 =>
 //            (e1 ++ e1).as("b") :: e1.as("a").list
 //         }).unsafeRunSync().v == List(
-          
+
 //           NamedConstantI32(2, "b"),
 //           NamedConstantI32(1, "a")
 //         )

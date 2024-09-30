@@ -2,11 +2,17 @@ package ra3
 import cats.effect.IO
 import tasks.{TaskSystemComponents}
 private[ra3] case class UntypedCDF(
-  locationsSegment: Segment, values: SegmentDouble
+    locationsSegment: Segment,
+    values: SegmentDouble
 ) {
-  def toTyped(tag:ColumnTag) = new TypedCDF(tag,locationsSegment.asInstanceOf[tag.SegmentType],values)
+  def toTyped(tag: ColumnTag) =
+    new TypedCDF(tag, locationsSegment.asInstanceOf[tag.SegmentType], values)
 }
-private[ra3] class TypedCDF(val tag: ColumnTag, val locationsSegment: tag.SegmentType,val values: SegmentDouble) {
+private[ra3] class TypedCDF(
+    val tag: ColumnTag,
+    val locationsSegment: tag.SegmentType,
+    val values: SegmentDouble
+) {
   /*  Returns a single element which is above or below the required percentile */
   def topK(queryPercentile: Double, ascending: Boolean)(implicit
       tsc: TaskSystemComponents
@@ -23,7 +29,7 @@ private[ra3] class TypedCDF(val tag: ColumnTag, val locationsSegment: tag.Segmen
           val s = vals.toSeq
           s.zipWithIndex.reverse.find(_._1 <= (1d - queryPercentile)).map(_._2)
         }
-      indexInLocs.map(idx => tag.take(locsBuffer,BufferInt(Array(idx))))
+      indexInLocs.map(idx => tag.take(locsBuffer, BufferInt(Array(idx))))
     }
 
   }

@@ -127,11 +127,10 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
   override def toString =
     s"BufferString(n=${values.length}: ${values.take(5).mkString(", ")} ..})"
 
-
   /** Find locations at which _ <= other[0] or _ >= other[0] holds returns
     * indexes
     */
-   def findInequalityVsHead(
+  def findInequalityVsHead(
       other: BufferType,
       lessThan: Boolean
   ): BufferInt = {
@@ -157,7 +156,9 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
         1d
       )).distinct
     val sorted =
-      values.filterNot(_ == BufferString.MissingValue).sorted(CharSequenceOrdering)
+      values
+        .filterNot(_ == BufferString.MissingValue)
+        .sorted(CharSequenceOrdering)
     val cdf = percentiles.map { p =>
       val idx = (p * (sorted.length - 1)).toInt
       (sorted(idx), p)
@@ -295,7 +296,7 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
     (reindexer.lTake.map(BufferInt(_)), reindexer.rTake.map(BufferInt(_)))
   }
 
-   def take(locs: Location): BufferString = locs match {
+  def take(locs: Location): BufferString = locs match {
     case Slice(start, until) =>
       val r = Array.ofDim[CharSequence](until - start)
       System.arraycopy(values, start, r, 0, until - start)
@@ -336,24 +337,27 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
 
   }
 
-   def toSegment(
+  def toSegment(
       name: LogicalPath
   )(implicit tsc: TaskSystemComponents): IO[SegmentString] = {
     if (values.length == 0)
-      IO.pure(SegmentString(None, 0, 0L , StatisticCharSequence.empty))
+      IO.pure(SegmentString(None, 0, 0L, StatisticCharSequence.empty))
     else
       IO {
         val byteSize = values.map(v => (v.length * 2L) + 4).sum
         if (byteSize > Int.MaxValue - 100)
-          (fs2.Stream.raiseError[IO](
-            new RuntimeException(
-              "String buffers longer than what fits into an array not implemented"
-            )
-          ),-1L)
+          (
+            fs2.Stream.raiseError[IO](
+              new RuntimeException(
+                "String buffers longer than what fits into an array not implemented"
+              )
+            ),
+            -1L
+          )
         else {
           val bb =
             ByteBuffer.allocate(byteSize.toInt).order(ByteOrder.BIG_ENDIAN)
-          var numBytes = 0L 
+          var numBytes = 0L
           values.foreach { str =>
             numBytes += str.length() * 2 + 40
             bb.putInt(str.length)
@@ -367,13 +371,18 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
 
           val bbCompressed = Utils.compress(bb)
 
-          (fs2.Stream.chunk(fs2.Chunk.byteBuffer(bbCompressed)),numBytes)
+          (fs2.Stream.chunk(fs2.Chunk.byteBuffer(bbCompressed)), numBytes)
         }
-      }.flatMap { case (stream,numBytes) =>
+      }.flatMap { case (stream, numBytes) =>
         SharedFile
           .apply(stream, name.toString)
           .map(sf =>
-            SegmentString(Some(sf), values.length,numBytes, self.makeStatistic())
+            SegmentString(
+              Some(sf),
+              values.length,
+              numBytes,
+              self.makeStatistic()
+            )
           )
       }
 

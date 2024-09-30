@@ -17,43 +17,42 @@ private[ra3] sealed trait Op2Unserializable {
   type A1
   type T
   def op(a: A0, b: A1)(implicit tsc: TaskSystemComponents): IO[T]
-  def erase : Op2
+  def erase: Op2
 }
 
 private[ra3] object Op2 {
 
-  
   case object ExtendReturnUntyped extends Op2 {
     // types here are fake
     type A0 = ra3.lang.ReturnValueTuple[EmptyTuple]
     type A1 = ra3.lang.ColumnSpec[Int]
-    type T = ra3.lang.ReturnValueTuple[Tuple.Append[EmptyTuple,Int]]
+    type T = ra3.lang.ReturnValueTuple[Tuple.Append[EmptyTuple, Int]]
     def op(a0: A0, a1: A1)(implicit tsc: TaskSystemComponents) =
       IO.pure(a0.extend(a1))
   }
-  class ExtendReturn[T0<:Tuple,T1] extends Op2Unserializable {
+  class ExtendReturn[T0 <: Tuple, T1] extends Op2Unserializable {
 
     def erase = ExtendReturnUntyped
     type A0 = ra3.lang.ReturnValueTuple[T0]
     type A1 = ra3.lang.ColumnSpec[T1]
-    type T = ra3.lang.ReturnValueTuple[Tuple.Append[T0,T1]]
+    type T = ra3.lang.ReturnValueTuple[Tuple.Append[T0, T1]]
     def op(a0: A0, a1: A1)(implicit tsc: TaskSystemComponents) =
       IO.pure(a0.extend(a1))
   }
-  
-  class ConcatReturn[T0<:Tuple,T1<:Tuple] extends Op2Unserializable {
+
+  class ConcatReturn[T0 <: Tuple, T1 <: Tuple] extends Op2Unserializable {
 
     def erase = ConcatReturnUntyped
     type A0 = ra3.lang.ReturnValueTuple[T0]
     type A1 = ra3.lang.ReturnValueTuple[T1]
-    type T = ra3.lang.ReturnValueTuple[Tuple.Concat[T0,T1]]
+    type T = ra3.lang.ReturnValueTuple[Tuple.Concat[T0, T1]]
     def op(a0: A0, a1: A1)(implicit tsc: TaskSystemComponents) =
       IO.pure(a0.concat(a1))
   }
   case object ConcatReturnUntyped extends Op2 {
     type A0 = ra3.lang.ReturnValueTuple[EmptyTuple]
     type A1 = ra3.lang.ReturnValueTuple[EmptyTuple]
-    type T = ra3.lang.ReturnValueTuple[Tuple.Concat[EmptyTuple,EmptyTuple]]
+    type T = ra3.lang.ReturnValueTuple[Tuple.Concat[EmptyTuple, EmptyTuple]]
     def op(a0: A0, a1: A1)(implicit tsc: TaskSystemComponents) =
       IO.pure(a0.concat(a1))
   }
@@ -65,7 +64,9 @@ private[ra3] object Op2 {
     type T = A0
     def op(a: A0, b: A1)(implicit tsc: TaskSystemComponents) = IO {
 
-      scribe.info(scribe.LogFeature.string2LoggableMessage(s"$b : ${a.toString}"))
+      scribe.info(
+        scribe.LogFeature.string2LoggableMessage(s"$b : ${a.toString}")
+      )
       a
     }
   }
@@ -76,7 +77,9 @@ private[ra3] object Op2 {
     type T = A0
     def op(a: A0, b: A1)(implicit tsc: TaskSystemComponents) = IO {
 
-      scribe.info(scribe.LogFeature.string2LoggableMessage(s"$b : ${a.toString}"))
+      scribe.info(
+        scribe.LogFeature.string2LoggableMessage(s"$b : ${a.toString}")
+      )
       a
     }
   }

@@ -25,7 +25,6 @@ private[ra3] case class ImportCsv(
     characterDecoder: CharacterDecoder
 )
 private[ra3] object ImportCsv {
-  
 
   def queue(
       file: SharedFile,
@@ -116,7 +115,7 @@ private[ra3] object ImportCsv {
         val is2 = compression match {
           case None => is
           case Some(CompressionFormat.Gzip) =>
-             Utils.gzip(is)            
+            Utils.gzip(is)
         }
         val channel = java.nio.channels.Channels.newChannel(is2)
         val result = ra3.csv

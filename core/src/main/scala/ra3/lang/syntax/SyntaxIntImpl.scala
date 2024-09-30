@@ -14,14 +14,13 @@ private[ra3] trait SyntaxIntImpl {
 
   def -(arg1: IntExpr) = Expr.makeOp2(ops.Op2.MinusOp)(arg0, arg1)
   def asString = Expr.makeOp1(ops.Op1.ToString)(arg0)
-  
 
   def unnamed = ra3.lang.Expr
-    .BuiltInOp1(ops.Op1.MkUnnamedConstantI32)(arg0 )
+    .BuiltInOp1(ops.Op1.MkUnnamedConstantI32)(arg0)
 
   infix def as(arg1: Expr[String]) = ra3.lang.Expr
-    .BuiltInOp2(ops.Op2.MkNamedConstantI32)(arg0, arg1 )
-  infix def as(arg1: String): Expr[ ColumnSpec[Int] ] = 
+    .BuiltInOp2(ops.Op2.MkNamedConstantI32)(arg0, arg1)
+  infix def as(arg1: String): Expr[ColumnSpec[Int]] =
     ra3.lang.Expr
-    .BuiltInOp2(ops.Op2.MkNamedConstantI32)(arg0, ra3.const(arg1) )
+      .BuiltInOp2(ops.Op2.MkNamedConstantI32)(arg0, ra3.const(arg1))
 }

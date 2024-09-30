@@ -3,7 +3,6 @@ import ra3.lang.*
 import ra3.BufferInt
 import ra3.lang.util.*
 
-
 private[ra3] trait SyntaxI32ColumnImpl {
 
   protected def arg0: I32ColumnExpr
@@ -12,7 +11,7 @@ private[ra3] trait SyntaxI32ColumnImpl {
   implicit private def conversionI32LitSet(a: Set[Int]): Expr[Set[Int]] =
     ra3.LitI32S(a)
   implicit private def conversionIntLit(a: Int): Expr[Int] = ra3.const(a)
-  implicit private def conversionLongLit(a: Long) : Expr[Long] = ra3.const(a)
+  implicit private def conversionLongLit(a: Long): Expr[Long] = ra3.const(a)
   implicit private def conversionStrLit(a: String): Expr[String] = ra3.const(a)
   implicit private def conversionF64Lit(a: Double): Expr[Double] = ra3.const(a)
 
@@ -22,30 +21,48 @@ private[ra3] trait SyntaxI32ColumnImpl {
 
   def toDouble = Expr.makeOp1(ops.Op1.ColumnToDoubleOpI)(arg0)
 
-  def ifelseI32(t: I32ColumnExpr, f: I32ColumnExpr) = Expr.makeOp3(ops.Op3.IfElseI32)(arg0, t, f)
-  def ifelse(t: I32ColumnExpr, f: Int) = Expr.makeOp3(ops.Op3.IfElseI32C)(arg0, t, f)
-  def ifelse(t: Int, f: I32ColumnExpr) = Expr.makeOp3(ops.Op3.IfElseCI32)(arg0, t, f)
+  def ifelseI32(t: I32ColumnExpr, f: I32ColumnExpr) =
+    Expr.makeOp3(ops.Op3.IfElseI32)(arg0, t, f)
+  def ifelse(t: I32ColumnExpr, f: Int) =
+    Expr.makeOp3(ops.Op3.IfElseI32C)(arg0, t, f)
+  def ifelse(t: Int, f: I32ColumnExpr) =
+    Expr.makeOp3(ops.Op3.IfElseCI32)(arg0, t, f)
   def ifelse(t: Int, f: Int) = Expr.makeOp3(ops.Op3.IfElseI32CC)(arg0, t, f)
 
-  def ifelseI64(t: I64ColumnExpr, f: I64ColumnExpr) = Expr.makeOp3(ops.Op3.IfElseI64)(arg0, t, f)
-  def ifelse(t: Long, f: I64ColumnExpr) = Expr.makeOp3(ops.Op3.IfElseCI64)(arg0, t, f)
-  def ifelse(t: I64ColumnExpr, f: Long) = Expr.makeOp3(ops.Op3.IfElseI64C)(arg0, t, f)
+  def ifelseI64(t: I64ColumnExpr, f: I64ColumnExpr) =
+    Expr.makeOp3(ops.Op3.IfElseI64)(arg0, t, f)
+  def ifelse(t: Long, f: I64ColumnExpr) =
+    Expr.makeOp3(ops.Op3.IfElseCI64)(arg0, t, f)
+  def ifelse(t: I64ColumnExpr, f: Long) =
+    Expr.makeOp3(ops.Op3.IfElseI64C)(arg0, t, f)
   def ifelse(t: Long, f: Long) = Expr.makeOp3(ops.Op3.IfElseI64CC)(arg0, t, f)
 
-  def ifelseF64(t: F64ColumnExpr, f: F64ColumnExpr) = Expr.makeOp3(ops.Op3.IfElseF64)(arg0, t, f)
-  def ifelse(t: F64ColumnExpr, f: Double) = Expr.makeOp3(ops.Op3.IfElseF64C)(arg0, t, f)
-  def ifelse(t: Double, f: F64ColumnExpr) = Expr.makeOp3(ops.Op3.IfElseCF64)(arg0, t, f)
-  def ifelse(t: Double, f: Double) = Expr.makeOp3(ops.Op3.IfElseF64CC)(arg0, t, f)
+  def ifelseF64(t: F64ColumnExpr, f: F64ColumnExpr) =
+    Expr.makeOp3(ops.Op3.IfElseF64)(arg0, t, f)
+  def ifelse(t: F64ColumnExpr, f: Double) =
+    Expr.makeOp3(ops.Op3.IfElseF64C)(arg0, t, f)
+  def ifelse(t: Double, f: F64ColumnExpr) =
+    Expr.makeOp3(ops.Op3.IfElseCF64)(arg0, t, f)
+  def ifelse(t: Double, f: Double) =
+    Expr.makeOp3(ops.Op3.IfElseF64CC)(arg0, t, f)
 
-  def ifelseStr(t: StrColumnExpr, f: StrColumnExpr) = Expr.makeOp3(ops.Op3.IfElseStr)(arg0, t, f)
-  def ifelse(t: StrColumnExpr, f: String) = Expr.makeOp3(ops.Op3.IfElseStrC)(arg0, t, f)
-  def ifelse(t: String, f: StrColumnExpr) = Expr.makeOp3(ops.Op3.IfElseCStr)(arg0, t, f)
-  def ifelse(t: String, f: String) = Expr.makeOp3(ops.Op3.IfElseStrCC)(arg0, t, f)
+  def ifelseStr(t: StrColumnExpr, f: StrColumnExpr) =
+    Expr.makeOp3(ops.Op3.IfElseStr)(arg0, t, f)
+  def ifelse(t: StrColumnExpr, f: String) =
+    Expr.makeOp3(ops.Op3.IfElseStrC)(arg0, t, f)
+  def ifelse(t: String, f: StrColumnExpr) =
+    Expr.makeOp3(ops.Op3.IfElseCStr)(arg0, t, f)
+  def ifelse(t: String, f: String) =
+    Expr.makeOp3(ops.Op3.IfElseStrCC)(arg0, t, f)
 
-  def ifelseInst(t: InstColumnExpr, f: InstColumnExpr) = Expr.makeOp3(ops.Op3.IfElseInst)(arg0, t, f)
-  def ifelseInst(t: InstColumnExpr, f: Long) = Expr.makeOp3(ops.Op3.IfElseInstC)(arg0, t, f)
-  def ifelseInst(t: Long, f: InstColumnExpr) = Expr.makeOp3(ops.Op3.IfElseCInst)(arg0, t, f)
-  def ifelseInst(t: Long, f: Long) = Expr.makeOp3(ops.Op3.IfElseInstCC)(arg0, t, f)
+  def ifelseInst(t: InstColumnExpr, f: InstColumnExpr) =
+    Expr.makeOp3(ops.Op3.IfElseInst)(arg0, t, f)
+  def ifelseInst(t: InstColumnExpr, f: Long) =
+    Expr.makeOp3(ops.Op3.IfElseInstC)(arg0, t, f)
+  def ifelseInst(t: Long, f: InstColumnExpr) =
+    Expr.makeOp3(ops.Op3.IfElseCInst)(arg0, t, f)
+  def ifelseInst(t: Long, f: Long) =
+    Expr.makeOp3(ops.Op3.IfElseInstCC)(arg0, t, f)
 
   def <=(arg1: I32ColumnExpr) = Expr.makeOp2(ops.Op2.ColumnLtEqOpII)(arg0, arg1)
   def <=(arg1: Int) = Expr.makeOp2(ops.Op2.ColumnLtEqOpIcI)(arg0, arg1)
@@ -117,10 +134,10 @@ private[ra3] trait SyntaxI32ColumnImpl {
   )
 
   def unnamed = ra3.lang.Expr
-    .BuiltInOp1(ops.Op1.MkUnnamedColumnSpecChunkI32)(arg0 )
+    .BuiltInOp1(ops.Op1.MkUnnamedColumnSpecChunkI32)(arg0)
 
   infix def as(arg1: Expr[String]) = ra3.lang.Expr
-    .BuiltInOp2(ops.Op2.MkNamedColumnSpecChunkI32)(arg0, arg1 )
+    .BuiltInOp2(ops.Op2.MkNamedColumnSpecChunkI32)(arg0, arg1)
 
   infix def as(arg1: String): Expr[ColumnSpec[ra3.DI32]] = as(ra3.const(arg1))
 

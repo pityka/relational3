@@ -15,7 +15,7 @@ private[ra3] object MakeGroupMap {
 
   private def singleColumn(tag: ColumnTag)(
       column: tag.ColumnType
-  )(implicit tsc: TaskSystemComponents) : IO[tag.TaggedBuffersType] = {
+  )(implicit tsc: TaskSystemComponents): IO[tag.TaggedBuffersType] = {
     val z = tag.segments(column).map(s => tag.buffer(s))
     val t = IO.parSequenceN(32)(z)
     t.map(tag.makeTaggedBuffers)
@@ -26,20 +26,22 @@ private[ra3] object MakeGroupMap {
   ) = {
     scribe.debug(s"Make group map on $input to $outputPath")
     assert(input.map(_.tag).distinct.size == 1)
-    val bufferedColumns : IO[Seq[TaggedBuffers]] = IO.parSequenceN(32)(input.map { column =>
-      singleColumn(column.tag)(column.column)
-    })
+    val bufferedColumns: IO[Seq[TaggedBuffers]] =
+      IO.parSequenceN(32)(input.map { column =>
+        singleColumn(column.tag)(column.column)
+      })
 
     bufferedColumns.flatMap { case taggedBuffers =>
       import Buffer.GroupMap
       val GroupMap(groupMap, numGroups, groupSizes) = Buffer
         .computeGroups(taggedBuffers)
-      
+
       val intTag = ColumnTag.I32
 
       IO.both(
-        intTag.toSegment(groupMap,outputPath),
-        intTag.toSegment(groupSizes,
+        intTag.toSegment(groupMap, outputPath),
+        intTag.toSegment(
+          groupSizes,
           outputPath
             .copy(table = outputPath.table + ".groupsizes")
         )

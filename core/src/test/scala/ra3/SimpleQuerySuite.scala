@@ -27,13 +27,16 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
           p: (DelayedIdent[DF64], DelayedIdent[DF64]) => I32ColumnExpr
       )(p2: (Vec[Double], Vec[Double]) => Array[Int]) = {
         val less = ra3Table
-          .schema[F64Var, F64Var].columnsTuple{ schema => schema.columns{ (col0, col1) =>
-            query(
-              schema.all
-                .where(p(col0, col1))
-            )
+          .schema[F64Var, F64Var]
+          .columnsTuple { schema =>
+            schema.columns { (col0, col1) =>
+              query(
+                schema.all
+                  .where(p(col0, col1))
+              )
 
-          }}
+            }
+          }
           .evaluate
           .unsafeRunSync()
         val takenF = toFrame2(less, ColumnTag.F64)
@@ -129,25 +132,31 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
         (frame.mapValues(_.toString), csv)
       }
       val ra3Table = csvStringToStringTable("table", tableCsv, 2, 3)
-        .schema[StrVar, StrVar].columnsTuple( schema => schema.columns{ (col0, col1) =>
-          query(
-            ra3.select0.extend(
-              col0.matchAndReplace("NA", MissingString) as "V0").extend(
-              col1.matchAndReplace("NA", MissingString) as "V1"
+        .schema[StrVar, StrVar]
+        .columnsTuple(schema =>
+          schema.columns { (col0, col1) =>
+            query(
+              ra3.select0
+                .extend(col0.matchAndReplace("NA", MissingString) as "V0")
+                .extend(
+                  col1.matchAndReplace("NA", MissingString) as "V1"
+                )
             )
-          )
-        })
+          }
+        )
         .evaluate
         .unsafeRunSync()
       def predicateTest(tag: String)(
           p: (DelayedIdent[DStr], DelayedIdent[DStr]) => I32ColumnExpr
       )(p2: (Vec[String], Vec[String]) => Array[Int]) = {
         val less = ra3Table
-          .schema[StrVar, StrVar].columnsTuple( schema => schema.columns{ (col0, col1) =>
+          .schema[StrVar, StrVar]
+          .columnsTuple(schema =>
+            schema.columns { (col0, col1) =>
+              query(schema.all.where(p(col0, col1)))
 
-            query(schema.all.where(p(col0,col1)))
-
-          })
+            }
+          )
           .evaluate
           .unsafeRunSync()
         val takenF = toFrame2(less, ColumnTag.StringTag)
@@ -248,13 +257,16 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
           p: (DelayedIdent[DI64], DelayedIdent[DI64]) => I32ColumnExpr
       )(p2: (Vec[Long], Vec[Long]) => Array[Int]) = {
         val less = ra3Table
-          .schema[I64Var, I64Var].columnsTuple( schema => schema.columns{ (col0, col1) =>
-            query(
-              schema.all
-                .where(p(col0, col1))
-            )
+          .schema[I64Var, I64Var]
+          .columnsTuple(schema =>
+            schema.columns { (col0, col1) =>
+              query(
+                schema.all
+                  .where(p(col0, col1))
+              )
 
-          })
+            }
+          )
           .evaluate
           .unsafeRunSync()
         val takenF = toFrame2(less, ColumnTag.I64)
@@ -354,13 +366,18 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
           p: (GenericExpr[DInst], GenericExpr[DInst]) => I32ColumnExpr
       )(p2: (Vec[Long], Vec[Long]) => Array[Int]) = {
         val less = ra3Table
-          .schema[I64Var, I64Var].columnsTuple( schema => schema.columns{ (col0, col1) =>
-            query(
-              schema.none.extend(col0.toInstantEpochMilli).extend(col1.toInstantEpochMilli)
-                .where(p(col0.toInstantEpochMilli, col1.toInstantEpochMilli))
-            )
+          .schema[I64Var, I64Var]
+          .columnsTuple(schema =>
+            schema.columns { (col0, col1) =>
+              query(
+                schema.none
+                  .extend(col0.toInstantEpochMilli)
+                  .extend(col1.toInstantEpochMilli)
+                  .where(p(col0.toInstantEpochMilli, col1.toInstantEpochMilli))
+              )
 
-          })
+            }
+          )
           .evaluate
           .unsafeRunSync()
         val takenF = toFrame2(less, ColumnTag.I64)
@@ -407,7 +424,6 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
         col0.find(i => i > 5).toArray
       )
 
-   
       predicateTest(">=")((col0, col1) => col0 >= col1)((col0, col1) =>
         col0.zipMap(col1)(_ >= _).find(identity).toArray
       )
@@ -451,13 +467,16 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
           p: (DelayedIdent[DI32], DelayedIdent[DI32]) => I32ColumnExpr
       )(p2: (Vec[Int], Vec[Int]) => Array[Int]) = {
         val less = ra3Table
-          .schema[I32Var, I32Var].columnsTuple( schema => schema.columns{ (col0, col1) =>
-            query(
-              schema.all
-                .where(p(col0, col1))
-            )
+          .schema[I32Var, I32Var]
+          .columnsTuple(schema =>
+            schema.columns { (col0, col1) =>
+              query(
+                schema.all
+                  .where(p(col0, col1))
+              )
 
-          })
+            }
+          )
           .evaluate
           .unsafeRunSync()
         val takenF = toFrame2(less, I32)
@@ -554,12 +573,15 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
       val ra3Table = csvStringToStringTable("table", tableCsv, 2, 3)
       val less =
         ra3Table
-          .schema[StrVar, StrVar].columnsTuple( schema => schema.columns{ (col0, col1) =>
-            query(
-             schema.all
-                .where(col0.tap("col0").containedIn(Set("1", "2")))
-            )
-          })
+          .schema[StrVar, StrVar]
+          .columnsTuple(schema =>
+            schema.columns { (col0, col1) =>
+              query(
+                schema.all
+                  .where(col0.tap("col0").containedIn(Set("1", "2")))
+              )
+            }
+          )
           .evaluate
           .unsafeRunSync()
       println(less)
@@ -597,12 +619,14 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
       val ra3Table = csvStringToTable("table", tableCsv, 2, 3)
       val less =
         ra3Table
-          .schema[I32Var, I32Var].columnsTuple( schema => schema.columns{ (col0, col1) =>
-            query(
-              schema.none.extend(col0.ifelseI32(col0,col1))
-                
-            )
-          })
+          .schema[I32Var, I32Var]
+          .columnsTuple(schema =>
+            schema.columns { (col0, col1) =>
+              query(
+                schema.none.extend(col0.ifelseI32(col0, col1))
+              )
+            }
+          )
           .evaluate
           .unsafeRunSync()
       val takenF = (0 until 4)
@@ -612,7 +636,7 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
         .filterIx(_.nonEmpty)
 
       val expect =
-        Frame("V0" ->Vec(10,1, 2, 3, 4, 5, 6, 7, 8, 9).map(_.toString))
+        Frame("V0" -> Vec(10, 1, 2, 3, 4, 5, 6, 7, 8, 9).map(_.toString))
 
       assertEquals(takenF, expect)
     }

@@ -15,11 +15,7 @@ private[ra3] sealed trait Op3 {
   def op(a: A0, b: A1, c: A2)(implicit tsc: TaskSystemComponents): IO[T]
 }
 
-
 private[ra3] object Op3 {
-
- 
-  
 
   case object StringMatchAndReplaceOp extends Op3 {
     type A0 = DStr
@@ -98,7 +94,7 @@ private[ra3] object Op3 {
         tsc: TaskSystemComponents
     ): IO[DI32] = for {
       a <- bufferIfNeededI32(a)
-    } yield Left(ColumnTag.I32.firstInGroup(a,b, c))
+    } yield Left(ColumnTag.I32.firstInGroup(a, b, c))
   }
   case object BufferFirstGroupsOpDIi extends Op3 {
     type A0 = DF64

@@ -48,7 +48,8 @@ private[ra3] object ExportCsv {
     )(
       ResourceRequest(
         cpu = (1, 1),
-        memory = segments.map(_.segment).map(ra3.Utils.guessMemoryUsageInMB).sum * 10,
+        memory =
+          segments.map(_.segment).map(ra3.Utils.guessMemoryUsageInMB).sum * 10,
         scratch = 0,
         gpu = 0
       )
@@ -82,8 +83,9 @@ private[ra3] object ExportCsv {
     val columnSeparatorStr = columnSeparator.toString
 
     assert(segments.nonEmpty)
-    IO.parSequenceN(32)(segments.map(v => v.tag.buffer(v.segment))).map(_.toVector).flatMap {
-      buffers =>
+    IO.parSequenceN(32)(segments.map(v => v.tag.buffer(v.segment)))
+      .map(_.toVector)
+      .flatMap { buffers =>
         IO {
           val numRows = segments.head.segment.numElems
           val numCols = buffers.length
@@ -120,7 +122,7 @@ private[ra3] object ExportCsv {
             s"${outputName}/csv/$outputSegmentIndex.csv$suf"
           )
         }.flatten
-    }
+      }
 
   }
 

@@ -2,12 +2,17 @@ package ra3.lang
 import ra3.tablelang.TableExpr
 
 private[ra3] object Join {
-  def apply[J,K,R<:ReturnValue[K]](a: Expr.DelayedIdent[J], prg: ra3.lang.Expr[R]) =
-    JoinBuilderSyntax[J,K,R](a, Vector.empty, prg, None, None, None)
+  def apply[J, K, R <: ReturnValue[K]](
+      a: Expr.DelayedIdent[J],
+      prg: ra3.lang.Expr[R]
+  ) =
+    JoinBuilderSyntax[J, K, R](a, Vector.empty, prg, None, None, None)
 }
 
-/** Builder pattern for joins. Exit the builder with the done method or elementwise method */
-case class JoinBuilderSyntax[J,K,R<:ReturnValue[K]](
+/** Builder pattern for joins. Exit the builder with the done method or
+  * elementwise method
+  */
+case class JoinBuilderSyntax[J, K, R <: ReturnValue[K]](
     private val first: Expr.DelayedIdent[J],
     private val others: Vector[
       (Expr.DelayedIdent[J], String, ra3.tablelang.Key)
@@ -20,7 +25,10 @@ case class JoinBuilderSyntax[J,K,R<:ReturnValue[K]](
   def withMaxSegmentsBufferingAtOnce(num: Int) =
     copy(maxSegmentsToBufferAtOnce = Some(num))
 
-  def inner[A](ref: Expr.DelayedIdent[J], other: TableExpr.Ident[ReturnValue[A]]) = {
+  def inner[A](
+      ref: Expr.DelayedIdent[J],
+      other: TableExpr.Ident[ReturnValue[A]]
+  ) = {
     copy(
       others = others.appended(
         (ref, "inner", other.key)
@@ -34,7 +42,10 @@ case class JoinBuilderSyntax[J,K,R<:ReturnValue[K]](
       )
     )
   }
-  def outer[A](ref: Expr.DelayedIdent[J], other: TableExpr.Ident[ReturnValue[A]]) = {
+  def outer[A](
+      ref: Expr.DelayedIdent[J],
+      other: TableExpr.Ident[ReturnValue[A]]
+  ) = {
     copy(
       others = others.appended(
         (ref, "outer", other.key)
@@ -48,7 +59,10 @@ case class JoinBuilderSyntax[J,K,R<:ReturnValue[K]](
       )
     )
   }
-  def left[A](ref: Expr.DelayedIdent[J], other: TableExpr.Ident[ReturnValue[A]]) = {
+  def left[A](
+      ref: Expr.DelayedIdent[J],
+      other: TableExpr.Ident[ReturnValue[A]]
+  ) = {
     copy(
       others = others.appended(
         (ref, "left", other.key)
@@ -62,7 +76,10 @@ case class JoinBuilderSyntax[J,K,R<:ReturnValue[K]](
       )
     )
   }
-  def right[A](ref: Expr.DelayedIdent[J], other: TableExpr.Ident[ReturnValue[A]]) = {
+  def right[A](
+      ref: Expr.DelayedIdent[J],
+      other: TableExpr.Ident[ReturnValue[A]]
+  ) = {
     copy(
       others = others.appended(
         (ref, "right", other.key)

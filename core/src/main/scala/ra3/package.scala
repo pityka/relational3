@@ -217,7 +217,7 @@ package object ra3 {
   ): Expr[ReturnValueTuple[T1]] =
     select0.extend(arg1)
 
-  def where(arg0:ra3.lang.util.I32ColumnExpr) =
+  def where(arg0: ra3.lang.util.I32ColumnExpr) =
     select0.where(arg0)
   def filter(arg0: ra3.lang.util.I32ColumnExpr) =
     where(arg0)

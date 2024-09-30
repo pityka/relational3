@@ -1,11 +1,16 @@
 package ra3.lang
 private[ra3] object GroupBy {
-  def apply[T,K<:ReturnValue[T]](a: Expr.DelayedIdent[?], prg: ra3.lang.Expr[K]) =
-    GroupBuilderSyntax[T,K](a, Vector.empty, prg, None, None, None)
+  def apply[T, K <: ReturnValue[T]](
+      a: Expr.DelayedIdent[?],
+      prg: ra3.lang.Expr[K]
+  ) =
+    GroupBuilderSyntax[T, K](a, Vector.empty, prg, None, None, None)
 }
 
-/** Builder pattern for group by clause. Exit the builder with the partial or the all method. */
-case class GroupBuilderSyntax[T,K<:ReturnValue[T]](
+/** Builder pattern for group by clause. Exit the builder with the partial or
+  * the all method.
+  */
+case class GroupBuilderSyntax[T, K <: ReturnValue[T]](
     private val first: Expr.DelayedIdent[?],
     private val others: Vector[
       (Expr.DelayedIdent[?])

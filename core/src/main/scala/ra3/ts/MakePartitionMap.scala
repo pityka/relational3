@@ -43,9 +43,12 @@ private[ra3] object MakePartitionMap {
           math.min(1, ce.resourceAllocated.cpu)
         )(input.input.map(s => s.tag.buffer(s.segment)))
         b.flatMap { in =>
-          ColumnTag.I32.toSegment(Buffer
-            .computePartitions(buffers = in, num = input.partitionBase)
-            ,input.outputPath)
+          ColumnTag.I32
+            .toSegment(
+              Buffer
+                .computePartitions(buffers = in, num = input.partitionBase),
+              input.outputPath
+            )
             .map(Output(_))
         }
 

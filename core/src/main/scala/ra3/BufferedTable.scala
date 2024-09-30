@@ -5,7 +5,7 @@ case class BufferedTable(
     colNames: Vector[String]
 ) {
   def toFrame = toStringFrame
-  def toHomogeneousFrameWithRowIndex[Rx,V](rowIndexCol: Int)(implicit
+  def toHomogeneousFrameWithRowIndex[Rx, V](rowIndexCol: Int)(implicit
       st: org.saddle.ST[V],
       st2: org.saddle.ST[Rx],
       ord: org.saddle.ORD[Rx]
@@ -23,8 +23,10 @@ case class BufferedTable(
     ).setRowIndex(Index(header.toArray))
 
   }
- 
-  def toHomogeneousFrame( tag: ColumnTag)(implicit st: org.saddle.ST[tag.Elem]) = {
+
+  def toHomogeneousFrame(
+      tag: ColumnTag
+  )(implicit st: org.saddle.ST[tag.Elem]) = {
     import org.saddle.*
     Frame(columns.map(_.toSeq.asInstanceOf[Seq[tag.Elem]].toVec)*)
       .setColIndex(colNames.toIndex)

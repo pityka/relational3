@@ -11,7 +11,8 @@ private[ra3] trait SyntaxI64ColumnImpl {
   def isMissing = Expr.makeOp1(ops.Op1.ColumnIsMissingOpL)(arg0)
 
   def toDouble = Expr.makeOp1(ops.Op1.ColumnToDoubleOpL)(arg0)
-  def toInstantEpochMilli = Expr.makeOp1(ops.Op1.ColumnToInstantEpochMilliOpL)(arg0)
+  def toInstantEpochMilli =
+    Expr.makeOp1(ops.Op1.ColumnToInstantEpochMilliOpL)(arg0)
 
   def printf(arg1: String) =
     Expr.makeOp2(ops.Op2.ColumnPrintfOpLcStr)(arg0, ra3.const(arg1))
@@ -48,10 +49,10 @@ private[ra3] trait SyntaxI64ColumnImpl {
   )
 
   def unnamed = ra3.lang.Expr
-    .BuiltInOp1(ops.Op1.MkUnnamedColumnSpecChunkI64)(arg0 )
+    .BuiltInOp1(ops.Op1.MkUnnamedColumnSpecChunkI64)(arg0)
 
   infix def as(arg1: Expr[String]) = ra3.lang.Expr
-    .BuiltInOp2(ops.Op2.MkNamedColumnSpecChunkI64)(arg0, arg1 )
+    .BuiltInOp2(ops.Op2.MkNamedColumnSpecChunkI64)(arg0, arg1)
 
   infix def as(arg1: String): Expr[ColumnSpec[ra3.DI64]] = as(ra3.const(arg1))
 

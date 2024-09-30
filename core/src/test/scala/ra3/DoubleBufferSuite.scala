@@ -74,7 +74,8 @@ class DoubleBufferSuite extends munit.FunSuite with WithTempTaskSystem {
     assertEquals(b1.positiveLocations.toSeq, Seq(1, 2, 4, 5, 6, 7))
   }
   test("outer join") {
-    val (a, b) = ColumnTag.F64.computeJoinIndexes(BufferDouble(0d, Double.NaN, 1d, -99d),
+    val (a, b) = ColumnTag.F64.computeJoinIndexes(
+      BufferDouble(0d, Double.NaN, 1d, -99d),
       BufferDouble(0d, 0d, Double.NaN, Double.NaN, 1d, 1d, 99d),
       "outer"
     )

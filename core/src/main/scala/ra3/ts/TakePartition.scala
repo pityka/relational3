@@ -26,17 +26,25 @@ private[ra3] object TakePartition {
     assert(inputSegmentsWithPartitionMaps.nonEmpty)
     val allPartitionsBuffered: IO[Vector[Vector[TaggedBuffer]]] =
       inputSegmentsWithPartitionMaps.foldLeft(
-        IO.pure(0 until numPartition map (_ => Vector.empty[TaggedBuffer]) toVector)
+        IO.pure(
+          0 until numPartition map (_ => Vector.empty[TaggedBuffer]) toVector
+        )
       ) { case (alreadyDone, (nextSegment, nextPartitionMap)) =>
         alreadyDone.flatMap { alreadyDone =>
-          IO.both(nextSegment.tag.buffer(nextSegment.segment), nextPartitionMap.buffer).map {
-            case (bufferedSegment, bufferedPartitionMap) =>
-              val partitionsOfNextSegment =
-                nextSegment.tag.partition(bufferedSegment,numPartition, bufferedPartitionMap)
-              assert(alreadyDone.size == partitionsOfNextSegment.size)
-              (alreadyDone zip partitionsOfNextSegment).map { case (vec, buf) =>
-                vec.appended(nextSegment.tag.makeTaggedBuffer(buf))
-              }
+          IO.both(
+            nextSegment.tag.buffer(nextSegment.segment),
+            nextPartitionMap.buffer
+          ).map { case (bufferedSegment, bufferedPartitionMap) =>
+            val partitionsOfNextSegment =
+              nextSegment.tag.partition(
+                bufferedSegment,
+                numPartition,
+                bufferedPartitionMap
+              )
+            assert(alreadyDone.size == partitionsOfNextSegment.size)
+            (alreadyDone zip partitionsOfNextSegment).map { case (vec, buf) =>
+              vec.appended(nextSegment.tag.makeTaggedBuffer(buf))
+            }
 
           }
         }
@@ -48,14 +56,14 @@ private[ra3] object TakePartition {
           case (buffers, pIdx) =>
             val tag = buffers.head.tag
             assert(buffers.forall(_.tag == tag))
-            tag.toSegment(tag
-              .cat(buffers.map(_.buffer.asInstanceOf[tag.BufferType])*),
-              
-                outputPath.copy(
-                  partition =
-                    Some(outputPath.partition.get.copy(partitionId = pIdx))
-                )
+            tag.toSegment(
+              tag
+                .cat(buffers.map(_.buffer.asInstanceOf[tag.BufferType])*),
+              outputPath.copy(
+                partition =
+                  Some(outputPath.partition.get.copy(partitionId = pIdx))
               )
+            )
 
         })
       }

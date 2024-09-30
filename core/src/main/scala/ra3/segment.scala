@@ -98,13 +98,13 @@ private[ra3] object Segment {
 // private[ra3] case class I32Pair(a: SegmentInt, b: SegmentInt)
 //     extends SegmentPair {
 //   val tag : ColumnTag.I32.type = ColumnTag.I32
-//   type Elem = Int  
+//   type Elem = Int
 //   type SegmentType = SegmentInt
 // }
 // private[ra3] case class F64Pair(a: SegmentDouble, b: SegmentDouble)
 //     extends SegmentPair {
 //   type Elem = Double
-  
+
 // }
 // private[ra3] case class I64Pair(a: SegmentLong, b: SegmentLong)
 //     extends SegmentPair {

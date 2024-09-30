@@ -15,8 +15,10 @@ private[ra3] object SimpleQuery {
           (0 until nSegments).toList
         ) { segmentIdx =>
           ts.SimpleQuery.queue(
-            input = self.columns.map(c => (c.tag.makeTaggedSegment(c.segments(segmentIdx)))).zipWithIndex.map {
-              case (s, columnIdx) =>
+            input = self.columns
+              .map(c => (c.tag.makeTaggedSegment(c.segments(segmentIdx))))
+              .zipWithIndex
+              .map { case (s, columnIdx) =>
                 ra3.ts.TypedSegmentWithName(
                   tag = s.tag,
                   segment = List(s.segment),
@@ -24,7 +26,7 @@ private[ra3] object SimpleQuery {
                   columnName = self.colNames(columnIdx),
                   columnIdx = columnIdx
                 )
-            },
+              },
             predicate = program,
             outputPath = LogicalPath(name, None, segmentIdx, 0),
             groupMap = None
@@ -33,11 +35,13 @@ private[ra3] object SimpleQuery {
           segments.transpose.map { case segments =>
             val tag = segments.head._1.tag
             val col =
-              tag.makeTaggedColumn(tag.makeColumn(
-                segments
-                  .map(_._1)
-                  .toVector
-                  .asInstanceOf[Vector[tag.SegmentType]])
+              tag.makeTaggedColumn(
+                tag.makeColumn(
+                  segments
+                    .map(_._1)
+                    .toVector
+                    .asInstanceOf[Vector[tag.SegmentType]]
+                )
               )
             val name = segments.head._2
             (col, name)

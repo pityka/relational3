@@ -86,14 +86,26 @@ private[ra3] object MultipleTableQuery {
                   segment._2.columnName
                 )
               )
-            case (key, (tag,segment), Some(takeBuffer)) =>
+            case (key, (tag, segment), Some(takeBuffer)) =>
               ra3.Utils
-                .bufferMultiple(tag)(segment.segment.map(_.asInstanceOf[tag.SegmentType]))
-                .map(b => (key, Left(tag.makeTaggedBuffer(tag.take(b,takeBuffer))), segment.columnName))
-            case (key, (tag,segment), None) =>
+                .bufferMultiple(tag)(
+                  segment.segment.map(_.asInstanceOf[tag.SegmentType])
+                )
+                .map(b =>
+                  (
+                    key,
+                    Left(tag.makeTaggedBuffer(tag.take(b, takeBuffer))),
+                    segment.columnName
+                  )
+                )
+            case (key, (tag, segment), None) =>
               ra3.Utils
-                .bufferMultiple(tag)(segment.segment.map(_.asInstanceOf[tag.SegmentType]))
-                .map(b => (key, Left(tag.makeTaggedBuffer(b)), segment.columnName))
+                .bufferMultiple(tag)(
+                  segment.segment.map(_.asInstanceOf[tag.SegmentType])
+                )
+                .map(b =>
+                  (key, Left(tag.makeTaggedBuffer(b)), segment.columnName)
+                )
           }
       )
 
@@ -123,8 +135,8 @@ private[ra3] object MultipleTableQuery {
                 case (v: NamedColumnSpec[?], _) =>
                   IO.pure((v))
                 case (v: UnnamedColumnSpec[?], idx) =>
-                  IO.pure((v.withName(s"V$idx")))                
-                // case x => 
+                  IO.pure((v.withName(s"V$idx")))
+                // case x =>
                 //   throw new RuntimeException("Unexpected unmatched case "+x)
               })
 
@@ -136,34 +148,59 @@ private[ra3] object MultipleTableQuery {
                   val columnName = columnSpec.name
 
                   val taggedBuffer = columnSpec match {
-                    case NamedColumnSpecWithColumnChunkValueExtractor(Right(_), _) =>
+                    case NamedColumnSpecWithColumnChunkValueExtractor(
+                          Right(_),
+                          _
+                        ) =>
                       throw new AssertionError(
                         "unexpected Right[Seq[Segment]] returned from program"
                       )
-                    case NamedColumnSpecWithColumnChunkValueExtractor(Left(x), _)
-                        if x.buffer.length == outputNumElemsBeforeFiltering =>
+                    case NamedColumnSpecWithColumnChunkValueExtractor(
+                          Left(x),
+                          _
+                        ) if x.buffer.length == outputNumElemsBeforeFiltering =>
                       x.tag.makeTaggedBuffer(x.buffer)
-                    case NamedColumnSpecWithColumnChunkValueExtractor(Left(x), _)
-                        if outputNumElemsBeforeFiltering == 0 =>
+                    case NamedColumnSpecWithColumnChunkValueExtractor(
+                          Left(x),
+                          _
+                        ) if outputNumElemsBeforeFiltering == 0 =>
                       x.tag.makeTaggedBuffer(x.tag.makeBufferFromSeq())
-                    case NamedColumnSpecWithColumnChunkValueExtractor(Left(x), _) =>
+                    case NamedColumnSpecWithColumnChunkValueExtractor(
+                          Left(x),
+                          _
+                        ) =>
                       require(
                         false,
                         s"program returned a buffer of size ${x.buffer.length} instead of ${outputNumElemsBeforeFiltering}. In this invocation the program must be element wise"
                       )
                       ???
                     case NamedConstantI32(x, _) =>
-                      ColumnTag.I32.makeTaggedBuffer(BufferIntConstant(x, outputNumElemsBeforeFiltering))
+                      ColumnTag.I32.makeTaggedBuffer(
+                        BufferIntConstant(x, outputNumElemsBeforeFiltering)
+                      )
                     case NamedConstantF64(x, _) =>
-                      ColumnTag.F64.makeTaggedBuffer(BufferDouble.constant(x, outputNumElemsBeforeFiltering))
+                      ColumnTag.F64.makeTaggedBuffer(
+                        BufferDouble.constant(x, outputNumElemsBeforeFiltering)
+                      )
                     case NamedConstantI64(x, _) =>
-                      ColumnTag.I64.makeTaggedBuffer(BufferLong.constant(x, outputNumElemsBeforeFiltering))
+                      ColumnTag.I64.makeTaggedBuffer(
+                        BufferLong.constant(x, outputNumElemsBeforeFiltering)
+                      )
                     case NamedConstantString(x, _) =>
-                      ColumnTag.StringTag.makeTaggedBuffer(BufferString.constant(x, outputNumElemsBeforeFiltering))
+                      ColumnTag.StringTag.makeTaggedBuffer(
+                        BufferString.constant(x, outputNumElemsBeforeFiltering)
+                      )
                     case NamedConstantInstant(x, _) =>
-                      ColumnTag.Instant.makeTaggedBuffer(BufferInstant.constant(x.toEpochMilli(), outputNumElemsBeforeFiltering))
-                    case x => 
-                      throw new RuntimeException("Unexpected unmatched case "+x)
+                      ColumnTag.Instant.makeTaggedBuffer(
+                        BufferInstant.constant(
+                          x.toEpochMilli(),
+                          outputNumElemsBeforeFiltering
+                        )
+                      )
+                    case x =>
+                      throw new RuntimeException(
+                        "Unexpected unmatched case " + x
+                      )
                   }
                   val tag = taggedBuffer.tag
                   val buffer = taggedBuffer.buffer
@@ -173,12 +210,15 @@ private[ra3] object MultipleTableQuery {
                       mask match {
                         case None => IO.pure(buffer)
                         case Some(mask) =>
-                          ra3.lang.util.bufferIfNeeded(ColumnTag.I32)(mask).map(tag.filter(buffer,_))
+                          ra3.lang.util
+                            .bufferIfNeeded(ColumnTag.I32)(mask)
+                            .map(tag.filter(buffer, _))
                       }
                     }
 
                   filtered.flatMap(
-                    tag.toSegment(_,outputPath.copy(column = columnIdx))
+                    tag
+                      .toSegment(_, outputPath.copy(column = columnIdx))
                       .map(s => (s, columnName))
                   )
               })

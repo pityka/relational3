@@ -138,7 +138,11 @@ object csv {
             callback.segments.zip(sortedColumnTypes).zipWithIndex map {
               case ((b, (_, tpe, _, _)), idx) =>
                 val segments = b.toVector
-                val column = tpe.makeTaggedColumn(tpe.makeColumn(segments.map((_:Segment).asInstanceOf[tpe.SegmentType])))
+                val column = tpe.makeTaggedColumn(
+                  tpe.makeColumn(
+                    segments.map((_: Segment).asInstanceOf[tpe.SegmentType])
+                  )
+                )
 
                 val name = colIndex.map(_.apply(idx))
                 (name, column)
@@ -258,10 +262,12 @@ object csv {
               case t: org.saddle.Buffer[?] =>
                 val tpe = columnTypes(bufferIdx)._2
 
-                tpe.toSegment(tpe
-                  .makeBuffer(
-                    t.asInstanceOf[org.saddle.Buffer[tpe.Elem]].toArray
-                  ),
+                tpe
+                  .toSegment(
+                    tpe
+                      .makeBuffer(
+                        t.asInstanceOf[org.saddle.Buffer[tpe.Elem]].toArray
+                      ),
                     LogicalPath(
                       table = name,
                       partition = None,

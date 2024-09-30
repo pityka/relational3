@@ -44,7 +44,7 @@ private[ra3] object MergeCDFs {
         .unzip
       val xS = tag.toSegment(
         tag
-          .makeBufferFromSeq(x *),
+          .makeBufferFromSeq(x*),
         outputPath.appendToTable(".locations")
       )
       val yS =

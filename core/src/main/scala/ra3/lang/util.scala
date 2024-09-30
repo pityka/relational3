@@ -24,10 +24,6 @@ object util {
 
   private[ra3] type GenericExpr[T0] = Expr[T0]
 
-  
-
- 
-
   private[ra3] def bufferIfNeededI32(
       arg: Either[BufferInt, Seq[SegmentInt]]
   )(implicit tsc: TaskSystemComponents): IO[BufferInt] =

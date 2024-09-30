@@ -18,14 +18,14 @@ sealed trait TableExpr[+T] { self =>
       tsc: TaskSystemComponents
   ): IO[ra3.Table] = evalWith(Map.empty).map(_.v)
 
-   def evalWith(env: Map[Key, TableValue])(implicit
+  def evalWith(env: Map[Key, TableValue])(implicit
       tsc: TaskSystemComponents
   ): IO[TableValue]
 
   // utilities for analysis of the tree
-   def tags: Set[KeyTag]
+  def tags: Set[KeyTag]
 
-   def in[R](
+  def in[R](
       body: TableExpr.Ident[T] => TableExpr[R]
   ): TableExpr[R] = {
     val n = ra3.tablelang.TagKey(new ra3.tablelang.KeyTag)
@@ -97,14 +97,14 @@ object TableExpr {
     def tags: Set[KeyTag] = Set.empty
 
   }
-  case class Ident[+T]( key: Key) extends TableExpr[T] { self =>
+  case class Ident[+T](key: Key) extends TableExpr[T] { self =>
 
-     def evalWith(env: Map[Key, TableValue])(implicit
+    def evalWith(env: Map[Key, TableValue])(implicit
         tsc: TaskSystemComponents
     ) =
       IO.pure(env(key))
 
-     def tags: Set[KeyTag] = key match {
+    def tags: Set[KeyTag] = key match {
       case TagKey(s) => Set(s)
       case _         => Set.empty
     }

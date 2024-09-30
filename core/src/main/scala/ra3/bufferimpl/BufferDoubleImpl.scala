@@ -193,7 +193,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
 
   }
 
-   def findInequalityVsHead(
+  def findInequalityVsHead(
       other: BufferType,
       lessThan: Boolean
   ): BufferInt = {
@@ -210,7 +210,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
     }
   }
 
-   def cdf(numPoints: Int): (BufferDouble, BufferDouble) = {
+  def cdf(numPoints: Int): (BufferDouble, BufferDouble) = {
     val percentiles =
       ((0 until (numPoints - 1)).map(i => i * (1d / (numPoints - 1))) ++ List(
         1d
@@ -247,7 +247,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
 
   override def length: Int = values.length
 
-   def take(locs: Location): BufferDouble = locs match {
+  def take(locs: Location): BufferDouble = locs match {
     case Slice(start, until) =>
       val r = Array.ofDim[Double](until - start)
       System.arraycopy(values, start, r, 0, until - start)
@@ -263,8 +263,6 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
       values.toVec.find(_ > 0).toArray
     )
   }
-
-  
 
   def mergeNonMissing(
       other: BufferType
@@ -302,7 +300,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
 
   }
 
-   def toSegment(name: LogicalPath)(implicit
+  def toSegment(name: LogicalPath)(implicit
       tsc: TaskSystemComponents
   ): IO[SegmentDouble] =
     if (values.length == 0)

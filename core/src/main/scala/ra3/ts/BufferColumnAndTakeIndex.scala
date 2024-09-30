@@ -13,8 +13,12 @@ private[ra3] case class BufferColumnAndTakeIndex(
     outputPath: LogicalPath
 )
 private[ra3] object BufferColumnAndTakeIndex {
-  def queue(input: TaggedColumn, idx: Option[SegmentInt], outputPath: LogicalPath)(
-      implicit tsc: TaskSystemComponents
+  def queue(
+      input: TaggedColumn,
+      idx: Option[SegmentInt],
+      outputPath: LogicalPath
+  )(implicit
+      tsc: TaskSystemComponents
   ): IO[input.tag.SegmentType] =
     task(BufferColumnAndTakeIndex(input, idx, outputPath))(
       ResourceRequest(
@@ -23,7 +27,7 @@ private[ra3] object BufferColumnAndTakeIndex {
         scratch = 0,
         gpu = 0
       )
-    ).map((_:Segment).asInstanceOf[input.tag.SegmentType])
+    ).map((_: Segment).asInstanceOf[input.tag.SegmentType])
 
   implicit val codec: JsonValueCodec[BufferColumnAndTakeIndex] =
     JsonCodecMaker.make
@@ -50,9 +54,12 @@ private[ra3] object BufferColumnAndTakeIndex {
         idx.map(_.buffer.map(Some(_))).getOrElse(IO.pure(None))
       IO.both(bufferedColumn, bufferedIdx)
         .flatMap { case (part, idx) =>
-          input.tag.toSegment(idx
-            .map(t => input.tag.take(part,t))
-            .getOrElse(part),outputPath)
+          input.tag.toSegment(
+            idx
+              .map(t => input.tag.take(part, t))
+              .getOrElse(part),
+            outputPath
+          )
         }
     }
   }

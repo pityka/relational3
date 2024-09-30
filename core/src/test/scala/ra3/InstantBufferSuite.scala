@@ -44,10 +44,16 @@ class InstantBufferSuite extends munit.FunSuite with WithTempTaskSystem {
   }
   test("cdf") {
     val b1 = BufferInstant(Array(0, 1, 2, 3, 4, 4, 5, 6).map(_.toLong))
-    assertEquals(ColumnTag.Instant.cdf(b1,2)._1.values.toSeq, List(0L, 6L))
-    assertEquals(ColumnTag.Instant.cdf(b1,2)._2.values.toSeq, List(0d, 1d))
-    assertEquals(ColumnTag.Instant.cdf(b1,4)._1.values.toSeq, List(0L, 2L, 4L, 6L))
-    assertEquals(ColumnTag.Instant.cdf(b1,4)._2.values.toSeq, List(0d, 1d / 3d, 2d / 3d, 1d))
+    assertEquals(ColumnTag.Instant.cdf(b1, 2)._1.values.toSeq, List(0L, 6L))
+    assertEquals(ColumnTag.Instant.cdf(b1, 2)._2.values.toSeq, List(0d, 1d))
+    assertEquals(
+      ColumnTag.Instant.cdf(b1, 4)._1.values.toSeq,
+      List(0L, 2L, 4L, 6L)
+    )
+    assertEquals(
+      ColumnTag.Instant.cdf(b1, 4)._2.values.toSeq,
+      List(0d, 1d / 3d, 2d / 3d, 1d)
+    )
   }
   test("length") {
     val b1 = BufferInstant(Array(0L, 1, 2, 3, 4, 4, 5, 6))

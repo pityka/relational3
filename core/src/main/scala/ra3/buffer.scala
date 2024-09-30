@@ -64,8 +64,6 @@ private[ra3] case class TaggedBuffersString(buffers: Seq[BufferString])
 private[ra3] sealed trait Buffer {
   type Elem
 
-
-
   /** Returns the items in the buffer as a Seq
     *
     * Missing values are encoded onto the same value as used internally
@@ -275,7 +273,7 @@ private[ra3] object Buffer {
     if (columns.size == 1) {
       val buffers = columns.head // .map(_.asBufferType)
       val tag = buffers.tag
-      val concat = tag.cat(buffers.buffers *)
+      val concat = tag.cat(buffers.buffers*)
       concat.groups
     } else {
       import org.saddle.*
@@ -284,7 +282,7 @@ private[ra3] object Buffer {
         columns.map(v => v.buffers.map(_.length.toLong).sum).distinct.size == 1,
         s"Got columns of multiple lengths: ${columns.map(v => v.buffers.map(_.length.toLong).sum).distinct}"
       )
-      val buffers = columns.map(buffers => buffers.tag.cat(buffers.buffers *))
+      val buffers = columns.map(buffers => buffers.tag.cat(buffers.buffers*))
       val factorizedEachBuffer = buffers.map(_.groups.map.toSeq).toVector
       // from here this is very inefficient because allocates too much
       // lamp has a more efficient implementation for this if I am willing to pull in lamp

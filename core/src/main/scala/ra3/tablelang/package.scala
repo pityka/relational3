@@ -10,7 +10,7 @@
 
 //     TableExpr.Local(n, assigned, b)
 //   }
-  
+
 //     private[ra3] def localR[A,R](
 //       assigned: TableExpr[A]
 //   )(body: TableExpr.Ident[A] => TableExpr[R])  = local(assigned)(body)

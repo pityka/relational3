@@ -107,7 +107,7 @@ lazy val specs = List(
 
 lazy val root = project
   .in(file("."))
-  .settings(commonSettings:_*)
+  .settings(commonSettings: _*)
   .settings(
     publishArtifact := false,
     publish / skip := true
@@ -116,7 +116,7 @@ lazy val root = project
 
 lazy val core = project
   .in(file("core"))
-  .settings(commonSettings:_*)
+  .settings(commonSettings: _*)
   .settings(
     name := "ra3-core",
     libraryDependencies ++= List(
@@ -130,10 +130,9 @@ lazy val core = project
     ) ++ akkaProvided ++ specs
   )
 
-
 lazy val example = project
   .in(file("example"))
-  .settings(commonSettings:_*)
+  .settings(commonSettings: _*)
   .settings(
     name := "ra3-example",
     publish / skip := true,

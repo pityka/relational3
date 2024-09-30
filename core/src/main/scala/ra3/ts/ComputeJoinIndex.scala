@@ -15,10 +15,10 @@ private[ra3] case class ComputeJoinIndex(
 )
 private[ra3] object ComputeJoinIndex {
   private def doit(
-       tag: ColumnTag,
-    first: Column,
-    rest: Seq[(Column, String, Int)], // col, how , index of against which one
-    outputPath: LogicalPath
+      tag: ColumnTag,
+      first: Column,
+      rest: Seq[(Column, String, Int)], // col, how , index of against which one
+      outputPath: LogicalPath
   )(implicit tsc: TaskSystemComponents): IO[Seq[Option[SegmentInt]]] = {
     scribe.debug(
       f"Compute join index between ${tag}(n=${tag.numElems(first.asInstanceOf[tag.ColumnType])}%,d) and ${rest
@@ -29,10 +29,20 @@ private[ra3] object ComputeJoinIndex {
     )
     if (rest.size == 1) {
       val (c, h, _) = rest.head
-      doit2(tag)(first.asInstanceOf[tag.ColumnType], c.asInstanceOf[tag.ColumnType], h, outputPath).map { case (a, b) => List(a, b) }
-    } else doitMultiple(tag)(first.asInstanceOf[tag.ColumnType], rest.map{
-      case (a,b,c) => (a.asInstanceOf[tag.ColumnType],b,c)
-    }, outputPath)
+      doit2(tag)(
+        first.asInstanceOf[tag.ColumnType],
+        c.asInstanceOf[tag.ColumnType],
+        h,
+        outputPath
+      ).map { case (a, b) => List(a, b) }
+    } else
+      doitMultiple(tag)(
+        first.asInstanceOf[tag.ColumnType],
+        rest.map { case (a, b, c) =>
+          (a.asInstanceOf[tag.ColumnType], b, c)
+        },
+        outputPath
+      )
   }
   private def doit2(tag: ColumnTag)(
       left: tag.ColumnType,
@@ -67,24 +77,32 @@ private[ra3] object ComputeJoinIndex {
       IO.both(bufferedLeft, bufferedRight).flatMap {
         case (bufferedLeft, bufferedRight) =>
           val (takeLeft, takeRight) =
-            tag.computeJoinIndexes(bufferedLeft,bufferedRight, how)
+            tag.computeJoinIndexes(bufferedLeft, bufferedRight, how)
 
           val intTag = ColumnTag.I32
           val takeLeftS: IO[Option[SegmentInt]] =
             takeLeft
               .map(
-                intTag.toSegment(_,
-                  outputPath
-                    .copy(table = outputPath.table + ".left")
-                ).map(_.asInstanceOf[SegmentInt]).map(Some(_))
+                intTag
+                  .toSegment(
+                    _,
+                    outputPath
+                      .copy(table = outputPath.table + ".left")
+                  )
+                  .map(_.asInstanceOf[SegmentInt])
+                  .map(Some(_))
               )
               .getOrElse(IO.pure(None))
           val takeRightS: IO[Option[SegmentInt]] = takeRight
             .map(
-              intTag.toSegment(_,
-                outputPath
-                  .copy(table = outputPath.table + ".right")
-              ).map(_.asInstanceOf[SegmentInt]).map(Some(_))
+              intTag
+                .toSegment(
+                  _,
+                  outputPath
+                    .copy(table = outputPath.table + ".right")
+                )
+                .map(_.asInstanceOf[SegmentInt])
+                .map(Some(_))
             )
             .getOrElse(IO.pure(None))
           IO.both(takeLeftS, takeRightS)
@@ -122,26 +140,26 @@ private[ra3] object ComputeJoinIndex {
       bufferedRight.map { case bufferedRight =>
         if (how == "inner" && emptyOverlap(bufferedLeft, nextColumn)) {
           previousTakes.map { case (b, _) =>
-            (tag.take(b,BufferInt.empty), Some(BufferInt.empty))
+            (tag.take(b, BufferInt.empty), Some(BufferInt.empty))
           } :+ ((tag.makeBufferFromSeq(), Some(BufferInt.empty)))
         } else {
           val (takeLeft, takeRight) =
-            tag.computeJoinIndexes(bufferedLeft,bufferedRight, how)
+            tag.computeJoinIndexes(bufferedLeft, bufferedRight, how)
 
           val updatedPreviousTakes = previousTakes.map {
             case (prevB, None) =>
               takeLeft match {
                 case None    => (prevB, None)
-                case Some(t) => (tag.take(prevB,t), Some(t))
+                case Some(t) => (tag.take(prevB, t), Some(t))
               }
             case (prevB, Some(t)) =>
-              val t1 = takeLeft.map(ColumnTag.I32.take(t,_)).getOrElse(t)
-              val b = takeLeft.map(tag.take(prevB,_)).getOrElse(prevB)
+              val t1 = takeLeft.map(ColumnTag.I32.take(t, _)).getOrElse(t)
+              val b = takeLeft.map(tag.take(prevB, _)).getOrElse(prevB)
               (b, Some(t1))
           }
 
           val nextRight =
-            takeRight.map(tag.take(bufferedRight,_)).getOrElse(bufferedRight)
+            takeRight.map(tag.take(bufferedRight, _)).getOrElse(bufferedRight)
 
           updatedPreviousTakes :+ ((nextRight, takeRight))
         }
@@ -169,24 +187,27 @@ private[ra3] object ComputeJoinIndex {
         IO.parSequenceN(32)(list.zipWithIndex.map { case ((_, take), idx) =>
           take
             .map(
-              ColumnTag.I32.toSegment(_,
-                outputPath
-                  .copy(table = outputPath.table + s".joinindex.$idx")
-              ).map(Some(_))
+              ColumnTag.I32
+                .toSegment(
+                  _,
+                  outputPath
+                    .copy(table = outputPath.table + s".joinindex.$idx")
+                )
+                .map(Some(_))
             )
             .getOrElse(IO.pure(Option.empty[SegmentInt]))
         })
       }
 
   }
-  def queue(tag:ColumnTag)(
+  def queue(tag: ColumnTag)(
       first: tag.ColumnType,
       rest: Seq[(tag.ColumnType, String, Int)],
       outputPath: LogicalPath
   )(implicit
       tsc: TaskSystemComponents
   ): IO[Seq[Option[SegmentInt]]] =
-    task(ComputeJoinIndex(tag,first, rest, outputPath))(
+    task(ComputeJoinIndex(tag, first, rest, outputPath))(
       ResourceRequest(
         cpu = (1, 1),
         memory = (ra3.Utils.guessMemoryUsageInMB(tag)(first) + rest

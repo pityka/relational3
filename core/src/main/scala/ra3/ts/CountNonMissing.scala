@@ -12,7 +12,9 @@ private[ra3] case class CountNonMissing(
     input: Seq[Segment]
 )
 private[ra3] object CountNonMissing {
-  def doit(tag: ColumnTag)(input: Seq[tag.SegmentType])(implicit tsc: TaskSystemComponents) = {
+  def doit(
+      tag: ColumnTag
+  )(input: Seq[tag.SegmentType])(implicit tsc: TaskSystemComponents) = {
     input.foldLeft(IO.pure(0L)) { case (acc, next) =>
       acc.flatMap { acc =>
         tag.buffer(next).map(_.countNonMissing + acc)
@@ -22,12 +24,13 @@ private[ra3] object CountNonMissing {
   def queue(tag: ColumnTag)(input: Seq[tag.SegmentType])(implicit
       tsc: TaskSystemComponents
   ): IO[Long] =
-    task(CountNonMissing(tag,input))(
+    task(CountNonMissing(tag, input))(
       ResourceRequest(cpu = (1, 1), memory = 100, scratch = 0, gpu = 0)
     )
   implicit val codec: JsonValueCodec[CountNonMissing] = JsonCodecMaker.make
   val task = Task[CountNonMissing, Long]("CountNonMissing", 1) { case input =>
-    implicit ce => doit(input.tag)(input.input.map(_.asInstanceOf[input.tag.SegmentType]))
+    implicit ce =>
+      doit(input.tag)(input.input.map(_.asInstanceOf[input.tag.SegmentType]))
 
   }
 }

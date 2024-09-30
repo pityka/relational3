@@ -110,7 +110,7 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
   /** Find locations at which _ <= other[0] or _ >= other[0] holds returns
     * indexes
     */
-   def findInequalityVsHead(
+  def findInequalityVsHead(
       other: BufferType,
       lessThan: Boolean
   ): BufferInt = {
@@ -128,8 +128,6 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
   }
 
   def toSeq = values.toSeq
-
- 
 
   def length = values.length
 
@@ -193,7 +191,7 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
     BufferInt(values.toVec.find(_ == i).toArray)
   }
 
-   def take(locs: Location): BufferInt = locs match {
+  def take(locs: Location): BufferInt = locs match {
     case Slice(start, until) =>
       val r = Array.ofDim[Int](until - start)
       System.arraycopy(values, start, r, 0, until - start)
@@ -209,7 +207,7 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
     scala.util.hashing.byteswap32(values(l)).toLong
   }
 
-   def toSegment(
+  def toSegment(
       name: LogicalPath
   )(implicit tsc: TaskSystemComponents): IO[SegmentInt] = {
     if (values.length == 0) IO.pure(SegmentInt(None, 0, StatisticInt.empty))
