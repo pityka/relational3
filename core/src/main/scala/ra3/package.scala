@@ -71,8 +71,7 @@ package object ra3 {
   type F64Var = DF64
   type InstVar = DInst
 
-  type TableVariable = ra3.tablelang.TableExpr.Ident
-  type TableExpr = ra3.tablelang.TableExpr
+  type TableExpr[R] = ra3.tablelang.TableExpr[R]
 
   /** Data type of I32 columns */
   private[ra3] type DI32 = Either[BufferInt, Seq[SegmentInt]]
@@ -211,6 +210,8 @@ package object ra3 {
   /** Elementwise or group wise projection */
   def select0: Expr[ra3.lang.ReturnValueTuple[EmptyTuple]] = ra3.lang.Expr
     .makeOp0(ops.Op0.ConstantEmptyReturnValue)
+  def S : Expr[ra3.lang.ReturnValueTuple[EmptyTuple]] = ra3.lang.Expr
+    .makeOp0(ops.Op0.ConstantEmptyReturnValue)
 
   def select[T1 <: Tuple](
       arg1: ra3.tablelang.Schema[T1]
@@ -223,7 +224,7 @@ package object ra3 {
     where(arg0)
 
   /** Simple query consisting of elementwise (row-wise) projection and filter */
-  def query[T](prg: ra3.lang.util.Query[T]) = {
+  def query[T](prg: ra3.lang.Expr[ra3.lang.ReturnValue[T]]) = {
     val tables = prg.referredTables
     require(
       tables.size == 1,
@@ -236,7 +237,7 @@ package object ra3 {
     * rows which pass the filter
     */
 
-  def count[T](prg: ra3.lang.util.Query[T]) = {
+  def count[T](prg: ra3.lang.Expr[ra3.lang.ReturnValue[T]]) = {
     val tables = prg.referredTables
     require(
       tables.size == 1,
@@ -254,7 +255,7 @@ package object ra3 {
     * consult with partialReduce if the reduction is distributable.
     */
   def reduce[T](
-      prg: ra3.lang.util.Query[T]
+      prg: ra3.lang.Expr[ra3.lang.ReturnValue[T]]
   ) = {
     val tables = prg.referredTables
 
@@ -273,7 +274,7 @@ package object ra3 {
     * Reduces each segment independently. Returns a single row per segment.
     */
   def partialReduce[T](
-      prg: ra3.lang.util.Query[T]
+      prg: ra3.lang.Expr[ra3.lang.ReturnValue[T]]
   ) = {
     val tables = prg.referredTables
 

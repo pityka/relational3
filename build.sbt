@@ -39,8 +39,6 @@ lazy val commonSettings = Seq(
         "-feature", // Emit warning and location for usages of features that should be imported explicitly.
         "-language:postfixOps",
         "-experimental", // needed for some macros
-        "-explain",
-        "-explain-cyclic",
         "-unchecked", // Enable additional warnings where generated code depends on assumptions.
         "-Xfatal-warnings" // Fail the compilation if there are any warnings.
       )

@@ -36,6 +36,13 @@ sealed trait Expr[+T] { self =>
   private def replaceTags() =
     replace(this.tags.toSeq.zipWithIndex.toMap, Map.empty)
 
+  def in[T1](body: Expr[T] => Expr[T1]): Expr[T1] = {
+    val n = ra3.lang.TagKey(new ra3.lang.KeyTag)
+    val b = body(Expr.Ident[T](n))
+
+    Expr.Local(n, this, b)
+  }
+
 }
 object Expr {
 
@@ -133,7 +140,7 @@ object Expr {
     def referredTables = Set(tableIdent)
 
     /** Join this column with an other column */
-    def join[A, K <: ReturnValue[A]](prg: ra3.lang.util.Query[K]) =
+    def join[A, K <: ReturnValue[A]](prg: ra3.lang.Expr[K]) =
       ra3.lang.Join(this, prg)
 
     /** group the table by this column */
@@ -143,6 +150,8 @@ object Expr {
     def tableIdent: ra3.tablelang.TableExpr.Ident[TT] =
       ra3.tablelang.TableExpr
         .Ident(name.table)
+
+    def table = tableIdent
 
     protected def tags: Set[KeyTag] = Set.empty
     val columnKeys: Set[ColumnKey] = Set.empty

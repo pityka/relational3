@@ -5,7 +5,6 @@ import ra3.tablelang.TableExpr
 import ra3.*
 object util {
 
-  type Query[+T] = ra3.lang.Expr[ra3.lang.ReturnValue[T]]
 
   type IntExpr = Expr[Int]
   type StrExpr = Expr[String]

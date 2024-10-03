@@ -30,6 +30,8 @@ case class ReturnValueTuple[A <: Tuple](
   type MM = Tuple.Map[A, ra3.lang.Expr.DelayedIdent]
   def replacePredicate(i: Option[DI32]) = ReturnValueTuple(list, i)
 
+  infix def :*[T](v:ColumnSpec[T]) = extend(v)
+  
   def extend[T](v: ColumnSpec[T]) =
     ReturnValueTuple[Tuple.Append[A, T]](list ++ List(v), filter)
   inline def drop[N <: Int] = {

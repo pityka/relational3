@@ -37,7 +37,7 @@ sealed trait TableExpr[+T] { self =>
 object TableExpr {
 
   case class curryColumnsTuple[T0 <: Tuple](
-      a: TableExpr[ra3.lang.ReturnValueTuple[T0]]
+      private val a: TableExpr[ra3.lang.ReturnValueTuple[T0]]
   ) {
     inline def apply[R](
         inline body: (Schema[T0]) => TableExpr[R]
@@ -67,9 +67,19 @@ object TableExpr {
         )
       }
   }
+  extension [T0 ](a: Ident[T0]) {
+
+    def tap(tag: String, size: Int = 50) = Tap(a, size, tag)
+
+  }
   extension [T0 <: Tuple](a: TableExpr[ra3.lang.ReturnValueTuple[T0]]) {
 
     inline def columnsTuple = curryColumnsTuple[T0](a)
+
+    inline def columns = curryColumnsTuple[T0](a)
+
+
+    
 
     inline def byName[A: NotNothing](
         n1: String
@@ -98,6 +108,8 @@ object TableExpr {
 
   }
   case class Ident[+T](key: Key) extends TableExpr[T] { self =>
+
+    
 
     def evalWith(env: Map[Key, TableValue])(implicit
         tsc: TaskSystemComponents
