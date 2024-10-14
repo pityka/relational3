@@ -1,13 +1,19 @@
 package ra3.tablelang
-import ra3.lang._
+import ra3.lang.*
 import ra3.lang
-import ra3.lang.ops.Op3._
-import ra3.lang.ops.Op2._
-import ra3.lang.ops.Op1._
-import ra3.lang.Expr._
+import ra3.lang.ops.Op3.*
+import ra3.lang.ops.Op2.*
+import ra3.lang.ops.Op1.*
+import ra3.lang.ops.Op0.*
+import ra3.lang.Expr.*
+import ra3.lang.ops.OpAny
 // import ra3.lang.ops.OpStar.MkSelect
 private[ra3] object Render {
 
+  def render(op: ra3.lang.ops.Op0): String = op match {
+    case ConstantEmptyReturnValue => "S0"
+    case op => s"`${op.op().toString}`"
+  }
   def render(op: ra3.lang.ops.Op3): String = op match {
     case BufferCountInGroupsOpL            => "in"
     case IfElseF64                         => "ifelse"
@@ -63,7 +69,6 @@ private[ra3] object Render {
     case IfElseInst                        => "ifelse"
     case IfElseInstC                       => "ifelse"
     case BufferFirstGroupsOpInst           => "first"
-    case x                                 => x.toString
   }
 
   @scala.annotation.nowarn
@@ -79,7 +84,6 @@ private[ra3] object Render {
     case ColumnDivOpDD                 => "/"
     case ColumnMulOpDD                 => "*"
     case ColumnSubtractOpDD            => "-"
-    case Cons                          => "::"
     case ColumnEqOpInstcL              => "=="
     case ColumnNEqOpInstcL             => "!="
     case ColumnGtEqOpInstcL            => ">="
@@ -102,7 +106,7 @@ private[ra3] object Render {
     case ColumnGtEqOpStrcStr           => ">="
     case ColumnGtOpStrcStr             => ">"
     case ColumnMatchesOpStrcStr        => "~"
-    case MkReturnWhere                 => "WHERE"
+    case _: MkReturnWhere[?]           => "WHERE"
     case ColumnEqOpLcL                 => "=="
     case ColumnNEqOpII                 => "!="
     case ColumnEqOpII                  => "=="
@@ -119,9 +123,13 @@ private[ra3] object Render {
     case ColumnGtOpInstInst            => "."
     case ColumnLtOpInstInst            => "<"
     case MkNamedConstantF64            => "as"
-    case lang.ops.Op2.Tap              => "tap"
+    case _: lang.ops.Op2.Tap[?]        => "tap"
     case ColumnPrintfOpDcStr           => "printf"
-    case MkNamedColumnSpecChunk        => "as"
+    case MkNamedColumnSpecChunkI32     => "as"
+    case MkNamedColumnSpecChunkI64     => "as"
+    case MkNamedColumnSpecChunkF64     => "as"
+    case MkNamedColumnSpecChunkString  => "as"
+    case MkNamedColumnSpecChunkInst    => "as"
     case MkNamedConstantStr            => "as"
     case MkNamedConstantI32            => "as"
     case ColumnConcatOpStrcStr         => "++"
@@ -155,96 +163,104 @@ private[ra3] object Render {
     case ColumnGtOpInstcStr            => ">"
     case ColumnGtEqOpInstcStr          => ">="
     case ColumnConcatOpStrStr          => "++"
-    case x                             => x.toString()
+    case ExtendReturnUntyped          => ":*"
+    case MkReturnWhereUntyped          => "WHERE"
   }
-  def renderOp1(op: ra3.lang.ops.Op1, arg: ra3.lang.Expr): String = op match {
-    case ColumnToInstantEpochMilliOpL => render(arg) + ".toEpochMilli"
-    case MkUnnamedConstantI32         => render(arg)
-    case MkUnnamedColumnSpecChunk     => render(arg)
-    case MkUnnamedConstantI64         => render(arg)
-    case ColumnIsMissingOpL           => render(arg) + ".isnull"
-    case ColumnIsMissingOpD           => render(arg) + ".isnull"
-    case ColumnRoundToIntOpD          => render(arg) + ".toInt"
-    case MkUnnamedConstantF64         => render(arg)
-    case ColumnToDoubleOpL            => render(arg) + ".toDouble"
-    case ColumnIsMissingOpInst        => render(arg) + ".isnull"
-    case ColumnNanosecondsOpInst      => render(arg) + ".nanoseconds"
-    case ColumnMinutesOpInst          => render(arg) + ".minutes"
-    case ColumnSecondsOpInst          => render(arg) + ".seconds"
-    case ColumnYearsOpInst            => render(arg) + ".years"
-    case ColumnHoursOpInst            => render(arg) + ".hours"
-    case ColumnMonthsOpInst           => render(arg) + ".months"
-    case ColumnDaysOpInst             => render(arg) + ".days"
-    case List1                        => "list"
-    case ToString                     => render(arg) + ".toString"
-    case MkUnnamedConstantStr         => render(arg)
-    case ColumnToISOOpInst            => render(arg) + ".toInstISO"
-    case ColumnToLongOpInst           => render(arg) + ".toLong"
-    case ColumnParseI64OpStr          => render(arg) + ".toLong"
-    case ColumnParseInstOpStr         => render(arg) + ".toInst"
-    case ColumnAbsOpI                 => render(arg) + ".abs"
-    case ColumnIsMissingOpI           => render(arg) + ".isnull"
-    case ColumnNotOpI                 => "not(" + render(arg) + ")"
-    // case MkRawWhere                 => "WHERE " + render(arg) 
-    case ColumnParseF64OpStr          => render(arg) + ".toDouble"
-    case ColumnToDoubleOpInst         => render(arg) + ".toDouble"
-    case ColumnIsMissingOpStr         => render(arg) + ".isnull"
-    case ColumnParseI32OpStr          => render(arg) + ".toInt"
-    case ColumnRoundToDayOpInst       => render(arg) + ".rounddays"
-    case ColumnRoundToHourOpInst      => render(arg) + ".roundhours"
-    case ColumnRoundToMonthOpInst     => render(arg) + ".roundmonths"
-    case ColumnRoundToYearOpInst      => render(arg) + ".roundyears"
-    case AbsOp                        => render(arg) + ".abs"
-    case ColumnAbsOpD                 => render(arg) + ".abs"
-    case ColumnRoundToDoubleOpD       => render(arg) + ".toDouble"
-    case ColumnToDoubleOpI            => render(arg) + ".toDouble"
-    case x                            => x.toString() + s"(${render(arg)})"
-  }
+  def renderOp1(op: ra3.lang.ops.Op1, arg: ra3.lang.Expr[?], keyTags: Seq[ra3.tablelang.KeyTag]): String =
+    op match {
+      case ColumnToInstantEpochMilliOpL => render(arg,keyTags) + ".toEpochMilli"
+      case MkUnnamedConstantI32         => render(arg,keyTags)
+      case MkUnnamedColumnSpecChunkI32  => render(arg,keyTags)
+      case MkUnnamedColumnSpecChunkI64  => render(arg,keyTags)
+      case MkUnnamedColumnSpecChunkF64  => render(arg,keyTags)
+      case MkUnnamedColumnSpecChunkStr  => render(arg,keyTags)
+      case MkUnnamedColumnSpecChunkInst => render(arg,keyTags)
+      case MkUnnamedConstantI64         => render(arg,keyTags)
+      case ColumnIsMissingOpL           => render(arg,keyTags) + ".isnull"
+      case ColumnIsMissingOpD           => render(arg,keyTags) + ".isnull"
+      case ColumnRoundToIntOpD          => render(arg,keyTags) + ".toInt"
+      case MkUnnamedConstantF64         => render(arg,keyTags)
+      case ColumnToDoubleOpL            => render(arg,keyTags) + ".toDouble"
+      case ColumnIsMissingOpInst        => render(arg,keyTags) + ".isnull"
+      case ColumnNanosecondsOpInst      => render(arg,keyTags) + ".nanoseconds"
+      case ColumnMinutesOpInst          => render(arg,keyTags) + ".minutes"
+      case ColumnSecondsOpInst          => render(arg,keyTags) + ".seconds"
+      case ColumnYearsOpInst            => render(arg,keyTags) + ".years"
+      case ColumnHoursOpInst            => render(arg,keyTags) + ".hours"
+      case ColumnMonthsOpInst           => render(arg,keyTags) + ".months"
+      case ColumnDaysOpInst             => render(arg,keyTags) + ".days"
+      case ToString                     => render(arg,keyTags) + ".toString"
+      case MkUnnamedConstantStr         => render(arg,keyTags)
+      case ColumnToISOOpInst            => render(arg,keyTags) + ".toInstISO"
+      case ColumnToLongOpInst           => render(arg,keyTags) + ".toLong"
+      case ColumnParseI64OpStr          => render(arg,keyTags) + ".toLong"
+      case ColumnParseInstOpStr         => render(arg,keyTags) + ".toInst"
+      case ColumnAbsOpI                 => render(arg,keyTags) + ".abs"
+      case ColumnIsMissingOpI           => render(arg,keyTags) + ".isnull"
+      case ColumnNotOpI                 => "not(" + render(arg,keyTags) + ")"
+      // case MkRawWhere                 => "WHERE " + render(arg)
+      case ColumnParseF64OpStr      => render(arg,keyTags) + ".toDouble"
+      case ColumnToDoubleOpInst     => render(arg,keyTags) + ".toDouble"
+      case ColumnIsMissingOpStr     => render(arg,keyTags) + ".isnull"
+      case ColumnParseI32OpStr      => render(arg,keyTags) + ".toInt"
+      case ColumnRoundToDayOpInst   => render(arg,keyTags) + ".rounddays"
+      case ColumnRoundToHourOpInst  => render(arg,keyTags) + ".roundhours"
+      case ColumnRoundToMonthOpInst => render(arg,keyTags) + ".roundmonths"
+      case ColumnRoundToYearOpInst  => render(arg,keyTags) + ".roundyears"
+      case AbsOp                    => render(arg,keyTags) + ".abs"
+      case ColumnAbsOpD             => render(arg,keyTags) + ".abs"
+      case ColumnRoundToDoubleOpD   => render(arg,keyTags) + ".toDouble"
+      case ColumnToDoubleOpI        => render(arg,keyTags) + ".toDouble"
+      case x                        => x.toString() + s"(${render(arg,keyTags)})"
+    }
   // def render(op: ra3.lang.ops.OpStar): String = op match {
   //   case lang.ops.OpStar.MkSelect => "SELECT"
 
   // }
 
-  def render(expr: Expr): String = expr match {
-    case Expr.Local(name,assigned,body) => 
+  def render(expr: Expr[?], tableTags: Seq[ra3.tablelang.KeyTag]): String = expr match {
+    case Expr.Local(name, assigned, body) =>
       val rAssigned = assigned match {
-          case _: Local =>
-            s"(${render(assigned)})"
-          case _ => render(assigned)
-        }
-        val rLet = s"${render(Ident(name))}"
-        f"${render(body)} WITH ($rLet = $rAssigned)"
-    case LitI64(s)           => s"${s}L"
-    case LitStr(s)           => s"\"$s\""
-    case BuiltInOp2(arg0, arg1, op) =>
-      val rOp = render(op)
-      val noParens = if (rOp == "as") true else false
-      if (noParens) s"${render(arg0)} ${render(op)} ${render(arg1)}"
-      else
-        s"(${render(arg0)} ${render(op)} ${render(arg1)})"
-    case BuiltInOp1(arg0, op) =>
-      s"${renderOp1(op, arg0)}"
-    case BuiltInOp3(arg0, arg1, arg2, op) =>
-      val args = List(arg0, arg1, arg2).filter {
+        case _: Local[?] =>
+          s"(${render(assigned,tableTags)})"
+        case _ => render(assigned,tableTags)
+      }
+      val rLet = s"${render(Ident(name),tableTags)}"
+      f"${render(body,tableTags)} WITH ($rLet = $rAssigned)"
+    case e @ BuiltInOpAny(op) =>
+      val args = e.args.filter {
         _ match {
           case Expr.Ident(_: SingletonKey) => false
           case _                           => true
         }
       }
-      if (args.size == 1) s"${render(args.head)}.${render(op)}"
-      else s"${render(op)}(${args.map(render).mkString(", ")})"
-    case LitNum(s) => s"$s"
-    // case BuiltInOpStar(args, op) =>
-    //   op match {
-    //     case MkSelect =>  
-    //         s"SELECT ${args.map(a => render(a)).mkString(", ")}"
-    //     case _ => 
-    //         s"${render(op)}(${args.map(a => render(a)).mkString(", ")})"
-    //   }
-      
+      if (args.size == 1) s"${render(args.head,tableTags)}.${op.toString}"
+      else s"${op.toString}(${args.map(v => render(v,tableTags)).mkString(", ")})"
+    case e @ BuiltInOp0(op) =>
+      render(op)
+
+    case e @ BuiltInOp2(op) =>
+      val rOp = render(op)
+      val noParens = if (rOp == "as" || rOp == ":*") true else false
+      if (noParens) s"${render(e.arg0,tableTags)} ${render(op)} ${render(e.arg1,tableTags)}"
+      else
+        s"(${render(e.arg0,tableTags)} ${render(op)} ${render(e.arg1,tableTags)})"
+
+    case e @ BuiltInOp1(op) =>
+      s"${renderOp1(op, e.arg0,tableTags)}"
+    case e @ BuiltInOp3(op) =>
+      val args = List(e.arg0, e.arg1, e.arg2).filter {
+        _ match {
+          case Expr.Ident(_: SingletonKey) => false
+          case _                           => true
+        }
+      }
+      if (args.size == 1) s"${render(args.head,tableTags)}.${render(op)}"
+      else s"${render(op)}(${args.map(v => render(v,tableTags)).mkString(", ")})"
+
     case Expr.Ident(name) =>
       name match {
-        case lang.TagKey(_)  => ???
+        case lang.TagKey(s)  => s"$s"
         case _: SingletonKey => ""
         case ColumnKey(tableUniqueId, columnIdx) =>
           s"$$${tableUniqueId}[${columnIdx}]"
@@ -252,66 +268,67 @@ private[ra3] object Render {
           table match {
             case ra3.tablelang.IntKey(s) =>
               s"$$T$s[${selection.fold(identity, identity)}]"
-            case ra3.tablelang.TagKey(_) => ???
-            case ra3.tablelang.TableKey(tableUniqueId) =>
-              s"$$$tableUniqueId[${selection.fold(identity, identity)}]"
+            case ra3.tablelang.TagKey(s) => s"$s"
           }
         case lang.IntKey(s) => s"$$C$s"
       }
-    case ra3.lang.Expr.Star => "*"
-    case LitF64Set(s)       => s"(${s.mkString(", ")})"
-    case LitStrSet(s)       => s"(${s.mkString(", ")})"
     case DelayedIdent(Delayed(table, selection)) =>
       table match {
         case ra3.tablelang.IntKey(s) =>
           s"$$T$s[${selection.fold(identity, identity)}]"
-        case ra3.tablelang.TagKey(_) => ???
-        case ra3.tablelang.TableKey(tableUniqueId) =>
-          s"$$$tableUniqueId[${selection.fold(identity, identity)}]"
+        case ra3.tablelang.TagKey(s) => s"$$T${tableTags.indexOf(s)}[${selection.fold(identity, identity)}]"
       }
+    case b @ BuiltInOp2US(op) =>
+      val rOp = render(op.erase)
+      val noParens = if (rOp == "as" || rOp == ":*") true else false
+      if (noParens) s"${render(b.arg0,tableTags)} ${rOp} ${render(b.arg1,tableTags)}"
+      else
+        s"(${render(b.arg0,tableTags)} ${rOp} ${render(b.arg1,tableTags)})"
 
-    case LitI32Set(s) => s"(${s.mkString(", ")})"
-    case LitF64(s)    => s"${s}d"
   }
 
-  def render(expr: TableExpr, indent: Int): String = {
-    import TableExpr._
+  def render[T](expr: TableExpr[T], indent: Int, tags: Seq[ra3.tablelang.KeyTag]): String = {
+    import TableExpr.*
     val padInt = (0 until indent).map(_ => "  ").mkString
     expr match {
       case Const(table) =>
-        f"<${table.uniqueId}|${table.numRows}%,2d x${table.numCols}%,2d|${table.colNames.zip(table.columns.map(_.tag)).map{ case (name,tag) => name+" "+tag}.mkString("| ")}>"
+        f"<${table.uniqueId}|${table.numRows}%,2d x${table.numCols}%,2d|${table.colNames.zip(table.columns.map(_.tag)).map { case (name, tag) => name + " " + tag }.mkString("| ")}>"
       case Ident(key) =>
         key match {
-          case ra3.tablelang.IntKey(s)               => s"$$T$s"
-          case ra3.tablelang.TagKey(_)               => ???
-          case ra3.tablelang.TableKey(tableUniqueId) => s"$$$tableUniqueId"
+          case ra3.tablelang.IntKey(s) => s"$$T$s"
+          case ra3.tablelang.TagKey(s) => s"$$T${tags.indexOf(s)}"
         }
+      case Concat(a,bs,_) => s"CONCAT [${render(a,indent,tags)} ${bs.map(b => render(b,indent,tags)).mkString(" ")}]"
+      case Prepartition(arg0,arg1,_,_,_) => 
+        s"PARTITION BY ${(List(arg0) ++ arg1).map(v => render(v,tags)).mkString(", ")}"
+      case TopK(arg0,asc,k,_,_) => 
+        s"TOP $k BY ${(List(arg0)).map(v => render(v,tags)).mkString(", ")} ${if (asc) "ASC" else "DESC"}"
       case Local(name, assigned, body) =>
         val rAssigned = assigned match {
-          case _: Local =>
-            s"{\n$padInt${render(assigned, indent + 1)}\n$padInt}"
-          case _ => render(assigned, indent)
+          case _: Local[?, ?] | _: Tap[?] =>
+            s"{\n$padInt${render(assigned, indent + 1,tags :+ name.s)}\n$padInt}"
+          case _ => render(assigned, indent,tags :+ name.s)
         }
-        val rLet = s"let ${render(Ident(name), 0)} = "
-        f"${padInt}$rLet$rAssigned\n$padInt${render(body, indent)}"
+        val rLet = s"let ${render(Ident(name), 0,tags :+ name.s)} = "
+        f"${padInt}$rLet$rAssigned\n$padInt${render(body, indent,tags :+ name.s)}"
       case SimpleQuery(arg0, elementwise) =>
-        f"QUERY FROM ${render(arg0, 0)} with ${render(elementwise)}"
+        f"QUERY FROM ${render(arg0, 0,tags)} with ${render(elementwise,tags)}"
       case SimpleQueryCount(arg0, elementwise) =>
-        f"COUNT FROM ${render(arg0, 0)} with $elementwise"
-      case Tap(arg0, _, tag) => f"TAP ${render(arg0, 0)} with '$tag'"
+        f"COUNT FROM ${render(arg0, 0,tags)} with $elementwise"
+      case Tap(arg0, _, _) => render(arg0, indent,tags)
       case GroupThenReduce(arg0, arg1, groupwise, _, _, _) =>
-        s"GROUP-THEN-REDUCE BY ${(List(arg0) ++ arg1).map(render).mkString(", ")} with ${render(groupwise)}"
+        s"GROUP-THEN-REDUCE BY ${(List(arg0) ++ arg1).map(v => render(v,tags)).mkString(", ")} with ${render(groupwise,tags)}"
       case GroupThenCount(arg0, arg1, groupwise, _, _, _) =>
-        s"GROUP-THEN-COUNT BY ${(List(arg0) ++ arg1).map(render).mkString(", ")}  with ${render(groupwise)}"
+        s"GROUP-THEN-COUNT BY ${(List(arg0) ++ arg1).map(v => render(v,tags)).mkString(", ")}  with ${render(groupwise,tags)}"
       case GroupPartialThenReduce(arg0, arg1, groupwise) =>
-        s"PARTIAL-GROUP-THEN-REDUCE BY ${(List(arg0) ++ arg1).map(render).mkString(", ")}  with ${render(groupwise)}"
+        s"PARTIAL-GROUP-THEN-REDUCE BY ${(List(arg0) ++ arg1).map(v => render(v,tags)).mkString(", ")}  with ${render(groupwise,tags)}"
       case FullTablePartialReduce(arg0, groupwise) =>
-        s"PARTIAL-REDUCE  BY ${render(arg0, 0)} with ${render(groupwise)}"
+        s"PARTIAL-REDUCE  BY ${render(arg0, 0,tags)} with ${render(groupwise,tags)}"
       case ReduceTable(arg0, groupwise) =>
-        s"REDUCE with $groupwise BY ${render(arg0, 0)}"
+        s"REDUCE with $groupwise BY ${render(arg0, 0,tags)}"
       case ra3.tablelang.TableExpr.Join(arg0, arg1, _, _, _, elementwise) =>
-        s"JOIN ${(List(arg0) ++ arg1
-            .map(_._1)).map(render).map(s => s"$s").mkString(" x ")} THEN ${render(elementwise)}"
+        s"QUERY FROM JOINED ${(List(arg0) ++ arg1
+            .map(_._1)).map(v => render(v,tags)).map(s => s"$s").mkString(" x ")} with ${render(elementwise,tags)}"
     }
   }
 }

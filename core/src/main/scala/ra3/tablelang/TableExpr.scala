@@ -1,384 +1,185 @@
 package ra3.tablelang
-import com.github.plokhotnyuk.jsoniter_scala.macros._
-import com.github.plokhotnyuk.jsoniter_scala.core._
+import com.github.plokhotnyuk.jsoniter_scala.macros.*
+import com.github.plokhotnyuk.jsoniter_scala.core.*
 import cats.effect.IO
 import tasks.TaskSystemComponents
 import ra3.GroupedTable
 import ra3.lang.Expr
 import ra3.NotNothing
+import ra3.lang.Expr.DelayedIdent
+import ra3.lang.ReturnValueTuple
+import akka.protobufv3.internal.Empty
 
-private[ra3] class KeyTag
-private[ra3] sealed trait Key
-private[ra3] case class IntKey(s: Int) extends Key
-private[ra3] case class TagKey(s: KeyTag) extends Key
-private[ra3] case class TableKey(tableUniqueId: String) extends Key
+sealed trait TableExpr[+T] { self =>
 
-private[ra3] case class DelayedTableSchema(
-    map: Map[Key, (String, Seq[String])]
-) {
-  private def findIdx(n: String, colNames: Seq[String]) = colNames.zipWithIndex
-    .find(_._1 == n)
-    .getOrElse(throw new NoSuchElementException(s"column $n not found"))
-    ._2
-  def replace(delayed: ra3.lang.Delayed) = {
-    val (tableUniqueId, colNames) = map(delayed.table)
-    val idx = delayed.selection match {
-      case Left(i)  => findIdx(i, colNames)
-      case Right(i) => i
-    }
-    ra3.lang.ColumnKey(tableUniqueId, idx)
-  }
-}
-
-sealed trait TableExpr { self =>
-
-  type T 
-
-  def render: String = Render.render(self, 0)
+  def render: String = Render.render(self, 0, Vector.empty)
 
   def evaluate(implicit
       tsc: TaskSystemComponents
   ): IO[ra3.Table] = evalWith(Map.empty).map(_.v)
 
-  private[tablelang] def evalWith(env: Map[Key, TableValue])(implicit
+  protected def evalWith(env: Map[Key, TableValue])(implicit
       tsc: TaskSystemComponents
   ): IO[TableValue]
 
-  private[ra3] def hash = {
-    val bytes = writeToArray(this.replaceTags())
-    com.google.common.hash.Hashing.murmur3_128().hashBytes(bytes).asLong()
-  }
   // utilities for analysis of the tree
-  private[tablelang] def tags: Set[KeyTag]
-  private[tablelang] def replace(map: Map[KeyTag, Int]): TableExpr
-  private[ra3] def replaceTags() =
-    replace(this.tags.toSeq.zipWithIndex.toMap)
+  protected def tags: Set[KeyTag]
 
-  def in0[ T1](body: TableExpr.Ident{type T = self.T} => TableExpr{type T = T1}): TableExpr {type T = T1} =
-    ra3.lang.local1[T,T1](self)(i => body(i))
-
-  // def in[T0 <: Expr.DelayedIdent: NotNothing](
-  //     body: (T0) => TableExpr
-  // ): TableExpr = {
-  //   ra3.lang.local1[T](self) { t =>
-  //     t.useColumn[T0](0) { c0 =>
-  //       body(c0)
-  //     }
-  //   }
-  // }
-  // def in[T0<: Expr.DelayedIdent: NotNothing, T1<: Expr.DelayedIdent: NotNothing](
-  //     body: (
-  //         T0,T1
-  //     ) => TableExpr
-  // ): TableExpr = {
-  //   ra3.lang.local1[T](this) { t =>
-
-  //     // t.apply[T0, T1](0, 1) { case (c0, c1) =>
-  //     //   body(c0, c1)
-  //     // }
-  //   }
-  // }
-  // def in[T0<: Expr.DelayedIdent: NotNothing, T1<: Expr.DelayedIdent: NotNothing, T2<: Expr.DelayedIdent: NotNothing](
-  //     body: (
-  //         T0,T1,T2
-  //     ) => TableExpr
-  // ): TableExpr = {
-  //   ra3.lang.local1[T](this) { t =>
-  //     t.apply[T0, T1, T2](0, 1, 2) { case (c0, c1, c2) =>
-  //       body(c0, c1, c2)
-  //     }
-  //   }
-  // }
-  // def in[T0<: Expr.DelayedIdent: NotNothing, T1<: Expr.DelayedIdent: NotNothing, T2<: Expr.DelayedIdent: NotNothing, T3<: Expr.DelayedIdent: NotNothing](
-  //     body: (
-  //         T0,T1,T2,T3
-  //     ) => TableExpr
-  // ): TableExpr = {
-  //   ra3.lang.local1[T](this) { t =>
-  //     t.apply[T0, T1, T2, T3](0, 1, 2, 3) { case (c0, c1, c2, c3) =>
-  //       body(c0, c1, c2, c3)
-  //     }
-  //   }
-  // }
-  // def in[
-  //     T0<: Expr.DelayedIdent: NotNothing,
-  //     T1<: Expr.DelayedIdent: NotNothing,
-  //     T2<: Expr.DelayedIdent: NotNothing,
-  //     T3<: Expr.DelayedIdent: NotNothing,
-  //     T4<: Expr.DelayedIdent: NotNothing
-  // ](
-  //     body: (
-  //         T0,T1,T2,T3,T4
-  //     ) => TableExpr
-  // ): TableExpr = {
-  //   ra3.lang.local1[T](this) { t =>
-  //     t.apply[T0, T1, T2, T3, T4](0, 1, 2, 3, 4) { case (c0, c1, c2, c3, c4) =>
-  //       body(c0, c1, c2, c3, c4)
-  //     }
-  //   }
-  // }
+  protected def assignIdent[R](
+      body: TableExpr.Ident[T] => TableExpr[R]
+  ): TableExpr[R] = {
+    val n = ra3.tablelang.TagKey(new ra3.tablelang.KeyTag)
+    val b = body(TableExpr.Ident(n))
+    TableExpr.Local(n, self, b)
+  }
+  def in[R](
+      body: TableExpr[T] => TableExpr[R]
+  ): TableExpr[R] = assignIdent(body)
+  def flatMap[R](
+      body: TableExpr[T] => TableExpr[R]
+  ): TableExpr[R] = in(body)
+  def map[R](
+      body: TableExpr[T] => TableExpr[R]
+  ): TableExpr[R] = in(body)
 
 }
-private[ra3] object TableExpr {
+object TableExpr {
 
-  import scala.language.implicitConversions
-  implicit def convertJoinBuilder(j: ra3.lang.JoinBuilderSyntax): TableExpr =
-    j.done
+  case class curryColumnsTuple[T0 <: Tuple](
+      private val a: TableExpr[ra3.lang.ReturnValueTuple[T0]]
+  ) {
+    inline def apply[R](
+        inline body: Tuple.Map[T0, ra3.lang.Expr.DelayedIdent] => Schema[
+          T0
+        ] => TableExpr[R]
+    ): TableExpr[R] =
+      a match {
+        case b: Ident[ReturnValueTuple[T0]] =>
+          val sch = Schema.fromIdent(b)
+          sch.columns.apply[R]((tup) => body(tup)(sch))
+        case _ =>
+          a.assignIdent { (t: Ident[ReturnValueTuple[T0]]) =>
+            val sch = Schema.fromIdent(t)
 
-  implicit val codec: JsonValueCodec[TableExpr] =
-    JsonCodecMaker.make(CodecMakerConfig.withAllowRecursiveTypes(true))
+            sch.columns.apply[R]((tup) => body(tup)(sch))
+          }
+      }
 
-  case class Const(table: ra3.Table) extends TableExpr {
+  }
+  case class curryColumnsByName[T0 <: Tuple, A](
+      columnName: String,
+      a: TableExpr[ReturnValueTuple[T0]]
+  ) {
+    inline def apply[R](
+        inline body: (Schema[A *: EmptyTuple]) => TableExpr[R]
+    ): TableExpr[R] =
+      a match {
+        case b: Ident[ReturnValueTuple[T0]] =>
+          body(
+            Schema.fromDelayedIdent[A](
+              Expr.DelayedIdent[A](ra3.lang.Delayed(b.key, Left(columnName)))
+            )
+          )
+        case _ =>
+          a.assignIdent { (t: Ident[ReturnValueTuple[T0]]) =>
+            body(
+              Schema.fromDelayedIdent[A](
+                Expr.DelayedIdent[A](ra3.lang.Delayed(t.key, Left(columnName)))
+              )
+            )
+          }
+      }
+  }
+  extension [T0](a: TableExpr[T0]) {
 
-    def evalWith(env: Map[Key, TableValue])(implicit
+    def tap(tag: String, size: Int = 50): TableExpr[T0] = Tap(a, size, tag)
+
+  }
+
+  type Elements[T0 <: Tuple] <: Tuple = T0 match {
+    case EmptyTuple                        => EmptyTuple
+    case Either[ra3.BufferInt, ?] *: t     => Int *: Elements[t]
+    case Either[ra3.BufferLong, ?] *: t    => Long *: Elements[t]
+    case Either[ra3.BufferDouble, ?] *: t  => Double *: Elements[t]
+    case Either[ra3.BufferString, ?] *: t  => CharSequence *: Elements[t]
+    case Either[ra3.BufferInstant, ?] *: t => Long *: Elements[t]
+  }
+  extension [T0](
+      inline a: TableExpr[ra3.lang.ReturnValueTuple[T0 *: EmptyTuple]]
+  ) {
+
+    transparent inline def evaluateToStreamOfSingleColumn(implicit
+        tsc: TaskSystemComponents
+    ) = {
+      import cats.effect.unsafe.implicits.global
+
+      a.evaluate.map(_.streamOfSingleColumnChunk[T0])
+    }
+  }
+  extension [T0 <: Tuple](a: TableExpr[ra3.lang.ReturnValueTuple[T0]]) {
+
+    def concat(b: TableExpr[ReturnValueTuple[T0]]*): TableExpr[T0] =
+      Concat(a, b, 32)
+  }
+  extension [T0 <: Tuple](inline a: TableExpr[ra3.lang.ReturnValueTuple[T0]]) {
+
+    transparent inline def evaluateToStream(implicit
+        tsc: TaskSystemComponents
+    ) = {
+      import cats.effect.unsafe.implicits.global
+
+      a.evaluate.map(_.streamOfTuplesFromColumnChunks[T0])
+    }
+
+    inline def schema = curryColumnsTuple[T0](a)
+
+    inline def byName[A: NotNothing](
+        n1: String
+    ) =
+      curryColumnsByName[T0, A](n1, a)
+
+  }
+
+  def const[T1 <: Tuple](
+      table: ra3.Table
+  ): TableExpr.Const[ReturnValueTuple[T1]] =
+    TableExpr.Const[ReturnValueTuple[T1]](table)
+
+  case class Const[T](table: ra3.Table) extends TableExpr[T] {
+
+    protected def evalWith(env: Map[Key, TableValue])(implicit
         tsc: TaskSystemComponents
     ) =
       IO.pure(TableValue(table))
 
-    def tags: Set[KeyTag] = Set.empty
+    val tags: Set[KeyTag] = Set.empty
 
-    override def replace(i: Map[KeyTag, Int]) = this
   }
-  case class Ident(private[ra3] key: Key) extends TableExpr {
+  case class Ident[+T](key: Key) extends TableExpr[T] { self =>
 
-    private[ra3] def evalWith(env: Map[Key, TableValue])(implicit
+    def evalWith(env: Map[Key, TableValue])(implicit
         tsc: TaskSystemComponents
     ) =
       IO.pure(env(key))
 
-    private[ra3] def tags: Set[KeyTag] = key match {
+    val tags: Set[KeyTag] = key match {
       case TagKey(s) => Set(s)
       case _         => Set.empty
     }
 
-    private[ra3] override def replace(i: Map[KeyTag, Int]) = key match {
-      case TagKey(s) => Ident(IntKey(i(s)))
-      case _         => this
-    }
-
-    def tap(tag: String, size: Int = 50) = Tap(this, size, tag)
-
-    def reduce(
-        prg: ra3.lang.Query
-    ) =
-      ra3.tablelang.TableExpr.ReduceTable(
-        arg0 = this,
-        groupwise = prg
-      )
-    def partialReduce(
-        prg: ra3.lang.Query
-    ) =
-      ra3.tablelang.TableExpr.FullTablePartialReduce(
-        arg0 = this,
-        groupwise = prg
-      )
-
-    def query(prg: ra3.lang.Query) =
-      ra3.tablelang.TableExpr.SimpleQuery(this, prg)
-
-    def queryT[A, B](prg: ra3.lang.QueryT[A, B]) = {
-      ra3.tablelang.TableExpr
-        .SimpleQuery(this, prg)
-        .asInstanceOf[SimpleQuery { type T = prg.T }]
-
-    }
-    def count(prg: ra3.lang.Query) =
-      ra3.tablelang.TableExpr
-        .SimpleQueryCount(this, prg)
-        .asInstanceOf[SimpleQueryCount { type T = prg.T }]
-
-    // @scala.annotation.nowarn
-    // def apply[T0 <: Expr.DelayedIdent: NotNothing](
-    //     n1: String
-    // ) = {
-    //   Expr.DelayedIdent(ra3.lang.Delayed(this.key, Left(n1))).cast[T0]
-
-    // }
-    // @scala.annotation.nowarn
-    // def apply[T0 <: Expr.DelayedIdent : NotNothing](
-    //     n1: Int
-    // ) = {
-    //   Expr.DelayedIdent(ra3.lang.Delayed(this.key, Right(n1))).cast[T0]
-
-    // }
-
-    // @scala.annotation.nowarn
-    // def useColumn[T0 <: Expr.DelayedIdent: NotNothing](
-    //     n1: String
-    // )(
-    //     body: (
-    //         T0
-    //     ) => TableExpr
-    // ) = {
-    //   val d1 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Left(n1))).cast[T0]
-    //   body(d1)
-    // }
-    // @scala.annotation.nowarn
-    // def useColumn[T0 <: Expr.DelayedIdent: NotNothing](
-    //     n1: Int
-    // )(
-    //     body: (
-    //        T0
-    //     ) => TableExpr
-    // ) = {
-    //   val d1 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Right(n1))).cast[T0]
-    //   body(d1)
-    // }
-
-    // @scala.annotation.nowarn
-    // def apply[T0 <: Expr.DelayedIdent: NotNothing, T1 <: Expr.DelayedIdent: NotNothing](
-    //     n1: String,
-    //     n2: String
-    // )(
-    //     body: (
-    //         T0,
-    //         T1
-    //     ) => TableExpr
-    // ) = {
-    //   val d1 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Left(n1))).cast[T0]
-    //   val d2 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Left(n2))).cast[T1]
-    //   body(d1, d2)
-    // }
-    // @scala.annotation.nowarn
-    // def apply[T0 <: Expr.DelayedIdent: NotNothing, T1 <: Expr.DelayedIdent: NotNothing, T2 <: Expr.DelayedIdent: NotNothing](
-    //     n1: String,
-    //     n2: String,
-    //     n3: String
-    // )(
-    //     body: (
-    //         T0,T1,T2
-    //     ) => TableExpr
-    // ) = {
-    //   val d1 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Left(n1))).cast[T0]
-    //   val d2 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Left(n2))).cast[T1]
-    //   val d3 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Left(n3))).cast[T2]
-    //   body(d1, d2, d3)
-    // }
-    // @scala.annotation.nowarn
-    // def apply[T0 <: Expr.DelayedIdent: NotNothing, T1 <: Expr.DelayedIdent: NotNothing](
-    //     n1: Int,
-    //     n2: Int
-    // )(
-    //     body: (
-    //         T0,T1
-    //     ) => TableExpr
-    // ) = {
-    //   val d1 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Right(n1))).cast[T0]
-    //   val d2 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Right(n2))).cast[T1]
-    //   body(d1, d2)
-    // }
-
-    // @scala.annotation.nowarn
-    // def apply[T0 <: Expr.DelayedIdent: NotNothing, T1 <: Expr.DelayedIdent: NotNothing, T2 <: Expr.DelayedIdent: NotNothing](
-    //     n1: Int,
-    //     n2: Int,
-    //     n3: Int
-    // )(
-    //     body: (
-    //         T0,T1,T2
-    //     ) => TableExpr
-    // ) = {
-    //   val d1 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Right(n1))).cast[T0]
-    //   val d2 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Right(n2))).cast[T1]
-    //   val d3 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Right(n3))).cast[T2]
-    //   body(d1, d2, d3)
-    // }
-
-    // @scala.annotation.nowarn
-    // def apply[
-    //     T0<: Expr.DelayedIdent: NotNothing,
-    //     T1<: Expr.DelayedIdent: NotNothing,
-    //     T2<: Expr.DelayedIdent: NotNothing,
-    //     T3<: Expr.DelayedIdent: NotNothing
-    // ](
-    //     n1: Int,
-    //     n2: Int,
-    //     n3: Int,
-    //     n4: Int
-    // )(
-    //     body: (
-    //         T0,T1,T2,T3
-    //     ) => TableExpr
-    // ) = {
-    //   val d1 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Right(n1))).cast[T0]
-    //   val d2 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Right(n2))).cast[T1]
-    //   val d3 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Right(n3))).cast[T2]
-    //   val d4 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Right(n4))).cast[T3]
-    //   body(d1, d2, d3, d4)
-    // }
-    // @scala.annotation.nowarn
-    // def apply[
-    //     T0<: Expr.DelayedIdent: NotNothing,
-    //     T1<: Expr.DelayedIdent: NotNothing,
-    //     T2<: Expr.DelayedIdent: NotNothing,
-    //     T3<: Expr.DelayedIdent: NotNothing,
-    //     T4<: Expr.DelayedIdent: NotNothing
-    // ](
-    //     n1: Int,
-    //     n2: Int,
-    //     n3: Int,
-    //     n4: Int,
-    //     n5: Int
-    // )(
-    //     body: (
-    //         T0,T1,T2,T3,T4
-    //     ) => TableExpr
-    // ) = {
-    //   val d1 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Right(n1))).cast[T0]
-    //   val d2 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Right(n2))).cast[T1]
-    //   val d3 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Right(n3))).cast[T2]
-    //   val d4 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Right(n4))).cast[T3]
-    //   val d5 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Right(n5))).cast[T4]
-    //   body(d1, d2, d3, d4, d5)
-    // }
-    // @scala.annotation.nowarn
-    // def apply[
-    //     T0<: Expr.DelayedIdent: NotNothing,
-    //     T1<: Expr.DelayedIdent: NotNothing,
-    //     T2<: Expr.DelayedIdent: NotNothing,
-    //     T3<: Expr.DelayedIdent: NotNothing,
-    //     T4<: Expr.DelayedIdent: NotNothing,
-    //     T5<: Expr.DelayedIdent: NotNothing
-    // ](
-    //     n1: Int,
-    //     n2: Int,
-    //     n3: Int,
-    //     n4: Int,
-    //     n5: Int,
-    //     n6: Int
-    // )(
-    //     body: (
-    //         T0,T1,T2,T3,T4,T5
-    //     ) => TableExpr
-    // ) = {
-    //   val d1 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Right(n1))).cast[T0]
-    //   val d2 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Right(n2))).cast[T1]
-    //   val d3 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Right(n3))).cast[T2]
-    //   val d4 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Right(n4))).cast[T3]
-    //   val d5 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Right(n5))).cast[T4]
-    //   val d6 = Expr.DelayedIdent(ra3.lang.Delayed(this.key, Right(n6))).cast[T5]
-    //   body(d1, d2, d3, d4, d5, d6)
-    // }
-
   }
 
-  case class Local(name: Key, assigned: TableExpr, body: TableExpr)
-      extends TableExpr {
+  case class Local[A, B](
+      name: TagKey,
+      assigned: TableExpr[A],
+      body: TableExpr[B]
+  ) extends TableExpr[B] {
     self =>
 
-    val tags: Set[KeyTag] = name match {
+    protected val tags: Set[KeyTag] = name match {
       case TagKey(s) => Set(s) ++ assigned.tags ++ body.tags
-      case _         => assigned.tags ++ body.tags
     }
-
-    def replace(i: Map[KeyTag, Int]): TableExpr = {
-      val replacedName = name match {
-        case TagKey(t) => IntKey(i(t))
-        case n         => n
-      }
-      Local(replacedName, assigned.replace(i), body.replace(i))
-    }
-    def evalWith(
+    protected def evalWith(
         env: Map[Key, TableValue]
     )(implicit tsc: TaskSystemComponents) = {
       assigned.evalWith(env).flatMap { assignedValue =>
@@ -388,23 +189,16 @@ private[ra3] object TableExpr {
 
   }
 
-  case class SimpleQuery(
-      arg0: TableExpr.Ident,
-      elementwise: ra3.lang.Expr
-  ) extends TableExpr {
+  case class SimpleQuery[I, K <: Tuple, A <: ReturnValueTuple[K]](
+      arg0: TableExpr.Ident[I],
+      elementwise: ra3.lang.Expr[A]
+  ) extends TableExpr[A] {
 
-    type T = elementwise.T
+    def where(i: Expr[ra3.DI32]) = copy(elementwise = elementwise.where(i))
 
-    val tags: Set[KeyTag] = arg0.tags
-    def replace(i: Map[KeyTag, Int]): TableExpr = {
+    protected val tags: Set[KeyTag] = arg0.tags
 
-      SimpleQuery(
-        arg0.replace(i).asInstanceOf[Ident],
-        elementwise.replaceTags(i)
-      )
-    }
-
-    def evalWith(
+    protected def evalWith(
         env: Map[Key, TableValue]
     )(implicit tsc: TaskSystemComponents) = {
       arg0
@@ -416,13 +210,12 @@ private[ra3] object TableExpr {
           ra3.SimpleQuery
             .simpleQuery(
               table,
-              elementwise
-                .replaceDelayed(
-                  DelayedTableSchema(
-                    Map(arg0.key -> (table.uniqueId, table.colNames))
-                  )
+              Expr.toRuntime(
+                elementwise,
+                DelayedTableSchema(
+                  Map(arg0.key -> (table.uniqueId, table.colNames))
                 )
-                .asInstanceOf[ra3.lang.Query]
+              )
             )
             .map(t => TableValue(t))
 
@@ -430,23 +223,108 @@ private[ra3] object TableExpr {
 
     }
   }
-  case class SimpleQueryCount(
-      arg0: TableExpr.Ident,
-      elementwise: ra3.lang.Expr
-  ) extends TableExpr {
 
-    type T 
+  case class TopK[K <: Tuple](
+      arg0: ra3.lang.Expr.DelayedIdent[?],
+      ascending: Boolean,
+      k: Int,
+      cdfCoverage: Double,
+      cdfNumberOfSamplesPerSegment: Int
+  ) extends TableExpr[K] {
 
-    val tags: Set[KeyTag] = arg0.tags
-    def replace(i: Map[KeyTag, Int]): TableExpr = {
+    protected val tags: Set[KeyTag] =
+      arg0.tableIdent.tags
 
-      SimpleQueryCount(
-        arg0.replace(i).asInstanceOf[Ident],
-        elementwise.replaceTags(i)
-      )
+    protected def evalWith(
+        env: Map[Key, TableValue]
+    )(implicit tsc: TaskSystemComponents) = {
+      arg0.tableIdent
+        .evalWith(env)
+        .flatMap { case TableValue(table) =>
+          val columnIdx =
+            arg0.name.selection.left
+              .map(s => table.colNames.indexOf(s))
+              .fold(identity, identity)
+
+          table
+            .topK(
+              sortColumn = columnIdx,
+              ascending = ascending,
+              k = k,
+              cdfCoverage = cdfCoverage,
+              cdfNumberOfSamplesPerSegment = cdfNumberOfSamplesPerSegment
+            )
+            .map(TableValue(_))
+        }
     }
+  }
+  case class Prepartition[K <: Tuple](
+      arg0: ra3.lang.Expr.DelayedIdent[?],
+      arg1: Seq[ra3.lang.Expr.DelayedIdent[?]],
+      partitionBase: Int,
+      partitionLimit: Int,
+      maxSegmentsToBufferAtOnce: Int
+  ) extends TableExpr[K] {
 
-    def evalWith(
+    assert(arg1.forall(_.name.table == arg0.name.table))
+
+    protected val tags: Set[KeyTag] =
+      arg0.tableIdent.tags ++ arg1.flatMap(_.tableIdent.tags)
+
+    protected def evalWith(
+        env: Map[Key, TableValue]
+    )(implicit tsc: TaskSystemComponents) = {
+      arg0.tableIdent
+        .evalWith(env)
+        .flatMap { case TableValue(table) =>
+          val columnIdx = (arg0 +: arg1).map(
+            _.name.selection.left
+              .map(s => table.colNames.indexOf(s))
+              .fold(identity, identity)
+          )
+
+          table
+            .prePartition(
+              columnIdx = columnIdx,
+              partitionBase = partitionBase,
+              partitionLimit = partitionLimit,
+              maxSegmentsToBufferAtOnce = maxSegmentsToBufferAtOnce
+            )
+            .map(TableValue(_))
+        }
+    }
+  }
+  case class Concat[K <: Tuple](
+      arg0: TableExpr[ReturnValueTuple[K]],
+      args: Seq[TableExpr[ReturnValueTuple[K]]],
+      parallelism: Int
+  ) extends TableExpr[K] {
+
+    protected val tags: Set[KeyTag] =
+      arg0.tags ++ args.map(_.tags).foldLeft(Set.empty[KeyTag])(_ ++ _)
+
+    protected def evalWith(
+        env: Map[Key, TableValue]
+    )(implicit tsc: TaskSystemComponents) = {
+      IO.both(
+        arg0.evalWith(env),
+        IO.parSequenceN(parallelism)(args.map(_.evalWith(env)))
+      ).flatMap { case (TableValue(a), bs) =>
+        scribe.info(s"Concatenate ${1 + bs.size} tables.")
+        a.concatenate(bs.map(_.v)*).map(TableValue(_))
+      }
+    }
+  }
+  case class SimpleQueryCount[I, K <: Tuple, A <: ReturnValueTuple[K]](
+      arg0: TableExpr.Ident[I],
+      elementwise: ra3.lang.Expr[A]
+  ) extends TableExpr[A] {
+
+    def where(i: Expr[ra3.DI32]) = copy(elementwise = elementwise.where(i))
+
+    protected val tags: Set[KeyTag] = arg0.tags
+
+    protected def evalWith(
         env: Map[Key, TableValue]
     )(implicit tsc: TaskSystemComponents) = {
       arg0
@@ -458,13 +336,12 @@ private[ra3] object TableExpr {
           ra3.SimpleQuery
             .simpleQueryCount(
               table,
-              elementwise
-                .replaceDelayed(
-                  DelayedTableSchema(
-                    Map(arg0.key -> (table.uniqueId, table.colNames))
-                  )
+              Expr.toRuntime(
+                elementwise,
+                DelayedTableSchema(
+                  Map(arg0.key -> (table.uniqueId, table.colNames))
                 )
-                .asInstanceOf[ra3.lang.Query]
+              )
             )
             .map(t => TableValue(t))
 
@@ -472,23 +349,15 @@ private[ra3] object TableExpr {
 
     }
   }
-  case class Tap(
-      arg0: TableExpr.Ident,
+  case class Tap[T](
+      val arg0: TableExpr[T],
       sampleSize: Int,
       tag: String
-  ) extends TableExpr {
+  ) extends TableExpr[T] {
 
     val tags: Set[KeyTag] = arg0.tags
-    def replace(i: Map[KeyTag, Int]): TableExpr = {
 
-      Tap(
-        arg0.replace(i).asInstanceOf[Ident],
-        sampleSize,
-        tag
-      )
-    }
-
-    def evalWith(
+    protected def evalWith(
         env: Map[Key, TableValue]
     )(implicit tsc: TaskSystemComponents) = {
       arg0
@@ -505,34 +374,23 @@ private[ra3] object TableExpr {
 
     }
   }
-  case class GroupThenReduce(
-      arg0: ra3.lang.Expr.DelayedIdent,
-      arg1: Seq[(ra3.lang.Expr.DelayedIdent)],
-      groupwise: ra3.lang.Expr,
+  case class GroupThenReduce[K <: Tuple, A <: ReturnValueTuple[K]](
+      arg0: ra3.lang.Expr.DelayedIdent[?],
+      arg1: Seq[(ra3.lang.Expr.DelayedIdent[?])],
+      groupwise: ra3.lang.Expr[A],
       partitionBase: Int,
       partitionLimit: Int,
       maxSegmentsToBufferAtOnce: Int
-  ) extends TableExpr {
+  ) extends TableExpr[A] {
+
+    def where(i: Expr[ra3.DI32]) = copy(groupwise = groupwise.where(i))
 
     assert(arg1.forall(_.name.table == arg0.name.table))
 
     val tags: Set[KeyTag] =
       arg0.tableIdent.tags ++ arg1.flatMap(_.tableIdent.tags)
-    def replace(i: Map[KeyTag, Int]): TableExpr = {
 
-      GroupThenReduce(
-        arg0.replace(Map.empty, i).asInstanceOf[ra3.lang.Expr.DelayedIdent],
-        arg1.map(
-          _.replace(Map.empty, i).asInstanceOf[ra3.lang.Expr.DelayedIdent]
-        ),
-        groupwise.replaceTags(i),
-        partitionBase,
-        partitionLimit,
-        maxSegmentsToBufferAtOnce
-      )
-    }
-
-    def evalWith(
+    protected def evalWith(
         env: Map[Key, TableValue]
     )(implicit tsc: TaskSystemComponents) = {
       arg0.tableIdent
@@ -557,15 +415,17 @@ private[ra3] object TableExpr {
               scribe.info(
                 f"Will do reduction on ${groupedTable.uniqueId} (${groupedTable.partitions.size} partitions) "
               )
-              val program = groupwise
-                .replaceDelayed(
-                  DelayedTableSchema(
-                    Map(
-                      arg0.name.table -> (groupedTable.uniqueId, groupedTable.colNames)
+              val program = Expr.toRuntime(
+                groupwise,
+                DelayedTableSchema(
+                  Map(
+                    arg0.name.table -> (
+                      groupedTable.uniqueId,
+                      groupedTable.colNames
                     )
                   )
                 )
-                .asInstanceOf[ra3.lang.Query]
+              )
               GroupedTable.reduceGroups(groupedTable, program)
             }
             .map(t => TableValue(t))
@@ -574,34 +434,23 @@ private[ra3] object TableExpr {
 
     }
   }
-  case class GroupThenCount(
-      arg0: ra3.lang.Expr.DelayedIdent,
-      arg1: Seq[(ra3.lang.Expr.DelayedIdent)],
-      groupwise: ra3.lang.Expr,
+  case class GroupThenCount[K <: Tuple, A <: ReturnValueTuple[K]](
+      arg0: ra3.lang.Expr.DelayedIdent[?],
+      arg1: Seq[(ra3.lang.Expr.DelayedIdent[?])],
+      groupwise: ra3.lang.Expr[A],
       partitionBase: Int,
       partitionLimit: Int,
       maxSegmentsToBufferAtOnce: Int
-  ) extends TableExpr {
+  ) extends TableExpr[ra3.DI64] {
+
+    def where(i: Expr[ra3.DI32]) = copy(groupwise = groupwise.where(i))
 
     assert(arg1.forall(_.name.table == arg0.name.table))
 
     val tags: Set[KeyTag] =
       arg0.tableIdent.tags ++ arg1.flatMap(_.tableIdent.tags)
-    def replace(i: Map[KeyTag, Int]): TableExpr = {
 
-      GroupThenCount(
-        arg0.replace(Map.empty, i).asInstanceOf[ra3.lang.Expr.DelayedIdent],
-        arg1.map(
-          _.replace(Map.empty, i).asInstanceOf[ra3.lang.Expr.DelayedIdent]
-        ),
-        groupwise.replaceTags(i),
-        partitionBase,
-        partitionLimit,
-        maxSegmentsToBufferAtOnce
-      )
-    }
-
-    def evalWith(
+    protected def evalWith(
         env: Map[Key, TableValue]
     )(implicit tsc: TaskSystemComponents) = {
       arg0.tableIdent
@@ -626,15 +475,18 @@ private[ra3] object TableExpr {
               scribe.info(
                 f"Will do reduction on ${groupedTable.uniqueId} (${groupedTable.partitions.size} partitions) "
               )
-              val program = groupwise
-                .replaceDelayed(
-                  DelayedTableSchema(
-                    Map(
-                      arg0.name.table -> (groupedTable.uniqueId, groupedTable.colNames)
+              val program = Expr.toRuntime(
+                groupwise,
+                DelayedTableSchema(
+                  Map(
+                    arg0.name.table -> (
+                      groupedTable.uniqueId,
+                      groupedTable.colNames
                     )
                   )
                 )
-                .asInstanceOf[ra3.lang.Query]
+              )
+
               GroupedTable.countGroups(groupedTable, program)
             }
             .map(t => TableValue(t))
@@ -643,28 +495,20 @@ private[ra3] object TableExpr {
 
     }
   }
-  case class GroupPartialThenReduce(
-      arg0: ra3.lang.Expr.DelayedIdent,
-      arg1: Seq[(ra3.lang.Expr.DelayedIdent)],
-      groupwise: ra3.lang.Expr
-  ) extends TableExpr {
+  case class GroupPartialThenReduce[K <: Tuple, A <: ReturnValueTuple[K]](
+      arg0: ra3.lang.Expr.DelayedIdent[?],
+      arg1: Seq[(ra3.lang.Expr.DelayedIdent[?])],
+      groupwise: ra3.lang.Expr[A]
+  ) extends TableExpr[A] {
+
+    def where(i: Expr[ra3.DI32]) = copy(groupwise = groupwise.where(i))
 
     assert(arg1.forall(_.name.table == arg0.name.table))
 
     val tags: Set[KeyTag] =
       arg0.tableIdent.tags ++ arg1.flatMap(_.tableIdent.tags)
-    def replace(i: Map[KeyTag, Int]): TableExpr = {
 
-      GroupPartialThenReduce(
-        arg0.replace(Map.empty, i).asInstanceOf[ra3.lang.Expr.DelayedIdent],
-        arg1.map(
-          _.replace(Map.empty, i).asInstanceOf[ra3.lang.Expr.DelayedIdent]
-        ),
-        groupwise.replaceTags(i)
-      )
-    }
-
-    def evalWith(
+    protected def evalWith(
         env: Map[Key, TableValue]
     )(implicit tsc: TaskSystemComponents) = {
       arg0.tableIdent
@@ -686,15 +530,17 @@ private[ra3] object TableExpr {
               scribe.info(
                 f"Will do partial reduction on ${groupedTable.uniqueId} (${groupedTable.partitions.size} partitions) "
               )
-              val program = groupwise
-                .replaceDelayed(
-                  DelayedTableSchema(
-                    Map(
-                      arg0.name.table -> (groupedTable.uniqueId, groupedTable.colNames)
+              val program = Expr.toRuntime(
+                groupwise,
+                DelayedTableSchema(
+                  Map(
+                    arg0.name.table -> (
+                      groupedTable.uniqueId,
+                      groupedTable.colNames
                     )
                   )
                 )
-                .asInstanceOf[ra3.lang.Query]
+              )
               GroupedTable.reduceGroups(groupedTable, program)
             }
             .map(t => TableValue(t))
@@ -703,21 +549,16 @@ private[ra3] object TableExpr {
 
     }
   }
-  case class FullTablePartialReduce(
-      arg0: TableExpr.Ident,
-      groupwise: ra3.lang.Expr
-  ) extends TableExpr {
+  case class FullTablePartialReduce[I, K <: Tuple, A <: ReturnValueTuple[K]](
+      arg0: TableExpr.Ident[I],
+      groupwise: ra3.lang.Expr[A]
+  ) extends TableExpr[A] {
+
+    def where(i: Expr[ra3.DI32]) = copy(groupwise = groupwise.where(i))
 
     val tags: Set[KeyTag] = arg0.tags
-    def replace(i: Map[KeyTag, Int]): TableExpr = {
 
-      FullTablePartialReduce(
-        arg0.replace(i).asInstanceOf[Ident],
-        groupwise.replaceTags(i)
-      )
-    }
-
-    def evalWith(
+    protected def evalWith(
         env: Map[Key, TableValue]
     )(implicit tsc: TaskSystemComponents) = {
       arg0
@@ -730,15 +571,14 @@ private[ra3] object TableExpr {
                 f"Will do partial reduction on ${groupedTable.uniqueId} (${groupedTable.partitions.size} partitions) "
               )
 
-              val program = groupwise
-                .replaceDelayed(
-                  DelayedTableSchema(
-                    Map(
-                      arg0.key -> (groupedTable.uniqueId, groupedTable.colNames)
-                    )
+              val program = Expr.toRuntime(
+                groupwise,
+                DelayedTableSchema(
+                  Map(
+                    arg0.key -> (groupedTable.uniqueId, groupedTable.colNames)
                   )
                 )
-                .asInstanceOf[ra3.lang.Query]
+              )
               GroupedTable.reduceGroups(groupedTable, program)
             }
             .map(t => TableValue(t))
@@ -747,21 +587,16 @@ private[ra3] object TableExpr {
 
     }
   }
-  case class ReduceTable(
-      arg0: TableExpr.Ident,
-      groupwise: ra3.lang.Expr
-  ) extends TableExpr {
+  case class ReduceTable[I, K <: Tuple, A <: ReturnValueTuple[K]](
+      arg0: TableExpr.Ident[I],
+      groupwise: ra3.lang.Expr[A]
+  ) extends TableExpr[A] {
+
+    def where(i: Expr[ra3.DI32]) = copy(groupwise = groupwise.where(i))
 
     val tags: Set[KeyTag] = arg0.tags
-    def replace(i: Map[KeyTag, Int]): TableExpr = {
 
-      ReduceTable(
-        arg0.replace(i).asInstanceOf[Ident],
-        groupwise.replaceTags(i)
-      )
-    }
-
-    def evalWith(
+    protected def evalWith(
         env: Map[Key, TableValue]
     )(implicit tsc: TaskSystemComponents) = {
       arg0
@@ -774,15 +609,14 @@ private[ra3] object TableExpr {
           ra3.ReduceTable
             .formSingleGroup(table)
             .flatMap { groupedTable =>
-              val program = groupwise
-                .replaceDelayed(
-                  DelayedTableSchema(
-                    Map(
-                      arg0.key -> (groupedTable.uniqueId, groupedTable.colNames)
-                    )
+              val program = Expr.toRuntime(
+                groupwise,
+                DelayedTableSchema(
+                  Map(
+                    arg0.key -> (groupedTable.uniqueId, groupedTable.colNames)
                   )
                 )
-                .asInstanceOf[ra3.lang.Query]
+              )
               GroupedTable.reduceGroups(groupedTable, program)
             }
             .map(t => TableValue(t))
@@ -791,38 +625,20 @@ private[ra3] object TableExpr {
 
     }
   }
-  case class Join(
-      arg0: ra3.lang.Expr.DelayedIdent,
-      arg1: Seq[(ra3.lang.Expr.DelayedIdent, String, ra3.tablelang.Key)],
+  case class Join[J, K <: Tuple, R <: ReturnValueTuple[K]](
+      arg0: ra3.lang.Expr.DelayedIdent[J],
+      arg1: Seq[(ra3.lang.Expr.DelayedIdent[J], String, ra3.tablelang.Key)],
       partitionBase: Int,
       partitionLimit: Int,
       maxSegmentsToBufferAtOnce: Int,
-      elementwise: ra3.lang.Expr
-  ) extends TableExpr {
+      elementwise: ra3.lang.Expr[R]
+  ) extends TableExpr[R] {
 
+    def where(i: Expr[ra3.DI32]) = copy(elementwise = elementwise.where(i))
     val tags: Set[KeyTag] =
       arg0.tableIdent.tags ++ arg1.flatMap(_._1.tableIdent.tags)
-    def replace(i: Map[KeyTag, Int]): TableExpr = {
 
-      Join(
-        arg0.replace(Map.empty, i).asInstanceOf[Expr.DelayedIdent],
-        arg1.map { case (columnAndTable, how, against) =>
-          (
-            columnAndTable
-              .replace(Map.empty, i)
-              .asInstanceOf[Expr.DelayedIdent],
-            how,
-            against
-          )
-        },
-        partitionBase,
-        partitionLimit,
-        maxSegmentsToBufferAtOnce,
-        elementwise.replaceTags(i)
-      )
-    }
-
-    def evalWith(
+    protected def evalWith(
         env: Map[Key, TableValue]
     )(implicit tsc: TaskSystemComponents) = {
       arg0.tableIdent
@@ -831,18 +647,17 @@ private[ra3] object TableExpr {
           IO.parSequenceN(32)(arg1.map { case (a, b, c) =>
             a.tableIdent.evalWith(env).map(x => (x.v, a, b, c))
           }).flatMap { arg1Tables =>
-            val program = elementwise
-              .replaceDelayed(
-                DelayedTableSchema(
-                  Map(
-                    arg0.name.table -> ((table.uniqueId, table.colNames))
-                  ) ++ (arg1Tables.map(_._1) zip arg1.map(_._1)).map {
-                    case (table, argxDelayed) =>
-                      (argxDelayed.name.table, (table.uniqueId, table.colNames))
-                  }
-                )
+            val program = Expr.toRuntime(
+              elementwise,
+              DelayedTableSchema(
+                Map(
+                  arg0.name.table -> ((table.uniqueId, table.colNames))
+                ) ++ (arg1Tables.map(_._1) zip arg1.map(_._1)).map {
+                  case (table, argxDelayed) =>
+                    (argxDelayed.name.table, (table.uniqueId, table.colNames))
+                }
               )
-              .asInstanceOf[ra3.lang.Query]
+            )
 
             val firstColIdx = arg0.name.selection.left
               .map(s => table.colNames.indexOf(s))
@@ -889,60 +704,6 @@ private[ra3] object TableExpr {
         }
 
     }
-  }
-
-  implicit class SyntaxIdent[A: NotNothing, B: NotNothing](a: TableExpr.Ident {
-    type T = ra3.lang.ReturnValue2[A, B]
-  }) {
-    def in[R](
-        body: (
-            Expr.DelayedIdent {
-              type T = A; type R = ra3.lang.ReturnValue2[A, B]
-            },
-            Expr.DelayedIdent {
-              type T = B; type R = ra3.lang.ReturnValue2[A, B]
-            }
-        ) => TableExpr { type T = R }
-    ): TableExpr { type T = R } = {
-      val aa = Expr
-        .DelayedIdent(ra3.lang.Delayed(a.key, Right(0)))
-        .asInstanceOf[
-          Expr.DelayedIdent { type T = A; type R = ra3.lang.ReturnValue2[A, B] }
-        ]
-      val bb = Expr
-        .DelayedIdent(ra3.lang.Delayed(a.key, Right(1)))
-        .asInstanceOf[
-          Expr.DelayedIdent { type T = B; type R = ra3.lang.ReturnValue2[A, B] }
-        ]
-
-      body(aa, bb)
-
-    }
-  }
-
-  val t: TableExpr { type T = ra3.lang.ReturnValue2[ra3.DI32, ra3.DI32] } = ???
-
-
-  t.in0 { (b0) =>
-    // val x: Ident{type T = ?} = b0
-
-    // b0.
-    
-    val k = b0.in { (a: ra3.lang.Expr { type T = ra3.DI32 }, b: ra3.lang.Expr { type T = ra3.DI32 }) =>
-      
-      val x: ra3.lang.Expr { type T = ra3.DI32 } = a.<(b)
-      // val sl = ra3.select(a.unnamed, b.as("sdf"))
-      val prg = ra3.select(a.unnamed)//.where(x)
-      val c = b0.count(prg)
-
-      
-
-      c
-    }
-
-    k
-
-    k
   }
 
 }

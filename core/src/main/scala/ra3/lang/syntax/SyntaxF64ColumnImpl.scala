@@ -1,14 +1,16 @@
 package ra3.lang.syntax
-import ra3.lang._
+import ra3.lang.*
+import ra3.lang.util.*
 import ra3.BufferInt
 import ra3.DF64
+import ra3.ColumnSpecExpr
 
 private[ra3] trait SyntaxF64ColumnImpl {
   protected def arg0: F64ColumnExpr
   import scala.language.implicitConversions
-  implicit private def conversionF64Lit(a: Double): Expr.LitF64 = Expr.LitF64(a)
-  implicit private def conversionF64LitSet(a: Set[Double]): Expr.LitF64Set =
-    Expr.LitF64Set(a)
+  implicit private def conversionF64Lit(a: Double): Expr[Double] = ra3.const(a)
+  implicit private def conversionF64LitSet(a: Set[Double]): Expr[Set[Double]] =
+    ra3.LitF64S(a)
   def isMissing = Expr.makeOp1(ops.Op1.ColumnIsMissingOpD)(arg0)
   def abs = Expr.makeOp1(ops.Op1.ColumnAbsOpD)(arg0)
   def roundToDouble = Expr.makeOp1(ops.Op1.ColumnRoundToDoubleOpD)(arg0)
@@ -38,53 +40,64 @@ private[ra3] trait SyntaxF64ColumnImpl {
     Expr.makeOp2(ops.Op2.ColumnContainedInOpDcDSet)(arg0, arg1)
 
   def printf(arg1: String) =
-    Expr.makeOp2(ops.Op2.ColumnPrintfOpDcStr)(arg0, Expr.LitStr(arg1))
+    Expr.makeOp2(ops.Op2.ColumnPrintfOpDcStr)(arg0, ra3.const(arg1))
 
   def mean = Expr.makeOp3(ops.Op3.BufferMeanGroupsOpDI)(
     arg0,
-    ra3.lang.Expr.Ident(ra3.lang.GroupMap).as[BufferInt],
-    ra3.lang.Expr.Ident(ra3.lang.Numgroups).as[Int]
+    ra3.lang.Expr.Ident[BufferInt](ra3.lang.GroupMap),
+    ra3.lang.Expr.Ident[Int](ra3.lang.Numgroups)
   )
   def sum = Expr.makeOp3(ops.Op3.BufferSumGroupsOpDI)(
     arg0,
-    ra3.lang.Expr.Ident(ra3.lang.GroupMap).as[BufferInt],
-    ra3.lang.Expr.Ident(ra3.lang.Numgroups).as[Int]
+    ra3.lang.Expr.Ident[BufferInt](ra3.lang.GroupMap),
+    ra3.lang.Expr.Ident[Int](ra3.lang.Numgroups)
   )
   def min = Expr.makeOp3(ops.Op3.BufferMinGroupsOpD)(
     arg0,
-    ra3.lang.Expr.Ident(ra3.lang.GroupMap).as[BufferInt],
-    ra3.lang.Expr.Ident(ra3.lang.Numgroups).as[Int]
+    ra3.lang.Expr.Ident[BufferInt](ra3.lang.GroupMap),
+    ra3.lang.Expr.Ident[Int](ra3.lang.Numgroups)
   )
   def max = Expr.makeOp3(ops.Op3.BufferMaxGroupsOpD)(
     arg0,
-    ra3.lang.Expr.Ident(ra3.lang.GroupMap).as[BufferInt],
-    ra3.lang.Expr.Ident(ra3.lang.Numgroups).as[Int]
+    ra3.lang.Expr.Ident[BufferInt](ra3.lang.GroupMap),
+    ra3.lang.Expr.Ident[Int](ra3.lang.Numgroups)
   )
   def hasMissing = Expr.makeOp3(ops.Op3.BufferHasMissingInGroupsOpD)(
     arg0,
-    ra3.lang.Expr.Ident(ra3.lang.GroupMap).as[BufferInt],
-    ra3.lang.Expr.Ident(ra3.lang.Numgroups).as[Int]
+    ra3.lang.Expr.Ident[BufferInt](ra3.lang.GroupMap),
+    ra3.lang.Expr.Ident[Int](ra3.lang.Numgroups)
   )
   def count = Expr.makeOp3(ops.Op3.BufferCountGroupsOpDI)(
     arg0,
-    ra3.lang.Expr.Ident(ra3.lang.GroupMap).as[BufferInt],
-    ra3.lang.Expr.Ident(ra3.lang.Numgroups).as[Int]
+    ra3.lang.Expr.Ident[BufferInt](ra3.lang.GroupMap),
+    ra3.lang.Expr.Ident[Int](ra3.lang.Numgroups)
   )
   def first = Expr.makeOp3(ops.Op3.BufferFirstGroupsOpDIi)(
     arg0,
-    ra3.lang.Expr.Ident(ra3.lang.GroupMap).as[BufferInt],
-    ra3.lang.Expr.Ident(ra3.lang.Numgroups).as[Int]
+    ra3.lang.Expr.Ident[BufferInt](ra3.lang.GroupMap),
+    ra3.lang.Expr.Ident[Int](ra3.lang.Numgroups)
   )
 
   def unnamed = ra3.lang.Expr
-    .BuiltInOp1(arg0, ops.Op1.MkUnnamedColumnSpecChunk)
-    .asInstanceOf[Expr { type T = ColumnSpec[DF64] }]
+    .BuiltInOp1(ops.Op1.MkUnnamedColumnSpecChunkF64)(arg0)
 
-  def as(arg1: Expr { type T = String }): Expr { type T = ColumnSpec[DF64] } =
+  infix def as(arg1: Expr[String]) =
     ra3.lang.Expr
-      .BuiltInOp2(arg0, arg1, ops.Op2.MkNamedColumnSpecChunk)
-      .asInstanceOf[Expr { type T = ColumnSpec[DF64] }]
+      .BuiltInOp2(ops.Op2.MkNamedColumnSpecChunkF64)(arg0, arg1)
 
-  def as(arg1: String): Expr { type T = ColumnSpec[DF64] } = as(Expr.LitStr(arg1))
+  infix def as(arg1: String): ColumnSpecExpr[DF64] = as(ra3.const(arg1))
+
+  @scala.annotation.targetName(":*ColumnSpec")
+  infix def :*[T1](v: Expr[ColumnSpec[T1]]) = ra3.S.extend(arg0.unnamed).extend(v)
+  @scala.annotation.targetName(":*DF64")
+  infix def :*(v: Expr[ra3.DF64]) = ra3.S.extend(arg0.unnamed).extend(v.unnamed)
+  @scala.annotation.targetName(":*DStr")
+  infix def :*(v: Expr[ra3.DStr]) = ra3.S.extend(arg0.unnamed).extend(v.unnamed)
+  @scala.annotation.targetName(":*DI32")
+  infix def :*(v: Expr[ra3.DI32]) = ra3.S.extend(arg0.unnamed).extend(v.unnamed)
+  @scala.annotation.targetName(":*DI64")
+  infix def :*(v: Expr[ra3.DI64]) = ra3.S.extend(arg0.unnamed).extend(v.unnamed)
+  @scala.annotation.targetName(":*DInst")
+  infix def :*(v: Expr[ra3.DInst]) = ra3.S.extend(arg0.unnamed).extend(v.unnamed)
 
 }

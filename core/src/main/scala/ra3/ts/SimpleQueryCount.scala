@@ -1,23 +1,23 @@
 package ra3.ts
 
-import ra3._
-import tasks._
-import tasks.jsonitersupport._
-import com.github.plokhotnyuk.jsoniter_scala.macros._
-import com.github.plokhotnyuk.jsoniter_scala.core._
+import ra3.*
+import tasks.*
+import tasks.jsonitersupport.*
+import com.github.plokhotnyuk.jsoniter_scala.macros.*
+import com.github.plokhotnyuk.jsoniter_scala.core.*
 import cats.effect.IO
-import ra3.lang.ReturnValue
+import ra3.lang.ReturnValueTuple
 
 private[ra3] case class SimpleQueryCount(
     input: Seq[SegmentWithName],
-    predicate: ra3.lang.Expr,
+    predicate: ra3.lang.runtime.Expr,
     groupMap: Option[(SegmentInt, Int)]
 )
 private[ra3] object SimpleQueryCount {
 
-  def doit(
+  private def doit(
       input: Seq[SegmentWithName],
-      predicate: ra3.lang.Expr,
+      predicate: ra3.lang.runtime.Expr,
       groupMap: Option[(SegmentInt, Int)]
   )(implicit tsc: TaskSystemComponents): IO[Int] = {
     scribe.debug(
@@ -38,28 +38,27 @@ private[ra3] object SimpleQueryCount {
       case Some((map, num)) => map.buffer.map(s => Some((s, num)))
     }
     groupMapBuffer.flatMap { case groupMapBuffer =>
-      val env1: Map[ra3.lang.Key, ra3.lang.Value[_]] =
+      val env1: Map[ra3.lang.Key, ra3.lang.runtime.Value] =
         input
           .map { case segmentWithName =>
             val columnKey = ra3.lang.ColumnKey(
               segmentWithName.tableUniqueId,
               segmentWithName.columnIdx
             )
-            (columnKey, ra3.lang.Value.Const(Right(segmentWithName.segment)))
+            (columnKey, ra3.lang.runtime.Value(Right(segmentWithName.segment)))
           }
           .filter(v => neededColumns.contains(v._1))
           .toMap
       val env = env1 ++ groupMapBuffer.toList.flatMap { case (map, num) =>
         Seq(
-          ra3.lang.GroupMap -> ra3.lang.Value
-            .Const(map),
-          ra3.lang.Numgroups -> ra3.lang.Value.Const(num)
+          ra3.lang.GroupMap -> ra3.lang.runtime.Value(map),
+          ra3.lang.Numgroups -> ra3.lang.runtime.Value(num)
         )
       }
 
-      ra3.lang
+      ra3.lang.runtime.Expr
         .evaluate(predicate, env)
-        .map(_.v.asInstanceOf[ReturnValue])
+        .map(_.v.asInstanceOf[ReturnValueTuple[?]])
         .flatMap { returnValue =>
           val mask = returnValue.filter
 
@@ -79,7 +78,7 @@ private[ra3] object SimpleQueryCount {
           }
 
           scribe.debug(
-            s"SQ program evaluation done projection: ${returnValue.list} filter: ${returnValue.filter} maskIsEmpty=$maskIsEmpty maskIsComplete=$maskIsComplete"
+            s"SQ program evaluation done projection: ${ReturnValueTuple.list(returnValue)} filter: ${returnValue.filter} maskIsEmpty=$maskIsEmpty maskIsComplete=$maskIsComplete"
           )
 
           if (maskIsEmpty) IO.pure(0)
@@ -90,8 +89,8 @@ private[ra3] object SimpleQueryCount {
           else
             mask match {
               case Some(Right(s)) =>
-                ra3.ts.SimpleQuery
-                  .bufferMultiple(s)
+                ra3.Utils
+                  .bufferMultiple(ColumnTag.I32)(s)
                   .map(_.positiveLocations.length)
               case Some(Left(b)) => IO.pure(b.positiveLocations.length)
               case None =>
@@ -108,13 +107,13 @@ private[ra3] object SimpleQueryCount {
   def queue(
       // (segment, table unique id)
       input: Seq[SegmentWithName],
-      predicate: ra3.lang.Expr { type T <: ReturnValue },
+      predicate: ra3.lang.runtime.Expr,
       groupMap: Option[(SegmentInt, Int)]
   )(implicit
       tsc: TaskSystemComponents
   ): IO[Long] =
     task(
-      SimpleQueryCount(input, predicate.replaceTags(Map.empty), groupMap)
+      SimpleQueryCount(input, predicate, groupMap)
     )(
       ResourceRequest(
         cpu = (1, 1),
@@ -124,7 +123,9 @@ private[ra3] object SimpleQueryCount {
         gpu = 0
       )
     )
+    // $COVERAGE-OFF$
   implicit val codec: JsonValueCodec[SimpleQueryCount] = JsonCodecMaker.make
+    // $COVERAGE-ON$
   val task = Task[SimpleQueryCount, Long]("SimpleQueryCount", 1) { case input =>
     implicit ce =>
       doit(input.input, input.predicate, input.groupMap).map(_.toLong)

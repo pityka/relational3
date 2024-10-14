@@ -5,15 +5,15 @@ import cats.effect.unsafe.implicits.global
 class InstantBufferSuite extends munit.FunSuite with WithTempTaskSystem {
   test("makeStatistic") {
     val s = Seq(0L, 1L, 2L, 3L, Long.MinValue, -1L)
-    val st = BufferInstant(s: _*).makeStatistic()
+    val st = BufferInstant(s*).makeStatistic()
     assertEquals(st.hasMissing, true)
     assertEquals(st.nonMissingMinMax, Some(-1L -> 3L))
     assertEquals(st.lowCardinalityNonMissingSet, Some(Set(0L, 1L, 2L, 3L, -1L)))
 
   }
   test("makeStatistic long") {
-    val s = Seq(0 until 256: _*).map(_.toLong)
-    val st = BufferInstant(s: _*).makeStatistic()
+    val s = Seq(0 until 256*).map(_.toLong)
+    val st = BufferInstant(s*).makeStatistic()
     assertEquals(st.hasMissing, false)
     assertEquals(st.nonMissingMinMax, Some(0L -> 255L))
     assertEquals(st.lowCardinalityNonMissingSet, None)
@@ -44,10 +44,16 @@ class InstantBufferSuite extends munit.FunSuite with WithTempTaskSystem {
   }
   test("cdf") {
     val b1 = BufferInstant(Array(0, 1, 2, 3, 4, 4, 5, 6).map(_.toLong))
-    assertEquals(b1.cdf(2)._1.values.toSeq, List(0L, 6L))
-    assertEquals(b1.cdf(2)._2.values.toSeq, List(0d, 1d))
-    assertEquals(b1.cdf(4)._1.values.toSeq, List(0L, 2L, 4L, 6L))
-    assertEquals(b1.cdf(4)._2.values.toSeq, List(0d, 1d / 3d, 2d / 3d, 1d))
+    assertEquals(ColumnTag.Instant.cdf(b1, 2)._1.values.toSeq, List(0L, 6L))
+    assertEquals(ColumnTag.Instant.cdf(b1, 2)._2.values.toSeq, List(0d, 1d))
+    assertEquals(
+      ColumnTag.Instant.cdf(b1, 4)._1.values.toSeq,
+      List(0L, 2L, 4L, 6L)
+    )
+    assertEquals(
+      ColumnTag.Instant.cdf(b1, 4)._2.values.toSeq,
+      List(0d, 1d / 3d, 2d / 3d, 1d)
+    )
   }
   test("length") {
     val b1 = BufferInstant(Array(0L, 1, 2, 3, 4, 4, 5, 6))

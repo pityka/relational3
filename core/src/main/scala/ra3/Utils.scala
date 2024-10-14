@@ -6,6 +6,7 @@ import cats.effect.IO
 import scodec.bits.ByteVector
 import java.nio.CharBuffer
 import java.io.InputStream
+import tasks.TaskSystemComponents
 
 private[ra3] case class CharArraySubSeq(buff: Array[Char], start: Int, to: Int)
     extends CharSequence {
@@ -14,19 +15,20 @@ private[ra3] case class CharArraySubSeq(buff: Array[Char], start: Int, to: Int)
     String.copyValueOf(buff, start, to - start)
   }
 
-  override def equals(other: Any): Boolean = other match {
-    case other: CharSequence if this.length == other.length =>
-      var b = true
-      var i = 0
-      val n = length
-      while (i < n && !b) {
-        b = (charAt(i) != other.charAt(i))
-        i += 1
-      }
-      b
-    case _ =>
-      false
-  }
+  override def equals(other: Any): Boolean =
+    other.asInstanceOf[Matchable] match {
+      case other: CharSequence if this.length == other.length =>
+        var b = true
+        var i = 0
+        val n = length
+        while (i < n && !b) {
+          b = (charAt(i) != other.charAt(i))
+          i += 1
+        }
+        b
+      case _ =>
+        false
+    }
 
   override def hashCode(): Int =
     CharBuffer.wrap(buff, start, to - start).hashCode()
@@ -45,13 +47,13 @@ private[ra3] case class CharArraySubSeq(buff: Array[Char], start: Int, to: Int)
 }
 
 private[ra3] case class TableHelper(
-    columns: Vector[Column]
+    columns: Vector[TaggedColumn]
 ) {
   def concatenate(other: TableHelper) = {
     assert(columns.size == other.columns.size)
     assert(columns.map(_.tag) == other.columns.map(_.tag))
     TableHelper(
-      columns.zip(other.columns).map { case (a, b) => a castAndConcatenate b }
+      columns.zip(other.columns).map { case (a, b) => a `castAndConcatenate` b }
     )
   }
 }
@@ -61,8 +63,10 @@ private[ra3] object Utils {
     math.max(5, s.toLong * 64 / 1024 / 1024).toInt
   def guessMemoryUsageInMB(s: Segment) =
     math.max(5, s.numBytes * 2 / 1024 / 1024).toInt
-  def guessMemoryUsageInMB(s: Column) = {
-    val r = math.max(5, s.numBytes * 2 / 1024 / 1024)
+  def guessMemoryUsageInMB(tc: TaggedColumn): Int =
+    guessMemoryUsageInMB(tc.tag)(tc.column)
+  def guessMemoryUsageInMB(tag: ColumnTag)(s: tag.ColumnType): Int = {
+    val r = math.max(5, tag.numBytes(s) * 2 / 1024 / 1024)
     r.toInt
   }
   def writeFully(bb: ByteBuffer, channel: WritableByteChannel) = {
@@ -83,13 +87,13 @@ private[ra3] object Utils {
     bb.flip
   }
 
-  def bufferMultiple[
-      S <: Segment { type SegmentType = S }
-  ](s: Seq[S])(implicit tsc: tasks.TaskSystemComponents): IO[S#BufferType] = {
-    val tag = s.head.tag
+  def bufferMultiple(tag: ColumnTag)(
+      s: Seq[tag.SegmentType]
+  )(implicit tsc: tasks.TaskSystemComponents): IO[tag.BufferType] = {
+
     IO
-      .parSequenceN(32)(s.map(_.buffer))
-      .map(b => tag.cat(b.map(_.as(tag).asBufferType): _*))
+      .parSequenceN(32)(s.map(tag.buffer))
+      .map(b => tag.cat(b*))
   }
 
   def compress(bb: ByteBuffer) = {
@@ -133,7 +137,7 @@ private[ra3] object Utils {
     java.nio.ByteBuffer.wrap(decompressedBuffer)
   }
 
-  import com.github.plokhotnyuk.jsoniter_scala.core._
+  import com.github.plokhotnyuk.jsoniter_scala.core.*
 
   val customDoubleCodec = new JsonValueCodec[Double] {
     val nullValue: Double = 0.0f
@@ -181,6 +185,58 @@ private[ra3] object Utils {
       override val nullValue: CharSequence = null
     }
 
-  def gzip(is: InputStream)  : InputStream = new GzipCompressorInputStream(is,true) 
+  def gzip(is: InputStream): InputStream =
+    new GzipCompressorInputStream(is, true)
+
+  private[ra3] def bufferBeforeI32[C](
+      arg: DI32
+  )(fun: BufferInt => C)(implicit tsc: TaskSystemComponents) = {
+    val tag = ColumnTag.I32
+    bbImpl(tag)(
+      arg.map(tag.makeTaggedSegments).left.map(tag.makeTaggedBuffer)
+    )(fun)
+  }
+  private[ra3] def bufferBeforeF64[C](
+      arg: DF64
+  )(fun: BufferDouble => C)(implicit tsc: TaskSystemComponents) = {
+    val tag = ColumnTag.F64
+    bbImpl(tag)(
+      arg.map(tag.makeTaggedSegments).left.map(tag.makeTaggedBuffer)
+    )(fun)
+  }
+  private[ra3] def bufferBeforeI64[C](
+      arg: DI64
+  )(fun: BufferLong => C)(implicit tsc: TaskSystemComponents) = {
+    val tag = ColumnTag.I64
+    bbImpl(tag)(
+      arg.map(tag.makeTaggedSegments).left.map(tag.makeTaggedBuffer)
+    )(fun)
+  }
+  private[ra3] def bufferBeforeString[C](
+      arg: DStr
+  )(fun: BufferString => C)(implicit tsc: TaskSystemComponents) = {
+    val tag = ColumnTag.StringTag
+    bbImpl(tag)(
+      arg.map(tag.makeTaggedSegments).left.map(tag.makeTaggedBuffer)
+    )(fun)
+  }
+  private[ra3] def bufferBeforeInstant[C](
+      arg: DInst
+  )(fun: BufferInstant => C)(implicit tsc: TaskSystemComponents) = {
+    val tag = ColumnTag.Instant
+    bbImpl(tag)(
+      arg.map(tag.makeTaggedSegments).left.map(tag.makeTaggedBuffer)
+    )(fun)
+  }
+  private[ra3] def bbImpl[C](tag: ColumnTag)(
+      arg: Either[tag.TaggedBufferType, tag.TaggedSegmentsType]
+  )(fun: tag.BufferType => C)(implicit tsc: TaskSystemComponents) =
+    arg.fold(
+      value => IO.pure(Left(fun(tag.buffer(value)))),
+      value =>
+        ra3.Utils
+          .bufferMultiple(tag)(tag.segments(value))
+          .map(b => Left(fun(b)))
+    )
 
 }

@@ -1,6 +1,6 @@
 package ra3
-import com.github.plokhotnyuk.jsoniter_scala.core._
-import com.github.plokhotnyuk.jsoniter_scala.macros._
+import com.github.plokhotnyuk.jsoniter_scala.core.*
+import com.github.plokhotnyuk.jsoniter_scala.macros.*
 
 private[ra3] case class StatisticInt(
     hasMissing: Boolean,
@@ -48,7 +48,9 @@ private[ra3] case class StatisticInt(
 private[ra3] object StatisticInt {
   def constant(i: Int) = StatisticInt(false, Some((i, i)), Some(Set(i)))
   val empty = StatisticInt(false, None, None)
+  // $COVERAGE-OFF$
   implicit val segmentCodec: JsonValueCodec[StatisticInt] = JsonCodecMaker.make
+  // $COVERAGE-ON$
 }
 
 private[ra3] case class StatisticLong(
@@ -101,7 +103,9 @@ private[ra3] case class StatisticLong(
 
 private[ra3] object StatisticLong {
   val empty = StatisticLong(false, None, None, None)
+  // $COVERAGE-ON$
   implicit val segmentCodec: JsonValueCodec[StatisticLong] = JsonCodecMaker.make
+  // $COVERAGE-OFF$
 }
 
 private[ra3] case class StatisticDouble(
@@ -150,9 +154,11 @@ private[ra3] case class StatisticDouble(
 private[ra3] object StatisticDouble {
   val empty = StatisticDouble(false, None, None)
   implicit val customCodecOfDouble: JsonValueCodec[Double] =
-    Utils.customDoubleCodec
+  Utils.customDoubleCodec
+  // $COVERAGE-ON$
   implicit val segmentCodec: JsonValueCodec[StatisticDouble] =
-    JsonCodecMaker.make
+  JsonCodecMaker.make
+  // $COVERAGE-OFF$
 }
 private[ra3] case class StatisticCharSequence(
     hasMissing: Boolean,
@@ -160,7 +166,7 @@ private[ra3] case class StatisticCharSequence(
     lowCardinalityNonMissingSet: Option[Set[CharSequence]],
     bloomFilter: Option[BloomFilter]
 ) {
-  import ra3.bufferimpl.{CharSequenceOrdering => CSO}
+  import ra3.bufferimpl.{CharSequenceOrdering as CSO}
 
   def mightLtEq(i: CharSequence): Boolean = {
     if (i == BufferString.MissingValue) false
@@ -209,6 +215,8 @@ private[ra3] object StatisticCharSequence {
   val empty = StatisticCharSequence(false, None, None, None)
 
   implicit val cs: JsonValueCodec[CharSequence] = ra3.Utils.charSequenceCodec
+  // $COVERAGE-OFF$
   implicit val segmentCodec: JsonValueCodec[StatisticCharSequence] =
-    JsonCodecMaker.make
+  JsonCodecMaker.make
+  // $COVERAGE-ON$
 }

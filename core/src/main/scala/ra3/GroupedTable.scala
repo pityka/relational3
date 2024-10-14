@@ -2,6 +2,7 @@ package ra3
 
 import cats.effect.IO
 import tasks.{TaskSystemComponents}
+import ra3.lang.ReturnValueTuple
 
 private[ra3] case class GroupedTable(
     partitions: Seq[(PartitionedTable, Segment.GroupMap)],
@@ -26,14 +27,15 @@ private[ra3] case class GroupedTable(
         partitions.map { case (partition, groupMap) =>
           IO.parSequenceN(math.min(32, columns))(
             (0 until columns).toVector.map { columnIdx =>
-              val segments = partition.columns(columnIdx).segments
-              val tag = partition.columns(columnIdx).tag
+              val column = partition.columns(columnIdx)
+              val tag = column.tag
+              val segments = tag.segments(column.column)
 
               assert(
                 segments.map(_.numElems).sum == groupMap.map.numElems
               )
 
-              val groupsFromSegments = ts.ExtractGroups.queue[tag.SegmentType](
+              val groupsFromSegments = ts.ExtractGroups.queue(tag)(
                 segments,
                 groupMap.map,
                 groupMap.numGroups,
@@ -50,7 +52,9 @@ private[ra3] case class GroupedTable(
                   //   groups
                   groups =>
                     groups.map { segmentOfGroup =>
-                      tag.makeColumn(Vector(segmentOfGroup))
+                      tag.makeTaggedColumn(
+                        tag.makeColumn(Vector(segmentOfGroup))
+                      )
 
                     }
                 }
@@ -83,7 +87,7 @@ private[ra3] case class GroupedTable(
 private[ra3] object GroupedTable {
   def reduceGroups(
       self: GroupedTable,
-      program: ra3.lang.Expr { type T <: ra3.lang.ReturnValue }
+      program: ra3.lang.runtime.Expr
   )(implicit
       tsc: TaskSystemComponents
   ): IO[Table] = {
@@ -100,10 +104,12 @@ private[ra3] object GroupedTable {
             ts.SimpleQuery
               .queue(
                 input = (0 until columns).toVector.map { columnIdx =>
-                  ra3.ts.SegmentWithName(
-                    segment = partition
-                      .columns(columnIdx)
-                      .segments, // to be removed
+                  val col = partition
+                    .columns(columnIdx)
+                  val segments = col.tag.segments(col.column)
+                  ra3.ts.TypedSegmentWithName(
+                    tag = col.tag,
+                    segment = segments, // to be removed
                     tableUniqueId = self.uniqueId,
                     columnName = self.colNames(columnIdx),
                     columnIdx = columnIdx
@@ -115,9 +121,11 @@ private[ra3] object GroupedTable {
               )
               .map(columnSegments =>
                 columnSegments.map { case segmentOfColumn =>
-                  val tag = segmentOfColumn._1.tag
-                  val col: Column =
-                    tag.makeColumn(Vector(segmentOfColumn._1.as(tag)))
+                  val col: TaggedColumn =
+                    segmentOfColumn._1.tag.makeTaggedColumn(
+                      segmentOfColumn._1.tag
+                        .makeColumn(Vector(segmentOfColumn._1.segment))
+                    )
                   val name = segmentOfColumn._2
                   (col, name)
                 }
@@ -129,7 +137,7 @@ private[ra3] object GroupedTable {
         }
       ).map { partitions =>
         Table(
-          partitions.map(_._1).reduce(_ concatenate _).columns,
+          partitions.map(_._1).reduce(_ `concatenate` _).columns,
           partitions.head._2.toVector,
           name,
           None
@@ -140,7 +148,7 @@ private[ra3] object GroupedTable {
   }
   def countGroups(
       self: GroupedTable,
-      program: ra3.lang.Expr { type T <: ra3.lang.ReturnValue }
+      program: ra3.lang.runtime.Expr
   )(implicit
       tsc: TaskSystemComponents
   ): IO[Table] = {
@@ -176,7 +184,7 @@ private[ra3] object GroupedTable {
             .makeColumnFromSeq(name, 0)(List(List(count)))
             .map { column =>
               Table(
-                columns = Vector(column),
+                columns = Vector(ra3.ColumnTag.I64.makeTaggedColumn(column)),
                 colNames = Vector("count"),
                 uniqueId = name,
                 partitions = None

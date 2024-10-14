@@ -1,17 +1,17 @@
 package ra3.ts
 
-import ra3._
-import tasks._
-import tasks.jsonitersupport._
-import com.github.plokhotnyuk.jsoniter_scala.macros._
-import com.github.plokhotnyuk.jsoniter_scala.core._
+import ra3.*
+import tasks.*
+import tasks.jsonitersupport.*
+import com.github.plokhotnyuk.jsoniter_scala.macros.*
+import com.github.plokhotnyuk.jsoniter_scala.core.*
 import cats.effect.IO
 import de.lhns.fs2.compress.GzipCompressor
 import java.nio.CharBuffer
 import java.nio.charset.StandardCharsets
 
 private[ra3] case class ExportCsv(
-    segments: Seq[Segment],
+    segments: Seq[TaggedSegment],
     columnSeparator: Char,
     quoteChar: Char,
     recordSeparator: String,
@@ -24,7 +24,7 @@ private[ra3] object ExportCsv {
   case object Gzip extends CompressionFormat
 
   def queue(
-      segments: Seq[Segment],
+      segments: Seq[TaggedSegment],
       columnSeparator: Char,
       quoteChar: Char,
       recordSeparator: String,
@@ -48,7 +48,8 @@ private[ra3] object ExportCsv {
     )(
       ResourceRequest(
         cpu = (1, 1),
-        memory = segments.map(ra3.Utils.guessMemoryUsageInMB).sum * 10,
+        memory =
+          segments.map(_.segment).map(ra3.Utils.guessMemoryUsageInMB).sum * 10,
         scratch = 0,
         gpu = 0
       )
@@ -56,7 +57,7 @@ private[ra3] object ExportCsv {
   }
 
   private def doit(
-      segments: Seq[Segment],
+      segments: Seq[TaggedSegment],
       columnSeparator: Char,
       quoteChar: Char,
       recordSeparator: String,
@@ -82,12 +83,13 @@ private[ra3] object ExportCsv {
     val columnSeparatorStr = columnSeparator.toString
 
     assert(segments.nonEmpty)
-    IO.parSequenceN(32)(segments.map(_.buffer)).map(_.toVector).flatMap {
-      buffers =>
+    IO.parSequenceN(32)(segments.map(v => v.tag.buffer(v.segment)))
+      .map(_.toVector)
+      .flatMap { buffers =>
         IO {
-          val numRows = segments.head.numElems
+          val numRows = segments.head.segment.numElems
           val numCols = buffers.length
-          assert(segments.forall(_.numElems == numRows))
+          assert(segments.forall(_.segment.numElems == numRows))
           val sb = new StringBuilder
           0 until numRows foreach { rowIdx =>
             0 until numCols foreach { colIdx =>
@@ -120,11 +122,12 @@ private[ra3] object ExportCsv {
             s"${outputName}/csv/$outputSegmentIndex.csv$suf"
           )
         }.flatten
-    }
+      }
 
   }
-
+  // $COVERAGE-OFF$
   implicit val codec: JsonValueCodec[ExportCsv] = JsonCodecMaker.make
+  // $COVERAGE-ON$
   val task = Task[ExportCsv, SharedFile]("ExportCsv", 1) { case input =>
     implicit ce =>
       doit(

@@ -1,5 +1,5 @@
 
-RA3 implements queries on tabular datasets.
+RA3 implements type safe queries on tabular datasets.
 
 - Partitioned joins and groupings.
 - Inner, left, right and full outer joins.
@@ -7,6 +7,11 @@ RA3 implements queries on tabular datasets.
 - Selection of top K elements 
 - Data import and export to and from csv.
 - RA3 supports only integer, long, double, string and instant (datetime) data types.
+
+RA3 supports Scala 3 only because it uses the following language features not present in Scala2:
+- Recursive encoding of tuples
+- match types and dependent typing
+- inline and transparent inline methods
 
 ## Documentation
 

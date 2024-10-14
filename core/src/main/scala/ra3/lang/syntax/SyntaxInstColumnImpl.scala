@@ -1,15 +1,16 @@
 package ra3.lang.syntax
-import ra3.lang._
+import ra3.lang.*
 import ra3.BufferInt
+import ra3.lang.util.*
 
 private[ra3] trait SyntaxInstColumnImpl {
   protected def arg0: InstColumnExpr
   import scala.language.implicitConversions
 
-  implicit private def conversionStrLit(a: String): Expr.LitStr = Expr.LitStr(a)
+  implicit private def conversionStrLit(a: String): Expr[String] = ra3.const(a)
 
-  implicit private def conversionIntLit(a: Int): Expr.LitNum = Expr.LitNum(a)
-  implicit private def conversionIntLit(a: Long): Expr.LitI64 = Expr.LitI64(a)
+  implicit private def conversionIntLit(a: Int): Expr[Int] = ra3.const(a)
+  implicit private def conversionIntLit(a: Long): Expr[Long] = ra3.const(a)
   def isMissing = Expr.makeOp1(ops.Op1.ColumnIsMissingOpInst)(arg0)
   def toDoubleEpochMillis = Expr.makeOp1(ops.Op1.ColumnToDoubleOpInst)(arg0)
   def toLongEpochMillis = Expr.makeOp1(ops.Op1.ColumnToLongOpInst)(arg0)
@@ -64,38 +65,51 @@ private[ra3] trait SyntaxInstColumnImpl {
 
   def count = Expr.makeOp3(ops.Op3.BufferCountInGroupsOpInst)(
     arg0,
-    ra3.lang.Expr.Ident(ra3.lang.GroupMap).as[BufferInt],
-    ra3.lang.Expr.Ident(ra3.lang.Numgroups).as[Int]
+    ra3.lang.Expr.Ident[BufferInt](ra3.lang.GroupMap),
+    ra3.lang.Expr.Ident[Int](ra3.lang.Numgroups)
   )
 
   def min = Expr.makeOp3(ops.Op3.BufferMinGroupsOpInst)(
     arg0,
-    ra3.lang.Expr.Ident(ra3.lang.GroupMap).as[BufferInt],
-    ra3.lang.Expr.Ident(ra3.lang.Numgroups).as[Int]
+    ra3.lang.Expr.Ident[BufferInt](ra3.lang.GroupMap),
+    ra3.lang.Expr.Ident[Int](ra3.lang.Numgroups)
   )
   def max = Expr.makeOp3(ops.Op3.BufferMaxGroupsOpInst)(
     arg0,
-    ra3.lang.Expr.Ident(ra3.lang.GroupMap).as[BufferInt],
-    ra3.lang.Expr.Ident(ra3.lang.Numgroups).as[Int]
+    ra3.lang.Expr.Ident[BufferInt](ra3.lang.GroupMap),
+    ra3.lang.Expr.Ident[Int](ra3.lang.Numgroups)
   )
 
   def first = Expr.makeOp3(ops.Op3.BufferFirstGroupsOpInst)(
     arg0,
-    ra3.lang.Expr.Ident(ra3.lang.GroupMap).as[BufferInt],
-    ra3.lang.Expr.Ident(ra3.lang.Numgroups).as[Int]
+    ra3.lang.Expr.Ident[BufferInt](ra3.lang.GroupMap),
+    ra3.lang.Expr.Ident[Int](ra3.lang.Numgroups)
   )
   def hasMissing = Expr.makeOp3(ops.Op3.BufferHasMissingInGroupsOpInst)(
     arg0,
-    ra3.lang.Expr.Ident(ra3.lang.GroupMap).as[BufferInt],
-    ra3.lang.Expr.Ident(ra3.lang.Numgroups).as[Int]
+    ra3.lang.Expr.Ident[BufferInt](ra3.lang.GroupMap),
+    ra3.lang.Expr.Ident[Int](ra3.lang.Numgroups)
   )
 
-  // def unnamed = ra3.lang.Expr
-  //   .BuiltInOp1(arg0, ops.Op1.MkUnnamedColumnSpecChunk)
-  //   .asInstanceOf[Expr { type T = ColumnSpec }]
+  def unnamed = ra3.lang.Expr
+    .BuiltInOp1(ops.Op1.MkUnnamedColumnSpecChunkInst)(arg0)
 
-  // def as(arg1: Expr { type T = String }) = ra3.lang.Expr
-  //   .BuiltInOp2(arg0, arg1, ops.Op2.MkNamedColumnSpecChunk)
-  //   .asInstanceOf[Expr { type T = ColumnSpec }]
-  // def as(arg1: String): Expr { type T = ColumnSpec } = as(Expr.LitStr(arg1))
+  infix def as(arg1: Expr[String]) = ra3.lang.Expr
+    .BuiltInOp2(ops.Op2.MkNamedColumnSpecChunkInst)(arg0, arg1)
+  infix def as(arg1: String): Expr[ColumnSpec[ra3.DInst]] = as(ra3.const(arg1))
+
+  @scala.annotation.targetName(":*ColumnSpec")
+  infix def :*[T1](v: Expr[ColumnSpec[T1]]) =
+    ra3.S.extend(arg0.unnamed).extend(v)
+  @scala.annotation.targetName(":*DF64")
+  infix def :*(v: Expr[ra3.DF64]) = ra3.S.extend(arg0.unnamed).extend(v.unnamed)
+  @scala.annotation.targetName(":*DStr")
+  infix def :*(v: Expr[ra3.DStr]) = ra3.S.extend(arg0.unnamed).extend(v.unnamed)
+  @scala.annotation.targetName(":*DI32")
+  infix def :*(v: Expr[ra3.DI32]) = ra3.S.extend(arg0.unnamed).extend(v.unnamed)
+  @scala.annotation.targetName(":*DI64")
+  infix def :*(v: Expr[ra3.DI64]) = ra3.S.extend(arg0.unnamed).extend(v.unnamed)
+  @scala.annotation.targetName(":*DInst")
+  infix def :*(v: Expr[ra3.DInst]) =
+    ra3.S.extend(arg0.unnamed).extend(v.unnamed)
 }

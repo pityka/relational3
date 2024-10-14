@@ -1,32 +1,36 @@
 package ra3.ts
 
-import ra3._
-import tasks._
-import tasks.jsonitersupport._
-import com.github.plokhotnyuk.jsoniter_scala.macros._
-import com.github.plokhotnyuk.jsoniter_scala.core._
+import ra3.*
+import tasks.*
+import tasks.jsonitersupport.*
+import com.github.plokhotnyuk.jsoniter_scala.macros.*
+import com.github.plokhotnyuk.jsoniter_scala.core.*
 import cats.effect.IO
 
 private[ra3] case class FilterInequality(
-    comparison: Segment,
-    cutoff: Segment,
-    input: Segment,
+    comparisonAndCutoff: TaggedSegments,
+    input: TaggedSegment,
     outputPath: LogicalPath,
     lessThan: Boolean
 )
 private[ra3] object FilterInequality {
-  def queue[S <: Segment { type SegmentType = S }](
-      comparison: S,
-      input: Segment,
-      cutoff: S,
+  def queue(tag: ColumnTag, comparisonTag: ColumnTag)(
+      comparison: comparisonTag.SegmentType,
+      input: tag.SegmentType,
+      cutoff: comparisonTag.SegmentType,
       outputPath: LogicalPath,
       lessThan: Boolean
   )(implicit
       tsc: TaskSystemComponents
-  ): IO[input.SegmentType] = {
+  ): IO[tag.SegmentType] = {
 
     task(
-      FilterInequality(comparison, cutoff, input, outputPath, lessThan)
+      FilterInequality(
+        comparisonTag.makeTaggedSegments(List(comparison, cutoff)),
+        tag.makeTaggedSegment(input),
+        outputPath,
+        lessThan
+      )
     )(
       ResourceRequest(
         cpu = (1, 1),
@@ -34,56 +38,61 @@ private[ra3] object FilterInequality {
         scratch = 0,
         gpu = 0
       )
-    ).map(_.as(input))
+    ).map(_.asInstanceOf[input.type])
   }
 
-  private def doit(
-      comparison: Segment,
-      cutoff: Segment,
-      input: Segment,
+  private def doit(cutoffTag: ColumnTag, inputTag: ColumnTag)(
+      comparison: cutoffTag.SegmentType,
+      cutoff: cutoffTag.SegmentType,
+      input: inputTag.SegmentType,
       outputPath: LogicalPath,
       lessThan: Boolean
   )(implicit tsc: TaskSystemComponents) = {
-    val cutoffAsSegment = cutoff.as(comparison)
-    val nonEmpty = cutoffAsSegment.buffer.map(_.toSeq.head).map { cutoffValue =>
-      comparison.nonMissingMinMax
-        .map { case (min, max) =>
-          if (lessThan) {
-            comparison.tag.ordering.gteq(cutoffValue, min)
+    val nonEmpty =
+      cutoffTag.buffer(cutoff).map(_.toSeq.head).map { cutoffValue =>
+        cutoffTag
+          .nonMissingMinMax(comparison)
+          .map { case (min, max) =>
+            if (lessThan) {
+              cutoffTag.ordering.gteq(cutoffValue, min)
 
-          } else {
-            comparison.tag.ordering.lteq(cutoffValue, max)
+            } else {
+              cutoffTag.ordering.lteq(cutoffValue, max)
+            }
           }
-        }
-        .getOrElse(true)
-    }
+          .getOrElse(true)
+      }
     nonEmpty.flatMap { nonEmpty =>
       if (nonEmpty)
         IO.both(
-          IO.both(cutoffAsSegment.buffer, comparison.buffer),
-          input.buffer
-        ).flatMap { case ((cutoff, comparisonBuffer), inputBuffer) =>
-          inputBuffer
-            .filterInEquality[
-              comparison.BufferType
-            ](comparisonBuffer, cutoff, lessThan)
-            .toSegment(outputPath)
+          IO.both(cutoffTag.buffer(cutoff), cutoffTag.buffer(comparison)),
+          inputTag.buffer(input)
+        ).flatMap { case ((cutoffBuffer, comparisonBuffer), inputBuffer) =>
+          inputTag.toSegment(
+            inputTag
+              .filterInEquality(inputBuffer, cutoffTag, lessThan)(
+                comparisonBuffer,
+                cutoffBuffer
+              ),
+            outputPath
+          )
         }
-      else IO.pure(input.tag.emptySegment)
+      else IO.pure(inputTag.emptySegment)
     }
   }
-
+  // $COVERAGE-OFF$
   implicit val codec: JsonValueCodec[FilterInequality] = JsonCodecMaker.make
   implicit val codecOut: JsonValueCodec[Segment] = JsonCodecMaker.make
+  // $COVERAGE-ON$
   val task = Task[FilterInequality, Segment]("FilterInequality", 1) {
     case input =>
       implicit ce =>
-        doit(
-          input.comparison,
-          input.cutoff,
-          input.input,
-          input.outputPath,
-          input.lessThan
+        doit(input.comparisonAndCutoff.tag, input.input.tag)(
+          comparison = input.comparisonAndCutoff.segments(0),
+          cutoff = input.comparisonAndCutoff.segments(1),
+          input = input.input.segment,
+          outputPath = input.outputPath,
+          lessThan = input.lessThan
         )
 
   }

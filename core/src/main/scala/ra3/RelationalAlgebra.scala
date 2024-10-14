@@ -3,197 +3,16 @@ package ra3
 import cats.effect.IO
 import tasks.{TaskSystemComponents}
 import ra3.ts.ExportCsv
-import tablelang._
-import lang._
 private[ra3] trait RelationalAlgebra { self: Table =>
 
-  /**   - For each aligned index segment, buffer it
-    *   - For each column
-    *   - For each segment in the column
-    *   - Buffer column segment
-    *   - Apply buffered predicate segment to buffered column segment
-    *   - Write applied buffer to segment and upload
-    *
-    * @param indexes
-    *   for each segment
-    * @return
-    */
-  def take(
-      indexes: Column.Int32Column
-  )(implicit tsc: TaskSystemComponents): IO[Table] = {
-    assert(self.columns.head.segments.size == indexes.segments.size)
-    ts.MakeUniqueId.queue(self, "take", List(indexes)).flatMap { name =>
-      IO.parTraverseN(math.min(32, self.columns.size))(
-        self.columns.zipWithIndex
-      ) { case (column, columnIdx) =>
-        IO.parTraverseN(math.min(32, indexes.segments.size))(
-          indexes.segments.zipWithIndex
-        ) { case (segment, segmentIdx) =>
-          ts.TakeIndex.queue(
-            input = column.segments(segmentIdx),
-            idx = segment,
-            outputPath = LogicalPath(name, None, segmentIdx, columnIdx)
-          )
-        }.map { segments => column.tag.makeColumn(segments) }
-
-      }.map(columns =>
-        Table(
-          columns,
-          self.colNames,
-          name,
-          self.partitions
-        )
-      )
-    }
-  }
-
-  /**   - Align predicate segment with table segmentation
-    *   - For each aligned predicate segment, buffer it
-    *   - For each column
-    *   - For each segment in the column
-    *   - Buffer column segment
-    *   - Apply buffered predicate segment to buffered column segment
-    *   - Write applied buffer to local segment
-    *   - Resegment
-    *
-    * Variant which takes BufferedTable => BufferInt
-    *
-    * @param predicate
-    * @return
-    */
-  def rfilter(
-      predicate: Column
-  )(implicit tsc: TaskSystemComponents): IO[Table] = {
-    assert(self.columns.head.segments.size == predicate.segments.size)
-    ts.MakeUniqueId.queue(self, "rfilter", List(predicate)).flatMap { name =>
-      IO.parTraverseN(math.min(32, self.columns.size))(
-        self.columns.zipWithIndex
-      ) { case (column, columnIdx) =>
-        IO.parTraverseN(math.min(32, predicate.segments.size))(
-          predicate.segments.zipWithIndex
-        ) { case (segment, segmentIdx) =>
-          ts.Filter.queue(
-            input = column.segments(segmentIdx),
-            predicate = segment,
-            outputPath = LogicalPath(name, None, segmentIdx, columnIdx)
-          )
-        }.map(segments => column.tag.makeColumn(segments))
-
-      }.map(columns =>
-        Table(
-          columns,
-          self.colNames,
-          name,
-          self.partitions
-        )
-      )
-    }
-  }
-  // def in0(
-  //     body: ra3.tablelang.TableExpr.Ident => ra3.tablelang.TableExpr
-  // ): ra3.tablelang.TableExpr =
-  //   ra3.lang.local(ra3.tablelang.TableExpr.Const(this))(body)
-
-  // def in[T0 <: Expr.DelayedIdent: NotNothing](
-  //     body: (T0) => TableExpr
-  // ): TableExpr = {
-  //   local(TableExpr.Const(self)) { t =>
-  //       body(t[T0](0))
-  //   }
-  // }
-  // def in[T0<: Expr.DelayedIdent: NotNothing, T1<: Expr.DelayedIdent: NotNothing](
-  //     body: (
-  //         T0,
-  //         T1
-  //     ) => TableExpr
-  // ): TableExpr = {
-  //   local(TableExpr.Const(self)) { t =>
-  //     t.apply[T0, T1](0, 1) { case (c0, c1) =>
-  //       body(c0, c1)
-  //     }
-  //   }
-  // }
-  // def in[T0<: Expr.DelayedIdent: NotNothing, T1<: Expr.DelayedIdent: NotNothing, T2<: Expr.DelayedIdent: NotNothing](
-  //     body: (
-  //         T0,
-  //         T1,
-  //         T2
-  //     ) => TableExpr
-  // ): TableExpr = {
-  //   local(TableExpr.Const(self)) { t =>
-  //     t.apply[T0, T1, T2](0, 1, 2) { case (c0, c1, c2) =>
-  //       body(c0, c1, c2)
-  //     }
-  //   }
-  // }
-  // def in[T0<: Expr.DelayedIdent: NotNothing, T1<: Expr.DelayedIdent: NotNothing, T2<: Expr.DelayedIdent: NotNothing, T3<: Expr.DelayedIdent: NotNothing](
-  //     body: (
-  //         T0,
-  //         T1,
-  //         T2,
-  //         T3
-  //     ) => TableExpr
-  // ): TableExpr = {
-  //   local(TableExpr.Const(self)) { t =>
-  //     t.apply[T0, T1, T2, T3](0, 1, 2, 3) { case (c0, c1, c2, c3) =>
-  //       body(c0, c1, c2, c3)
-  //     }
-  //   }
-  // }
-  // def in[
-  //     T0<: Expr.DelayedIdent: NotNothing,
-  //     T1<: Expr.DelayedIdent: NotNothing,
-  //     T2<: Expr.DelayedIdent: NotNothing,
-  //     T3<: Expr.DelayedIdent: NotNothing,
-  //     T4<: Expr.DelayedIdent: NotNothing
-  // ](
-  //     body: (
-  //         T0,
-  //         T1,
-  //         T2,
-  //         T3,
-  //         T4
-  //     ) => TableExpr
-  // ): TableExpr = {
-  //   local(TableExpr.Const(self)) { t =>
-  //     t.apply[T0, T1, T2, T3, T4](0, 1, 2, 3, 4) {
-  //       case (c0, c1, c2, c3, c4) =>
-  //         body(c0, c1, c2, c3, c4)
-  //     }
-  //   }
-  // }
-  // def in[
-  //     T0<: Expr.DelayedIdent: NotNothing,
-  //     T1<: Expr.DelayedIdent: NotNothing,
-  //     T2<: Expr.DelayedIdent: NotNothing,
-  //     T3<: Expr.DelayedIdent: NotNothing,
-  //     T4<: Expr.DelayedIdent: NotNothing,
-  //     T5<: Expr.DelayedIdent: NotNothing,
-  // ](
-  //     body: (
-  //         T0,
-  //         T1,
-  //         T2,
-  //         T3,
-  //         T4,
-  //         T5,
-  //     ) => TableExpr
-  // ): TableExpr = {
-  //   local(TableExpr.Const(self)) { t =>
-  //     t.apply[T0, T1, T2, T3, T4,T5](0, 1, 2, 3, 4, 5) {
-  //       case (c0, c1, c2, c3, c4, c5) =>
-  //         body(c0, c1, c2, c3, c4, c5)
-  //     }
-  //   }
-  // }
-
-  def rfilterInEquality(
+  private[ra3] def rfilterInEquality(
       columnIdx: Int,
       cutoff: Segment,
       lessThan: Boolean
   )(implicit tsc: TaskSystemComponents): IO[Table] = {
     val comparisonColumn = self.columns(columnIdx)
-    val castedCutoff = cutoff.as(comparisonColumn)
+
+    val castedCutoff = cutoff.asInstanceOf[comparisonColumn.tag.SegmentType]
 
     ts.MakeUniqueId
       .queue(
@@ -208,14 +27,21 @@ private[ra3] trait RelationalAlgebra { self: Table =>
           IO.parTraverseN(math.min(32, comparisonColumn.segments.size))(
             comparisonColumn.segments.zipWithIndex
           ) { case (comparisonSegment, segmentIdx) =>
+            val inputSegment = column.segments(segmentIdx)
             ts.FilterInequality.queue(
-              comparison = comparisonSegment,
-              input = column.segments(segmentIdx),
+              tag = column.tag,
+              comparisonTag = comparisonColumn.tag
+            )(
+              comparison = comparisonSegment: comparisonColumn.tag.SegmentType,
+              input = inputSegment,
               cutoff = castedCutoff,
               outputPath = LogicalPath(name, None, segmentIdx, columnIdx),
               lessThan = lessThan
             )
-          }.map(segments => column.tag.makeColumn(segments))
+          }.map(segments =>
+            column.tag
+              .makeTaggedColumn(column.tag.makeColumn(segments.toVector))
+          )
 
         }.map(sx =>
           Table(
@@ -228,7 +54,7 @@ private[ra3] trait RelationalAlgebra { self: Table =>
       }
   }
 
-  def prePartition(
+  private[ra3] def prePartition(
       columnIdx: Seq[Int],
       partitionBase: Int,
       partitionLimit: Int,
@@ -244,7 +70,7 @@ private[ra3] trait RelationalAlgebra { self: Table =>
       val pz = parts.zipWithIndex
       val partitionMapOverSegments =
         pz.flatMap(v => v._1.segmentation.map(_ => v._2))
-      val cat = parts.reduce(_ concatenate _)
+      val cat = parts.reduce(_ `concatenate` _)
 
       Table(
         cat.columns,
@@ -267,7 +93,7 @@ private[ra3] trait RelationalAlgebra { self: Table =>
 
   }
 
-  def partition(
+  private[ra3] def partition(
       columnIdx: Seq[Int],
       partitionBase: Int,
       numPartitionsIsImportant: Boolean,
@@ -286,7 +112,9 @@ private[ra3] trait RelationalAlgebra { self: Table =>
               .filter(_._1 == pIdx)
               .map(_._2)
           val columns = self.columns.map { col =>
-            col.tag.makeColumn(segmentIdx.map(col.segments))
+            col.tag.makeTaggedColumn(
+              col.tag.makeColumn(segmentIdx.map(col.segments))
+            )
           }
           PartitionedTable(columns, PartitionMeta(columnIdx, partitionBase))
         }
@@ -309,7 +137,9 @@ private[ra3] trait RelationalAlgebra { self: Table =>
             .filter(_._1 == pIdx)
             .map(_._2)
         val columns = self.columns.map { col =>
-          col.tag.makeColumn(segmentIdx.map(col.segments))
+          col.tag.makeTaggedColumn(
+            col.tag.makeColumn(segmentIdx.map(col.segments))
+          )
         }
         PartitionedTable(columns, pmetaPrefix)
       }
@@ -334,7 +164,7 @@ private[ra3] trait RelationalAlgebra { self: Table =>
     * Returns a triple for each input segment: group map, number of groups,
     * group sizes
     */
-  def groupBy(
+  private[ra3] def groupBy(
       cols: Seq[Int],
       partitionBase: Int,
       partitionLimit: Int,
@@ -397,7 +227,7 @@ private[ra3] trait RelationalAlgebra { self: Table =>
     *
     * Useful to reduce the segments without partitioning
     */
-  def groupBySegments(
+  private[ra3] def groupBySegments(
       cols: Seq[Int]
   )(implicit
       tsc: TaskSystemComponents
@@ -436,56 +266,18 @@ private[ra3] trait RelationalAlgebra { self: Table =>
 
   }
 
-  /** This is almost noop, select columns
-    *
-    * @param others
-    * @return
-    */
-  def selectColumns(
-      columnIndexes: Int*
-  )(implicit tsc: TaskSystemComponents): IO[Table] = {
-    val name = ts.MakeUniqueId.queue(
-      self,
-      s"select-columns-${columnIndexes.mkString("_")}",
-      Nil
-    )
-    name.map { name =>
-      val cols = columnIndexes map { cIdx =>
-        this.columns(cIdx)
-      } toVector
-
-      Table(
-        cols,
-        columnIndexes.map(colNames).toVector,
-        name,
-        None // could keep it, but the column index would shift away. Need stable column identifier
-      )
-    }
-  }
-
-  def filterColumnNames(nameSuffix: String)(p: String => Boolean) = {
-
-    val keep = columns.zip(colNames).filter(v => p(v._2))
-    Table(
-      keep.map(_._1),
-      keep.map(_._2),
-      uniqueId + nameSuffix,
-      None // see comment in previous method
-    )
-  }
-
   /** This is almost noop, concat the list of segments
     *
     * @param others
     * @return
     */
-  def concatenate(
+  private[ra3] def concatenate(
       others: Table*
   )(implicit tsc: TaskSystemComponents): IO[Table] = {
     val name = ts.MakeUniqueId.queue(
       self,
       s"concat",
-      this.columns ++ others.flatMap(_.columns)
+      (this.columns ++ others.flatMap(_.columns)).map(_.column)
     )
     name.map { name =>
       val all = Seq(self) ++ others
@@ -493,30 +285,11 @@ private[ra3] trait RelationalAlgebra { self: Table =>
       assert(all.map(_.columns.map(_.tag)).distinct.size == 1)
       val columns = all.head.columns.size
       val cols = 0 until columns map { cIdx =>
-        all.map(_.columns(cIdx)).reduce(_ castAndConcatenate _)
+        all.map(_.columns(cIdx)).reduce(_ `castAndConcatenate` _)
       } toVector
 
       Table(cols, all.head.colNames, name, None)
     }
-  }
-
-  /** Concat list of columns */
-  def addColOfSameSegmentation(c: Column, colName: String)(implicit
-      tsc: TaskSystemComponents
-  ): IO[Table] = {
-    assert(c.segments.map(_.numElems) == this.segmentation)
-    val name = ts.MakeUniqueId.queue(
-      self,
-      s"addcol-$colName",
-      List(c)
-    )
-    name.map(name =>
-      self.copy(
-        columns = self.columns.appended(c),
-        colNames = self.colNames.appended(colName),
-        uniqueId = name
-      )
-    )
   }
 
   /** \= Top K selection
@@ -528,16 +301,23 @@ private[ra3] trait RelationalAlgebra { self: Table =>
     *     below V . TakeIndex on all columns
     *   - Rearrange into table
     */
-  def topK(
+  private[ra3] def topK(
       sortColumn: Int,
       ascending: Boolean,
       k: Int,
       cdfCoverage: Double,
       cdfNumberOfSamplesPerSegment: Int
   )(implicit tsc: TaskSystemComponents): IO[Table] = {
-    val cdf = self
-      .columns(sortColumn)
-      .estimateCDF(cdfCoverage, cdfNumberOfSamplesPerSegment)
+    val cdf = {
+      val col = self
+        .columns(sortColumn)
+      Column
+        .estimateCDF(col.tag)(
+          col.column,
+          cdfCoverage,
+          cdfNumberOfSamplesPerSegment
+        )
+    }
 
     val name = ts.MakeUniqueId.queue(
       self,
@@ -550,8 +330,9 @@ private[ra3] trait RelationalAlgebra { self: Table =>
 
         cdf.topK(perc, ascending).flatMap {
           case Some(value) =>
-            value
+            cdf.tag
               .toSegment(
+                value,
                 LogicalPath(
                   table = name,
                   None,
@@ -584,7 +365,9 @@ private[ra3] trait RelationalAlgebra { self: Table =>
   )(implicit tsc: TaskSystemComponents) = {
     IO.parSequenceN(32)((0 until self.segmentation.size).toList map {
       segmentIdx =>
-        val cols = self.columns.map(_.segments(segmentIdx))
+        val cols = self.columns.map(tc =>
+          tc.tag.makeTaggedSegment(tc.tag.segments(tc.column)(segmentIdx))
+        )
         ts.ExportCsv.queue(
           segments = cols,
           columnSeparator = columnSeparator,
@@ -613,7 +396,7 @@ private[ra3] trait RelationalAlgebra { self: Table =>
     *
     * @param cols
     */
-  def sort(
+  private def sort(
       sortColumn: Int,
       ascending: Boolean
   ): IO[Table] = ???
@@ -635,7 +418,7 @@ private[ra3] trait RelationalAlgebra { self: Table =>
     * @param valueColumn
     * @return
     */
-  def pivot(
+  private def pivot(
       columnGroupRows: Int,
       columnGroupColumns: Int,
       valueColumn: Int

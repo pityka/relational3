@@ -1,5 +1,5 @@
 package ra3.bufferimpl
-import ra3._
+import ra3.*
 private[ra3] trait BufferIntImpl { self: BufferInt =>
   def elementwise_abs: BufferInt
   def elementwise_not: BufferInt
@@ -52,28 +52,28 @@ private[ra3] trait BufferIntImpl { self: BufferInt =>
   def sumGroups(partitionMap: BufferInt, numGroups: Int): BufferType
   def makeStatistic(): StatisticInt
 
-  def elementwise_choose(t:BufferInt,f:BufferInt) : BufferInt 
-  def elementwise_choose(t:Int,f:BufferInt) : BufferInt 
-  def elementwise_choose(t:BufferInt,f:Int) : BufferInt 
-  def elementwise_choose(t:Int,f:Int) : BufferInt 
+  def elementwise_choose(t: BufferInt, f: BufferInt): BufferInt
+  def elementwise_choose(t: Int, f: BufferInt): BufferInt
+  def elementwise_choose(t: BufferInt, f: Int): BufferInt
+  def elementwise_choose(t: Int, f: Int): BufferInt
 
-  def elementwise_choose(t:BufferDouble,f:BufferDouble) : BufferDouble
-  def elementwise_choose(t:Double,f:BufferDouble) : BufferDouble
-  def elementwise_choose(t:BufferDouble,f:Double) : BufferDouble
-  def elementwise_choose(t:Double,f:Double) : BufferDouble
-  
-  def elementwise_choose(t:BufferLong,f:BufferLong) : BufferLong
-  def elementwise_choose(t:Long,f:BufferLong) : BufferLong
-  def elementwise_choose(t:BufferLong,f:Long) : BufferLong
-  def elementwise_choose(t:Long,f:Long) : BufferLong
+  def elementwise_choose(t: BufferDouble, f: BufferDouble): BufferDouble
+  def elementwise_choose(t: Double, f: BufferDouble): BufferDouble
+  def elementwise_choose(t: BufferDouble, f: Double): BufferDouble
+  def elementwise_choose(t: Double, f: Double): BufferDouble
 
-  def elementwise_choose(t:BufferString,f:BufferString) : BufferString
-  def elementwise_choose(t:String,f:BufferString) : BufferString
-  def elementwise_choose(t:BufferString,f:String) : BufferString
-  def elementwise_choose(t:String,f:String) : BufferString
+  def elementwise_choose(t: BufferLong, f: BufferLong): BufferLong
+  def elementwise_choose(t: Long, f: BufferLong): BufferLong
+  def elementwise_choose(t: BufferLong, f: Long): BufferLong
+  def elementwise_choose(t: Long, f: Long): BufferLong
 
-  def elementwise_choose(t:BufferInstant,f:BufferInstant) : BufferInstant
-  def elementwise_choose(t:Long,f:BufferInstant) : BufferInstant
-  def elementwise_choose(t:BufferInstant,f:Long) : BufferInstant
-  def elementwise_choose_inst(t:Long,f:Long) : BufferInstant
+  def elementwise_choose(t: BufferString, f: BufferString): BufferString
+  def elementwise_choose(t: String, f: BufferString): BufferString
+  def elementwise_choose(t: BufferString, f: String): BufferString
+  def elementwise_choose(t: String, f: String): BufferString
+
+  def elementwise_choose(t: BufferInstant, f: BufferInstant): BufferInstant
+  def elementwise_choose(t: Long, f: BufferInstant): BufferInstant
+  def elementwise_choose(t: BufferInstant, f: Long): BufferInstant
+  def elementwise_choose_inst(t: Long, f: Long): BufferInstant
 }

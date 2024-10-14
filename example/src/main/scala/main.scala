@@ -1,12 +1,15 @@
-import tasks._
+import tasks.*
 import cats.effect.unsafe.implicits.global
 import cats.effect.IO
 import com.typesafe.config.ConfigFactory
 import scala.util.Random
 import mainargs.{main, arg, ParserForMethods, Flag}
-import ra3.{StrVar, I32Var, F64Var, select, where, TableExpr, let, Table}
+import ra3.{StrVar, I32Var, F64Var, select, TableExpr, Table}
+import ra3.lang.Expr.DelayedIdent
+import java.time.temporal.TemporalUnit
+import ra3.lang.ReturnValueTuple
 
-object Main extends App {
+object Main  {
 
   /** Generate bogus data Each row is a transaction of some value between two
     * customers Each row consists of:
@@ -15,6 +18,7 @@ object Main extends App {
     *   - an id with cardinality in the hundred thousands e.g. some category id
     *   - an id with cardinality in the thousands e.g. some category id
     *   - a float value, e.g. a price
+    *   - an instant
     *
     * The file is block gzipped
     */
@@ -26,8 +30,9 @@ object Main extends App {
       val hundredsOfThousands1 = Random.alphanumeric.take(3).mkString
       val thousands = Random.nextInt(5000)
       val float = Random.nextDouble()
+      val instant = java.time.Instant.now().plus(Random.nextLong(1000*60*60*24L),java.time.temporal.ChronoUnit.MILLIS) 
 
-      (s"$millions\t$millions2\t$hundredsOfThousands1\t$thousands\t$float\n")
+      (s"$millions\t$millions2\t$hundredsOfThousands1\t$thousands\t$float\t$instant\n")
     }
 
     Iterator
@@ -68,7 +73,7 @@ object Main extends App {
             .importCsv(
               file = fileHandle,
               name = fileHandle.name,
-              columns = List(
+              columns = (
                 ra3.CSVColumnDefinition.StrColumn(0),
                 ra3.CSVColumnDefinition.StrColumn(1),
                 ra3.CSVColumnDefinition.StrColumn(2),
@@ -80,204 +85,85 @@ object Main extends App {
               fieldSeparator = '\t',
               compression = Some(ra3.CompressionFormat.Gzip)
             )
-          renamed = table.mapColIndex {
-            case "V0" => "customer1"
-            case "V1" => "customer2"
-            case "V2" => "category_string"
-            case "V3" => "category_int"
-            case "V4" => "value"
-          }
+          
           _ <- IO {
-            println(renamed)
+            println(table.table)
           }
-          sample <- renamed.showSample(nrows = 10)
+          sample <- table.table.showSample(nrows = 10)
           _ <- IO {
             println(sample)
           }
-        } yield renamed
+        } yield table
 
-      case class TransactionsSchema(
-          customerOut: StrVar,
-          customerIn: StrVar,
-          categoryString: StrVar,
-          categoryInt: I32Var,
-          value: F64Var
-      )
-      object TransactionsSchema {
-        def apply(a: ra3.Table)(
-            f: TransactionsSchema => TableExpr
-        ): TableExpr = apply(a.lift)(f)
-
-        def apply(a: ra3.TableExpr)(
-            f: TransactionsSchema => TableExpr
-        ): TableExpr =
-          let[StrVar, StrVar, StrVar, I32Var, F64Var](a) {
-            case (c0, c1, c2, c3, c4) =>
-              f(TransactionsSchema(c0, c1, c2, c3, c4))
-          }
-      }
-
-      case class CustomerSummary(
-          customer: StrVar,
-          avg: F64Var,
-          min: F64Var,
-          max: F64Var
-      )
-      object CustomerSummary {
-
-        def apply(
-            customer: StrVar,
-            price: F64Var
-        )(use: CustomerSummary => TableExpr): TableExpr = {
-          val summary = customer.groupBy
-            .reduce(
-              select(
-                customer.first,
-                price.sum,
-                price.count,
-                price.min,
-                price.max
+      def avgInAndOutWithoutAbstractions(transactions: TableExpr[ReturnValueTuple[(StrVar, StrVar, StrVar, I32Var, F64Var)]]) = {
+        val query = transactions
+          .schema{ (customerIn, customerOut, _, _, value) => _ =>
+            customerIn
+              .groupBy
+              .reducePartial(
+                customerIn.first.unnamed :*
+                  value.sum.unnamed :*
+                  value.count.unnamed :*
+                  value.min.unnamed :*
+                  value.max.unnamed
               )
-            )
-            .partial
-            .in[ra3.StrVar, ra3.F64Var, ra3.F64Var, ra3.F64Var, ra3.F64Var] {
-              case (customer, sum, count, min, max) =>
+              
+              .in(_.tap("partial group by"))
+              .schema{ case (customer, sum, count, min, max) => _ =>
                 customer
-                  .groupBy(
-                    select(
-                      customer.first as "customer",
-                      (sum.sum / count.sum) as "avg",
-                      min.min as "min",
-                      max.max as "max"
-                    )
+                  .groupBy
+                  .reduceTotal(
+                    (customer.first `as` "customer") :*
+                      ((sum.sum / count.sum) `as` "avg") :*
+                      (min.min `as` "min") :*
+                      (max.max `as` "max")
                   )
-                  .all
-            }
-
-          summary.in0(summary =>
-            use(
-              CustomerSummary(
-                summary[StrVar](0),
-                summary[F64Var](1),
-                summary[F64Var](2),
-                summary[F64Var]("max")
-              )
-            )
-          )
-
-        }
-
-      }
-
-      def avgInAndOut(transactions: Table) = {
-        val query = TransactionsSchema(transactions) { transactions =>
-          TransactionsSchema(
-            transactions.categoryInt.table
-              .query((transactions.categoryInt < 3000).in(pred => where(pred)))
-          ) { transactions =>
-            CustomerSummary(
-              transactions.customerIn,
-              transactions.value
-            ) { summaryByCustomerIn =>
-              CustomerSummary(
-                transactions.customerOut,
-                transactions.value
-              ) { summaryByCustomerOut =>
-                val c1 = summaryByCustomerIn.customer
-                val c2 = summaryByCustomerOut.customer
-                c1.join
-                  .outer(c2)
-                  .elementwise(
-                    select(
-                      c1 as "cIn",
-                      c2 as "cOut",
-                      c1.isMissing.ifelseStr(c2, c1) as "customer",
-                      summaryByCustomerIn.avg as "inAvg",
-                      summaryByCustomerOut.avg as "outAvg"
-                    )
+              }
+              .schema{ (customerIn, avgInValue, _, _) => _ =>
+                customerOut
+                  .groupBy
+                  .reducePartial(
+                    
+                      customerOut.first.unnamed :*
+                      value.sum.unnamed :*
+                      value.count.unnamed :*
+                      value.min.unnamed :*
+                      value.max.unnamed
                   )
+                  .schema { case (customer, sum, count, min, max) => _ =>
+                    customer
+                      .groupBy
+                      .reduceTotal(
+                        (
+                          
+                            (customer.first `as` "customer") :*
+                            ((sum.sum / count.sum) `as` "avg") :*
+                            (min.min `as` "min") :*
+                            (max.max `as` "max")
+                        )
+                      )
+                      
+                  }
+                  .schema{ (customerOut, avgOutValue, _, _) => _ =>
+                    customerIn
+                      .outer(customerOut)
+                      .select(
+                        ra3.select0
+                          .extend(customerIn as "cIn")
+                          .extend(customerOut as "cOut")
+                          .extend(
+                            customerIn.isMissing
+                              .ifelse(
+                                customerOut,
+                                customerIn
+                              ) as "customer"
+                          )
+                          .extend(avgInValue as "inAvg")
+                          .extend(avgOutValue as "outAvg")
+                      )
+                  }
 
               }
-            }
-          }
-        }
-        IO { println(ra3.render(query)) }.flatMap(_ => query.evaluate)
-      }
-      def avgInAndOutWithoutAbstractions(transactions: Table) = {
-        val query = transactions
-          .in[StrVar, StrVar, StrVar, StrVar, F64Var] {
-            (customerIn, customerOut, _, _, value) =>
-              customerIn.groupBy
-                .reduce(
-                  select(
-                    customerIn.first,
-                    value.sum,
-                    value.count,
-                    value.min,
-                    value.max
-                  )
-                )
-                .partial
-                .in0(_.tap("partial group by"))
-                .in[StrVar, F64Var, F64Var, F64Var, F64Var] {
-                  case (customer, sum, count, min, max) =>
-                    customer
-                      .groupBy(
-                        select(
-                          customer.first as "customer",
-                          (sum.sum / count.sum) as "avg",
-                          min.min as "min",
-                          max.max as "max"
-                        )
-                      )
-                      .all
-                }
-                .in[StrVar, F64Var, F64Var, F64Var] {
-                  (customerIn, avgInValue, _, _) =>
-                    customerOut.groupBy
-                      .reduce(
-                        select(
-                          customerOut.first,
-                          value.sum,
-                          value.count,
-                          value.min,
-                          value.max
-                        )
-                      )
-                      .partial
-                      .in[StrVar, F64Var, F64Var, F64Var, F64Var] {
-                        case (customer, sum, count, min, max) =>
-                          customer
-                            .groupBy(
-                              select(
-                                customer.first as "customer",
-                                (sum.sum / count.sum) as "avg",
-                                min.min as "min",
-                                max.max as "max"
-                              )
-                            )
-                            .all
-                      }
-                      .in[StrVar, F64Var, F64Var, F64Var] {
-                        (customerOut, avgOutValue, _, _) =>
-                          customerIn.join
-                            .outer(customerOut)
-                            .elementwise(
-                              select(
-                                customerIn as "cIn",
-                                customerOut as "cOut",
-                                customerIn.isMissing
-                                  .ifelseStr(
-                                    customerOut,
-                                    customerIn
-                                  ) as "customer",
-                                avgInValue as "inAvg",
-                                avgOutValue as "outAvg"
-                              )
-                            )
-                      }
-
-                }
 
           }
 
@@ -292,8 +178,7 @@ object Main extends App {
             )
           )
           table <- parseTransactions(fileHandle)
-          avgTable <- avgInAndOut(table)
-          avgTable2 <- avgInAndOutWithoutAbstractions(table)
+          avgTable <- avgInAndOutWithoutAbstractions(table)
           exportedFiles <- avgTable.exportToCsv()
           _ <- avgTable.showSample().flatMap(sample => IO { println(sample) })
         } yield (table, avgTable, exportedFiles))
@@ -321,6 +206,8 @@ object Main extends App {
     }
   }
 
+
+
   scribe
     .Logger("tasks.queue") // Look-up or create the named logger
     .orphan() // This keeps the logger from propagating any records up the hierarchy
@@ -336,6 +223,6 @@ object Main extends App {
     .withHandler(minimumLevel = Some(scribe.Level.Info))
     .replace()
 
-  ParserForMethods(this).runOrExit(args.toIndexedSeq)
+   def main(args: Array[String]): Unit = ParserForMethods(this).runOrExit(args.toIndexedSeq)
 
 }

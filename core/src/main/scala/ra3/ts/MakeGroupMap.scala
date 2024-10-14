@@ -1,44 +1,47 @@
 package ra3.ts
 
-import ra3._
-import tasks._
-import tasks.jsonitersupport._
-import com.github.plokhotnyuk.jsoniter_scala.macros._
-import com.github.plokhotnyuk.jsoniter_scala.core._
+import ra3.*
+import tasks.*
+import tasks.jsonitersupport.*
+import com.github.plokhotnyuk.jsoniter_scala.macros.*
+import com.github.plokhotnyuk.jsoniter_scala.core.*
 import cats.effect.IO
 
 private[ra3] case class MakeGroupMap(
-    input: Seq[Column],
+    input: Seq[TaggedColumn],
     outputPath: LogicalPath
 )
 private[ra3] object MakeGroupMap {
 
-  private def singleColumn(
-      column: Column
-  )(implicit tsc: TaskSystemComponents) = {
-    val z = column.segments.map(_.buffer)
+  private def singleColumn(tag: ColumnTag)(
+      column: tag.ColumnType
+  )(implicit tsc: TaskSystemComponents): IO[tag.TaggedBuffersType] = {
+    val z = tag.segments(column).map(s => tag.buffer(s))
     val t = IO.parSequenceN(32)(z)
-    t
+    t.map(tag.makeTaggedBuffers)
   }
 
-  private def doit(input: Seq[Column], outputPath: LogicalPath)(implicit
+  private def doit(input: Seq[TaggedColumn], outputPath: LogicalPath)(implicit
       tsc: TaskSystemComponents
   ) = {
     scribe.debug(s"Make group map on $input to $outputPath")
     assert(input.map(_.tag).distinct.size == 1)
-    val tag = input.head.tag
-    val bufferedColumns = IO.parSequenceN(32)(input.map { column =>
-      singleColumn(column).map(_.map(_.as(tag)))
-    })
+    val bufferedColumns: IO[Seq[TaggedBuffers]] =
+      IO.parSequenceN(32)(input.map { column =>
+        singleColumn(column.tag)(column.column)
+      })
 
-    bufferedColumns.flatMap { in =>
+    bufferedColumns.flatMap { case taggedBuffers =>
       import Buffer.GroupMap
       val GroupMap(groupMap, numGroups, groupSizes) = Buffer
-        .computeGroups(in)
+        .computeGroups(taggedBuffers)
+
+      val intTag = ColumnTag.I32
 
       IO.both(
-        groupMap.toSegment(outputPath),
-        groupSizes.toSegment(
+        intTag.toSegment(groupMap, outputPath),
+        intTag.toSegment(
+          groupSizes,
           outputPath
             .copy(table = outputPath.table + ".groupsizes")
         )
@@ -56,7 +59,7 @@ private[ra3] object MakeGroupMap {
   /** Returns (group map, num groups, sizes of groups)
     */
   def queue(
-      input: Seq[Column],
+      input: Seq[TaggedColumn],
       outputPath: LogicalPath
   )(implicit
       tsc: TaskSystemComponents
@@ -71,10 +74,11 @@ private[ra3] object MakeGroupMap {
     ).map { case (map, numberOfGroups, sizes) =>
       (map, numberOfGroups, sizes)
     }
-
+    // $COVERAGE-OFF$
   implicit val codec: JsonValueCodec[MakeGroupMap] = JsonCodecMaker.make
   implicit val codec2: JsonValueCodec[(SegmentInt, Int, SegmentInt)] =
-    JsonCodecMaker.make
+      JsonCodecMaker.make
+      // $COVERAGE-ON$
 
   val task =
     Task[MakeGroupMap, (SegmentInt, Int, SegmentInt)]("MakeGroupMap", 1) {

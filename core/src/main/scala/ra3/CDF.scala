@@ -1,14 +1,26 @@
 package ra3
 import cats.effect.IO
 import tasks.{TaskSystemComponents}
-private[ra3] case class CDF(locations: Segment, values: SegmentDouble) {
+private[ra3] case class UntypedCDF(
+    locationsSegment: Segment,
+    values: SegmentDouble
+) {
+  def toTyped(tag: ColumnTag) =
+    new TypedCDF(tag, locationsSegment.asInstanceOf[tag.SegmentType], values)
+}
+private[ra3] class TypedCDF(
+    val tag: ColumnTag,
+    val locationsSegment: tag.SegmentType,
+    val values: SegmentDouble
+) {
   /*  Returns a single element which is above or below the required percentile */
   def topK(queryPercentile: Double, ascending: Boolean)(implicit
       tsc: TaskSystemComponents
-  ): IO[Option[locations.BufferType]] = {
-    val locs = locations.buffer
+  ): IO[Option[tag.BufferType]] = {
+    // locations.buffer.map(Some(_))
+    val locs: IO[tag.BufferType] = tag.buffer(locationsSegment)
     val vals: IO[BufferDouble] = values.buffer
-    IO.both(locs, vals).map { case (locs, vals) =>
+    IO.both(locs, vals).map { case (locsBuffer, vals) =>
       val indexInLocs =
         if (ascending)
           vals.toSeq.zipWithIndex.find(_._1 >= queryPercentile).map(_._2)
@@ -17,7 +29,7 @@ private[ra3] case class CDF(locations: Segment, values: SegmentDouble) {
           val s = vals.toSeq
           s.zipWithIndex.reverse.find(_._1 <= (1d - queryPercentile)).map(_._2)
         }
-      indexInLocs.map(idx => locs.take(BufferInt(Array(idx))))
+      indexInLocs.map(idx => tag.take(locsBuffer, BufferInt(Array(idx))))
     }
 
   }

@@ -1,6 +1,6 @@
 package ra3.lang
 
-private[ra3] sealed trait Value[T] {
+private[ra3] sealed trait Value[+T] {
   def v: T
 }
 private[ra3] object Value {

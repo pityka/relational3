@@ -1,10 +1,10 @@
 package ra3.ts
 
-import ra3._
-import tasks._
-import tasks.jsonitersupport._
-import com.github.plokhotnyuk.jsoniter_scala.macros._
-import com.github.plokhotnyuk.jsoniter_scala.core._
+import ra3.*
+import tasks.*
+import tasks.jsonitersupport.*
+import com.github.plokhotnyuk.jsoniter_scala.macros.*
+import com.github.plokhotnyuk.jsoniter_scala.core.*
 import cats.effect.IO
 
 private[ra3] case class MakeUniqueId(
@@ -77,11 +77,15 @@ private[ra3] object MakeUniqueId {
     )(
       ResourceRequest(cpu = (1, 1), memory = 1, scratch = 0, gpu = 0)
     )
-  implicit val codec: JsonValueCodec[MakeUniqueId] = JsonCodecMaker.make
-  val task = Task[MakeUniqueId, String]("MakeUniqueId", 1) { case input =>
-    _ =>
-      scribe.debug(s"Make unique id for $input")
-      IO.delay(java.util.UUID.randomUUID().toString)
 
-  }
+    // $COVERAGE-OFF$
+  implicit val codec: JsonValueCodec[MakeUniqueId] = JsonCodecMaker.make
+    // $COVERAGE-ON$
+
+  val task = Task[MakeUniqueId, String]("MakeUniqueId", 1) { case input =>
+      _ =>
+        scribe.debug(s"Make unique id for $input")
+        IO.delay(java.util.UUID.randomUUID().toString)
+
+    }
 }

@@ -5,15 +5,15 @@ import cats.effect.unsafe.implicits.global
 class DoubleBufferSuite extends munit.FunSuite with WithTempTaskSystem {
   test("makeStatistic") {
     val s = Seq(0d, 1d, 2d, 3d, Double.NaN, -1d)
-    val st = BufferDouble(s: _*).makeStatistic()
+    val st = BufferDouble(s*).makeStatistic()
     assertEquals(st.hasMissing, true)
     assertEquals(st.nonMissingMinMax, Some(-1d -> 3d))
     assertEquals(st.lowCardinalityNonMissingSet, Some(Set(0d, 1d, 2d, 3d, -1d)))
 
   }
   test("makeStatistic long") {
-    val s = Seq(0 until 256: _*).map(_.toDouble)
-    val st = BufferDouble(s: _*).makeStatistic()
+    val s = Seq(0 until 256*).map(_.toDouble)
+    val st = BufferDouble(s*).makeStatistic()
     assertEquals(st.hasMissing, false)
     assertEquals(st.nonMissingMinMax, Some(0d -> 255d))
     assertEquals(st.lowCardinalityNonMissingSet, None)
@@ -25,7 +25,7 @@ class DoubleBufferSuite extends munit.FunSuite with WithTempTaskSystem {
   test("toSegment") {
     withTempTaskSystem { implicit tsc =>
       val s = Seq(0d, 1d, 2d, 3d, Double.NaN, -1d)
-      val segment = BufferDouble(s: _*)
+      val segment = BufferDouble(s*)
         .toSegment(LogicalPath("toSegmentTest", None, 0, 0))
         .unsafeRunSync()
       assertEqualDoubleSeq(segment.buffer.unsafeRunSync().toSeq, s)
@@ -74,7 +74,8 @@ class DoubleBufferSuite extends munit.FunSuite with WithTempTaskSystem {
     assertEquals(b1.positiveLocations.toSeq, Seq(1, 2, 4, 5, 6, 7))
   }
   test("outer join") {
-    val (a, b) = BufferDouble(0d, Double.NaN, 1d, -99d).computeJoinIndexes(
+    val (a, b) = ColumnTag.F64.computeJoinIndexes(
+      BufferDouble(0d, Double.NaN, 1d, -99d),
       BufferDouble(0d, 0d, Double.NaN, Double.NaN, 1d, 1d, 99d),
       "outer"
     )

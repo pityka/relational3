@@ -1,9 +1,11 @@
 package ra3.bufferimpl
-import ra3._
+import ra3.*
 import cats.effect.IO
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import tasks.{TaskSystemComponents, SharedFile}
+import ra3.join.*
+import ra3.join.locator.*
 private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
 
   def nonMissingMinMax = makeStatistic().nonMissingMinMax
@@ -47,7 +49,7 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
   def partition(numPartitions: Int, map: BufferInt): Vector[BufferType] = {
     assert(length == map.length)
     val growableBuffers =
-      Vector.fill(numPartitions)(org.saddle.Buffer.empty[Int])
+      Vector.fill(numPartitions)(MutableBuffer.emptyI)
     var i = 0
     val n = length
     val mapv = map.values
@@ -66,9 +68,8 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
   }
 
   def positiveLocations: BufferInt = {
-    import org.saddle._
     BufferInt(
-      values.toVec.find(_ > 0).toArray
+      ArrayUtil.findI(values,_ > 0)
     )
   }
 
@@ -110,18 +111,17 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
   /** Find locations at which _ <= other[0] or _ >= other[0] holds returns
     * indexes
     */
-  override def findInequalityVsHead(
+  def findInequalityVsHead(
       other: BufferType,
       lessThan: Boolean
   ): BufferInt = {
-    import org.saddle._
     val c = other.raw(0)
     if (c == Int.MinValue) BufferInt.empty
     else {
       val idx =
         if (lessThan)
-          values.toVec.find(_ <= c)
-        else values.toVec.find(_ >= c)
+          ArrayUtil.findI(values,_ <= c)
+        else ArrayUtil.findI(values,_ >= c)
 
       BufferInt(idx.toArray)
     }
@@ -129,38 +129,23 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
 
   def toSeq = values.toSeq
 
-  def cdf(numPoints: Int): (BufferInt, BufferDouble) = {
-    val percentiles =
-      ((0 until (numPoints - 1)).map(i => i * (1d / (numPoints - 1))) ++ List(
-        1d
-      )).distinct
-      import org.saddle._
-    val sorted = org.saddle.array.sort[Int](values.toVec.dropNA.toArray)
-    val cdf = percentiles.map { p =>
-      val idx = (p * (sorted.length - 1)).toInt
-      (sorted(idx), p)
-    }
-
-    val x = BufferInt(cdf.map(_._1).toArray)
-    val y = BufferDouble(cdf.map(_._2).toArray)
-    (x, y)
-  }
+  def element(i:Int)  = values(i)
 
   def length = values.length
 
-  import org.saddle.{Buffer => _, _}
 
-  def groups = {
-    val idx = Index(values)
-    val uniques = idx.uniques
+   def groups = {
+    val idx = LocatorInt.fromKeys(values)
+    val uniques = idx.uniqueKeys
+    val uniquesLoc = LocatorInt.fromKeys(uniques)
     val counts = idx.counts
     val map = Array.ofDim[Int](values.length)
     var i = 0
     while (i < values.length) {
-      map(i) = uniques.getFirst(values(i))
+      map(i) = uniquesLoc.get(values(i))
       i += 1
     }
-    Buffer.GroupMap(
+    ra3.Buffer.GroupMap(
       map = BufferInt(map),
       numGroups = uniques.length,
       groupSizes = BufferInt(counts)
@@ -184,20 +169,20 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
 
   }
 
-  def computeJoinIndexes(
+def computeJoinIndexes(
       other: BufferType,
       how: String
   ): (Option[BufferInt], Option[BufferInt]) = {
-    val idx1 = Index(values)
-    val idx2 = Index(other.values)
-    val reindexer = new (ra3.join.JoinerImpl[Int]).join(
+    val idx1 = LocatorInt.fromKeys(values)
+    val idx2 = LocatorInt.fromKeys(other.values)
+    val reindexer =  (ra3.join.JoinerImplInt).join(
       left = idx1,
       right = idx2,
       how = how match {
-        case "inner" => org.saddle.index.InnerJoin
-        case "left"  => org.saddle.index.LeftJoin
-        case "right" => org.saddle.index.RightJoin
-        case "outer" => org.saddle.index.OuterJoin
+        case "inner" => InnerJoin
+        case "left"  => LeftJoin
+        case "right" => RightJoin
+        case "outer" => OuterJoin
       }
     )
     (reindexer.lTake.map(BufferInt(_)), reindexer.rTake.map(BufferInt(_)))
@@ -205,16 +190,16 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
 
   /** Returns an array of indices */
   def where(i: Int): BufferInt = {
-    BufferInt(values.toVec.find(_ == i).toArray)
+    BufferInt(ArrayUtil.findI(values,_ == i))
   }
 
-  override def take(locs: Location): BufferInt = locs match {
+  def take(locs: Location): BufferInt = locs match {
     case Slice(start, until) =>
       val r = Array.ofDim[Int](until - start)
       System.arraycopy(values, start, r, 0, until - start)
       BufferInt(r)
     case idx: BufferInt =>
-      BufferInt(values.toVec.take(idx.values).toArray)
+      BufferInt(ArrayUtil.takeI(values,idx.values).toArray)
   }
 
   override def isMissing(l: Int): Boolean = {
@@ -224,7 +209,7 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
     scala.util.hashing.byteswap32(values(l)).toLong
   }
 
-  override def toSegment(
+  def toSegment(
       name: LogicalPath
   )(implicit tsc: TaskSystemComponents): IO[SegmentInt] = {
     if (values.length == 0) IO.pure(SegmentInt(None, 0, StatisticInt.empty))

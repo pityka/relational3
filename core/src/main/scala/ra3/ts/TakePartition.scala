@@ -1,20 +1,20 @@
 package ra3.ts
 
-import ra3._
-import tasks._
-import tasks.jsonitersupport._
-import com.github.plokhotnyuk.jsoniter_scala.macros._
-import com.github.plokhotnyuk.jsoniter_scala.core._
+import ra3.*
+import tasks.*
+import tasks.jsonitersupport.*
+import com.github.plokhotnyuk.jsoniter_scala.macros.*
+import com.github.plokhotnyuk.jsoniter_scala.core.*
 import cats.effect.IO
 
 private[ra3] case class TakePartition(
-    inputSegmentsWithPartitionMaps: Seq[(Segment, SegmentInt)],
+    inputSegmentsWithPartitionMaps: Seq[(TaggedSegment, SegmentInt)],
     numPartition: Int,
     outputPath: LogicalPath
 )
 private[ra3] object TakePartition {
-  def doit(
-      inputSegmentsWithPartitionMaps: Seq[(Segment, SegmentInt)],
+  private def doit(
+      inputSegmentsWithPartitionMaps: Seq[(TaggedSegment, SegmentInt)],
       numPartition: Int,
       outputPath: LogicalPath
   )(implicit tsc: TaskSystemComponents): IO[Vector[Segment]] = {
@@ -24,19 +24,27 @@ private[ra3] object TakePartition {
     assert(outputPath.partition.isDefined)
     assert(outputPath.partition.get.numPartitions == numPartition)
     assert(inputSegmentsWithPartitionMaps.nonEmpty)
-    val allPartitionsBuffered: IO[Vector[Vector[Buffer]]] =
+    val allPartitionsBuffered: IO[Vector[Vector[TaggedBuffer]]] =
       inputSegmentsWithPartitionMaps.foldLeft(
-        IO.pure(0 until numPartition map (_ => Vector.empty[Buffer]) toVector)
+        IO.pure(
+          0 until numPartition map (_ => Vector.empty[TaggedBuffer]) toVector
+        )
       ) { case (alreadyDone, (nextSegment, nextPartitionMap)) =>
         alreadyDone.flatMap { alreadyDone =>
-          IO.both(nextSegment.buffer, nextPartitionMap.buffer).map {
-            case (bufferedSegment, bufferedPartitionMap) =>
-              val partitionsOfNextSegment =
-                bufferedSegment.partition(numPartition, bufferedPartitionMap)
-              assert(alreadyDone.size == partitionsOfNextSegment.size)
-              (alreadyDone zip partitionsOfNextSegment).map { case (vec, buf) =>
-                vec.appended(buf)
-              }
+          IO.both(
+            nextSegment.tag.buffer(nextSegment.segment),
+            nextPartitionMap.buffer
+          ).map { case (bufferedSegment, bufferedPartitionMap) =>
+            val partitionsOfNextSegment =
+              nextSegment.tag.partition(
+                bufferedSegment,
+                numPartition,
+                bufferedPartitionMap
+              )
+            assert(alreadyDone.size == partitionsOfNextSegment.size)
+            (alreadyDone zip partitionsOfNextSegment).map { case (vec, buf) =>
+              vec.appended(nextSegment.tag.makeTaggedBuffer(buf))
+            }
 
           }
         }
@@ -48,14 +56,14 @@ private[ra3] object TakePartition {
           case (buffers, pIdx) =>
             val tag = buffers.head.tag
             assert(buffers.forall(_.tag == tag))
-            tag
-              .cat(buffers.map(_.as(tag)): _*)
-              .toSegment(
-                outputPath.copy(
-                  partition =
-                    Some(outputPath.partition.get.copy(partitionId = pIdx))
-                )
+            tag.toSegment(
+              tag
+                .cat(buffers.map(_.buffer.asInstanceOf[tag.BufferType])*),
+              outputPath.copy(
+                partition =
+                  Some(outputPath.partition.get.copy(partitionId = pIdx))
               )
+            )
 
         })
       }
@@ -66,7 +74,7 @@ private[ra3] object TakePartition {
 
   }
   def queue(
-      inputSegmentsWithPartitionMaps: Seq[(Segment, SegmentInt)],
+      inputSegmentsWithPartitionMaps: Seq[(TaggedSegment, SegmentInt)],
       numPartition: Int,
       outputPath: LogicalPath
   )(implicit
@@ -82,14 +90,16 @@ private[ra3] object TakePartition {
       ResourceRequest(
         cpu = (1, 1),
         memory = inputSegmentsWithPartitionMaps
-          .map(v => ra3.Utils.guessMemoryUsageInMB(v._1) * 2)
+          .map(v => ra3.Utils.guessMemoryUsageInMB(v._1.segment) * 2)
           .sum,
         scratch = 0,
         gpu = 0
       )
     )
+    // $COVERAGE-OFF$
   implicit val codec: JsonValueCodec[TakePartition] = JsonCodecMaker.make
   implicit val codecOut: JsonValueCodec[Seq[Segment]] = JsonCodecMaker.make
+    // $COVERAGE-ON$
   val task = Task[TakePartition, Seq[Segment]]("takepartition", 1) {
     case input =>
       implicit ce =>

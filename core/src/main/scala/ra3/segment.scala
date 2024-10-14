@@ -1,43 +1,77 @@
 package ra3
-import tasks._
+import tasks.*
 import cats.effect.IO
 import java.nio.ByteOrder
+import com.github.plokhotnyuk.jsoniter_scala.macros.*
+import com.github.plokhotnyuk.jsoniter_scala.core.*
+private[ra3] sealed trait TaggedSegment { self =>
+  type SegmentType <: Segment
+  val tag: ColumnTag {
+    type SegmentType = self.SegmentType
+  }
+  def segment: tag.SegmentType
+
+}
+private[ra3] object TaggedSegment {
+  // $COVERAGE-OFF$
+  implicit val codec: JsonValueCodec[TaggedSegment] = JsonCodecMaker.make
+  // $COVERAGE-ON$
+
+}
+private[ra3] sealed trait TaggedSegments { self =>
+  type SegmentType <: Segment
+  val tag: ColumnTag {
+    type SegmentType = self.SegmentType
+  }
+  def segments: Seq[tag.SegmentType]
+
+}
+private[ra3] object TaggedSegments {
+  // $COVERAGE-ON$
+  implicit val codec: JsonValueCodec[TaggedSegments] = JsonCodecMaker.make
+  // $COVERAGE-OFF$
+
+}
+
+private[ra3] case class TaggedSegmentsI32(segments: Seq[SegmentInt])
+    extends TaggedSegments {
+  val tag = ColumnTag.I32
+  type SegmentType = SegmentInt
+  type Elem = Int
+}
+private[ra3] case class TaggedSegmentsI64(segments: Seq[SegmentLong])
+    extends TaggedSegments {
+  val tag = ColumnTag.I64
+  type SegmentType = SegmentLong
+  type Elem = Long
+}
+private[ra3] case class TaggedSegmentsF64(segments: Seq[SegmentDouble])
+    extends TaggedSegments {
+  val tag = ColumnTag.F64
+  type SegmentType = SegmentDouble
+  type Elem = Double
+}
+private[ra3] case class TaggedSegmentsString(segments: Seq[SegmentString])
+    extends TaggedSegments {
+  val tag = ColumnTag.StringTag
+  type SegmentType = SegmentString
+  type Elem = CharSequence
+}
+private[ra3] case class TaggedSegmentsInstant(segments: Seq[SegmentInstant])
+    extends TaggedSegments {
+  val tag = ColumnTag.Instant
+  type SegmentType = SegmentInstant
+  type Elem = Long
+}
+
 private[ra3] sealed trait Segment { self =>
-  type Elem
-  type SegmentType >: this.type <: Segment {
-    type Elem = self.Elem
-    type BufferType = self.BufferType
-    type SegmentType = self.SegmentType
-    type ColumnTagType = self.ColumnTagType
-  }
-  def asSegmentType = this.asInstanceOf[SegmentType]
-  type BufferType <: Buffer {
-    type Elem = self.Elem
-    type SegmentType = self.SegmentType
-    type BufferType = self.BufferType
-  }
-  type ColumnType <: Column {
-    type Elem = self.Elem
-    type BufferType = self.BufferType
-    type SegmentType = self.SegmentType
-    type ColumnTagType = self.ColumnTagType
-  }
-  type ColumnTagType <: ColumnTag {
-    type ColumnType = self.ColumnType
-    type SegmentType = self.SegmentType
-    type BufferType = self.BufferType
-    type Elem = self.Elem
-  }
-  def tag: ColumnTagType
-  def buffer(implicit tsc: TaskSystemComponents): IO[BufferType]
+  // type Elem
+
+  // def buffer(implicit tsc: TaskSystemComponents): IO[BufferType]
+
   def numElems: Int
   def numBytes: Long
-  def nonMissingMinMax: Option[(Elem, Elem)]
 
-  def as(c: Column) = this.asInstanceOf[c.SegmentType]
-  def as(c: Segment) = this.asInstanceOf[c.SegmentType]
-  def as[S <: Segment { type SegmentType = S }] = this.asInstanceOf[S]
-  def as(c: ColumnTag) = this.asInstanceOf[c.SegmentType]
 }
 
 private[ra3] object Segment {
@@ -48,83 +82,31 @@ private[ra3] object Segment {
       groupSizes: SegmentInt
   )
 
-  import com.github.plokhotnyuk.jsoniter_scala.core._
-  import com.github.plokhotnyuk.jsoniter_scala.macros._
+  import com.github.plokhotnyuk.jsoniter_scala.core.*
+  import com.github.plokhotnyuk.jsoniter_scala.macros.*
   implicit val customCodecOfDouble: JsonValueCodec[Double] =
     Utils.customDoubleCodec
 
+  // $COVERAGE-OFF$
   implicit val segmentCodec: JsonValueCodec[Segment] = JsonCodecMaker.make
+  // $COVERAGE-ON$
 
-}
-
-private[ra3] sealed trait SegmentPair { self =>
-  type SegmentPairType >: this.type <: SegmentPair
-  type Elem
-  type BufferType <: Buffer {
-    type Elem = self.Elem
-    type SegmentType = self.SegmentType
-    type BufferType = self.BufferType
-  }
-  type SegmentType <: Segment {
-    type BufferType = self.BufferType
-    type SegmentType = self.SegmentType
-    type Elem = self.Elem
-  }
-  def a: SegmentType
-  def b: SegmentType
-}
-private[ra3] case class I32Pair(a: SegmentInt, b: SegmentInt)
-    extends SegmentPair {
-  type Elem = Int
-  type BufferType = BufferInt
-  type SegmentType = SegmentInt
-  type ColumnType = Column.Int32Column
-}
-private[ra3] case class F64Pair(a: SegmentDouble, b: SegmentDouble)
-    extends SegmentPair {
-  type Elem = Double
-  type BufferType = BufferDouble
-  type SegmentType = SegmentDouble
-  type ColumnType = Column.F64Column
-}
-private[ra3] case class I64Pair(a: SegmentLong, b: SegmentLong)
-    extends SegmentPair {
-  type Elem = Long
-  type BufferType = BufferLong
-  type SegmentType = SegmentLong
-  type ColumnType = Column.I64Column
-}
-private[ra3] case class InstantPair(a: SegmentInstant, b: SegmentInstant)
-    extends SegmentPair {
-  type Elem = Long
-  type BufferType = BufferInstant
-  type SegmentType = SegmentInstant
-  type ColumnType = Column.InstantColumn
-}
-private[ra3] case class StringPair(a: SegmentString, b: SegmentString)
-    extends SegmentPair {
-  type Elem = CharSequence
-  type BufferType = BufferString
-  type SegmentType = SegmentString
-  type ColumnType = Column.StringColumn
 }
 
 private[ra3] final case class SegmentDouble(
     sf: Option[SharedFile],
     numElems: Int,
     statistic: StatisticDouble
-) extends Segment {
+) extends Segment
+    with TaggedSegment {
   def numBytes = numElems * 8
   type Elem = Double
-  type BufferType = BufferDouble
   type SegmentType = SegmentDouble
-  type ColumnType = Column.F64Column
-  type ColumnTagType = ColumnTag.F64.type
-  val tag = ColumnTag.F64
-
+  val tag: ColumnTag.F64.type = ColumnTag.F64
+  def segment = this
   def nonMissingMinMax: Option[(Double, Double)] = statistic.nonMissingMinMax
 
-  override def buffer(implicit tsc: TaskSystemComponents) =
+  def buffer(implicit tsc: TaskSystemComponents) =
     sf match {
       case None if statistic.constantValue.isDefined =>
         IO.pure(
@@ -153,18 +135,16 @@ private[ra3] final case class SegmentInt(
     sf: Option[SharedFile],
     numElems: Int,
     statistic: StatisticInt
-) extends Segment {
+) extends Segment
+    with TaggedSegment {
   def numBytes = numElems * 4
   type Elem = Int
-  type BufferType = BufferInt
   type SegmentType = SegmentInt
-  type ColumnType = Column.Int32Column
-  type ColumnTagType = ColumnTag.I32.type
-  val tag = ColumnTag.I32
-
+  val tag: ColumnTag.I32.type = ColumnTag.I32
+  def segment = this
   def nonMissingMinMax = statistic.nonMissingMinMax
 
-  override def buffer(implicit tsc: TaskSystemComponents): IO[BufferInt] = {
+  def buffer(implicit tsc: TaskSystemComponents): IO[BufferInt] = {
     sf match {
       case None if statistic.constantValue.isDefined =>
         IO.pure(
@@ -200,19 +180,18 @@ private[ra3] final case class SegmentLong(
     sf: Option[SharedFile],
     numElems: Int,
     statistic: StatisticLong
-) extends Segment {
+) extends Segment
+    with TaggedSegment {
   def numBytes = numElems * 8
 
   def nonMissingMinMax = statistic.nonMissingMinMax
 
   type Elem = Long
-  type BufferType = BufferLong
   type SegmentType = SegmentLong
-  type ColumnType = Column.I64Column
-  type ColumnTagType = ColumnTag.I64.type
-  val tag = ColumnTag.I64
+  val tag: ColumnTag.I64.type = ColumnTag.I64
+  def segment = this
 
-  override def buffer(implicit tsc: TaskSystemComponents): IO[BufferLong] = {
+  def buffer(implicit tsc: TaskSystemComponents): IO[BufferLong] = {
     sf match {
       case None if statistic.constantValue.isDefined =>
         IO.pure(
@@ -242,18 +221,17 @@ private[ra3] final case class SegmentInstant(
     sf: Option[SharedFile],
     numElems: Int,
     statistic: StatisticLong
-) extends Segment {
+) extends Segment
+    with TaggedSegment {
   def numBytes = numElems * 8
   def nonMissingMinMax = statistic.nonMissingMinMax
 
   type Elem = Long
-  type BufferType = BufferInstant
   type SegmentType = SegmentInstant
-  type ColumnType = Column.InstantColumn
-  type ColumnTagType = ColumnTag.Instant.type
-  val tag = ColumnTag.Instant
+  val tag: ColumnTag.Instant.type = ColumnTag.Instant
+  def segment = this
 
-  override def buffer(implicit tsc: TaskSystemComponents): IO[BufferType] = {
+  def buffer(implicit tsc: TaskSystemComponents): IO[BufferInstant] = {
     sf match {
       case None if statistic.constantValue.isDefined =>
         IO.pure(
@@ -283,17 +261,15 @@ private[ra3] final case class SegmentString(
     numElems: Int,
     numBytes: Long,
     statistic: StatisticCharSequence
-) extends Segment {
+) extends Segment
+    with TaggedSegment {
   def nonMissingMinMax = statistic.nonMissingMinMax
 
   type Elem = CharSequence
-  type BufferType = BufferString
   type SegmentType = SegmentString
-  type ColumnType = Column.StringColumn
-  type ColumnTagType = ColumnTag.StringTag.type
-  val tag = ColumnTag.StringTag
-
-  override def buffer(implicit tsc: TaskSystemComponents): IO[BufferType] = {
+  val tag: ColumnTag.StringTag.type = ColumnTag.StringTag
+  def segment = this
+  def buffer(implicit tsc: TaskSystemComponents): IO[BufferString] = {
     sf match {
       case None if statistic.constantValue.isDefined =>
         IO.pure(

@@ -14,17 +14,31 @@
   */
 package ra3
 
-import org.saddle._
 import org.scalacheck.Gen
 
 object IndexArbitraries {
 
   // Generates int index with duplicates
 
-  def indexIntWithDups: Gen[Index[Int]] =
+  def indexIntWithDups: Gen[Vector[Int]] =
     for {
       l <- Gen.choose(0, 20)
       lst <- Gen.listOfN(l, Gen.chooseNum(0, l))
-    } yield (lst ++ List(Int.MinValue, Int.MinValue)).toIndex
+    } yield (lst ++ List(Int.MinValue, Int.MinValue)).toVector
+  def indexLongWithDups: Gen[Vector[Long]] =
+    for {
+      l <- Gen.choose(0, 20)
+      lst <- Gen.listOfN(l, Gen.chooseNum(0, l))
+    } yield (lst.map(_.toLong) ++ List(Long.MinValue, Long.MinValue)).toVector
+  def indexDoubleWithDups: Gen[Vector[Double]] =
+    for {
+      l <- Gen.choose(0, 20)
+      lst <- Gen.listOfN(l, Gen.chooseNum(0, l))
+    } yield (lst.map(_.toDouble) ++ List(Double.NaN, Double.NaN)).toVector
+  def indexStrWithDups: Gen[Vector[String]] =
+    for {
+      l <- Gen.choose(0, 20)
+      lst <- Gen.listOfN(l, Gen.chooseNum(0, l))
+    } yield (lst.map(_.toString) ++ List(null, null)).toVector
 
 }

@@ -20,10 +20,10 @@ class CharArraySubSeqSuite extends munit.FunSuite {
     assert(cs1.hashCode == cs3.hashCode)
     assert(cs4.hashCode != cs3.hashCode)
 
-    assert(cs1 == "defghi")
-    assert(cs2 == "defghi")
-    assert(cs3 == "defghi")
-    assert(cs4 == "cdefghi")
+    assert(cs1.equals("defghi"))
+    assert(cs2.equals("defghi"))
+    assert(cs3.equals("defghi"))
+    assert(cs4.equals("cdefghi"))
 
     assert(cs1.toString == "defghi")
     assert(cs2.toString == "defghi")

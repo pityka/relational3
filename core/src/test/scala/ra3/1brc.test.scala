@@ -1,10 +1,55 @@
+package ra3
 import cats.effect.unsafe.implicits.global
 import java.nio.channels.Channels
-import ra3._
-
+import org.saddle.doubleOrd
+import org.saddle.index.InnerJoin
+import java.nio.charset.CharsetDecoder
 class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
 
-  test("1brc group by and reduce") {
+  test("1brc export") {
+    withTempTaskSystem { implicit tsc =>
+      val channel =
+        Channels.newChannel(getClass().getResourceAsStream("/1brc.1M.txt"))
+
+      val table = ra3.csv
+        .readHeterogeneousFromCSVChannel(
+          "1brc",
+          List(
+            (0, ColumnTag.StringTag, None, None),
+            (1, ColumnTag.F64, None, None)
+            // 0 until (numCols) map (i => (i, ColumnTag.I32, None))*
+          ),
+          channel = channel,
+          charset = java.nio.charset.Charset.forName("UTF-8").newDecoder(),
+          header = false,
+          maxSegmentLength = 10000,
+          fieldSeparator = ';',
+          recordSeparator = "\n"
+        )
+        .toOption
+        .get
+        .mapColIndex {
+          case "V0" => "station"
+          case "V1" => "value"
+        }
+
+      val files = table
+        .exportToCsv(compression = None, recordSeparator = "\n",columnSeparator=';')
+        .flatMap(v =>
+          cats.effect.IO
+            .parSequenceN(1)(v.map(_.bytes.map(_.decodeUtf8Lenient)))
+        )
+        .unsafeRunSync()
+      val cat = files.mkString
+      val exp = scala.io.Source
+          .fromInputStream(getClass().getResourceAsStream("/1brc.1M.txt"))
+          .mkString
+      assert(
+        cat == exp
+      )
+    }
+  }
+  test("1brc partial reduce") {
     withTempTaskSystem { implicit tsc =>
       val channel =
         Channels.newChannel(getClass().getResourceAsStream("/1brc.1M.txt"))
@@ -17,7 +62,7 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
           List(
             (0, ColumnTag.StringTag, None, None),
             (1, ColumnTag.F64, None, None)
-            // 0 until (numCols) map (i => (i, ColumnTag.I32, None)): _*
+            // 0 until (numCols) map (i => (i, ColumnTag.I32, None))*
           ),
           channel = channel,
           header = false,
@@ -32,28 +77,105 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
           case "V1" => "value"
         }
 
-      val result = let[StrVar, F64Var](table) { case (station, value) =>
-        station
-          .groupBy(
-            select(
-              station.first as "station",
-              value.sum as "sum",
-              value.count as "count"
-            )
-          )
-          .partial
-          .in[StrVar, F64Var, F64Var] { (station, sum, count) =>
-            station
-              .groupBy(
-                select(
-                  station.first,
-                  sum.sum / count.sum
-                )
-              )
-              .all
+      val tpe = table.as[(StrVar, F64Var)]
 
-          }
-      }.evaluate
+      val result = tpe.schema{  (station, value) => _ => 
+          ra3.partialReduce(ra3.S :* value.max)
+        }
+        .in(_.schema {   case (max *: EmptyTuple) => _ => 
+          ra3.reduce(ra3.S :* max.max)
+        
+        })
+        .evaluate
+        .unsafeRunSync()
+        .bufferStream
+        .compile
+        .toList
+        .unsafeRunSync()
+        .map(_.toStringFrame)
+        .reduce(_ concat _)
+        .colAt(0)
+        .mapValues(_.toDouble)
+        .sorted
+        .toVec
+        .raw(0)
+
+      println(result)
+
+      val expected = org.saddle.csv.CsvParser
+        .parseFromChannel[String](
+          channel2,
+          fieldSeparator = ';',
+          recordSeparator = "\n"
+        )
+        .toOption
+        .get
+        ._1
+        .withRowIndex(0)
+        .colAt(0)
+        .mapValues(_.toDouble)
+        .max
+        .get
+
+      println(expected)
+      // .toOption
+      // .get
+      println(table)
+      import org.saddle.ops.BinOps.*
+      assertEquals(result, expected)
+    }
+  }
+  test("1brc group by and reduce") {
+    withTempTaskSystem { implicit tsc =>
+      val channel =
+        Channels.newChannel(getClass().getResourceAsStream("/1brc.1M.txt"))
+      val channel2 =
+        Channels.newChannel(getClass().getResourceAsStream("/1brc.1M.txt"))
+
+      val table = ra3.csv
+        .readHeterogeneousFromCSVChannel(
+          "1brc",
+          List(
+            (0, ColumnTag.StringTag, None, None),
+            (1, ColumnTag.F64, None, None)
+            // 0 until (numCols) map (i => (i, ColumnTag.I32, None))*
+          ),
+          channel = channel,
+          header = false,
+          maxSegmentLength = 10000,
+          fieldSeparator = ';',
+          recordSeparator = "\n"
+        )
+        .toOption
+        .get
+        .mapColIndex {
+          case "V0" => "station"
+          case "V1" => "value"
+        }
+
+      val tpe = table.as[(StrVar, F64Var)]
+
+      val result = tpe.schema{ case (station, value) => _ => 
+          val t0 = station.groupBy.reducePartial(
+            ra3.select0
+              .extend(station.first as "station")
+              .extend(value.sum as "sum")
+              .extend(value.count as "count")
+          )
+
+          val t = t0
+            .schema{ case (station, sum, count) => schema => 
+                station.groupBy.reduceTotal(
+                  schema.none
+                    .extend(station.first)
+                    .extend((sum.sum / count.sum).unnamed)
+                )
+              }
+            
+
+          t
+        }
+        .evaluate
         .unsafeRunSync()
         .bufferStream
         .compile
@@ -88,7 +210,7 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
       // .toOption
       // .get
       println(table)
-      import org.saddle.ops.BinOps._
+      import org.saddle.ops.BinOps.*
       assert((result - expected).values.toSeq.forall(v => math.abs(v) < 1e-3))
       assert(table.numRows == 1000000)
       assertEquals(result.index.sorted, expected.index.sorted)
@@ -107,7 +229,7 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
           List(
             (0, ColumnTag.StringTag, None, None),
             (1, ColumnTag.F64, None, None)
-            // 0 until (numCols) map (i => (i, ColumnTag.I32, None)): _*
+            // 0 until (numCols) map (i => (i, ColumnTag.I32, None))*
           ),
           channel = channel,
           header = false,
@@ -122,10 +244,15 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
           case "V1" => "value"
         }
 
-      val result = let[StrVar, F64Var](table) { case (station, _) =>
-        query(select(star).where(station === "Skopje"))
+      val tpe = table.as[(StrVar, F64Var)]
 
-      }.evaluate
+      val result = tpe
+        .schema( { (station, _) => schema =>
+            query(schema.all.where(station === "Skopje"))
+
+          }
+        )
+        .evaluate
         .unsafeRunSync()
         .bufferStream
         .compile
@@ -178,7 +305,7 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
           List(
             (0, ColumnTag.StringTag, None, None),
             (1, ColumnTag.F64, None, None)
-            // 0 until (numCols) map (i => (i, ColumnTag.I32, None)): _*
+            // 0 until (numCols) map (i => (i, ColumnTag.I32, None))*
           ),
           channel = channel,
           header = false,
@@ -192,27 +319,27 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
           case "V0" => "station"
           case "V1" => "value"
         }
+      val typedTable = table.as[(StrVar, F64Var)]
 
-      val result = let[StrVar, F64Var](table) { case (station, _) =>
-        station
-          .groupBy(
-            select(
-              station.first as "station"
-            )
-          )
-          .all
-          .in[StrVar, F64Var, F64Var] { (station, _, _) =>
-            station
-              .groupBy(
-                select(
-                  station.first
+      val result = typedTable.schema { (station, col1) => _ =>
+            station.groupBy
+              .reduceTotal(
+                select0.extend(
+                  station.first as "station"
                 )
               )
-              .all
+              .schema { case (station *: EmptyTuple) => _ =>
+                station.groupBy.reduceTotal(
+                  select0.extend(
+                    station.first
+                  )
+                )
+
+              }
 
           }
-
-      }.evaluate
+        
+        .evaluate
         .unsafeRunSync()
         .bufferStream
         .compile
@@ -244,6 +371,122 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
 
       assert(table.numRows == 1000000)
       assert(result == expected)
+    }
+  }
+
+  test("1brc equals min or max value") {
+    withTempTaskSystem { implicit tsc =>
+      val channel =
+        Channels.newChannel(getClass().getResourceAsStream("/1brc.1M.txt"))
+      val channel2 =
+        Channels.newChannel(getClass().getResourceAsStream("/1brc.1M.txt"))
+
+      val table = ra3.csv
+        .readHeterogeneousFromCSVChannel(
+          "1brc",
+          List(
+            (0, ColumnTag.StringTag, None, None),
+            (1, ColumnTag.F64, None, None)
+          ),
+          channel = channel,
+          header = false,
+          maxSegmentLength = 10000,
+          fieldSeparator = ';',
+          recordSeparator = "\n"
+        )
+        .toOption
+        .get
+        .mapColIndex {
+          case "V0" => "station"
+          case "V1" => "value"
+        }
+        .as[(StrVar, F64Var)]
+
+      val program = for {
+        stations <- table.tap("tap")
+        maxValues <- stations.schema{ case (station, value) => _ =>
+            station.groupBy
+              .reduceTotal(
+                station.first :* value.max
+              )
+          }
+        minValues <- stations.schema{ case (station, value) => _ =>
+            station.groupBy
+              .reduceTotal(
+                station.first :* value.min
+              )
+          }
+        minMax <- stations.schema{ case (station, value) => _ =>
+            maxValues.schema{ case (maxStation, maxValue) => _ =>
+                minValues.schema{ case minValues => _ =>
+                    station
+                      .inner(maxStation)
+                      .inner(minValues._1)
+                      .select(
+                        (station :* value :* maxValue :* minValues._2 :* (
+                          (value === maxValue).ifelse("HIGHEST", "LOWEST")
+                        ))
+                      )
+                      .where(
+                        (value === maxValue) || (value === minValues._2)
+                      )
+                  }
+              }
+          }
+      } yield minMax
+      println(program.render)
+
+      val f = program.evaluate
+        .unsafeRunSync()
+        .bufferStream
+        .compile
+        .toList
+        .unsafeRunSync()
+        .map(_.toStringFrame)
+        .reduce(_ concat _)
+      println(f)
+      val data =
+        org.saddle.csv.CsvParser
+          .parseFromChannel[String](
+            channel2,
+            fieldSeparator = ';',
+            recordSeparator = "\n"
+          )
+          .toOption
+          .get
+          ._1
+          .withRowIndex(0)
+          .colAt(0)
+          .mapValues(_.toDouble)
+      import org.saddle._
+      val min = Frame("min" -> data.groupBy.combine(_.min.get))
+      val max = Frame("max" -> data.groupBy.combine(_.max.get))
+
+      val joined = Frame(
+        min
+          .rconcat(max, InnerJoin)
+          .rconcat(Frame("value" -> data), InnerJoin)
+          .rfilter(r =>
+            r.get("value") == r.get("min") || r.get("value") == r.get("max")
+          )
+          .toRowSeq
+          .map { case (ix, row) =>
+            row
+              .mapValues(_.toString)
+              .concat(
+                Series(
+                  "station" -> ix,
+                  "minmax" -> (if (row.get("value") == row.get("min")) "LOWEST"
+                               else "HIGHEST")
+                )
+              )
+          }*
+      ).T
+        .col("station", "value", "max", "min", "minmax")
+        .setColIndex(Index("V0", "V1", "V2", "V3", "V4"))
+
+      assert(f.toRowSeq.toSet.map(_._2) == joined.toRowSeq.toSet.map(_._2))
+
     }
   }
 

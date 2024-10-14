@@ -1,10 +1,10 @@
 package ra3.ts
 
-import ra3._
-import tasks._
-import tasks.jsonitersupport._
-import com.github.plokhotnyuk.jsoniter_scala.macros._
-import com.github.plokhotnyuk.jsoniter_scala.core._
+import ra3.*
+import tasks.*
+import tasks.jsonitersupport.*
+import com.github.plokhotnyuk.jsoniter_scala.macros.*
+import com.github.plokhotnyuk.jsoniter_scala.core.*
 import cats.effect.IO
 import java.nio.charset.StandardCharsets
 import java.nio.charset.CodingErrorAction
@@ -25,7 +25,6 @@ private[ra3] case class ImportCsv(
     characterDecoder: CharacterDecoder
 )
 private[ra3] object ImportCsv {
-  
 
   def queue(
       file: SharedFile,
@@ -116,7 +115,7 @@ private[ra3] object ImportCsv {
         val is2 = compression match {
           case None => is
           case Some(CompressionFormat.Gzip) =>
-             Utils.gzip(is)            
+            Utils.gzip(is)
         }
         val channel = java.nio.channels.Channels.newChannel(is2)
         val result = ra3.csv
@@ -159,9 +158,10 @@ private[ra3] object ImportCsv {
     }
 
   }
-
+  // $COVERAGE-OFF$
   implicit val codec: JsonValueCodec[ImportCsv] = JsonCodecMaker.make
   implicit val codecOut: JsonValueCodec[Table] = JsonCodecMaker.make
+  // $COVERAGE-ON$
   val task = Task[ImportCsv, Table]("ImportCsv", 1) { case input =>
     implicit ce =>
       doit(

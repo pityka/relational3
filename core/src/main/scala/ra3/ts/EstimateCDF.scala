@@ -1,56 +1,58 @@
 package ra3.ts
 
-import ra3._
-import tasks._
-import tasks.jsonitersupport._
-import com.github.plokhotnyuk.jsoniter_scala.macros._
-import com.github.plokhotnyuk.jsoniter_scala.core._
+import ra3.*
+import tasks.*
+import tasks.jsonitersupport.*
+import com.github.plokhotnyuk.jsoniter_scala.macros.*
+import com.github.plokhotnyuk.jsoniter_scala.core.*
 import cats.effect.IO
 
 private[ra3] case class EstimateCDF(
-    input: Segment,
+    input: TaggedSegment,
     numberOfPoints: Int,
     outputPath: LogicalPath
 )
 private[ra3] object EstimateCDF {
   private def doit(
-      input: Segment,
+      input: TaggedSegment,
       n: Int,
       outputPath: LogicalPath
   )(implicit
       tsc: TaskSystemComponents
   ) = {
     scribe.debug(
-      f"estimate cdf input=${input.tag}(numEl=${input.numElems}%,d) sampling points=$n%,d to $outputPath "
+      f"estimate cdf input=${input.tag}(numEl=${input.segment.numElems}%,d) sampling points=$n%,d to $outputPath "
     )
-    val bIn = input.buffer
+    val tag = input.tag
+    val doubleTag = ColumnTag.F64
+    val bIn = tag.buffer(input.segment)
     bIn.flatMap { case bIn =>
-      val t = bIn.cdf(n)
+      val t = tag.cdf(bIn, n)
       IO.both(
-        t._1.toSegment(outputPath.appendToTable(".cdfX")),
-        t._2
-          .toSegment(outputPath.appendToTable(".cdfY"))
+        tag.toSegment(t._1, outputPath.appendToTable(".cdfX")),
+        doubleTag.toSegment(t._2, outputPath.appendToTable(".cdfY"))
       )
     }
   }
-  def queue(
-      input: Segment,
+  def queue(tag: ColumnTag)(
+      input: tag.SegmentType,
       numberOfPoints: Int,
       outputPath: LogicalPath
   )(implicit
       tsc: TaskSystemComponents
-  ): IO[(input.SegmentType, SegmentDouble)] =
-    task(EstimateCDF(input, numberOfPoints, outputPath))(
+  ): IO[(tag.SegmentType, SegmentDouble)] =
+    task(EstimateCDF(tag.makeTaggedSegment(input), numberOfPoints, outputPath))(
       ResourceRequest(
         cpu = (1, 1),
         memory = ra3.Utils.guessMemoryUsageInMB(input),
         scratch = 0,
         gpu = 0
       )
-    ).map(pair => (pair._1.as(input), pair._2))
+    ).map(pair => (pair._1.asInstanceOf[input.type], pair._2))
+    // $COVERAGE-OFF$
   implicit val codec: JsonValueCodec[EstimateCDF] = JsonCodecMaker.make
-  implicit val code2: JsonValueCodec[(Segment, SegmentDouble)] =
-    JsonCodecMaker.make
+  implicit val code2: JsonValueCodec[(Segment, SegmentDouble)] = JsonCodecMaker.make
+      // $COVERAGE-ON$
   val task = Task[EstimateCDF, (Segment, SegmentDouble)]("estimatecdf", 1) {
     case input =>
       implicit ce => doit(input.input, input.numberOfPoints, input.outputPath)

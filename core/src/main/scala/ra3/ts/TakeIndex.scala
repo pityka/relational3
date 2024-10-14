@@ -1,26 +1,26 @@
 package ra3.ts
 
-import ra3._
-import tasks._
-import tasks.jsonitersupport._
-import com.github.plokhotnyuk.jsoniter_scala.macros._
-import com.github.plokhotnyuk.jsoniter_scala.core._
+import ra3.*
+import tasks.*
+import tasks.jsonitersupport.*
+import com.github.plokhotnyuk.jsoniter_scala.macros.*
+import com.github.plokhotnyuk.jsoniter_scala.core.*
 import cats.effect.IO
 
 private[ra3] case class TakeIndex(
-    input: Segment,
+    input: TaggedSegment,
     idx: SegmentInt,
     outputPath: LogicalPath
 )
 private[ra3] object TakeIndex {
-  def queue(
-      input: Segment,
+  def queue(tag: ColumnTag)(
+      input: tag.SegmentType,
       idx: SegmentInt,
       outputPath: LogicalPath
   )(implicit
       tsc: TaskSystemComponents
-  ): IO[input.SegmentType] =
-    task(TakeIndex(input, idx, outputPath))(
+  ): IO[tag.SegmentType] =
+    task(TakeIndex(tag.makeTaggedSegment(input), idx, outputPath))(
       ResourceRequest(
         cpu = (1, 1),
         memory = ra3.Utils.guessMemoryUsageInMB(input) + ra3.Utils
@@ -28,15 +28,19 @@ private[ra3] object TakeIndex {
         scratch = 0,
         gpu = 0
       )
-    ).map(_.as(input))
+    ).map(_.asInstanceOf[input.type])
+    // $COVERAGE-OFF$
   implicit val codec: JsonValueCodec[TakeIndex] = JsonCodecMaker.make
   implicit val codecOut: JsonValueCodec[Segment] = JsonCodecMaker.make
+    // $COVERAGE-ON$
   val task = Task[TakeIndex, Segment]("take", 1) { case input =>
     implicit ce =>
       val bI = input.idx.buffer
-      val bIn: IO[Buffer] = input.input.buffer
+      val bIn: IO[input.input.tag.BufferType] =
+        input.input.tag.buffer(input.input.segment)
       IO.both(bI, bIn).flatMap { case (idx, in) =>
-        in.take(idx).toSegment(input.outputPath)
+        input.input.tag
+          .toSegment(input.input.tag.take(in, idx), input.outputPath)
       }
 
   }

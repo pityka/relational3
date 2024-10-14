@@ -1,22 +1,26 @@
 package ra3.lang
 private[ra3] object GroupBy {
-  def apply(a: Expr.DelayedIdent) =
-    GroupBuilderSyntax(a, Vector.empty, None, None, None, None)
+  def apply(
+      a: Expr.DelayedIdent[?]
+      
+  ) =
+    GroupBuilderSyntax(a, Vector.empty,  None, None, None)
 }
 
-/** Builder pattern for group by clause. Exit the builder with the partial or the all method. */
+/** Builder pattern for group by clause. Exit the builder with the partial or
+  * the all method.
+  */
 case class GroupBuilderSyntax(
-    private val first: Expr.DelayedIdent,
+    private val first: Expr.DelayedIdent[?],
     private val others: Vector[
-      (Expr.DelayedIdent)
+      (Expr.DelayedIdent[?])
     ],
-    private val prg: Option[ra3.lang.Query],
     private val partitionBase: Option[Int],
     private val partitionLimit: Option[Int],
     private val maxSegmentsToBufferAtOnce: Option[Int]
-) {
+) { self =>
 
-  def by(n: Expr.DelayedIdent) = {
+  def by(n: Expr.DelayedIdent[?]) = {
     require(first.name.table == n.name.table)
     copy(others = others :+ n)
   }
@@ -25,30 +29,46 @@ case class GroupBuilderSyntax(
   def withPartitionLimit(num: Int) = copy(partitionLimit = Some(num))
   def withMaxSegmentsBufferingAtOnce(num: Int) =
     copy(maxSegmentsToBufferAtOnce = Some(num))
-  def apply(q: ra3.lang.Query) = copy(prg = Some(q))
-  def reduce(q: ra3.lang.Query) = copy(prg = Some(q))
-  def all =
+
+
+    /**
+      * Total reduction. Applies the group wise program to each group.
+      *
+      * @param prg group wise program
+      * @return
+      */
+  def reduceTotal[T<:Tuple](prg: ra3.lang.Expr[ReturnValueTuple[T]]) =
     ra3.tablelang.TableExpr.GroupThenReduce(
       first,
       others,
-      prg.getOrElse(???),
-      // prg.getOrElse(ra3.select(ra3.star)),
+      prg,
       partitionBase.getOrElse(128),
       partitionLimit.getOrElse(10_000_000),
       maxSegmentsToBufferAtOnce.getOrElse(10)
     )
-  def partial =
+
+  /**
+    * Reduces the groups within a partition
+    * 
+    * Rows belonging to other groups are not processed within a group.
+    * It is not guaranteed that all rows of the group are processed.
+    * 
+    * Useful for associative reductions followed by further partial or total reduce operations.
+    * 
+    *
+    * @param prg group wise program
+    * @return
+    */
+  def reducePartial[T<:Tuple](prg: ra3.lang.Expr[ReturnValueTuple[T]]) =
     ra3.tablelang.TableExpr.GroupPartialThenReduce(
       first,
       others,
-      prg.getOrElse(???)
-      // prg.getOrElse(ra3.select(ra3.star))
+      prg
     )
-  def count = ra3.tablelang.TableExpr.GroupThenCount(
+  def count[T<:Tuple](prg: ra3.lang.Expr[ReturnValueTuple[T]]) = ra3.tablelang.TableExpr.GroupThenCount(
     first,
     others,
-    // prg.getOrElse(ra3.select(ra3.star)),
-    prg.getOrElse(???),
+    prg,
     partitionBase.getOrElse(128),
     partitionLimit.getOrElse(10_000_000),
     maxSegmentsToBufferAtOnce.getOrElse(10)

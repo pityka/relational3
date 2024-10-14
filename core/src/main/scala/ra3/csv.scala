@@ -12,7 +12,7 @@ import ra3.ColumnTag.Instant
 import ra3.ColumnTag.F64
 import ra3.ColumnTag.I64
 import ra3.ColumnTag.StringTag
-
+import ra3.join.*
 trait InstantParser {
   def read(buff: Array[Char], start: Int, until: Int): Long
 }
@@ -138,7 +138,11 @@ object csv {
             callback.segments.zip(sortedColumnTypes).zipWithIndex map {
               case ((b, (_, tpe, _, _)), idx) =>
                 val segments = b.toVector
-                val column = tpe.makeColumn(segments.map(_.as(tpe)))
+                val column = tpe.makeTaggedColumn(
+                  tpe.makeColumn(
+                    segments.map((_: Segment).asInstanceOf[tpe.SegmentType])
+                  )
+                )
 
                 val name = colIndex.map(_.apply(idx))
                 (name, column)
@@ -160,7 +164,7 @@ object csv {
     }
   }
 
- private class ColumnBufferCallback(
+  private class ColumnBufferCallback(
       name: String,
       maxLines: Long,
       header: Boolean,
@@ -182,16 +186,16 @@ object csv {
 
     def allocateBuffers() = columnTypes.map { ct =>
       ct._2 match {
-        case I32       => org.saddle.Buffer.empty[Int]
-        case StringTag => org.saddle.Buffer.empty[CharSequence]
-        case Instant   => org.saddle.Buffer.empty[Long]
-        case I64       => org.saddle.Buffer.empty[Long]
-        case F64       => org.saddle.Buffer.empty[Double]
+        case I32       => MutableBuffer.emptyI
+        case StringTag => MutableBuffer.emptyG[CharSequence]
+        case Instant   => MutableBuffer.emptyL
+        case I64       => MutableBuffer.emptyL
+        case F64       => MutableBuffer.emptyD
       }
 
     }
 
-    var bufdata: Array[_] = allocateBuffers()
+    var bufdata: Array[?] = allocateBuffers()
 
     val types: Array[ColumnTag] = columnTypes.map(_._2)
     val parsers: Array[Option[InstantParser]] = columnTypes.map(_._3)
@@ -207,19 +211,19 @@ object csv {
       tpe0 match {
         case I32 =>
           bufdata(buf)
-            .asInstanceOf[org.saddle.Buffer[Int]]
+            .asInstanceOf[MBufferInt]
             .+=(org.saddle.scalar.ScalarTagInt.parse(s, from, to))
         case Instant =>
           bufdata(buf)
-            .asInstanceOf[org.saddle.Buffer[Long]]
+            .asInstanceOf[MBufferLong]
             .+=(parsers(buf).getOrElse(InstantParser.ISO).read(s, from, to))
         case F64 =>
           bufdata(buf)
-            .asInstanceOf[org.saddle.Buffer[Double]]
+            .asInstanceOf[MBufferDouble]
             .+=(org.saddle.scalar.ScalarTagDouble.parse(s, from, to))
         case I64 =>
           bufdata(buf)
-            .asInstanceOf[org.saddle.Buffer[Long]]
+            .asInstanceOf[MBufferLong]
             .+=(org.saddle.scalar.ScalarTagLong.parse(s, from, to))
         case StringTag =>
           val v = String.valueOf(s, from, to - from)
@@ -234,16 +238,20 @@ object csv {
             ) BufferString.MissingValue
             else v
           bufdata(buf)
-            .asInstanceOf[org.saddle.Buffer[CharSequence]]
+            .asInstanceOf[MBufferG[CharSequence]]
             .+=(v2)
       }
 
     }
 
     def uploadAndResetBufData(force: Boolean) = {
+      import scala.compiletime.asMatchable
       // upload
-      val lengths = bufdata.map(_ match {
-        case t: org.saddle.Buffer[_] => t.length
+      val lengths = bufdata.map(_.asMatchable match {
+        case t: MBufferInt => t.length
+        case t: MBufferLong => t.length
+        case t: MBufferDouble => t.length
+        case t: MBufferG[?] => t.length
       })
 
       assert(lengths.distinct.size == 1, lengths.toList)
@@ -253,15 +261,22 @@ object csv {
 
         IO.parSequenceN(32)(bufdata.zipWithIndex.toList.map {
           case (b, bufferIdx) =>
-            b match {
-              case t: org.saddle.Buffer[_] =>
+            
                 val tpe = columnTypes(bufferIdx)._2
 
+                val ar = b match {
+                  case t: MBufferInt => t.toArray
+                  case t: MBufferLong => t.toArray
+                  case t: MBufferDouble => t.toArray
+                  case t: MBufferG[?] => t.toArray
+                }
+
                 tpe
-                  .makeBuffer(
-                    t.asInstanceOf[org.saddle.Buffer[tpe.Elem]].toArray
-                  )
                   .toSegment(
+                    tpe
+                      .makeBuffer(
+                        ar.asInstanceOf[Array[tpe.Elem]]
+                      ),
                     LogicalPath(
                       table = name,
                       partition = None,
@@ -271,7 +286,7 @@ object csv {
                   )
                   .map(segment => (bufferIdx, segment))
 
-            }
+            
 
         }).unsafeRunSync()
           .foreach { case (bufferIdx, segment) =>

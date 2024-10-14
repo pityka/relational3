@@ -13,34 +13,56 @@ import bufferimpl.BufferIntArrayImpl
 private[ra3] sealed trait Location
 private[ra3] final case class Slice(start: Int, until: Int) extends Location
 
-private[ra3] sealed trait Buffer { self =>
-
+private[ra3] sealed trait TaggedBuffers { self =>
   type Elem
-  type BufferType >: this.type <: Buffer
-  type SegmentType <: Segment {
+  type BufferType <: Buffer
+  val tag: ColumnTag {
     type BufferType = self.BufferType
-    type SegmentType = self.SegmentType
-    type Elem = self.Elem
   }
-  type ColumnType <: Column {
-    type Elem = self.Elem
+  def buffers: Seq[tag.BufferType]
+}
+private[ra3] sealed trait TaggedBuffer { self =>
+  type Elem
+  type BufferType <: Buffer
+  val tag: ColumnTag {
     type BufferType = self.BufferType
-    type SegmentType = self.SegmentType
   }
+  def buffer: tag.BufferType
+}
 
-  type ColumnTagType <: ColumnTag {
-    type ColumnType = self.ColumnType
-    type SegmentType = self.SegmentType
-    type BufferType = self.BufferType
-    type Elem = self.Elem
-  }
-  def tag: ColumnTagType
+private[ra3] case class TaggedBuffersI32(buffers: Seq[BufferInt])
+    extends TaggedBuffers {
+  val tag = ColumnTag.I32
+  type BufferType = BufferInt
+  type Elem = Int
+}
+private[ra3] case class TaggedBuffersI64(buffers: Seq[BufferLong])
+    extends TaggedBuffers {
+  val tag = ColumnTag.I64
+  type BufferType = BufferLong
+  type Elem = Long
+}
+private[ra3] case class TaggedBuffersF64(buffers: Seq[BufferDouble])
+    extends TaggedBuffers {
+  val tag = ColumnTag.F64
+  type BufferType = BufferDouble
+  type Elem = Double
+}
+private[ra3] case class TaggedBuffersInstant(buffers: Seq[BufferInstant])
+    extends TaggedBuffers {
+  val tag = ColumnTag.Instant
+  type BufferType = BufferInstant
+  type Elem = Long
+}
+private[ra3] case class TaggedBuffersString(buffers: Seq[BufferString])
+    extends TaggedBuffers {
+  val tag = ColumnTag.StringTag
+  type BufferType = BufferString
+  type Elem = CharSequence
+}
 
-  def as(b: Buffer) = this.asInstanceOf[b.BufferType]
-  def as(b: ColumnTag) = this.asInstanceOf[b.BufferType]
-
-  /** given the bounds on BufferType this should never fail */
-  def asBufferType = this.asInstanceOf[BufferType]
+private[ra3] sealed trait Buffer {
+  type Elem
 
   /** Returns the items in the buffer as a Seq
     *
@@ -48,82 +70,22 @@ private[ra3] sealed trait Buffer { self =>
     */
   def toSeq: Seq[Elem]
 
+  def toArray: Array[Elem]
+
+  def element(i:Int) : Elem
+
   def elementAsCharSequence(i: Int): CharSequence
-
-  /** Returns locations at which this is <= or >= than the first element of
-    * other
-    */
-  def findInequalityVsHead(
-      other: BufferType,
-      lessThan: Boolean
-  ): BufferInt
-
-  /** Returns CDF of this buffer at numPoints evenly spaced points always
-    * including the min and the max
-    */
-  def cdf(numPoints: Int): (BufferType, BufferDouble)
 
   /** Returns a map of unique items */
   def groups: Buffer.GroupMap
 
   def length: Int
 
-  /** negative indices yield NA values */
-  def take(locs: Location): BufferType
-
-  /** partitions the buffer with the partition map supplied Returns as many new
-    * buffers of various sizes as many distinct values in the map
-    */
-  def partition(numPartitions: Int, map: BufferInt): Vector[BufferType]
+  // /** negative indices yield NA values */
+  // def take(locs: Location): BufferType
 
   /** returns indexes where value is positive (or positive length) */
   def positiveLocations: BufferInt
-
-  /** takes element where mask is non missing and > 0, for string mask where non
-    * missing and non empty
-    */
-  def filter(mask: Buffer): BufferType = {
-    assert(this.length == mask.length, "mask length incorrect")
-    this.take(mask.positiveLocations)
-  }
-
-  /** uses the first element from cutoff */
-  def filterInEquality[
-      B <: Buffer { type BufferType = B }
-  ](
-      comparison: B,
-      cutoff: B,
-      less: Boolean
-  ): BufferType = {
-    val idx = comparison.findInequalityVsHead(cutoff.asBufferType, less)
-
-    this.take(idx)
-  }
-
-  /** Computes inner, full outer, left outer or right outer joins Returns two
-    * index buffers with the locations which have to be taken from the original
-    * buffers (this and other) to join them. If the return is None, then take
-    * the complete buffer.
-    *
-    * Missing values match other missing values (which is not correct)
-    *
-    * @param other
-    * @param how
-    *   one of inner outer left right
-    * @return
-    */
-  def computeJoinIndexes(
-      other: BufferType,
-      how: String
-  ): (Option[BufferInt], Option[BufferInt])
-
-  /** Takes an other buffer of the same size and returns a buffer of the same
-    * size with elements from this buffer, except if it is missing then from the
-    * other buffer, else missing value
-    */
-  def mergeNonMissing(
-      other: BufferType
-  ): BufferType
 
   /** Returns true if item at position l is missing. Throws if out of bounds */
   def isMissing(l: Int): Boolean
@@ -132,20 +94,6 @@ private[ra3] sealed trait Buffer { self =>
     * Throws if out of bounds
     */
   def hashOf(l: Int): Long
-  def toSegment(name: LogicalPath)(implicit
-      tsc: TaskSystemComponents
-  ): IO[SegmentType]
-
-  /** Reduce the groups by taking the first element per group */
-  def firstInGroup(partitionMap: BufferInt, numGroups: Int): BufferType
-
-  /** If this buffer has size numElems then return it If this buffer has size 1
-    * then return a buffer with that element repeated numElem times Otherwise
-    * throw
-    *
-    * @param numElems
-    */
-  def broadcast(numElems: Int): BufferType
 
   def countNonMissing: Long = {
     var i = 0
@@ -170,16 +118,15 @@ private[ra3] object BufferDouble {
 
 private[ra3] final case class BufferDouble(values: Array[Double])
     extends Buffer
-    with BufferDoubleImpl { self =>
+    with BufferDoubleImpl
+    with TaggedBuffer { self =>
+    
+  def toArray = values
 
   type Elem = Double
   type BufferType = BufferDouble
-  type SegmentType = SegmentDouble
-  type ColumnType = Column.F64Column
-
-  type ColumnTagType = ColumnTag.F64.type
-  def tag: ColumnTagType = ColumnTag.F64
-
+  val tag: ColumnTag.F64.type = ColumnTag.F64
+  def buffer = this
 }
 
 private[ra3] object BufferInt {
@@ -216,14 +163,12 @@ private[ra3] object BufferInt {
 private[ra3] sealed trait BufferInt
     extends Buffer
     with Location
-    with BufferIntImpl {
+    with BufferIntImpl
+    with TaggedBuffer {
   type Elem = Int
   type BufferType = BufferInt
-  type SegmentType = SegmentInt
-  type ColumnType = Column.Int32Column
 
-  type ColumnTagType = ColumnTag.I32.type
-  def tag: ColumnTagType = ColumnTag.I32
+  val tag: ColumnTag.I32.type = ColumnTag.I32
   def raw(i: Int): Int
   def where(i: Int): BufferInt
   private[ra3] def values: Array[Int]
@@ -233,7 +178,9 @@ private[ra3] sealed trait BufferInt
 private[ra3] final case class BufferIntConstant(value: Int, length: Int)
     extends BufferInt
     with BufferIntConstantImpl {
+  def buffer = this
 
+  def toArray = Array.fill[Int](length)(value)
   private[ra3] def values = Array.fill[Int](length)(value)
   def raw(i: Int): Int =
     if (i < 0 || i >= length) throw new IndexOutOfBoundsException else value
@@ -243,7 +190,8 @@ private[ra3] final case class BufferIntConstant(value: Int, length: Int)
 private[ra3] final case class BufferIntInArray(private val values0: Array[Int])
     extends BufferInt
     with BufferIntArrayImpl { self =>
-
+  def buffer = this
+  def toArray = values0
   private[ra3] def values = values0
   def raw(i: Int): Int = values0(i)
 
@@ -254,21 +202,21 @@ private[ra3] object BufferLong {
   def constant(value: Long, length: Int): BufferLong =
     BufferLong(Array.fill[Long](length)(value))
 }
-/* Buffer of Lng, missing is Long.MinValue */
+/* Buffer of Long, missing is Long.MinValue */
 private[ra3] final case class BufferLong(private[ra3] val values: Array[Long])
     extends Buffer
-    with BufferLongImpl { self =>
+    with BufferLongImpl
+    with TaggedBuffer { self =>
+  def buffer = this
+  def toArray = values
   type Elem = Long
   type BufferType = BufferLong
-  type SegmentType = SegmentLong
-  type ColumnType = Column.I64Column
-
-  type ColumnTagType = ColumnTag.I64.type
-  def tag: ColumnTagType = ColumnTag.I64
+  val tag: ColumnTag.I64.type = ColumnTag.I64
 
 }
 private[ra3] object BufferInstant {
   val MissingValue = Long.MinValue
+  
   def apply(s: Long*): BufferInstant = BufferInstant(s.toArray)
   def constant(value: Long, length: Int): BufferInstant =
     BufferInstant(Array.fill[Long](length)(value))
@@ -277,14 +225,14 @@ private[ra3] object BufferInstant {
 private[ra3] final case class BufferInstant(
     private[ra3] val values: Array[Long]
 ) extends Buffer
-    with BufferInstantImpl { self =>
+    with BufferInstantImpl
+    with TaggedBuffer { self =>
+  def buffer = this
+  def toArray = values
   type Elem = Long
   type BufferType = BufferInstant
-  type SegmentType = SegmentInstant
-  type ColumnType = Column.InstantColumn
 
-  type ColumnTagType = ColumnTag.Instant.type
-  def tag: ColumnTagType = ColumnTag.Instant
+  val tag: ColumnTag.Instant.type = ColumnTag.Instant
 
 }
 private[ra3] object BufferString {
@@ -298,15 +246,13 @@ private[ra3] object BufferString {
 private[ra3] final case class BufferString(
     private[ra3] val values: Array[CharSequence]
 ) extends Buffer
-    with BufferStringImpl { self =>
+    with BufferStringImpl
+    with TaggedBuffer { self =>
+  def buffer = this
+  def toArray = values
   type Elem = CharSequence
   type BufferType = BufferString
-  type SegmentType = SegmentString
-  type ColumnType = Column.StringColumn
-
-  type ColumnTagType = ColumnTag.StringTag.type
-  def tag: ColumnTagType = ColumnTag.StringTag
-
+  val tag: ColumnTag.StringTag.type = ColumnTag.StringTag
 }
 
 private[ra3] object Buffer {
@@ -326,29 +272,30 @@ private[ra3] object Buffer {
 
   /** Returns an int buffer with the same number of elements. Each element is
     * [0,num), the group number in which that element belongs Also returns
-    * number of groups Also returns a buffer with number of elements in each
+    * number of groups. Also returns a buffer with number of elements in each
     * group
     *
     * @param columns
     *   seq of columns, each column sequence of buffres
     */
-  def computeGroups[B2 <: Buffer { type BufferType = B2 }](
-      columns: Seq[Seq[B2]]
+  def computeGroups(
+      columns: Seq[TaggedBuffers]
   ): GroupMap = {
 
     assert(columns.size > 0)
     if (columns.size == 1) {
-      val buffers = columns.head.map(_.asBufferType)
-      val concat = columns.head.head.tag.cat(buffers: _*)
+      val buffers = columns.head // .map(_.asBufferType)
+      val tag = buffers.tag
+      val concat = tag.cat(buffers.buffers*)
       concat.groups
     } else {
-      import org.saddle._
-      import org.saddle.order._
+      // import org.saddle.*
+      // import org.saddle.order.*
       assert(
-        columns.map(_.map(_.length.toLong).sum).distinct.size == 1,
-        s"Got columns of multiple lengths: ${columns.map(_.map(_.length.toLong).sum).distinct}"
+        columns.map(v => v.buffers.map(_.length.toLong).sum).distinct.size == 1,
+        s"Got columns of multiple lengths: ${columns.map(v => v.buffers.map(_.length.toLong).sum).distinct}"
       )
-      val buffers = columns.map(buffers => buffers.head.tag.cat(buffers: _*))
+      val buffers = columns.map(buffers => buffers.tag.cat(buffers.buffers*))
       val factorizedEachBuffer = buffers.map(_.groups.map.toSeq).toVector
       // from here this is very inefficient because allocates too much
       // lamp has a more efficient implementation for this if I am willing to pull in lamp
@@ -367,13 +314,14 @@ private[ra3] object Buffer {
         ar(i) = r.toVector
         i += 1
       }
-      val index = Index(ar)
-      val uniques = index.uniques
+      val index = ra3.join.locator.LocatorAny.fromKeys(ar)
+      val uniques = index.uniqueKeys
+    val uniquesLoc = ra3.join.locator.LocatorAny.fromKeys(uniques)
       val counts = index.counts
       val map = Array.ofDim[Int](ar.length)
       i = 0
       while (i < ar.length) {
-        map(i) = uniques.getFirst(ar(i))
+        map(i) = uniquesLoc.get(ar(i))
         i += 1
       }
       GroupMap(

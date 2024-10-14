@@ -1,11 +1,12 @@
 package ra3.lang.ops
 
 import ra3.BufferInt
-import ra3.lang._
-import ra3._
+import ra3.lang.*
+import ra3.*
 import tasks.TaskSystemComponents
-import cats.effect._
+import cats.effect.*
 import ra3.DInst
+import ra3.lang.util.*
 private[ra3] sealed trait Op3 {
   type A0
   type A1
@@ -16,15 +17,6 @@ private[ra3] sealed trait Op3 {
 
 private[ra3] object Op3 {
 
-      object MkReturnValue3 extends Op3 {
-    type A0 = ra3.lang.ColumnSpec[_]
-    type A1 = ra3.lang.ColumnSpec[_]
-    type A2 = ra3.lang.ColumnSpec[_]
-    type T = ra3.lang.ReturnValue3[_,_,_]
-    def op(a0: A0,a1: A1, a2: A2)(implicit tsc: TaskSystemComponents) =
-      IO.pure(ra3.lang.ReturnValue3(a0,a1,a2,None))
-  }
-
   case object StringMatchAndReplaceOp extends Op3 {
     type A0 = DStr
     type A1 = String
@@ -34,7 +26,7 @@ private[ra3] object Op3 {
         tsc: TaskSystemComponents
     ): IO[DStr] =
       for {
-        a <- bufferIfNeeded(a)
+        a <- bufferIfNeededString(a)
       } yield Left(a.elementwise_matches_replace(b, c))
   }
 
@@ -54,7 +46,7 @@ private[ra3] object Op3 {
         tsc: TaskSystemComponents
     ): IO[DI32] =
       for {
-        a <- bufferIfNeeded(a)
+        a <- bufferIfNeededI32(a)
       } yield Left(a.sumGroups(b, c))
   }
   case object BufferSumGroupsOpDI extends Op3 {
@@ -66,7 +58,7 @@ private[ra3] object Op3 {
         tsc: TaskSystemComponents
     ): IO[DF64] =
       for {
-        a <- bufferIfNeeded(a)
+        a <- bufferIfNeededF64(a)
       } yield Left(a.sumGroups(b, c))
   }
   case object BufferCountGroupsOpDI extends Op3 {
@@ -78,7 +70,7 @@ private[ra3] object Op3 {
         tsc: TaskSystemComponents
     ): IO[DF64] =
       for {
-        a <- bufferIfNeeded(a)
+        a <- bufferIfNeededF64(a)
       } yield Left(a.countGroups(b, c))
   }
   case object BufferMeanGroupsOpDI extends Op3 {
@@ -90,7 +82,7 @@ private[ra3] object Op3 {
         tsc: TaskSystemComponents
     ): IO[DF64] =
       for {
-        a <- bufferIfNeeded(a)
+        a <- bufferIfNeededF64(a)
       } yield Left(a.meanGroups(b, c))
   }
   case object BufferFirstGroupsOpIIi extends Op3 {
@@ -101,8 +93,8 @@ private[ra3] object Op3 {
     def op(a: DI32, b: BufferInt, c: Int)(implicit
         tsc: TaskSystemComponents
     ): IO[DI32] = for {
-      a <- bufferIfNeeded(a)
-    } yield Left(a.firstInGroup(b, c))
+      a <- bufferIfNeededI32(a)
+    } yield Left(ColumnTag.I32.firstInGroup(a, b, c))
   }
   case object BufferFirstGroupsOpDIi extends Op3 {
     type A0 = DF64
@@ -112,7 +104,7 @@ private[ra3] object Op3 {
     def op(a: DF64, b: BufferInt, c: Int)(implicit
         tsc: TaskSystemComponents
     ): IO[DF64] = for {
-      a <- bufferIfNeeded(a)
+      a <- bufferIfNeededF64(a)
     } yield Left(a.firstInGroup(b, c))
   }
   case object BufferFirstGroupsOpSIi extends Op3 {
@@ -123,7 +115,7 @@ private[ra3] object Op3 {
     def op(a: DStr, b: BufferInt, c: Int)(implicit
         tsc: TaskSystemComponents
     ): IO[DStr] = for {
-      a <- bufferIfNeeded(a)
+      a <- bufferIfNeededString(a)
     } yield Left(a.firstInGroup(b, c))
   }
 
@@ -135,9 +127,9 @@ private[ra3] object Op3 {
     def op(a: DI32, b: DI32, c: DI32)(implicit
         tsc: TaskSystemComponents
     ): IO[DI32] = for {
-      a <- bufferIfNeeded(a)
-      b <- bufferIfNeeded(b)
-      c <- bufferIfNeeded(c)
+      a <- bufferIfNeededI32(a)
+      b <- bufferIfNeededI32(b)
+      c <- bufferIfNeededI32(c)
     } yield Left(a.elementwise_choose(b, c))
   }
   case object IfElseCI32 extends Op3 {
@@ -148,8 +140,8 @@ private[ra3] object Op3 {
     def op(a: DI32, b: Int, c: DI32)(implicit
         tsc: TaskSystemComponents
     ): IO[DI32] = for {
-      a <- bufferIfNeeded(a)
-      c <- bufferIfNeeded(c)
+      a <- bufferIfNeededI32(a)
+      c <- bufferIfNeededI32(c)
     } yield Left(a.elementwise_choose(b, c))
   }
   case object IfElseI32C extends Op3 {
@@ -160,8 +152,8 @@ private[ra3] object Op3 {
     def op(a: DI32, b: DI32, c: Int)(implicit
         tsc: TaskSystemComponents
     ): IO[DI32] = for {
-      a <- bufferIfNeeded(a)
-      b <- bufferIfNeeded(b)
+      a <- bufferIfNeededI32(a)
+      b <- bufferIfNeededI32(b)
     } yield Left(a.elementwise_choose(b, c))
   }
   case object IfElseI32CC extends Op3 {
@@ -172,7 +164,7 @@ private[ra3] object Op3 {
     def op(a: DI32, b: Int, c: Int)(implicit
         tsc: TaskSystemComponents
     ): IO[DI32] = for {
-      a <- bufferIfNeeded(a)
+      a <- bufferIfNeededI32(a)
     } yield Left(a.elementwise_choose(b, c))
   }
   case object IfElseI64 extends Op3 {
@@ -183,9 +175,9 @@ private[ra3] object Op3 {
     def op(a: DI32, b: DI64, c: DI64)(implicit
         tsc: TaskSystemComponents
     ): IO[DI64] = for {
-      a <- bufferIfNeeded(a)
-      b <- bufferIfNeeded(b)
-      c <- bufferIfNeeded(c)
+      a <- bufferIfNeededI32(a)
+      b <- bufferIfNeededI64(b)
+      c <- bufferIfNeededI64(c)
     } yield Left(a.elementwise_choose(b, c))
   }
   case object IfElseCI64 extends Op3 {
@@ -196,8 +188,8 @@ private[ra3] object Op3 {
     def op(a: DI32, b: Long, c: DI64)(implicit
         tsc: TaskSystemComponents
     ): IO[DI64] = for {
-      a <- bufferIfNeeded(a)
-      c <- bufferIfNeeded(c)
+      a <- bufferIfNeededI32(a)
+      c <- bufferIfNeededI64(c)
     } yield Left(a.elementwise_choose(b, c))
   }
   case object IfElseI64C extends Op3 {
@@ -208,8 +200,8 @@ private[ra3] object Op3 {
     def op(a: DI32, b: DI64, c: Long)(implicit
         tsc: TaskSystemComponents
     ): IO[DI64] = for {
-      a <- bufferIfNeeded(a)
-      b <- bufferIfNeeded(b)
+      a <- bufferIfNeededI32(a)
+      b <- bufferIfNeededI64(b)
     } yield Left(a.elementwise_choose(b, c))
   }
   case object IfElseI64CC extends Op3 {
@@ -220,7 +212,7 @@ private[ra3] object Op3 {
     def op(a: DI32, b: Long, c: Long)(implicit
         tsc: TaskSystemComponents
     ): IO[DI64] = for {
-      a <- bufferIfNeeded(a)
+      a <- bufferIfNeededI32(a)
     } yield Left(a.elementwise_choose(b, c))
   }
 
@@ -232,9 +224,9 @@ private[ra3] object Op3 {
     def op(a: DI32, b: DF64, c: DF64)(implicit
         tsc: TaskSystemComponents
     ): IO[DF64] = for {
-      a <- bufferIfNeeded(a)
-      b <- bufferIfNeeded(b)
-      c <- bufferIfNeeded(c)
+      a <- bufferIfNeededI32(a)
+      b <- bufferIfNeededF64(b)
+      c <- bufferIfNeededF64(c)
     } yield Left(a.elementwise_choose(b, c))
   }
 
@@ -246,8 +238,8 @@ private[ra3] object Op3 {
     def op(a: DI32, b: Double, c: DF64)(implicit
         tsc: TaskSystemComponents
     ): IO[DF64] = for {
-      a <- bufferIfNeeded(a)
-      c <- bufferIfNeeded(c)
+      a <- bufferIfNeededI32(a)
+      c <- bufferIfNeededF64(c)
     } yield Left(a.elementwise_choose(b, c))
   }
 
@@ -259,8 +251,8 @@ private[ra3] object Op3 {
     def op(a: DI32, b: DF64, c: Double)(implicit
         tsc: TaskSystemComponents
     ): IO[DF64] = for {
-      a <- bufferIfNeeded(a)
-      b <- bufferIfNeeded(b)
+      a <- bufferIfNeededI32(a)
+      b <- bufferIfNeededF64(b)
     } yield Left(a.elementwise_choose(b, c))
   }
 
@@ -272,7 +264,7 @@ private[ra3] object Op3 {
     def op(a: DI32, b: Double, c: Double)(implicit
         tsc: TaskSystemComponents
     ): IO[DF64] = for {
-      a <- bufferIfNeeded(a)
+      a <- bufferIfNeededI32(a)
     } yield Left(a.elementwise_choose(b, c))
   }
 
@@ -284,9 +276,9 @@ private[ra3] object Op3 {
     def op(a: DI32, b: DInst, c: DInst)(implicit
         tsc: TaskSystemComponents
     ): IO[DInst] = for {
-      a <- bufferIfNeeded(a)
-      b <- bufferIfNeeded(b)
-      c <- bufferIfNeeded(c)
+      a <- bufferIfNeededI32(a)
+      b <- bufferIfNeededInst(b)
+      c <- bufferIfNeededInst(c)
     } yield Left(a.elementwise_choose(b, c))
   }
 
@@ -298,8 +290,8 @@ private[ra3] object Op3 {
     def op(a: DI32, b: Long, c: DInst)(implicit
         tsc: TaskSystemComponents
     ): IO[DInst] = for {
-      a <- bufferIfNeeded(a)
-      c <- bufferIfNeeded(c)
+      a <- bufferIfNeededI32(a)
+      c <- bufferIfNeededInst(c)
     } yield Left(a.elementwise_choose(b, c))
   }
 
@@ -311,8 +303,8 @@ private[ra3] object Op3 {
     def op(a: DI32, b: DInst, c: Long)(implicit
         tsc: TaskSystemComponents
     ): IO[DInst] = for {
-      a <- bufferIfNeeded(a)
-      b <- bufferIfNeeded(b)
+      a <- bufferIfNeededI32(a)
+      b <- bufferIfNeededInst(b)
     } yield Left(a.elementwise_choose(b, c))
   }
 
@@ -324,7 +316,7 @@ private[ra3] object Op3 {
     def op(a: DI32, b: Long, c: Long)(implicit
         tsc: TaskSystemComponents
     ): IO[DInst] = for {
-      a <- bufferIfNeeded(a)
+      a <- bufferIfNeededI32(a)
     } yield Left(a.elementwise_choose_inst(b, c))
   }
 
@@ -336,9 +328,9 @@ private[ra3] object Op3 {
     def op(a: DI32, b: DStr, c: DStr)(implicit
         tsc: TaskSystemComponents
     ): IO[DStr] = for {
-      a <- bufferIfNeeded(a)
-      b <- bufferIfNeeded(b)
-      c <- bufferIfNeeded(c)
+      a <- bufferIfNeededI32(a)
+      b <- bufferIfNeededString(b)
+      c <- bufferIfNeededString(c)
     } yield Left(a.elementwise_choose(b, c))
   }
 
@@ -350,8 +342,8 @@ private[ra3] object Op3 {
     def op(a: DI32, b: String, c: DStr)(implicit
         tsc: TaskSystemComponents
     ): IO[DStr] = for {
-      a <- bufferIfNeeded(a)
-      c <- bufferIfNeeded(c)
+      a <- bufferIfNeededI32(a)
+      c <- bufferIfNeededString(c)
     } yield Left(a.elementwise_choose(b, c))
   }
 
@@ -363,8 +355,8 @@ private[ra3] object Op3 {
     def op(a: DI32, b: DStr, c: String)(implicit
         tsc: TaskSystemComponents
     ): IO[DStr] = for {
-      a <- bufferIfNeeded(a)
-      b <- bufferIfNeeded(b)
+      a <- bufferIfNeededI32(a)
+      b <- bufferIfNeededString(b)
     } yield Left(a.elementwise_choose(b, c))
   }
 
@@ -376,7 +368,7 @@ private[ra3] object Op3 {
     def op(a: DI32, b: String, c: String)(implicit
         tsc: TaskSystemComponents
     ): IO[DStr] = for {
-      a <- bufferIfNeeded(a)
+      a <- bufferIfNeededI32(a)
     } yield Left(a.elementwise_choose(b, c))
   }
 
@@ -388,7 +380,7 @@ private[ra3] object Op3 {
     def op(a: DF64, b: BufferInt, c: Int)(implicit
         tsc: TaskSystemComponents
     ): IO[DF64] = for {
-      a <- bufferIfNeeded(a)
+      a <- bufferIfNeededF64(a)
     } yield Left(a.minInGroups(b, c))
   }
   case object BufferMaxGroupsOpD extends Op3 {
@@ -399,7 +391,7 @@ private[ra3] object Op3 {
     def op(a: DF64, b: BufferInt, c: Int)(implicit
         tsc: TaskSystemComponents
     ): IO[DF64] = for {
-      a <- bufferIfNeeded(a)
+      a <- bufferIfNeededF64(a)
     } yield Left(a.maxInGroups(b, c))
   }
   case object BufferHasMissingInGroupsOpD extends Op3 {
@@ -410,7 +402,7 @@ private[ra3] object Op3 {
     def op(a: DF64, b: BufferInt, c: Int)(implicit
         tsc: TaskSystemComponents
     ): IO[DI32] = for {
-      a <- bufferIfNeeded(a)
+      a <- bufferIfNeededF64(a)
     } yield Left(a.hasMissingInGroup(b, c))
   }
 
@@ -422,7 +414,7 @@ private[ra3] object Op3 {
     def op(a: DF64, b: BufferInt, c: Int)(implicit
         tsc: TaskSystemComponents
     ): IO[DI32] = for {
-      a <- bufferIfNeeded(a)
+      a <- bufferIfNeededF64(a)
     } yield Left(a.countDistinctGroups(b, c))
   }
 
@@ -436,7 +428,7 @@ private[ra3] object Op3 {
     def op(a: DI32, b: BufferInt, c: Int)(implicit
         tsc: TaskSystemComponents
     ): IO[DI32] = for {
-      a <- bufferIfNeeded(a)
+      a <- bufferIfNeededI32(a)
     } yield Left(a.minInGroups(b, c))
   }
   case object BufferMaxGroupsOpI extends Op3 {
@@ -447,7 +439,7 @@ private[ra3] object Op3 {
     def op(a: DI32, b: BufferInt, c: Int)(implicit
         tsc: TaskSystemComponents
     ): IO[DI32] = for {
-      a <- bufferIfNeeded(a)
+      a <- bufferIfNeededI32(a)
     } yield Left(a.maxInGroups(b, c))
   }
   case object BufferHasMissingInGroupsOpI extends Op3 {
@@ -458,7 +450,7 @@ private[ra3] object Op3 {
     def op(a: DI32, b: BufferInt, c: Int)(implicit
         tsc: TaskSystemComponents
     ): IO[DI32] = for {
-      a <- bufferIfNeeded(a)
+      a <- bufferIfNeededI32(a)
     } yield Left(a.hasMissingInGroup(b, c))
   }
   case object BufferCountInGroupsOpI extends Op3 {
@@ -469,7 +461,7 @@ private[ra3] object Op3 {
     def op(a: DI32, b: BufferInt, c: Int)(implicit
         tsc: TaskSystemComponents
     ): IO[DI32] = for {
-      a <- bufferIfNeeded(a)
+      a <- bufferIfNeededI32(a)
     } yield Left(a.countInGroups(b, c))
   }
   case object BufferCountDistinctInGroupsOpI extends Op3 {
@@ -480,7 +472,7 @@ private[ra3] object Op3 {
     def op(a: DI32, b: BufferInt, c: Int)(implicit
         tsc: TaskSystemComponents
     ): IO[DI32] = for {
-      a <- bufferIfNeeded(a)
+      a <- bufferIfNeededI32(a)
     } yield Left(a.countDistinctInGroups(b, c))
   }
   case object BufferAllInGroupsOpI extends Op3 {
@@ -491,7 +483,7 @@ private[ra3] object Op3 {
     def op(a: DI32, b: BufferInt, c: Int)(implicit
         tsc: TaskSystemComponents
     ): IO[DI32] = for {
-      a <- bufferIfNeeded(a)
+      a <- bufferIfNeededI32(a)
     } yield Left(a.allInGroups(b, c))
   }
   case object BufferAnyInGroupsOpI extends Op3 {
@@ -502,7 +494,7 @@ private[ra3] object Op3 {
     def op(a: DI32, b: BufferInt, c: Int)(implicit
         tsc: TaskSystemComponents
     ): IO[DI32] = for {
-      a <- bufferIfNeeded(a)
+      a <- bufferIfNeededI32(a)
     } yield Left(a.anyInGroups(b, c))
   }
   case object BufferNoneInGroupsOpI extends Op3 {
@@ -513,7 +505,7 @@ private[ra3] object Op3 {
     def op(a: DI32, b: BufferInt, c: Int)(implicit
         tsc: TaskSystemComponents
     ): IO[DI32] = for {
-      a <- bufferIfNeeded(a)
+      a <- bufferIfNeededI32(a)
     } yield Left(a.noneInGroups(b, c))
   }
 
@@ -527,7 +519,7 @@ private[ra3] object Op3 {
     def op(a: DInst, b: BufferInt, c: Int)(implicit
         tsc: TaskSystemComponents
     ): IO[DI32] = for {
-      a <- bufferIfNeeded(a)
+      a <- bufferIfNeededInst(a)
     } yield Left(a.hasMissingInGroup(b, c))
   }
   case object BufferCountInGroupsOpInst extends Op3 {
@@ -538,7 +530,7 @@ private[ra3] object Op3 {
     def op(a: DInst, b: BufferInt, c: Int)(implicit
         tsc: TaskSystemComponents
     ): IO[DI32] = for {
-      a <- bufferIfNeeded(a)
+      a <- bufferIfNeededInst(a)
     } yield Left(a.countInGroups(b, c))
   }
   case object BufferCountDistinctInGroupsOpInst extends Op3 {
@@ -549,7 +541,7 @@ private[ra3] object Op3 {
     def op(a: DInst, b: BufferInt, c: Int)(implicit
         tsc: TaskSystemComponents
     ): IO[DI32] = for {
-      a <- bufferIfNeeded(a)
+      a <- bufferIfNeededInst(a)
     } yield Left(a.countDistinctInGroups(b, c))
   }
 
@@ -561,7 +553,7 @@ private[ra3] object Op3 {
     def op(a: DInst, b: BufferInt, c: Int)(implicit
         tsc: TaskSystemComponents
     ): IO[DInst] = for {
-      a <- bufferIfNeeded(a)
+      a <- bufferIfNeededInst(a)
     } yield Left(a.minInGroups(b, c))
   }
   case object BufferMaxGroupsOpInst extends Op3 {
@@ -572,7 +564,7 @@ private[ra3] object Op3 {
     def op(a: DInst, b: BufferInt, c: Int)(implicit
         tsc: TaskSystemComponents
     ): IO[DInst] = for {
-      a <- bufferIfNeeded(a)
+      a <- bufferIfNeededInst(a)
     } yield Left(a.maxInGroups(b, c))
   }
 
@@ -586,7 +578,7 @@ private[ra3] object Op3 {
     def op(a: DStr, b: BufferInt, c: Int)(implicit
         tsc: TaskSystemComponents
     ): IO[DI32] = for {
-      a <- bufferIfNeeded(a)
+      a <- bufferIfNeededString(a)
     } yield Left(a.hasMissingInGroup(b, c))
   }
   case object BufferCountInGroupsOpS extends Op3 {
@@ -597,7 +589,7 @@ private[ra3] object Op3 {
     def op(a: DStr, b: BufferInt, c: Int)(implicit
         tsc: TaskSystemComponents
     ): IO[DI32] = for {
-      a <- bufferIfNeeded(a)
+      a <- bufferIfNeededString(a)
     } yield Left(a.countInGroups(b, c))
   }
   case object BufferCountDistinctInGroupsOpS extends Op3 {
@@ -608,7 +600,7 @@ private[ra3] object Op3 {
     def op(a: DStr, b: BufferInt, c: Int)(implicit
         tsc: TaskSystemComponents
     ): IO[DI32] = for {
-      a <- bufferIfNeeded(a)
+      a <- bufferIfNeededString(a)
     } yield Left(a.countDistinctInGroups(b, c))
   }
 
@@ -620,7 +612,7 @@ private[ra3] object Op3 {
     def op(a: DStr, start: Int, len: Int)(implicit
         tsc: TaskSystemComponents
     ): IO[DStr] = for {
-      a <- bufferIfNeeded(a)
+      a <- bufferIfNeededString(a)
     } yield Left(a.elementwise_substring(start, len))
   }
 
@@ -632,7 +624,7 @@ private[ra3] object Op3 {
     def op(a: DInst, b: BufferInt, c: Int)(implicit
         tsc: TaskSystemComponents
     ): IO[DInst] = for {
-      a <- bufferIfNeeded(a)
+      a <- bufferIfNeededInst(a)
     } yield Left(a.firstInGroup(b, c))
   }
 
@@ -644,7 +636,7 @@ private[ra3] object Op3 {
     def op(a: DI64, b: BufferInt, c: Int)(implicit
         tsc: TaskSystemComponents
     ): IO[DI32] = for {
-      a <- bufferIfNeeded(a)
+      a <- bufferIfNeededI64(a)
     } yield Left(a.countInGroups(b, c))
   }
   case object BufferCountDistinctInGroupsOpL extends Op3 {
@@ -655,7 +647,7 @@ private[ra3] object Op3 {
     def op(a: DI64, b: BufferInt, c: Int)(implicit
         tsc: TaskSystemComponents
     ): IO[DI32] = for {
-      a <- bufferIfNeeded(a)
+      a <- bufferIfNeededI64(a)
     } yield Left(a.countDistinctInGroups(b, c))
   }
 
@@ -667,7 +659,7 @@ private[ra3] object Op3 {
     def op(a: DI64, b: BufferInt, c: Int)(implicit
         tsc: TaskSystemComponents
     ): IO[DI64] = for {
-      a <- bufferIfNeeded(a)
+      a <- bufferIfNeededI64(a)
     } yield Left(a.firstInGroup(b, c))
   }
 
@@ -679,7 +671,7 @@ private[ra3] object Op3 {
     def op(a: DI64, b: BufferInt, c: Int)(implicit
         tsc: TaskSystemComponents
     ): IO[DI32] = for {
-      a <- bufferIfNeeded(a)
+      a <- bufferIfNeededI64(a)
     } yield Left(a.hasMissingInGroup(b, c))
   }
 

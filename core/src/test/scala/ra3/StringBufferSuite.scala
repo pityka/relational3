@@ -16,8 +16,8 @@ class StringBufferSuite extends munit.FunSuite with WithTempTaskSystem {
 
   }
   test("makeStatistic long") {
-    val s = Seq(0 until 256: _*).map(_.toString)
-    val st = BufferString(s: _*).makeStatistic()
+    val s = Seq(0 until 256*).map(_.toString)
+    val st = BufferString(s*).makeStatistic()
     assertEquals(st.hasMissing, false)
     assertEquals(st.nonMissingMinMax, Some("0" -> "99"))
     assertEquals(st.lowCardinalityNonMissingSet, None)
@@ -149,7 +149,7 @@ class StringBufferSuite extends munit.FunSuite with WithTempTaskSystem {
       val ar = 1 to 1000 map (_ =>
         scala.util.Random.alphanumeric.take(10).mkString
       ) toList
-      val b = BufferString(ar: _*)
+      val b = BufferString(ar*)
       val st = b.makeStatistic()
       assert(ar.forall(l => st.mightEq(l)))
     }
@@ -159,7 +159,7 @@ class StringBufferSuite extends munit.FunSuite with WithTempTaskSystem {
       val ar = 1 to 1000 map (_ =>
         scala.util.Random.alphanumeric.take(10).mkString
       ) toList
-      val b = BufferString(ar: _*)
+      val b = BufferString(ar*)
       val st = b.makeStatistic()
       assert(ar.forall(l => st.mightLt(l + "a")))
     }
@@ -169,7 +169,7 @@ class StringBufferSuite extends munit.FunSuite with WithTempTaskSystem {
       val ar = 1 to 1000 map (_ =>
         scala.util.Random.alphanumeric.take(10).mkString
       ) toList
-      val b = BufferString(ar: _*)
+      val b = BufferString(ar*)
       val st = b.makeStatistic()
       assert(ar.forall(l => st.mightLtEq(l)))
     }
@@ -179,7 +179,7 @@ class StringBufferSuite extends munit.FunSuite with WithTempTaskSystem {
       val ar = 1 to 1000 map (_ =>
         scala.util.Random.alphanumeric.take(10).mkString
       ) toList
-      val b = BufferString(ar: _*)
+      val b = BufferString(ar*)
       val st = b.makeStatistic()
       assert(ar.forall(l => st.mightGtEq(l)))
     }
@@ -189,7 +189,7 @@ class StringBufferSuite extends munit.FunSuite with WithTempTaskSystem {
       val ar = 1 to 1000 map (_ =>
         scala.util.Random.alphanumeric.take(10).mkString
       ) toList
-      val b = BufferString(ar: _*)
+      val b = BufferString(ar*)
       val st = b.makeStatistic()
       assert(ar.forall(l => st.mightGt(l.dropRight(1))))
     }

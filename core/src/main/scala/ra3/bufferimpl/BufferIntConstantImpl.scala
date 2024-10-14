@@ -1,7 +1,9 @@
 package ra3.bufferimpl
 import cats.effect.IO
-import ra3._
+import ra3.*
 import tasks.{TaskSystemComponents}
+import ra3.join.*
+import ra3.join.locator.*
 private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
   def nonMissingMinMax = makeStatistic().nonMissingMinMax
   def makeStatistic() = {
@@ -21,7 +23,7 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
   def partition(numPartitions: Int, map: BufferInt): Vector[BufferType] = {
     assert(length == map.length)
     val growableBuffers =
-      Vector.fill(numPartitions)(org.saddle.Buffer.empty[Int])
+      Vector.fill(numPartitions)(MutableBuffer.emptyI)
     var i = 0
     val n = length
     val mapv = map.values
@@ -41,10 +43,9 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
   }
 
   def positiveLocations: BufferInt = {
-    import org.saddle._
     if (self.value > 0)
       BufferInt(
-        array.range(0, self.length)
+        ArrayUtil.range(0, self.length)
       )
     else BufferInt.empty
   }
@@ -81,25 +82,26 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
   /** Find locations at which _ <= other[0] or _ >= other[0] holds returns
     * indexes
     */
-  override def findInequalityVsHead(
+  def findInequalityVsHead(
       other: BufferType,
       lessThan: Boolean
   ): BufferInt = {
-    import org.saddle._
     val c = other.raw(0)
     if (value == Int.MinValue || c == Int.MinValue) BufferInt.empty
     else {
       if (lessThan) {
         if (value <= c) {
-          BufferInt(array.range(0, length))
+          BufferInt(ArrayUtil.range(0, length))
         } else BufferInt.empty
       } else if (value >= c) {
-        BufferInt(array.range(0, length))
+        BufferInt(ArrayUtil.range(0, length))
       } else BufferInt.empty
     }
   }
 
   def toSeq = values.toSeq
+
+  def element(i:Int)  = value
 
   def cdf(numPoints: Int): (BufferInt, BufferDouble) = {
     val percentiles =
@@ -115,7 +117,6 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
     (x, y)
   }
 
-  import org.saddle.{Buffer => _, _}
 
   def groups = {
     Buffer.GroupMap(
@@ -135,20 +136,20 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
 
   }
 
-  def computeJoinIndexes(
+def computeJoinIndexes(
       other: BufferType,
       how: String
   ): (Option[BufferInt], Option[BufferInt]) = {
-    val idx1 = Index(values)
-    val idx2 = Index(other.values)
-    val reindexer = new (ra3.join.JoinerImpl[Int]).join(
+    val idx1 = LocatorInt.fromKeys(values)
+    val idx2 = LocatorInt.fromKeys(other.values)
+    val reindexer = (ra3.join.JoinerImplInt).join(
       left = idx1,
       right = idx2,
       how = how match {
-        case "inner" => org.saddle.index.InnerJoin
-        case "left"  => org.saddle.index.LeftJoin
-        case "right" => org.saddle.index.RightJoin
-        case "outer" => org.saddle.index.OuterJoin
+        case "inner" => InnerJoin
+        case "left"  => LeftJoin
+        case "right" => RightJoin
+        case "outer" => OuterJoin
       }
     )
     (reindexer.lTake.map(BufferInt(_)), reindexer.rTake.map(BufferInt(_)))
@@ -156,15 +157,15 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
 
   /** Returns an array of indices */
   def where(i: Int): BufferInt = {
-    if (i == value) BufferInt(array.range(0, length))
+    if (i == value) BufferInt(ArrayUtil.range(0, length))
     else BufferInt.empty
   }
 
-  override def take(locs: Location): BufferInt = locs match {
+  def take(locs: Location): BufferInt = locs match {
     case Slice(start, until) =>
       BufferInt.constant(value, until - start)
     case idx: BufferInt =>
-      BufferInt(values.toVec.take(idx.values).toArray)
+      BufferInt(ArrayUtil.takeI(values,idx.values).toArray)
 
   }
 
@@ -175,7 +176,7 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
     scala.util.hashing.byteswap32(value).toLong
   }
 
-  override def toSegment(
+  def toSegment(
       name: LogicalPath
   )(implicit tsc: TaskSystemComponents): IO[SegmentInt] = {
     if (values.length == 0) IO.pure(SegmentInt(None, 0, StatisticInt.empty))

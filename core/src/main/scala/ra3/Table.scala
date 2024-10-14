@@ -4,6 +4,7 @@ import tasks.TaskSystemComponents
 import cats.effect.IO
 import com.github.plokhotnyuk.jsoniter_scala.core.JsonValueCodec
 import com.github.plokhotnyuk.jsoniter_scala.macros.JsonCodecMaker
+import scala.reflect.ClassTag
 
 private[ra3] case class PartitionData(
     columns: Seq[Int],
@@ -29,7 +30,6 @@ private[ra3] case class PartitionData(
     )
 }
 
-// Segments in the same table are aligned: each column holds the same number of segments of the same size
 /** Reference to a set of aligned columns (i.e. a table) persisted onto
   * secondary storage.
   *
@@ -52,26 +52,36 @@ private[ra3] case class PartitionData(
   * buffering the segment.
   */
 case class Table(
-    private[ra3] columns: Vector[Column],
+    private[ra3] columns: Vector[TaggedColumn],
     colNames: Vector[String],
     private[ra3] uniqueId: String,
     private[ra3] partitions: Option[PartitionData]
 ) extends RelationalAlgebra {
 
-  def lift = ra3.tablelang.TableExpr.Const(this)
-  assert(columns.map(_.segments.map(_.numElems)).distinct.size == 1)
+  assert(
+    columns
+      .map(c => c.tag.segments(c.column).map(_.numElems))
+      .distinct
+      .size == 1
+  )
 
   def numCols = columns.size
   def numRows =
-    columns.map(_.segments.map(_.numElems.toLong).sum).headOption.getOrElse(0L)
+    columns
+      .map(c => c.tag.segments(c.column).map(_.numElems.toLong).sum)
+      .headOption
+      .getOrElse(0L)
 
   /** Returns one integer list, of the same size as the number of segments,
     * items being the size of segments
     */
-  def segmentation =
-    columns.map(_.segments.map(_.numElems)).headOption.getOrElse(Nil)
+  private[ra3] def segmentation =
+    columns
+      .map(c => c.tag.segments(c.column).map(_.numElems))
+      .headOption
+      .getOrElse(Nil)
 
-  def mapColIndex(f: String => String) = copy(colNames = colNames.map(f))
+  private[ra3] def mapColIndex(f: String => String) = copy(colNames = colNames.map(f))
 
   /** Selects a column by name, or throws if not exists. */
   def apply(s: String) = columns(
@@ -106,13 +116,15 @@ case class Table(
     *
     * Reads the all columns of the corresponding segment number to memory.
     */
-  def bufferSegment(
+  private[ra3] def bufferSegment(
       idx: Int
   )(implicit tsc: TaskSystemComponents): IO[BufferedTable] = {
-    IO.parSequenceN(32)(columns.map(_.segments(idx).buffer: IO[Buffer]))
-      .map { buffers =>
-        BufferedTable(buffers, colNames)
-      }
+    IO.parSequenceN(32)(columns.map { v =>
+      val segment = v.tag.segments(v.column)(idx)
+      v.tag.buffer(segment): IO[Buffer]
+    }).map { buffers =>
+      BufferedTable(buffers, colNames)
+    }
   }
 
   /** Returns an fs2 Stream with a BufferedTable for each segment number */
@@ -120,49 +132,59 @@ case class Table(
       tsc: TaskSystemComponents
   ): fs2.Stream[IO, BufferedTable] = {
     if (columns.isEmpty) fs2.Stream.empty
-    else
+    else {
+      val c = columns.head
       fs2.Stream
-        .apply(0 until columns.head.segments.size: _*)
+        .apply(0 until c.tag.segments(c.column).size*)
         .evalMap(idx => bufferSegment(idx))
-  }
-
-  /** Returns a string summary of the table without data itself
-    *
-    * Use the showSample to actually show some data
-    */
-  def stringify(segmentIdx: Int = 0, nrows: Int = 10, ncols: Int = 10)(implicit
-      tsc: TaskSystemComponents
-  ) = bufferSegment(segmentIdx).map(_.toFrame.stringify(nrows, ncols))
-
-  def addColumnFromSeq(tag: ColumnTag, columnName: String)(
-      elems: Seq[tag.Elem]
-  )(implicit tsc: TaskSystemComponents): IO[Table] = {
-    assert(numRows == elems.length.toLong)
-    val idx = columns.size
-    val segmented = segmentation
-      .foldLeft((elems, Vector.empty[Seq[tag.Elem]])) {
-        case ((rest, acc), size) => rest.drop(size) -> (acc :+ rest.take(size))
-      }
-      ._2
-      .map(_.toSeq)
-    val col = tag.makeColumnFromSeq(this.uniqueId, idx)(segmented)
-    col.flatMap { col =>
-      this.addColOfSameSegmentation(col, columnName)
     }
   }
+
+  /** Returns an fs2 Stream with a tuple for each element */
+  transparent inline def stream[T <: Tuple](implicit
+      tsc: TaskSystemComponents
+  ): fs2.Stream[IO, T] = {
+    bufferStream.flatMap(_.toTuples[T])
+  }
+  private[ra3] transparent inline def streamOfTuplesFromColumnChunks[
+      T <: Tuple
+  ](implicit
+      tsc: TaskSystemComponents
+  ) = {
+    bufferStream.flatMap(_.toTuplesFromColumnChunks[T])
+  }
+  private[ra3] transparent inline def streamOfSingleColumnChunk[
+      T 
+  ](implicit
+      tsc: TaskSystemComponents
+  ) = {
+    bufferStream.map(_.toChunkedStream[T])
+  }
+
+
+  import ra3.tablelang.TableExpr
+
+  /** Schema definition
+    *
+    * Entry point of TableExpr DSL
+    */
+  def as[T1 <: Tuple] =
+    TableExpr.const[T1](this)
+
 }
 
 object Table {
+  // $COVERAGE-OFF$
   implicit val codec: JsonValueCodec[Table] = JsonCodecMaker.make
+  // $COVERAGE-ON$
 
   /** Concatenate the list of rows of multiple tables ('grows downwards')
     *
     * Same as ra3.concatenate
     */
-
   def concatenate(
       others: Table*
   )(implicit tsc: TaskSystemComponents): IO[Table] = {
-    ra3.concatenate(others: _*)
+    ra3.concatenate(others*)
   }
 }

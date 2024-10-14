@@ -1,6 +1,8 @@
-import tasks._
-import ra3.lang._
-import ra3.tablelang._
+import tasks.*
+import ra3.lang.*
+import ra3.tablelang.*
+import cats.effect.IO
+import scala.reflect.ClassTag
 
 /** ra3 provides an embedded query language and its corresponding query engine.
   *
@@ -65,15 +67,13 @@ package object ra3 {
     * with content of the \u0001 character.
     */
   val MissingString = BufferString.MissingValue.toString
-  type ColumnVariable[T] = ra3.lang.DelayedIdent[T]
-  type StrVar = ra3.lang.DelayedIdent[DStr]
-  type I32Var = ra3.lang.DelayedIdent[DI32]
-  type I64Var = ra3.lang.DelayedIdent[DI64]
-  type F64Var = ra3.lang.DelayedIdent[DF64]
-  type InstVar = ra3.lang.DelayedIdent[DInst]
+  type StrVar = DStr
+  type I32Var = DI32
+  type I64Var = DI64
+  type F64Var = DF64
+  type InstVar = DInst
 
-  type TableVariable = ra3.tablelang.TableExpr.Ident
-  type TableExpr = ra3.tablelang.TableExpr
+  type TableExpr[R] = ra3.tablelang.TableExpr[R]
 
   /** Data type of I32 columns */
   private[ra3] type DI32 = Either[BufferInt, Seq[SegmentInt]]
@@ -89,6 +89,30 @@ package object ra3 {
 
   /** Data type of Instant columns */
   private[ra3] type DInst = Either[BufferInstant, Seq[SegmentInstant]]
+
+  type Primitives =
+    DI32 | DStr | DInst | DF64 | DI64 | String | Int | Long | Double | String |
+      java.time.Instant
+  type ColumnSpecExpr[T <: Primitives] = Expr[ColumnSpec[T]]
+
+  import scala.language.implicitConversions
+  implicit def conversionDI32(
+      a: Expr[DI32]
+  ): ColumnSpecExpr[DI32] = a.unnamed
+
+  implicit def conversionDF64(
+      a: Expr[DF64]
+  ): ColumnSpecExpr[DF64] = a.unnamed
+  implicit def conversionDI64(
+      a: Expr[DI64]
+  ): ColumnSpecExpr[DI64] = a.unnamed
+  implicit def conversionDInst(
+      a: Expr[DInst]
+  ): ColumnSpecExpr[DInst] = a.unnamed
+
+  implicit def conversionStr(
+      a: Expr[DStr]
+  ): ColumnSpecExpr[DStr] = a.unnamed
 
   /** Import CSV data into ra3
     *
@@ -109,11 +133,103 @@ package object ra3 {
     * @param characterDecoder
     * @return
     */
-  def importCsv(
+  def importCsvUntyped(
       file: SharedFile,
       name: String,
       columns: Seq[CSVColumnDefinition],
       maxSegmentLength: Int,
+      files: Seq[SharedFile] = Nil,
+      compression: Option[CompressionFormat] = None,
+      recordSeparator: String = "\r\n",
+      fieldSeparator: Char = ',',
+      header: Boolean = false,
+      maxLines: Long = Long.MaxValue,
+      bufferSize: Int = 8292,
+      characterDecoder: CharacterDecoder =
+        CharacterDecoder.ASCII(silent = true),
+      parallelism: Int = 32
+  )(implicit
+      tsc: TaskSystemComponents
+  ) = {
+
+    def do1(f: SharedFile) = ra3.ts.ImportCsv.queue(
+      f,
+      name,
+      columns.map {
+        case CSVColumnDefinition.I32Column(columnIndex) =>
+          (columnIndex, ColumnTag.I32, None, None)
+        case CSVColumnDefinition.I64Column(columnIndex) =>
+          (columnIndex, ColumnTag.I64, None, None)
+        case CSVColumnDefinition.F64Column(columnIndex) =>
+          (columnIndex, ColumnTag.F64, None, None)
+        case CSVColumnDefinition.StrColumn(columnIndex, missingValue) =>
+          (columnIndex, ColumnTag.StringTag, None, missingValue)
+        case CSVColumnDefinition.InstantColumn(columnIndex, parser) =>
+          (columnIndex, ColumnTag.Instant, parser, None)
+      },
+      recordSeparator,
+      fieldSeparator,
+      header,
+      maxLines,
+      maxSegmentLength,
+      compression,
+      bufferSize,
+      characterDecoder
+    )
+
+    val f1 = do1(file)
+    val fs = files.map(do1)
+    IO.both(f1, IO.parSequenceN(parallelism)(fs)).flatMap { case (t1, ts) =>
+      t1.concatenate(ts*)
+    }
+  }
+
+  type CsvColumnDefToColumnType[T] = T match {
+    case CSVColumnDefinition.I32Column     => ra3.I32Var
+    case CSVColumnDefinition.I64Column     => ra3.I64Var
+    case CSVColumnDefinition.F64Column     => ra3.F64Var
+    case CSVColumnDefinition.StrColumn     => ra3.StrVar
+    case CSVColumnDefinition.InstantColumn => ra3.InstVar
+  }
+  private inline def untuple[T <: Tuple](t: T): List[CSVColumnDefinition] =
+    inline t match {
+      case EmptyTuple => Nil
+      case ht: (h *: t) =>
+        val h *: t = ht
+        inline h match {
+          case h2: CSVColumnDefinition.I32Column     => h2 :: untuple(t)
+          case h2: CSVColumnDefinition.I64Column     => h2 :: untuple(t)
+          case h2: CSVColumnDefinition.F64Column     => h2 :: untuple(t)
+          case h2: CSVColumnDefinition.StrColumn     => h2 :: untuple(t)
+          case h2: CSVColumnDefinition.InstantColumn => h2 :: untuple(t)
+        }
+    }
+
+  /** Import CSV data into ra3
+    *
+    * @param file
+    * @param name
+    *   Name of the table to create, must be unique
+    * @param columns
+    *   Description of columns: at a minimum the 0-based column index in the csv
+    *   file and the type of the column
+    * @param maxSegmentLength
+    *   Each column will be chunked to this length
+    * @param compression
+    * @param recordSeparator
+    * @param fieldSeparator
+    * @param header
+    * @param maxLines
+    * @param bufferSize
+    * @param characterDecoder
+    * @return
+    */
+  inline def importCsv[T <: Tuple](
+      file: SharedFile,
+      name: String,
+      columns: T,
+      maxSegmentLength: Int,
+      files: Seq[SharedFile] = Nil,
       compression: Option[CompressionFormat] = None,
       recordSeparator: String = "\r\n",
       fieldSeparator: Char = ',',
@@ -123,79 +239,80 @@ package object ra3 {
       characterDecoder: CharacterDecoder = CharacterDecoder.ASCII(silent = true)
   )(implicit
       tsc: TaskSystemComponents
-  ) = ra3.ts.ImportCsv.queue(
-    file,
-    name,
-    columns.map {
-      case CSVColumnDefinition.I32Column(columnIndex) =>
-        (columnIndex, ColumnTag.I32, None, None)
-      case CSVColumnDefinition.I64Column(columnIndex) =>
-        (columnIndex, ColumnTag.I64, None, None)
-      case CSVColumnDefinition.F64Column(columnIndex) =>
-        (columnIndex, ColumnTag.F64, None, None)
-      case CSVColumnDefinition.StrColumn(columnIndex, missingValue) =>
-        (columnIndex, ColumnTag.StringTag, None, missingValue)
-      case CSVColumnDefinition.InstantColumn(columnIndex, parser) =>
-        (columnIndex, ColumnTag.Instant, parser, None)
-    },
-    recordSeparator,
-    fieldSeparator,
-    header,
-    maxLines,
-    maxSegmentLength,
-    compression,
-    bufferSize,
-    characterDecoder
-  )
+  ) = {
+    val list = untuple(columns)
+    importCsvUntyped(
+      file,
+      name,
+      list,
+      maxSegmentLength,
+      files,
+      compression,
+      recordSeparator,
+      fieldSeparator,
+      header,
+      maxLines,
+      bufferSize,
+      characterDecoder
+    ).map { _.as[Tuple.Map[T, CsvColumnDefToColumnType]] }
+  }
 
-  //
+  inline def importFromStream[T <: Tuple: ClassTag](
+      stream: fs2.Stream[IO, T],
+      uniqueId: String,
+      minimumSegmentSize: Int,
+      maximumSegmentSize: Int
+  )(implicit tsc: TaskSystemComponents) =
+    ImportFromStream.importFromStream[T](
+      stream,
+      uniqueId,
+      minimumSegmentSize,
+      maximumSegmentSize
+    )
 
-  /** The expression which selects all column as is */
-  val star: Expr { type T = ra3.lang.ColumnSpec[Any] } = ra3.lang.Expr.Star
+  def const(s: Long): Expr[Long] =
+    ra3.lang.Expr.makeOp0(ops.Op0.ConstantI64(s))
+  def const(s: Int): Expr[Int] = ra3.lang.Expr.makeOp0(ops.Op0.ConstantI32(s))
+  def const(s: String): Expr[String] =
+    ra3.lang.Expr.makeOp0(ops.Op0.ConstantString(s))
+  def const(s: Double): Expr[Double] =
+    ra3.lang.Expr.makeOp0(ops.Op0.ConstantF64(s))
+  def const(s: java.time.Instant): Expr[java.time.Instant] =
+    ra3.lang.Expr.makeOp0(ops.Op0.ConstantInstant(s))
 
-  
-
-  /** Variable assigning let expression.
-    *
-    * @param assigned the expression which is being assigned
-    * @param body
-    *   the variable (the scala variable which is bound in the lambda) and the
-    *   expression which is using the variable
-    */
-  def let[T1](assigned: Expr)(body: Expr { type T = assigned.T } => Expr {
-    type T = T1
-  }): Expr { type T = T1 } =
-    ra3.lang.local(assigned)(body)
+  def LitI64S(s: Set[Long]): Expr[Set[Long]] =
+    ra3.lang.Expr.makeOp0(ops.Op0.ConstantI64S(s))
+  def LitI32S(s: Set[Int]): Expr[Set[Int]] =
+    ra3.lang.Expr.makeOp0(ops.Op0.ConstantI32S(s))
+  def LitStringS(s: Set[String]): Expr[Set[String]] =
+    ra3.lang.Expr.makeOp0(ops.Op0.ConstantStringS(s))
+  def LitF64S(s: Set[Double]): Expr[Set[Double]] =
+    ra3.lang.Expr.makeOp0(ops.Op0.ConstantF64S(s))
+  def LitInstS(s: Set[java.time.Instant]): Expr[Set[java.time.Instant]] =
+    ra3.lang.Expr.makeOp0(ops.Op0.ConstantInstantS(s))
 
   /** Elementwise or group wise projection */
-     def select[T0](arg0: ColumnSpecExpr[T0]): Expr{type T = ra3.lang.ReturnValue1[T0]} = ra3.lang.Expr
-    .BuiltInOp1(arg0, ops.Op1.MkReturnValue1)
-    .asInstanceOf[Expr { type T = ReturnValue1[T0] }]
+  def select0: Expr[ra3.lang.ReturnValueTuple[EmptyTuple]] = ra3.lang.Expr
+    .makeOp0(ops.Op0.ConstantEmptyReturnValue)
+  def S: Expr[ra3.lang.ReturnValueTuple[EmptyTuple]] = ra3.lang.Expr
+    .makeOp0(ops.Op0.ConstantEmptyReturnValue)
 
-     def select[T0,T1](
-      arg0:  ColumnSpecExpr[T0],
-      arg1:  ColumnSpecExpr[T1],
-      ) = ra3.lang.Expr
-    .BuiltInOp2(arg0,arg1, ops.Op2.MkReturnValue2)
-    .asInstanceOf[Expr { type T = ReturnValue2[T0,T1] }]
+  def select[T1 <: Tuple](
+      arg1: ra3.tablelang.Schema[T1]
+  ): Expr[ReturnValueTuple[T1]] =
+    select0.extend(arg1)
 
-  // def select[T0,T1](
-  //   projExpr: Expr { type T = Proj2[T0,T1] }
-    
-  // ): ReturnExpr2[T0,T1] = 
-  //   Expr.makeOp1(ops.Op1.MkSelect)(projExpr).asInstanceOf[ReturnExpr2[T0,T1]]
-  /** Alias of select */
-  // def project(args: Expr { type T = ColumnSpec }*): ReturnExpr = {
-  //   Expr.makeOpStar(ops.OpStar.MkSelect)(args: _*)
-  // }
-
-  // def where(arg0: I32ColumnExpr): ReturnExpr =
-  //   Expr.makeOp1(ops.Op1.MkRawWhere)(arg0)
-  // def filter(arg0: I32ColumnExpr): ReturnExpr =
-  //   where(arg0)
+  def where(arg0: ra3.lang.util.I32ColumnExpr) =
+    select0.where(arg0)
+  def filter(arg0: ra3.lang.util.I32ColumnExpr) =
+    where(arg0)
 
   /** Simple query consisting of elementwise (row-wise) projection and filter */
-  def query(prg: ra3.lang.Query) = {
+  def select[T <: Tuple](prg: ra3.lang.Expr[ra3.lang.ReturnValueTuple[T]]) =
+    query(prg)
+
+  /** Simple query consisting of elementwise (row-wise) projection and filter */
+  def query[T <: Tuple](prg: ra3.lang.Expr[ra3.lang.ReturnValueTuple[T]]) = {
     val tables = prg.referredTables
     require(
       tables.size == 1,
@@ -208,7 +325,7 @@ package object ra3 {
     * rows which pass the filter
     */
 
-  def count(prg: ra3.lang.Query) = {
+  def count[T <: Tuple](prg: ra3.lang.Expr[ra3.lang.ReturnValueTuple[T]]) = {
     val tables = prg.referredTables
     require(
       tables.size == 1,
@@ -225,8 +342,8 @@ package object ra3 {
     * This will read all rows of the needed columns into memory. You may want to
     * consult with partialReduce if the reduction is distributable.
     */
-  def reduce(
-      prg: ra3.lang.Query
+  def reduce[T <: Tuple](
+      prg: ra3.lang.Expr[ra3.lang.ReturnValueTuple[T]]
   ) = {
     val tables = prg.referredTables
 
@@ -244,8 +361,8 @@ package object ra3 {
     *
     * Reduces each segment independently. Returns a single row per segment.
     */
-  def partialReduce(
-      prg: ra3.lang.Query
+  def partialReduce[T <: Tuple](
+      prg: ra3.lang.Expr[ra3.lang.ReturnValueTuple[T]]
   ) = {
     val tables = prg.referredTables
 
@@ -259,204 +376,6 @@ package object ra3 {
     )
   }
 
-  // /** Variable assigning let expression where the assigned part is a single
-  //   * Table
-  //   */
-  // def let0(assigned: ra3.Table)(
-  //     body: TableExpr.Ident => TableExpr
-  // ): TableExpr =
-  //   local1(TableExpr.Const(assigned))(body)
-
-  // /** Variable assigning let expression with column decomposition
-  //   *
-  //   * The assigned expression is a single table. The receiver is a typed
-  //   * variable referencing the first column of the table.
-  //   *
-  //   * Care must be taken annotate type of the column correctly, otherwise
-  //   * runtime error will occur.
-  //   */
-  // def let[T0<: Expr.DelayedIdent: NotNothing](assigned: ra3.Table)(
-  //     body: (T0) => TableExpr
-  // ): TableExpr = {
-  //   local1(TableExpr.Const(assigned)) { t =>
-  //     body(t.apply[T0](0))
-
-  //   }
-  // }
-
-  // def let[T0<: Expr.DelayedIdent: NotNothing](assigned: ra3.TableExpr)(
-  //     body: (T0) => TableExpr
-  // ): TableExpr = {
-  //   local(assigned) { t =>
-  //     body(t.apply[T0](0))
-
-  //   }
-  // }
-
-  // /** Variable assigning let expression with column decomposition of two columns
-  //   *
-  //   * See the single column version for documentation.
-  //   *
-  //   * Decomposes the first two columns.
-  //   */
-  // def let[T0<: Expr.DelayedIdent: NotNothing, T1<: Expr.DelayedIdent: NotNothing](assigned: ra3.Table)(
-  //     body: (
-  //         T0,
-  //         T1
-  //     ) => TableExpr
-  // ): TableExpr = {
-  //   local(TableExpr.Const(assigned)) { t =>
-  //     t.apply[T0, T1](0, 1) { case (c0, c1) =>
-  //       body(c0, c1)
-  //     }
-  //   }
-  // }
-
-  // def let[T0<: Expr.DelayedIdent: NotNothing, T1<: Expr.DelayedIdent: NotNothing](assigned: ra3.TableExpr)(
-  //     body: (
-  //         T0,
-  //         T1
-  //     ) => TableExpr
-  // ): TableExpr = {
-  //   local(assigned) { t =>
-  //     t.apply[T0, T1](0, 1) { case (c0, c1) =>
-  //       body(c0, c1)
-  //     }
-  //   }
-  // }
-
-  // /** Variable assigning let expression with column decomposition of 3 columns
-  //   *
-  //   * See the single column version for documentation.
-  //   *
-  //   * Decomposes the first 3 columns.
-  //   */
-  // def let[T0<: Expr.DelayedIdent: NotNothing, T1<: Expr.DelayedIdent: NotNothing, T2<: Expr.DelayedIdent: NotNothing](
-  //     assigned: ra3.Table
-  // )(
-  //     body: (
-  //         T0,
-  //         T1,
-  //         T2
-  //     ) => TableExpr
-  // ): TableExpr = {
-  //   local(TableExpr.Const(assigned)) { t =>
-  //     t.apply[T0, T1, T2](0, 1, 2) { case (c0, c1, c2) =>
-  //       body(c0, c1, c2)
-  //     }
-  //   }
-  // }
-
-  // def let[T0<: Expr.DelayedIdent: NotNothing, T1<: Expr.DelayedIdent: NotNothing, T2<: Expr.DelayedIdent: NotNothing](
-  //     assigned: ra3.TableExpr
-  // )(
-  //     body: (
-  //         T0,
-  //         T1,
-  //         T2
-  //     ) => TableExpr
-  // ): TableExpr = {
-  //   local(assigned) { t =>
-  //     t.apply[T0, T1, T2](0, 1, 2) { case (c0, c1, c2) =>
-  //       body(c0, c1, c2)
-  //     }
-  //   }
-  // }
-
-  // /** Variable assigning let expression with column decomposition of 4 columns
-  //   *
-  //   * See the single column version for documentation.
-  //   *
-  //   * Decomposes the first 4 columns.
-  //   */
-  // def let[T0<: Expr.DelayedIdent: NotNothing, T1<: Expr.DelayedIdent: NotNothing, T2<: Expr.DelayedIdent: NotNothing, T3<: Expr.DelayedIdent: NotNothing](
-  //     assigned: ra3.Table
-  // )(
-  //     body: (
-  //         T0,
-  //         T1,
-  //         T2,
-  //         T3
-  //     ) => TableExpr
-  // ): TableExpr = {
-  //   local(TableExpr.Const(assigned)) { t =>
-  //     t.apply[T0, T1, T2, T3](0, 1, 2, 3) { case (c0, c1, c2, c3) =>
-  //       body(c0, c1, c2, c3)
-  //     }
-  //   }
-  // }
-
-  // def let[T0<: Expr.DelayedIdent: NotNothing, T1<: Expr.DelayedIdent: NotNothing, T2<: Expr.DelayedIdent: NotNothing, T3<: Expr.DelayedIdent: NotNothing](
-  //     assigned: ra3.TableExpr
-  // )(
-  //     body: (
-  //         T0,
-  //         T1,
-  //         T2,
-  //         T3
-  //     ) => TableExpr
-  // ): TableExpr = {
-  //   local(assigned) { t =>
-  //     t.apply[T0, T1, T2, T3](0, 1, 2, 3) { case (c0, c1, c2, c3) =>
-  //       body(c0, c1, c2, c3)
-  //     }
-  //   }
-  // }
-
-  // /** Variable assigning let expression with column decomposition of 5 columns
-  //   *
-  //   * See the single column version for documentation.
-  //   *
-  //   * Decomposes the first 5 columns.
-  //   */
-  // def let[
-  //     T0<: Expr.DelayedIdent: NotNothing,
-  //     T1<: Expr.DelayedIdent: NotNothing,
-  //     T2<: Expr.DelayedIdent: NotNothing,
-  //     T3<: Expr.DelayedIdent: NotNothing,
-  //     T4<: Expr.DelayedIdent: NotNothing
-  // ](
-  //     assigned: ra3.Table
-  // )(
-  //     body: (
-  //         T0,
-  //         T1,
-  //         T2,
-  //         T3,
-  //         T4
-  //     ) => TableExpr
-  // ): TableExpr = {
-  //   local(TableExpr.Const(assigned)) { t =>
-  //     t.apply[T0, T1, T2, T3, T4](0, 1, 2, 3, 4) { case (c0, c1, c2, c3, c4) =>
-  //       body(c0, c1, c2, c3, c4)
-  //     }
-  //   }
-  // }
-
-  // def let[
-  //     T0<: Expr.DelayedIdent: NotNothing,
-  //     T1<: Expr.DelayedIdent: NotNothing,
-  //     T2<: Expr.DelayedIdent: NotNothing,
-  //     T3<: Expr.DelayedIdent: NotNothing,
-  //     T4<: Expr.DelayedIdent: NotNothing
-  // ](
-  //     assigned: ra3.TableExpr
-  // )(
-  //     body: (
-  //         T0,
-  //         T1,
-  //         T2,
-  //         T3,
-  //         T4
-  //     ) => TableExpr
-  // ): TableExpr = {
-  //   local(assigned) { t =>
-  //     t.apply[T0, T1, T2, T3, T4](0, 1, 2, 3, 4) { case (c0, c1, c2, c3, c4) =>
-  //       body(c0, c1, c2, c3, c4)
-  //     }
-  //   }
-  // }
-
   /** Concatenate the list of rows of multiple tables ('grows downwards') */
   def concatenate(
       others: Table*
@@ -464,7 +383,7 @@ package object ra3 {
     val name = ra3.ts.MakeUniqueId.queue(
       others.head,
       s"concat",
-      others.flatMap(_.columns)
+      others.flatMap(_.columns).map(_.column)
     )
     name.map { name =>
       val all = others
@@ -472,11 +391,12 @@ package object ra3 {
       assert(all.map(_.columns.map(_.tag)).distinct.size == 1)
       val columns = all.head.columns.size
       val cols = 0 until columns map { cIdx =>
-        all.map(_.columns(cIdx)).reduce(_ castAndConcatenate _)
+        all.map(_.columns(cIdx)).reduce(_ `castAndConcatenate` _)
       } toVector
 
       Table(cols, all.head.colNames, name, None)
     }
   }
-  def render(q: TableExpr) = ">>\n" + Render.render(q.replaceTags(), 0) + "\n<<"
+  def render[T](q: TableExpr[T]) =
+    ">>\n" + Render.render(q, 0, Vector.empty) + "\n<<"
 }

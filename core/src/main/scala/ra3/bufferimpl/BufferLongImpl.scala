@@ -1,10 +1,11 @@
 package ra3.bufferimpl
-import ra3._
+import ra3.*
 import cats.effect.IO
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import tasks.{TaskSystemComponents, SharedFile}
-
+import ra3.join.*
+import ra3.join.locator.*
 private[ra3] trait BufferLongImpl { self: BufferLong =>
   def nonMissingMinMax = makeStatistic().nonMissingMinMax
 
@@ -54,7 +55,7 @@ private[ra3] trait BufferLongImpl { self: BufferLong =>
   def partition(numPartitions: Int, map: BufferInt): Vector[BufferType] = {
     assert(length == map.length)
     val growableBuffers =
-      Vector.fill(numPartitions)(org.saddle.Buffer.empty[Long])
+      Vector.fill(numPartitions)(MutableBuffer.emptyL)
     var i = 0
     val n = length
     val mapv = map.values
@@ -74,9 +75,8 @@ private[ra3] trait BufferLongImpl { self: BufferLong =>
   }
 
   def positiveLocations: BufferInt = {
-    import org.saddle._
     BufferInt(
-      values.toVec.find(_ > 0L).toArray
+      ArrayUtil.findL(values,_ > 0L)
     )
   }
 
@@ -103,18 +103,17 @@ private[ra3] trait BufferLongImpl { self: BufferLong =>
   /** Find locations at which _ <= other[0] or _ >= other[0] holds returns
     * indexes
     */
-  override def findInequalityVsHead(
+  def findInequalityVsHead(
       other: BufferType,
       lessThan: Boolean
   ): BufferInt = {
-    import org.saddle._
     val c = other.values(0)
     if (c == BufferLong.MissingValue) BufferInt.empty
     else {
       val idx =
         if (lessThan)
-          values.toVec.find(_ <= c)
-        else values.toVec.find(_ >= c)
+          ArrayUtil.findL(values,_ <= c)
+        else ArrayUtil.findL(values,_ >= c)
 
       BufferInt(idx.toArray)
     }
@@ -122,38 +121,23 @@ private[ra3] trait BufferLongImpl { self: BufferLong =>
 
   def toSeq = values.toSeq
 
-  def cdf(numPoints: Int): (BufferLong, BufferDouble) = {
-    val percentiles =
-      ((0 until (numPoints - 1)).map(i => i * (1d / (numPoints - 1))) ++ List(
-        1d
-      )).distinct
-      import org.saddle._
-    val sorted = org.saddle.array.sort[Long](values.toVec.dropNA.toArray)
-    val cdf = percentiles.map { p =>
-      val idx = (p * (sorted.length - 1)).toInt
-      (sorted(idx), p)
-    }
-
-    val x = BufferLong(cdf.map(_._1).toArray)
-    val y = BufferDouble(cdf.map(_._2).toArray)
-    (x, y)
-  }
+  def element(i:Int)  = values(i)
 
   def length = values.length
 
-  import org.saddle.{Buffer => _, _}
 
-  def groups = {
-    val idx = Index(values)
-    val uniques = idx.uniques
+    def groups = {
+    val idx = LocatorLong.fromKeys(values)
+    val uniques = idx.uniqueKeys
+    val uniquesLoc = LocatorLong.fromKeys(uniques)
     val counts = idx.counts
     val map = Array.ofDim[Int](values.length)
     var i = 0
     while (i < values.length) {
-      map(i) = uniques.getFirst(values(i))
+      map(i) = uniquesLoc.get(values(i))
       i += 1
     }
-    Buffer.GroupMap(
+    ra3.Buffer.GroupMap(
       map = BufferInt(map),
       numGroups = uniques.length,
       groupSizes = BufferInt(counts)
@@ -178,33 +162,32 @@ private[ra3] trait BufferLongImpl { self: BufferLong =>
 
   }
 
-  def computeJoinIndexes(
+def computeJoinIndexes(
       other: BufferType,
       how: String
   ): (Option[BufferInt], Option[BufferInt]) = {
-    val idx1 = Index(values)
-    val idx2 = Index(other.values)
-    val reindexer = new (ra3.join.JoinerImpl[Long]).join(
+    val idx1 = LocatorLong.fromKeys(values)
+    val idx2 = LocatorLong.fromKeys(other.values)
+    val reindexer =  (ra3.join.JoinerImplLong).join(
       left = idx1,
       right = idx2,
       how = how match {
-        case "inner" => org.saddle.index.InnerJoin
-        case "left"  => org.saddle.index.LeftJoin
-        case "right" => org.saddle.index.RightJoin
-        case "outer" => org.saddle.index.OuterJoin
+        case "inner" => InnerJoin
+        case "left"  => LeftJoin
+        case "right" => RightJoin
+        case "outer" => OuterJoin
       }
     )
     (reindexer.lTake.map(BufferInt(_)), reindexer.rTake.map(BufferInt(_)))
   }
 
-  override def take(locs: Location): BufferLong = locs match {
+  def take(locs: Location): BufferLong = locs match {
     case Slice(start, until) =>
       val r = Array.ofDim[Long](until - start)
       System.arraycopy(values, start, r, 0, until - start)
       BufferLong(r)
     case idx: BufferInt =>
-      import org.saddle._
-      BufferLong(values.toVec.take(idx.values).toArray)
+      BufferLong(ArrayUtil.takeL(values,idx.values))
   }
 
   override def isMissing(l: Int): Boolean = {
@@ -226,7 +209,7 @@ private[ra3] trait BufferLongImpl { self: BufferLong =>
     tag.makeBuffer(ar)
 
   }
-  override def toSegment(
+  def toSegment(
       name: LogicalPath
   )(implicit tsc: TaskSystemComponents): IO[SegmentLong] = {
     if (values.length == 0) IO.pure(SegmentLong(None, 0, StatisticLong.empty))
