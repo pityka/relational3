@@ -97,44 +97,46 @@ private[ra3] object Utils {
   }
 
   def compress(bb: ByteBuffer) = {
-
-    val t1 = System.nanoTime()
-    val compressor = new _root_.io.airlift.compress.zstd.ZstdCompressor
-    val ar = bb.array()
-    val offs = bb.arrayOffset()
-    val len = bb.remaining()
-    val maxL = compressor.maxCompressedLength(len)
-    val compressed = Array.ofDim[Byte](maxL)
-    val actualLength =
-      compressor.compress(ar, offs, len, compressed, 0, maxL)
-    val t2 = System.nanoTime()
-    scribe.debug(
-      f"zstd compression ratio: ${actualLength.toDouble / len} in ${(t2 - t1) * 1e-6}ms (${actualLength.toDouble / 1024 / 1024}%.2f megabytes)"
-    )
-    ByteBuffer.wrap(compressed, 0, actualLength)
+    bb
+    // val t1 = System.nanoTime()
+    // val compressor = new _root_.io.airlift.compress.zstd.ZstdCompressor
+    // val ar = bb.array()
+    // val offs = bb.arrayOffset()
+    // val len = bb.remaining()
+    // val maxL = compressor.maxCompressedLength(len)
+    // val compressed = Array.ofDim[Byte](maxL)
+    // val actualLength =
+    //   compressor.compress(ar, offs, len, compressed, 0, maxL)
+    // val t2 = System.nanoTime()
+    // scribe.debug(
+    //   f"zstd compression ratio: ${actualLength.toDouble / len} in ${(t2 - t1) * 1e-6}ms (${actualLength.toDouble / 1024 / 1024}%.2f megabytes)"
+    // )
+    // ByteBuffer.wrap(compressed, 0, actualLength)
 
   }
 
   def decompress(byteVector: ByteVector) = {
-    val compressed = byteVector.toArrayUnsafe
-    val decompressor =
-      new _root_.io.airlift.compress.zstd.ZstdDecompressor
-    val ar = compressed
-    val offs = 0
-    val len = compressed.length
-    val decLen = _root_.io.airlift.compress.zstd.ZstdDecompressor
-      .getDecompressedSize(ar, offs, len)
-      .toInt
-    val decompressedBuffer = Array.ofDim[Byte](decLen)
-    decompressor.decompress(
-      ar,
-      offs,
-      len,
-      decompressedBuffer,
-      0,
-      decLen
-    )
-    java.nio.ByteBuffer.wrap(decompressedBuffer)
+    java.nio.ByteBuffer.wrap(byteVector.toArrayUnsafe)
+    // val compressed = byteVector.toArrayUnsafe
+    // val decompressor =
+    //   new _root_.io.airlift.compress.zstd.ZstdDecompressor
+    // val ar = compressed
+    // val offs = 0
+    // val len = compressed.length
+    // val decLen = _root_.io.airlift.compress.zstd.ZstdDecompressor
+    //   .getDecompressedSize(ar, offs, len)
+    //   .toInt
+    // val decompressedBuffer = Array.ofDim[Byte](decLen)
+    // decompressor.decompress(
+    //   ar,
+    //   offs,
+    //   len,
+    //   decompressedBuffer,
+    //   0,
+    //   decLen
+    // )
+    // java.nio.ByteBuffer.wrap(decompressedBuffer)
+
   }
 
   import com.github.plokhotnyuk.jsoniter_scala.core.*

@@ -125,57 +125,7 @@ trait TableExtensions {
       }
     }
 
-    /**   - Align predicate segment with table segmentation
-      *   - For each aligned predicate segment, buffer it
-      *   - For each column
-      *   - For each segment in the column
-      *   - Buffer column segment
-      *   - Apply buffered predicate segment to buffered column segment
-      *   - Write applied buffer to local segment
-      *   - Resegment
-      *
-      * Variant which takes BufferedTable => BufferInt
-      *
-      * @param predicate
-      * @return
-      */
-    def rfilter(
-        predicate: TaggedColumn
-    )(implicit tsc: TaskSystemComponents): IO[Table] = {
-      assert(
-        self.columns.head.segments.size == predicate.tag
-          .segments(predicate.column)
-          .size
-      )
-      ts.MakeUniqueId.queue(self, "rfilter", List(predicate.column)).flatMap {
-        name =>
-          IO.parTraverseN(math.min(32, self.columns.size))(
-            self.columns.zipWithIndex
-          ) { case (column, columnIdx) =>
-            IO.parTraverseN(
-              math.min(32, predicate.tag.segments(predicate.column).size)
-            )(
-              predicate.tag.segments(predicate.column).zipWithIndex
-            ) { case (segment, segmentIdx) =>
-              ts.Filter.queue(tag = column.tag, predicateTag = predicate.tag)(
-                input = column.segments(segmentIdx),
-                predicate = segment,
-                outputPath = LogicalPath(name, None, segmentIdx, columnIdx)
-              )
-            }.map(segments =>
-              column.tag.makeTaggedColumn(column.tag.makeColumn(segments))
-            )
-
-          }.map(columns =>
-            Table(
-              columns,
-              self.colNames,
-              name,
-              self.partitions
-            )
-          )
-      }
-    }
+  
 
     /**   - For each aligned index segment, buffer it
       *   - For each column

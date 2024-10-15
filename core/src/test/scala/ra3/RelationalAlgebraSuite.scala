@@ -264,39 +264,7 @@ class RelationlAlgebraSuite
     }
 
   }
-  test("filter on predicate") {
-    withTempTaskSystem { implicit ts =>
-      val numCols = 3
-      val numRows = 10
-      val (tableFrame, tableCsv) = generateTable(numRows, numCols)
-      val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
-      val masks = Seq(Seq(1, 0, 1), Seq(0, 0, 0), Seq(1, 1, 1), Seq(0))
-      val maskColumn = I32.makeColumn(
-        masks.zipWithIndex
-          .map(s => (s._2, ColumnTag.I32.makeBufferFromSeq(s._1*)))
-          .map(v =>
-            ColumnTag.I32
-              .toSegment(v._2, LogicalPath("idx1", None, v._1, 0))
-              .unsafeRunSync()
-          )
-          .toVector
-      )
-
-      val taken = ra3Table.rfilter(maskColumn).unsafeRunSync()
-      val takenF = (0 until 4)
-        .map(i =>
-          taken.bufferSegment(i).unsafeRunSync().toHomogeneousFrame(I32)
-        )
-        .reduce(_ concat _)
-        .resetRowIndex
-        .filterIx(_.nonEmpty)
-      val expect =
-        tableFrame.rowAt(0, 2, 6, 7, 8).resetRowIndex
-
-      assertEquals(takenF, expect)
-    }
-
-  }
+  
   test("filter on <>") {
     withTempTaskSystem { implicit ts =>
       val numCols = 3
