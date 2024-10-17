@@ -17,7 +17,7 @@ private object TupleUtils {
     case ra3.BufferString  => CharSequence
     case ra3.BufferInstant => Long
   }
-  
+
   inline def elem[T](t: Any): Elem[T] =
     inline scala.compiletime.erasedValue[T] match {
       case _: ra3.BufferInt     => t.asInstanceOf[Int]

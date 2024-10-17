@@ -112,20 +112,19 @@ private[ra3] object SimpleQueryCount {
   )(implicit
       tsc: TaskSystemComponents
   ): IO[Long] =
-    task(
-      SimpleQueryCount(input, predicate, groupMap)
-    )(
-      ResourceRequest(
-        cpu = (1, 1),
-        memory =
-          input.flatMap(_.segment).map(ra3.Utils.guessMemoryUsageInMB).sum,
-        scratch = 0,
-        gpu = 0
-      )
+  task(
+    SimpleQueryCount(input, predicate, groupMap)
+  )(
+    ResourceRequest(
+      cpu = (1, 1),
+      memory = input.flatMap(_.segment).map(ra3.Utils.guessMemoryUsageInMB).sum,
+      scratch = 0,
+      gpu = 0
     )
-    // $COVERAGE-OFF$
+  )
+  // $COVERAGE-OFF$
   implicit val codec: JsonValueCodec[SimpleQueryCount] = JsonCodecMaker.make
-    // $COVERAGE-ON$
+  // $COVERAGE-ON$
   val task = Task[SimpleQueryCount, Long]("SimpleQueryCount", 1) { case input =>
     implicit ce =>
       doit(input.input, input.predicate, input.groupMap).map(_.toLong)

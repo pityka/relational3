@@ -281,6 +281,7 @@ private[ra3] final case class SegmentString(
       case None => IO.pure(BufferString(Array.empty[CharSequence]))
       case Some(value) =>
         value.bytes.map { byteVector =>
+          val t1 = System.nanoTime()
           val decompressed = Utils.decompress(byteVector)
 
           val bb =
@@ -290,11 +291,16 @@ private[ra3] final case class SegmentString(
           var i = 0
           while (i < numElems) {
             val len = bb.getInt()
-            val char = bb.slice(bb.position(), len * 2).asCharBuffer()
-            ar(i) = char
+            val wrap2 =
+            ByteBufferAsCharSequence(bb.slice(bb.position(), len * 2))
+            // val char = bb.slice(bb.position(), len * 2).asCharBuffer()
+            // assert(wrap2 == char,"X "+char.toString+" "+wrap2.toCharArray.toVector)
+            // assert(CharSequence.compare(wrap2,char) == 0,"Y"+char.toString+" "+wrap2.toCharArray.toVector)
+            ar(i) = wrap2
             bb.position(bb.position() + len * 2)
             i += 1
           }
+          val t2 = System.nanoTime
 
           BufferString(ar)
         }

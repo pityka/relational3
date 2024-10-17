@@ -88,7 +88,8 @@ private[ra3] trait SyntaxF64ColumnImpl {
   infix def as(arg1: String): ColumnSpecExpr[DF64] = as(ra3.const(arg1))
 
   @scala.annotation.targetName(":*ColumnSpec")
-  infix def :*[T1](v: Expr[ColumnSpec[T1]]) = ra3.S.extend(arg0.unnamed).extend(v)
+  infix def :*[T1](v: Expr[ColumnSpec[T1]]) =
+    ra3.S.extend(arg0.unnamed).extend(v)
   @scala.annotation.targetName(":*DF64")
   infix def :*(v: Expr[ra3.DF64]) = ra3.S.extend(arg0.unnamed).extend(v.unnamed)
   @scala.annotation.targetName(":*DStr")
@@ -98,6 +99,7 @@ private[ra3] trait SyntaxF64ColumnImpl {
   @scala.annotation.targetName(":*DI64")
   infix def :*(v: Expr[ra3.DI64]) = ra3.S.extend(arg0.unnamed).extend(v.unnamed)
   @scala.annotation.targetName(":*DInst")
-  infix def :*(v: Expr[ra3.DInst]) = ra3.S.extend(arg0.unnamed).extend(v.unnamed)
+  infix def :*(v: Expr[ra3.DInst]) =
+    ra3.S.extend(arg0.unnamed).extend(v.unnamed)
 
 }

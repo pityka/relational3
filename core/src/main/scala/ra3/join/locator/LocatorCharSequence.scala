@@ -15,10 +15,10 @@
 package ra3.join.locator
 
 import ra3.join.*
-import scala.reflect.ClassTag
 
-private[ra3] class LocatorAny[T: ClassTag](val allKeys: Array[T]) {
-  private val (cts, uniqueIdx) = ra3.hashtable.GenericTable
+@scala.annotation.nowarn
+private[ra3] class LocatorCharSequence(val allKeys: Array[CharSequence]) {
+  private val (cts, uniqueIdx) = ra3.hashtable.CharSequenceTable
     .buildWithUniques(allKeys, Array.ofDim[Int](allKeys.length))
 
   private val uniqueBuffer = uniqueIdx.map(allKeys)
@@ -27,29 +27,31 @@ private[ra3] class LocatorAny[T: ClassTag](val allKeys: Array[T]) {
     cts.mutate(allKeys(i), _ + 1)
     i += 1
   }
-  private val map = ra3.hashtable.GenericTable
+  private val map = ra3.hashtable.CharSequenceTable
     .build(allKeys, null)
 
-  def contains(key: T): Boolean = map.contains(key)
-  def get(key: T): Int = map.lookupIdx(key)
-  def getAll(key: T): Array[Int] = if (map.contains(key)) map.lookupAllIdx(key)
+  def contains(key: CharSequence): Boolean = map.contains(key)
+  def get(key: CharSequence): Int = map.lookupIdx(key)
+  def getAll(key: CharSequence): Array[Int] = if (map.contains(key))
+    map.lookupAllIdx(key)
   else Locator.emptyArray
 
-  def count(key: T): Int = {
+  def count(key: CharSequence): Int = {
     val c = cts.lookupIdx(key)
     if (c == -1) 0 else cts.payload(c)
   }
 
-  def uniqueKeys: Array[T] = uniqueBuffer.toArray
+  def uniqueKeys: Array[CharSequence] = uniqueBuffer.toArray
+  def counts: Array[Int] = allKeys.map(count)
   def length: Int = allKeys.length
-  def getFirst(key: T): Int = get(key)
+  def getFirst(key: CharSequence): Int = get(key)
 }
 
-private[ra3] object LocatorAny {
-  def fromKeys[T: ClassTag](
-      keys: Array[T]
-  ): LocatorAny[T] = {
-    LocatorAny(keys)
+private[ra3] object LocatorCharSequence {
+  def fromKeys(
+      keys: Array[CharSequence]
+  ): LocatorCharSequence = {
+    LocatorCharSequence(keys)
 
   }
 }

@@ -101,7 +101,7 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
 
   def toSeq = values.toSeq
 
-  def element(i:Int)  = value
+  def element(i: Int) = value
 
   def cdf(numPoints: Int): (BufferInt, BufferDouble) = {
     val percentiles =
@@ -116,7 +116,6 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
     val y = BufferDouble(cdf.map(_._2).toArray)
     (x, y)
   }
-
 
   def groups = {
     Buffer.GroupMap(
@@ -136,7 +135,7 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
 
   }
 
-def computeJoinIndexes(
+  def computeJoinIndexes(
       other: BufferType,
       how: String
   ): (Option[BufferInt], Option[BufferInt]) = {
@@ -165,7 +164,7 @@ def computeJoinIndexes(
     case Slice(start, until) =>
       BufferInt.constant(value, until - start)
     case idx: BufferInt =>
-      BufferInt(ArrayUtil.takeI(values,idx.values).toArray)
+      BufferInt(ArrayUtil.takeI(values, idx.values).toArray)
 
   }
 

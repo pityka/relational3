@@ -81,7 +81,8 @@ case class Table(
       .headOption
       .getOrElse(Nil)
 
-  private[ra3] def mapColIndex(f: String => String) = copy(colNames = colNames.map(f))
+  private[ra3] def mapColIndex(f: String => String) =
+    copy(colNames = colNames.map(f))
 
   /** Selects a column by name, or throws if not exists. */
   def apply(s: String) = columns(
@@ -154,13 +155,12 @@ case class Table(
     bufferStream.flatMap(_.toTuplesFromColumnChunks[T])
   }
   private[ra3] transparent inline def streamOfSingleColumnChunk[
-      T 
+      T
   ](implicit
       tsc: TaskSystemComponents
   ) = {
     bufferStream.map(_.toChunkedStream[T])
   }
-
 
   import ra3.tablelang.TableExpr
 

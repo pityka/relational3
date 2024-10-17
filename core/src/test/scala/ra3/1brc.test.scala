@@ -34,7 +34,11 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
         }
 
       val files = table
-        .exportToCsv(compression = None, recordSeparator = "\n",columnSeparator=';')
+        .exportToCsv(
+          compression = None,
+          recordSeparator = "\n",
+          columnSeparator = ';'
+        )
         .flatMap(v =>
           cats.effect.IO
             .parSequenceN(1)(v.map(_.bytes.map(_.decodeUtf8Lenient)))
@@ -42,8 +46,8 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
         .unsafeRunSync()
       val cat = files.mkString
       val exp = scala.io.Source
-          .fromInputStream(getClass().getResourceAsStream("/1brc.1M.txt"))
-          .mkString
+        .fromInputStream(getClass().getResourceAsStream("/1brc.1M.txt"))
+        .mkString
       assert(
         cat == exp
       )
@@ -79,12 +83,13 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
 
       val tpe = table.as[(StrVar, F64Var)]
 
-      val result = tpe.schema{  (station, value) => _ => 
+      val result = tpe
+        .schema { (station, value) => _ =>
           ra3.partialReduce(ra3.S :* value.max)
         }
-        .in(_.schema {   case (max *: EmptyTuple) => _ => 
-          ra3.reduce(ra3.S :* max.max)
-        
+        .in(_.schema { case (max *: EmptyTuple) =>
+          _ => ra3.reduce(ra3.S :* max.max)
+
         })
         .evaluate
         .unsafeRunSync()
@@ -155,25 +160,27 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
 
       val tpe = table.as[(StrVar, F64Var)]
 
-      val result = tpe.schema{ case (station, value) => _ => 
-          val t0 = station.groupBy.reducePartial(
-            ra3.select0
-              .extend(station.first as "station")
-              .extend(value.sum as "sum")
-              .extend(value.count as "count")
-          )
+      val result = tpe
+        .schema { case (station, value) =>
+          _ =>
+            val t0 = station.groupBy.reducePartial(
+              ra3.select0
+                .extend(station.first as "station")
+                .extend(value.sum as "sum")
+                .extend(value.count as "count")
+            )
 
-          val t = t0
-            .schema{ case (station, sum, count) => schema => 
-                station.groupBy.reduceTotal(
-                  schema.none
-                    .extend(station.first)
-                    .extend((sum.sum / count.sum).unnamed)
-                )
+            val t = t0
+              .schema { case (station, sum, count) =>
+                schema =>
+                  station.groupBy.reduceTotal(
+                    schema.none
+                      .extend(station.first)
+                      .extend((sum.sum / count.sum).unnamed)
+                  )
               }
-            
 
-          t
+            t
         }
         .evaluate
         .unsafeRunSync()
@@ -247,11 +254,10 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
       val tpe = table.as[(StrVar, F64Var)]
 
       val result = tpe
-        .schema( { (station, _) => schema =>
-            query(schema.all.where(station === "Skopje"))
+        .schema({ (station, _) => schema =>
+          query(schema.all.where(station === "Skopje"))
 
-          }
-        )
+        })
         .evaluate
         .unsafeRunSync()
         .bufferStream
@@ -321,24 +327,25 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
         }
       val typedTable = table.as[(StrVar, F64Var)]
 
-      val result = typedTable.schema { (station, col1) => _ =>
-            station.groupBy
-              .reduceTotal(
-                select0.extend(
-                  station.first as "station"
-                )
+      val result = typedTable
+        .schema { (station, col1) => _ =>
+          station.groupBy
+            .reduceTotal(
+              select0.extend(
+                station.first as "station"
               )
-              .schema { case (station *: EmptyTuple) => _ =>
+            )
+            .schema { case (station *: EmptyTuple) =>
+              _ =>
                 station.groupBy.reduceTotal(
                   select0.extend(
                     station.first
                   )
                 )
 
-              }
+            }
 
-          }
-        
+        }
         .evaluate
         .unsafeRunSync()
         .bufferStream
@@ -404,21 +411,26 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
 
       val program = for {
         stations <- table.tap("tap")
-        maxValues <- stations.schema{ case (station, value) => _ =>
+        maxValues <- stations.schema { case (station, value) =>
+          _ =>
             station.groupBy
               .reduceTotal(
                 station.first :* value.max
               )
-          }
-        minValues <- stations.schema{ case (station, value) => _ =>
+        }
+        minValues <- stations.schema { case (station, value) =>
+          _ =>
             station.groupBy
               .reduceTotal(
                 station.first :* value.min
               )
-          }
-        minMax <- stations.schema{ case (station, value) => _ =>
-            maxValues.schema{ case (maxStation, maxValue) => _ =>
-                minValues.schema{ case minValues => _ =>
+        }
+        minMax <- stations.schema { case (station, value) =>
+          _ =>
+            maxValues.schema { case (maxStation, maxValue) =>
+              _ =>
+                minValues.schema { case minValues =>
+                  _ =>
                     station
                       .inner(maxStation)
                       .inner(minValues._1)
@@ -430,9 +442,9 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
                       .where(
                         (value === maxValue) || (value === minValues._2)
                       )
-                  }
-              }
-          }
+                }
+            }
+        }
       } yield minMax
       println(program.render)
 

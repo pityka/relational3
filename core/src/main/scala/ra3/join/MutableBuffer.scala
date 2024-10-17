@@ -21,7 +21,7 @@
   * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
   * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
   * IN THE SOFTWARE.
-  * 
+  *
   * Modifications:
   *   - specialize
   */
@@ -31,7 +31,7 @@ import scala.reflect.ClassTag
 import scala.collection.mutable.{Buffer => SBuffer}
 import scala.collection.mutable.ListBuffer
 
- final class MBufferDouble  (
+final class MBufferDouble(
     private var arrays: SBuffer[Array[Double]],
     var length: Int
 ) {
@@ -57,8 +57,6 @@ import scala.collection.mutable.ListBuffer
     res
   }
 
- 
-
   final def +=(elem: V): this.type = {
     arrays.last(cursor) = elem
     length += 1
@@ -74,11 +72,11 @@ import scala.collection.mutable.ListBuffer
       arrays.append(newArray)
       cursor = 0
     }
-    
+
   }
 
 }
- final class MBufferLong  (
+final class MBufferLong(
     private var arrays: SBuffer[Array[Long]],
     var length: Int
 ) {
@@ -104,8 +102,6 @@ import scala.collection.mutable.ListBuffer
     res
   }
 
- 
-
   final def +=(elem: V): this.type = {
     arrays.last(cursor) = elem
     length += 1
@@ -121,11 +117,11 @@ import scala.collection.mutable.ListBuffer
       arrays.append(newArray)
       cursor = 0
     }
-    
+
   }
 
 }
- final class MBufferInt  (
+final class MBufferInt(
     private var arrays: SBuffer[Array[Int]],
     var length: Int
 ) {
@@ -151,8 +147,6 @@ import scala.collection.mutable.ListBuffer
     res
   }
 
-
-
   final def +=(elem: V): this.type = {
     arrays.last(cursor) = elem
     length += 1
@@ -168,11 +162,11 @@ import scala.collection.mutable.ListBuffer
       arrays.append(newArray)
       cursor = 0
     }
-    
+
   }
 
 }
- final class MBufferG[T]  (
+final class MBufferG[T](
     private var arrays: SBuffer[Array[T]],
     var length: Int
 )(implicit ctV: ClassTag[T]) {
@@ -197,8 +191,6 @@ import scala.collection.mutable.ListBuffer
     res
   }
 
- 
-
   final def +=(elem: V): this.type = {
     arrays.last(cursor) = elem
     length += 1
@@ -214,32 +206,29 @@ import scala.collection.mutable.ListBuffer
       arrays.append(newArray)
       cursor = 0
     }
-    
+
   }
 
 }
 
- object MutableBuffer {
+object MutableBuffer {
 
-  
   val startSize = 256
   val maxSize = 16777216
 
   def emptyD: MBufferDouble =
     new MBufferDouble(ListBuffer(new Array[Double](startSize)), 0)
-  def emptyD(size:Int): MBufferDouble =
+  def emptyD(size: Int): MBufferDouble =
     new MBufferDouble(ListBuffer(new Array[Double](size)), 0)
   def emptyI: MBufferInt =
     new MBufferInt(ListBuffer(new Array[Int](startSize)), 0)
-  def emptyI(size:Int): MBufferInt =
+  def emptyI(size: Int): MBufferInt =
     new MBufferInt(ListBuffer(new Array[Int](size)), 0)
   def emptyL: MBufferLong =
     new MBufferLong(ListBuffer(new Array[Long](startSize)), 0)
-  def emptyL(size:Int): MBufferLong =
+  def emptyL(size: Int): MBufferLong =
     new MBufferLong(ListBuffer(new Array[Long](size)), 0)
-  def emptyG[T:ClassTag]: MBufferG[T] =
+  def emptyG[T: ClassTag]: MBufferG[T] =
     new MBufferG(ListBuffer(new Array[T](startSize)), 0)
-
-  
 
 }

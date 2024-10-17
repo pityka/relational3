@@ -248,10 +248,10 @@ object csv {
       import scala.compiletime.asMatchable
       // upload
       val lengths = bufdata.map(_.asMatchable match {
-        case t: MBufferInt => t.length
-        case t: MBufferLong => t.length
+        case t: MBufferInt    => t.length
+        case t: MBufferLong   => t.length
         case t: MBufferDouble => t.length
-        case t: MBufferG[?] => t.length
+        case t: MBufferG[?]   => t.length
       })
 
       assert(lengths.distinct.size == 1, lengths.toList)
@@ -261,32 +261,29 @@ object csv {
 
         IO.parSequenceN(32)(bufdata.zipWithIndex.toList.map {
           case (b, bufferIdx) =>
-            
-                val tpe = columnTypes(bufferIdx)._2
+            val tpe = columnTypes(bufferIdx)._2
 
-                val ar = b match {
-                  case t: MBufferInt => t.toArray
-                  case t: MBufferLong => t.toArray
-                  case t: MBufferDouble => t.toArray
-                  case t: MBufferG[?] => t.toArray
-                }
+            val ar = b match {
+              case t: MBufferInt    => t.toArray
+              case t: MBufferLong   => t.toArray
+              case t: MBufferDouble => t.toArray
+              case t: MBufferG[?]   => t.toArray
+            }
 
+            tpe
+              .toSegment(
                 tpe
-                  .toSegment(
-                    tpe
-                      .makeBuffer(
-                        ar.asInstanceOf[Array[tpe.Elem]]
-                      ),
-                    LogicalPath(
-                      table = name,
-                      partition = None,
-                      segment = segments.head.size,
-                      column = bufferIdx
-                    )
-                  )
-                  .map(segment => (bufferIdx, segment))
-
-            
+                  .makeBuffer(
+                    ar.asInstanceOf[Array[tpe.Elem]]
+                  ),
+                LogicalPath(
+                  table = name,
+                  partition = None,
+                  segment = segments.head.size,
+                  column = bufferIdx
+                )
+              )
+              .map(segment => (bufferIdx, segment))
 
         }).unsafeRunSync()
           .foreach { case (bufferIdx, segment) =>

@@ -45,7 +45,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
 
   override def toSeq: Seq[Double] = values.toSeq
 
-  def element(i:Int) : Double = values(i)
+  def element(i: Int): Double = values(i)
 
   def elementAsCharSequence(i: Int): CharSequence = values(i).toString
 
@@ -206,8 +206,8 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
     else {
       val idx =
         if (lessThan)
-          ArrayUtil.findD(values,_ <= c)
-        else ArrayUtil.findD(values,_ >= c)
+          ArrayUtil.findD(values, _ <= c)
+        else ArrayUtil.findD(values, _ >= c)
 
       BufferInt(idx.toArray)
     }
@@ -218,7 +218,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
       ((0 until (numPoints - 1)).map(i => i * (1d / (numPoints - 1))) ++ List(
         1d
       )).distinct
-    val sorted : Array[Double] = {
+    val sorted: Array[Double] = {
       val cpy = ArrayUtil.dropNAD(values)
       java.util.Arrays.sort(cpy)
       cpy
@@ -234,20 +234,28 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
   }
 
   override def groups: Buffer.GroupMap = {
-    val idx = LocatorDouble.fromKeys(values)
-    val uniques = idx.uniqueKeys
-    val uniquesLoc = LocatorDouble.fromKeys(uniques)
-    val counts = idx.counts
+    val (counts, uniqueIdx) = ra3.hashtable.DoubleTable
+      .buildWithUniques(values, Array.ofDim[Int](values.length))
+
     val map = Array.ofDim[Int](values.length)
     var i = 0
     while (i < values.length) {
-      map(i) = uniquesLoc.get(values(i))
+      counts.mutate(values(i), _ + 1)
       i += 1
     }
-    ra3.Buffer.GroupMap(
+    i = 0
+    val groups = uniqueIdx.map(values)
+    val groupmap = ra3.hashtable.GenericTable.buildFirst(groups, null)
+    while (i < values.length) {
+      map(i) = groupmap.lookupIdx(values(i))
+      i += 1
+    }
+
+    val c = groups.map(cs => counts.payload(counts.lookupIdx(cs)))
+    Buffer.GroupMap(
       map = BufferInt(map),
-      numGroups = uniques.length,
-      groupSizes = BufferInt(counts)
+      numGroups = uniqueIdx.length,
+      groupSizes = BufferInt(c)
     )
   }
 
@@ -259,12 +267,12 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
       System.arraycopy(values, start, r, 0, until - start)
       BufferDouble(r)
     case idx: BufferInt =>
-      BufferDouble(ArrayUtil.takeD(values,idx.values))
+      BufferDouble(ArrayUtil.takeD(values, idx.values))
   }
 
   def positiveLocations: BufferInt = {
     BufferInt(
-      ArrayUtil.findD(values,_ > 0)
+      ArrayUtil.findD(values, _ > 0)
     )
   }
 

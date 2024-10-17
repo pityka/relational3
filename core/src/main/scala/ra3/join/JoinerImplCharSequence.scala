@@ -18,15 +18,14 @@
   *   - added handling of missing values
   */
 package ra3.join
-import ra3.join.locator.LocatorAny
+import ra3.join.locator.LocatorCharSequence
 import ra3.join.MutableBuffer
 import scala.reflect.ClassTag
-
 
 /** Concrete implementation of Joiner instance which is specialized on basic
   * types.
   */
-private[ra3] class JoinerImplAny[T:ClassTag](isMissing: T => Boolean) {
+private[ra3] class JoinerImplCharSequence(isMissing: CharSequence => Boolean) {
 
   /** Perform database joins
     *
@@ -39,8 +38,8 @@ private[ra3] class JoinerImplAny[T:ClassTag](isMissing: T => Boolean) {
     * @return
     */
   def join(
-      left: LocatorAny[T],
-      right: LocatorAny[T],
+      left: LocatorCharSequence,
+      right: LocatorCharSequence,
       how: JoinType
   ): ReIndexer = {
 
@@ -53,10 +52,13 @@ private[ra3] class JoinerImplAny[T:ClassTag](isMissing: T => Boolean) {
 
   }
 
-  private def leftJoin(left: LocatorAny[T], right: LocatorAny[T]): ReIndexer = {
+  private def leftJoin(
+      left: LocatorCharSequence,
+      right: LocatorCharSequence
+  ): ReIndexer = {
     val ll = left.length
     val rightBuffer = MutableBuffer.emptyI(ll)
-    val leftBuffer =  MutableBuffer.emptyI(ll)
+    val leftBuffer = MutableBuffer.emptyI(ll)
     val leftKeys = left.allKeys
     var returnLeftBuffer = false
     var i = 0
@@ -94,7 +96,10 @@ private[ra3] class JoinerImplAny[T:ClassTag](isMissing: T => Boolean) {
 
   }
 
-  def innerJoin(left: LocatorAny[T], right: LocatorAny[T]): ReIndexer = {
+  def innerJoin(
+      left: LocatorCharSequence,
+      right: LocatorCharSequence
+  ): ReIndexer = {
     // want to scan over the smaller one; make left the smaller one
     val sizeHint = if (left.length > right.length) right.length else left.length
 
@@ -102,13 +107,13 @@ private[ra3] class JoinerImplAny[T:ClassTag](isMissing: T => Boolean) {
     val rightBuffer = MutableBuffer.emptyI(sizeHint)
 
     val switchLR = left.length > right.length
-    
+
     val (ltmp, rtmp) = if (switchLR) (right, left) else (left, right)
-    val ltmpKeys =ltmp.allKeys 
+    val ltmpKeys = ltmp.allKeys
     var i = 0
     while (i < ltmp.length) {
       val k = ltmpKeys(i)
-      if (isMissing(k) ) {
+      if (isMissing(k)) {
         ()
       } else {
         val c = rtmp.count(k)
@@ -136,7 +141,10 @@ private[ra3] class JoinerImplAny[T:ClassTag](isMissing: T => Boolean) {
     ReIndexer(Some(lres.toArray), Some(rres.toArray))
   }
 
-  def outerJoin(left: LocatorAny[T], right: LocatorAny[T]): ReIndexer = {
+  def outerJoin(
+      left: LocatorCharSequence,
+      right: LocatorCharSequence
+  ): ReIndexer = {
     // hits hashmap
     val szhint = left.length + right.length
 

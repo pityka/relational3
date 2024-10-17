@@ -10,6 +10,4 @@ private[ra3] trait SyntaxExprImpl[T0] {
     .BuiltInOp2US(new ops.Op2.Tap[T0])(arg0, arg1)
   def tap(arg1: String): Expr[T0] = tap(ra3.const(arg1))
 
- 
-
 }

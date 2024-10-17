@@ -18,26 +18,24 @@ case class BufferedTable(
     fs2.Stream.fromIterator[cats.effect.IO](iter, 1024)
   }
 
-  private[ra3] transparent inline def toChunkedStream[T] : TupleUtils.M3[T] = {
-      assert(columns.size == 1)
-      
-      TupleUtils.castArrayToElem[T](columns.head.toArray.asInstanceOf[Array[Any]]) 
-      
-    
+  private[ra3] transparent inline def toChunkedStream[T]: TupleUtils.M3[T] = {
+    assert(columns.size == 1)
+
+    TupleUtils.castArrayToElem[T](columns.head.toArray.asInstanceOf[Array[Any]])
+
   }
 
   private[ra3] transparent inline def toTuplesFromColumnChunks[T <: Tuple] = {
     assert(scala.compiletime.constValue[Tuple.Size[T]] == columns.size)
-     
 
-      val numRows = columns.head.length
-      val iter = (0 until numRows).iterator.map { idx =>
-        TupleUtils
-          .buildTupleFromElements[T](0, (i: Int) => columns(i).element(idx))
+    val numRows = columns.head.length
+    val iter = (0 until numRows).iterator.map { idx =>
+      TupleUtils
+        .buildTupleFromElements[T](0, (i: Int) => columns(i).element(idx))
 
-      }
-      fs2.Stream.fromIterator[cats.effect.IO](iter, 1024)
-    
+    }
+    fs2.Stream.fromIterator[cats.effect.IO](iter, 1024)
+
   }
   // def toFrame = toStringFrame
   // def toHomogeneousFrameWithRowIndex[Rx, V](rowIndexCol: Int)(implicit

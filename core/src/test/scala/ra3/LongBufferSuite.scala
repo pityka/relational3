@@ -58,7 +58,7 @@ class LongBufferSuite extends munit.FunSuite with WithTempTaskSystem {
     assertEquals(b1.length, 8)
   }
   test("groups") {
-    val b1 = BufferInt(Array(0, 1, 2, 3, 4, 4, 5, 6).reverse)
+    val b1 = BufferLong(Array(0, 1, 2, 3, 4, 4, 5, 6).reverse.map(_.toLong))
     assertEquals(b1.groups.map.toSeq, List(0, 1, 2, 2, 3, 4, 5, 6))
     assertEquals(b1.groups.groupSizes.toSeq, List(1, 1, 2, 1, 1, 1, 1))
     assertEquals(b1.groups.numGroups, 7)

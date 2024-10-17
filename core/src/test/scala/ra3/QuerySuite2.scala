@@ -23,14 +23,15 @@ class QuerySuite2 extends munit.FunSuite with WithTempTaskSystem {
             value.min.unnamed :*
             value.max.unnamed
         )
-        .schema{ case (customer, sum, count, min, max) => _ =>
-          customer.groupBy
-            .reduceTotal(
-              (customer.first `as` "customer") :*
-                ((sum.sum / count.sum) `as` "avg") :*
-                (min.min `as` "min") :*
-                (max.max `as` "max")
-            )
+        .schema { case (customer, sum, count, min, max) =>
+          _ =>
+            customer.groupBy
+              .reduceTotal(
+                (customer.first `as` "customer") :*
+                  ((sum.sum / count.sum) `as` "avg") :*
+                  (min.min `as` "min") :*
+                  (max.max `as` "max")
+              )
         }
     }
 
@@ -40,13 +41,16 @@ class QuerySuite2 extends munit.FunSuite with WithTempTaskSystem {
         table <- parseTransactions(path)
         queryPrg <- IO.pure {
           for {
-            byCustomerIn <- table.schema { (customerIn, customerOut, _, _, value, _) => _ =>
+            byCustomerIn <- table.schema {
+              (customerIn, customerOut, _, _, value, _) => _ =>
                 groupBy(customerIn, value)
-              }
-            byCustomerOut <- table.schema{ (_, customerOut, _, _, value, _) => _ =>
+            }
+            byCustomerOut <- table.schema {
+              (_, customerOut, _, _, value, _) => _ =>
                 groupBy(customerOut, value)
-              }
-            result <- byCustomerOut.schema { (customerOut, avgOutValue, _, _) => _ =>
+            }
+            result <- byCustomerOut.schema {
+              (customerOut, avgOutValue, _, _) => _ =>
                 byCustomerIn.schema { (customerIn, avgInValue, _, _) => _ =>
                   customerIn
                     .outer(customerOut)
@@ -64,7 +68,7 @@ class QuerySuite2 extends munit.FunSuite with WithTempTaskSystem {
                         :* (avgOutValue as "outAvg")
                     )
                 }
-              }
+            }
           } yield result
         }
 

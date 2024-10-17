@@ -264,7 +264,7 @@ class RelationlAlgebraSuite
     }
 
   }
-  
+
   test("filter on <>") {
     withTempTaskSystem { implicit ts =>
       val numCols = 3

@@ -36,8 +36,12 @@ private[ra3] object BloomFilter {
       bitset: BitSetBuilder,
       numBits: Int
   ) = {
+    val hh = l match {
+      case ByteBufferAsCharSequence(buff) => h.hashBytes(buff.slice())
+      case x => h.hashString(l, StandardCharsets.UTF_8)
+    }
     deriveMultipleHashes(
-      h.hashString(l, StandardCharsets.UTF_8).asLong,
+      hh.asLong,
       numHashes,
       bitset,
       numBits

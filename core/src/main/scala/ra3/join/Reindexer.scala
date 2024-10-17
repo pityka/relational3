@@ -78,7 +78,7 @@ package ra3.join
   *   ixer.lTake.map(x => v.take(x)) getOrElse v
   * }}}
   */
- private[ra3] trait ReIndexer {
+private[ra3] trait ReIndexer {
 
   /** Offsets into left index corresponding to new index
     */
@@ -93,7 +93,7 @@ package ra3.join
   def swap: ReIndexer = ReIndexer(rTake, lTake)
 }
 
- private[ra3] object ReIndexer {
+private[ra3] object ReIndexer {
 
   /** Factory to produce a new [[org.saddle.index.ReIndexer]] instance
     * @param lft

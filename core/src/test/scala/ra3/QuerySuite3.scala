@@ -23,14 +23,15 @@ class QuerySuite3 extends munit.FunSuite with WithTempTaskSystem {
             value.min.unnamed :*
             value.max.unnamed
         )
-        .schema{ case (customer, sum, count, min, max) => _ =>
-          customer.groupBy
-            .reduceTotal(
-              (customer.first `as` "customer") :*
-                ((sum.sum / count.sum) `as` "avg") :*
-                (min.min `as` "min") :*
-                (max.max `as` "max")
-            )
+        .schema { case (customer, sum, count, min, max) =>
+          _ =>
+            customer.groupBy
+              .reduceTotal(
+                (customer.first `as` "customer") :*
+                  ((sum.sum / count.sum) `as` "avg") :*
+                  (min.min `as` "min") :*
+                  (max.max `as` "max")
+              )
         }
     }
 
@@ -40,18 +41,21 @@ class QuerySuite3 extends munit.FunSuite with WithTempTaskSystem {
         table <- parseTransactions(path)
         queryPrg <- IO.pure {
           for {
-            byCustomerIn <- table.schema { (customerIn, customerOut, _, _, value, _) => _ =>
+            byCustomerIn <- table.schema {
+              (customerIn, customerOut, _, _, value, _) => _ =>
                 groupBy(customerIn, value)
-              }
-            byCustomerOut <- table.schema{ (_, customerOut, _, _, value, _) => _ =>
+            }
+            byCustomerOut <- table.schema {
+              (_, customerOut, _, _, value, _) => _ =>
                 groupBy(customerOut, value)
-              }
-            result <- byCustomerOut.schema { (customerOut, avgOutValue, _, _) => _ =>
+            }
+            result <- byCustomerOut.schema {
+              (customerOut, avgOutValue, _, _) => _ =>
                 byCustomerIn.schema { (customerIn, avgInValue, _, _) => _ =>
                   customerIn
                     .outer(customerOut)
                     .select(
-                      ra3.S 
+                      ra3.S
                         :* (
                           customerIn.isMissing
                             .ifelse(
@@ -61,7 +65,7 @@ class QuerySuite3 extends munit.FunSuite with WithTempTaskSystem {
                         )
                     )
                 }
-              }
+            }
           } yield result
         }
 
@@ -74,7 +78,8 @@ class QuerySuite3 extends munit.FunSuite with WithTempTaskSystem {
       val stream = prg.unsafeRunSync()
       val set = stream.compile.toList
         .unsafeRunSync()
-        .toSet.map(_.toString)
+        .toSet
+        .map(_.toString)
 
       val f = org.saddle.csv.CsvParser
         .parseFile[String](path, recordSeparator = "\n", fieldSeparator = '\t')
@@ -93,13 +98,16 @@ class QuerySuite3 extends munit.FunSuite with WithTempTaskSystem {
         .colAt(0)
         .groupBy
         .combine(_.map(_.toDouble).mean)
-      val joined = Frame(byIn, byOut).toRowSeq.map { case (ix, row) =>
-        (
-          ix,
-          f"${row.at(0).getOrElse(Double.NaN)}%.2f",
-          f"${row.at(1).getOrElse(Double.NaN)}%.2f"
-        )
-      }.toSet.map(_._1)
+      val joined = Frame(byIn, byOut).toRowSeq
+        .map { case (ix, row) =>
+          (
+            ix,
+            f"${row.at(0).getOrElse(Double.NaN)}%.2f",
+            f"${row.at(1).getOrElse(Double.NaN)}%.2f"
+          )
+        }
+        .toSet
+        .map(_._1)
 
       assert(joined == set)
     }

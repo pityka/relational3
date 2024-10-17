@@ -72,7 +72,7 @@ private[ra3] sealed trait Buffer {
 
   def toArray: Array[Elem]
 
-  def element(i:Int) : Elem
+  def element(i: Int): Elem
 
   def elementAsCharSequence(i: Int): CharSequence
 
@@ -120,7 +120,7 @@ private[ra3] final case class BufferDouble(values: Array[Double])
     extends Buffer
     with BufferDoubleImpl
     with TaggedBuffer { self =>
-    
+
   def toArray = values
 
   type Elem = Double
@@ -216,7 +216,7 @@ private[ra3] final case class BufferLong(private[ra3] val values: Array[Long])
 }
 private[ra3] object BufferInstant {
   val MissingValue = Long.MinValue
-  
+
   def apply(s: Long*): BufferInstant = BufferInstant(s.toArray)
   def constant(value: Long, length: Int): BufferInstant =
     BufferInstant(Array.fill[Long](length)(value))
@@ -316,8 +316,8 @@ private[ra3] object Buffer {
       }
       val index = ra3.join.locator.LocatorAny.fromKeys(ar)
       val uniques = index.uniqueKeys
-    val uniquesLoc = ra3.join.locator.LocatorAny.fromKeys(uniques)
-      val counts = index.counts
+      val uniquesLoc = ra3.join.locator.LocatorAny.fromKeys(uniques)
+      val counts = ar.map(index.count)
       val map = Array.ofDim[Int](ar.length)
       i = 0
       while (i < ar.length) {

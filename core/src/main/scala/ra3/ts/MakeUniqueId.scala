@@ -68,24 +68,24 @@ private[ra3] object MakeUniqueId {
   )(implicit
       tsc: TaskSystemComponents
   ) =
-    task(
-      MakeUniqueId(
-        parent = parents.map(_.uniqueId).mkString("-"),
-        tag = tag,
-        aux = aux
-      )
-    )(
-      ResourceRequest(cpu = (1, 1), memory = 1, scratch = 0, gpu = 0)
+  task(
+    MakeUniqueId(
+      parent = parents.map(_.uniqueId).mkString("-"),
+      tag = tag,
+      aux = aux
     )
+  )(
+    ResourceRequest(cpu = (1, 1), memory = 1, scratch = 0, gpu = 0)
+  )
 
-    // $COVERAGE-OFF$
+  // $COVERAGE-OFF$
   implicit val codec: JsonValueCodec[MakeUniqueId] = JsonCodecMaker.make
-    // $COVERAGE-ON$
+  // $COVERAGE-ON$
 
   val task = Task[MakeUniqueId, String]("MakeUniqueId", 1) { case input =>
-      _ =>
-        scribe.debug(s"Make unique id for $input")
-        IO.delay(java.util.UUID.randomUUID().toString)
+    _ =>
+      scribe.debug(s"Make unique id for $input")
+      IO.delay(java.util.UUID.randomUUID().toString)
 
-    }
+  }
 }

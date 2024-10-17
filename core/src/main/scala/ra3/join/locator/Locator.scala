@@ -14,8 +14,7 @@
 //   */
 package ra3.join.locator
 
-
 private[ra3] object Locator {
   val emptyArray = Array.empty[Int]
- 
+
 }

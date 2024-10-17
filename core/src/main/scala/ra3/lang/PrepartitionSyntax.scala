@@ -2,9 +2,8 @@ package ra3.lang
 private[ra3] object PrepartitionBy {
   def apply(
       a: Expr.DelayedIdent[?]
-      
   ) =
-    PrepartitionBuilderSyntax(a, Vector.empty,  None, None, None)
+    PrepartitionBuilderSyntax(a, Vector.empty, None, None, None)
 }
 
 /** Builder pattern for group by clause. Exit the builder with the partial or
@@ -28,15 +27,14 @@ case class PrepartitionBuilderSyntax(
   def withPartitionBase(num: Int) = copy(partitionBase = Some(num))
   def withPartitionLimit(num: Int) = copy(partitionLimit = Some(num))
   def withMaxSegmentsBufferingAtOnce(num: Int) =
-    copy(maxSegmentsToBufferAtOnce = Some(num))
+  copy(maxSegmentsToBufferAtOnce = Some(num))
 
-
-    /**
-      * Total reduction. Applies the group wise program to each group.
-      *
-      * @param prg group wise program
-      * @return
-      */
+  /** Total reduction. Applies the group wise program to each group.
+    *
+    * @param prg
+    *   group wise program
+    * @return
+    */
   def done =
     ra3.tablelang.TableExpr.Prepartition(
       first,
@@ -45,6 +43,5 @@ case class PrepartitionBuilderSyntax(
       partitionLimit.getOrElse(10_000_000),
       maxSegmentsToBufferAtOnce.getOrElse(10)
     )
-
 
 }

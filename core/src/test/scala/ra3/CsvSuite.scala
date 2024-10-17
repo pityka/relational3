@@ -1,8 +1,11 @@
 package ra3
 import cats.effect.unsafe.implicits.global
 
-class CSVSuite extends munit.FunSuite with WithTempTaskSystem with TableExtensions {
-  
+class CSVSuite
+    extends munit.FunSuite
+    with WithTempTaskSystem
+    with TableExtensions {
+
   test("heterogeneous csv") {
     val csvText = """hint,hfloat,htime,hbool,htext
 1,1.5,2020-01-01T00:00:00Z,1,"something, something"

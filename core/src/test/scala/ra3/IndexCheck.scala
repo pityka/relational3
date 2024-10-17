@@ -25,11 +25,11 @@ import ra3.join.*
 
 class IndexCheck extends Specification with ScalaCheck {
   "Int Index Tests" in {
-      def Index(i: Int*) = ra3.join.locator.LocatorInt.fromKeys(i.toArray)
-      def IndexL(i: Long*) = ra3.join.locator.LocatorLong.fromKeys(i.toArray)
-      def IndexD(i: Double*) = ra3.join.locator.LocatorDouble.fromKeys(i.toArray)
-      def IndexS(i: String*) = ra3.join.locator.LocatorAny.fromKeys(i.toArray)
-
+    def Index(i: Int*) = ra3.join.locator.LocatorInt.fromKeys(i.toArray)
+    def IndexL(i: Long*) = ra3.join.locator.LocatorLong.fromKeys(i.toArray)
+    def IndexD(i: Double*) = ra3.join.locator.LocatorDouble.fromKeys(i.toArray)
+    def IndexS(i: String*) =
+      ra3.join.locator.LocatorCharSequence.fromKeys(i.toArray)
 
     implicit val arbIndex = Arbitrary(IndexArbitraries.indexIntWithDups)
     implicit val arbIndexLong = Arbitrary(IndexArbitraries.indexLongWithDups)
@@ -44,48 +44,58 @@ class IndexCheck extends Specification with ScalaCheck {
           OuterJoin,
           InnerJoin
         ) map { jointype =>
-          val res = ra3.join.JoinerImplInt.join(Index(ix1*),Index(ix2*),jointype) 
+          val res =
+            ra3.join.JoinerImplInt.join(Index(ix1*), Index(ix2*), jointype)
           import org.saddle.*
           val lix = ix1.toVec
           val rix = ix2.toVec
           val lft = res.lTake.map(x => lix.take(x)).getOrElse(lix)
           val rgt = res.rTake.map(x => rix.take(x)).getOrElse(rix)
 
-          
-
-          lft.toSeq.zip(rgt.toSeq).forall{ case (a,b) => 
-            if (ix1.contains(b) && ix2.contains(a)) a == b 
-            else if (a == BufferInt.MissingValue) ix2.contains(b) && !(b  == BufferInt.MissingValue)
-            else if (b  == BufferInt.MissingValue) ix1.contains(a) && !(a == BufferInt.MissingValue)
-            else ???
-          }.&&{
-            val all = (ix1 ++ ix2).distinct.filterNot(_ == ra3.BufferInt.MissingValue)
-            all.forall{x =>
-
-              val c1 =  ix1.count(_ == x)
-              val c2 = ix2.count(_ == x)
-              jointype match {
-                case InnerJoin => 
-                  val m1 = c1 * c2                  
-                  val m2 = c2 * c1
-                    lft.toArray.count(_ == x) ==m1  && rgt.toArray.count(_ == x) == m2
-                case LeftJoin => 
-                  val m1 = c1 * math.max(1,c2)                  
-                  val m2 = c2 * math.max(0,c1)                  
-                    lft.toArray.count(_ == x) ==m1  && rgt.toArray.count(_ == x) == m2
-                case RightJoin => 
-                   val m1 = c1 * math.max(0,c2)                  
-                  val m2 = c2 * math.max(1,c1)                  
-                    lft.toArray.count(_ == x) ==m1  && rgt.toArray.count(_ == x) == m2
-                case OuterJoin =>
-                  val m1 = c1 * math.max(1,c2)                  
-                  val m2 = c2 * math.max(1,c1)                  
-                    lft.toArray.count(_ == x) ==m1  && rgt.toArray.count(_ == x) == m2
-              }
-              
+          lft.toSeq
+            .zip(rgt.toSeq)
+            .forall { case (a, b) =>
+              if (ix1.contains(b) && ix2.contains(a)) a == b
+              else if (a == BufferInt.MissingValue)
+                ix2.contains(b) && !(b == BufferInt.MissingValue)
+              else if (b == BufferInt.MissingValue)
+                ix1.contains(a) && !(a == BufferInt.MissingValue)
+              else ???
             }
-          }.must_==(true)
-          
+            .&& {
+              val all =
+                (ix1 ++ ix2).distinct.filterNot(_ == ra3.BufferInt.MissingValue)
+              all.forall { x =>
+
+                val c1 = ix1.count(_ == x)
+                val c2 = ix2.count(_ == x)
+                jointype match {
+                  case InnerJoin =>
+                    val m1 = c1 * c2
+                    val m2 = c2 * c1
+                    lft.toArray
+                      .count(_ == x) == m1 && rgt.toArray.count(_ == x) == m2
+                  case LeftJoin =>
+                    val m1 = c1 * math.max(1, c2)
+                    val m2 = c2 * math.max(0, c1)
+                    lft.toArray
+                      .count(_ == x) == m1 && rgt.toArray.count(_ == x) == m2
+                  case RightJoin =>
+                    val m1 = c1 * math.max(0, c2)
+                    val m2 = c2 * math.max(1, c1)
+                    lft.toArray
+                      .count(_ == x) == m1 && rgt.toArray.count(_ == x) == m2
+                  case OuterJoin =>
+                    val m1 = c1 * math.max(1, c2)
+                    val m2 = c2 * math.max(1, c1)
+                    lft.toArray
+                      .count(_ == x) == m1 && rgt.toArray.count(_ == x) == m2
+                }
+
+              }
+            }
+            .must_==(true)
+
         }
         all.foldLeft(true)((acc, v) => acc && v.isSuccess)
       }
@@ -98,48 +108,59 @@ class IndexCheck extends Specification with ScalaCheck {
           OuterJoin,
           InnerJoin
         ) map { jointype =>
-          val res = ra3.join.JoinerImplLong.join(IndexL(ix1*),IndexL(ix2*),jointype) 
+          val res =
+            ra3.join.JoinerImplLong.join(IndexL(ix1*), IndexL(ix2*), jointype)
           import org.saddle.*
           val lix = ix1.toVec
           val rix = ix2.toVec
           val lft = res.lTake.map(x => lix.take(x)).getOrElse(lix)
           val rgt = res.rTake.map(x => rix.take(x)).getOrElse(rix)
 
-          
-
-          lft.toSeq.zip(rgt.toSeq).forall{ case (a,b) => 
-            if (ix1.contains(b) && ix2.contains(a)) a == b 
-            else if (a == BufferLong.MissingValue) ix2.contains(b) && !(b  == BufferLong.MissingValue)
-            else if (b  == BufferLong.MissingValue) ix1.contains(a) && !(a == BufferLong.MissingValue)
-            else ???
-          }.&&{
-            val all = (ix1 ++ ix2).distinct.filterNot(_ == ra3.BufferLong.MissingValue)
-            all.forall{x =>
-
-              val c1 =  ix1.count(_ == x)
-              val c2 = ix2.count(_ == x)
-              jointype match {
-                case InnerJoin => 
-                  val m1 = c1 * c2                  
-                  val m2 = c2 * c1
-                    lft.toArray.count(_ == x) ==m1  && rgt.toArray.count(_ == x) == m2
-                case LeftJoin => 
-                  val m1 = c1 * math.max(1,c2)                  
-                  val m2 = c2 * math.max(0,c1)                  
-                    lft.toArray.count(_ == x) ==m1  && rgt.toArray.count(_ == x) == m2
-                case RightJoin => 
-                   val m1 = c1 * math.max(0,c2)                  
-                  val m2 = c2 * math.max(1,c1)                  
-                    lft.toArray.count(_ == x) ==m1  && rgt.toArray.count(_ == x) == m2
-                case OuterJoin =>
-                  val m1 = c1 * math.max(1,c2)                  
-                  val m2 = c2 * math.max(1,c1)                  
-                    lft.toArray.count(_ == x) ==m1  && rgt.toArray.count(_ == x) == m2
-              }
-              
+          lft.toSeq
+            .zip(rgt.toSeq)
+            .forall { case (a, b) =>
+              if (ix1.contains(b) && ix2.contains(a)) a == b
+              else if (a == BufferLong.MissingValue)
+                ix2.contains(b) && !(b == BufferLong.MissingValue)
+              else if (b == BufferLong.MissingValue)
+                ix1.contains(a) && !(a == BufferLong.MissingValue)
+              else ???
             }
-          }.must_==(true)
-          
+            .&& {
+              val all = (ix1 ++ ix2).distinct.filterNot(
+                _ == ra3.BufferLong.MissingValue
+              )
+              all.forall { x =>
+
+                val c1 = ix1.count(_ == x)
+                val c2 = ix2.count(_ == x)
+                jointype match {
+                  case InnerJoin =>
+                    val m1 = c1 * c2
+                    val m2 = c2 * c1
+                    lft.toArray
+                      .count(_ == x) == m1 && rgt.toArray.count(_ == x) == m2
+                  case LeftJoin =>
+                    val m1 = c1 * math.max(1, c2)
+                    val m2 = c2 * math.max(0, c1)
+                    lft.toArray
+                      .count(_ == x) == m1 && rgt.toArray.count(_ == x) == m2
+                  case RightJoin =>
+                    val m1 = c1 * math.max(0, c2)
+                    val m2 = c2 * math.max(1, c1)
+                    lft.toArray
+                      .count(_ == x) == m1 && rgt.toArray.count(_ == x) == m2
+                  case OuterJoin =>
+                    val m1 = c1 * math.max(1, c2)
+                    val m2 = c2 * math.max(1, c1)
+                    lft.toArray
+                      .count(_ == x) == m1 && rgt.toArray.count(_ == x) == m2
+                }
+
+              }
+            }
+            .must_==(true)
+
         }
         all.foldLeft(true)((acc, v) => acc && v.isSuccess)
       }
@@ -152,57 +173,62 @@ class IndexCheck extends Specification with ScalaCheck {
           OuterJoin,
           InnerJoin
         ) map { jointype =>
-          val res = ra3.join.JoinerImplDouble.join(IndexD(ix1*),IndexD(ix2*),jointype) 
+          val res =
+            ra3.join.JoinerImplDouble.join(IndexD(ix1*), IndexD(ix2*), jointype)
           import org.saddle.*
           val lix = ix1.toVec
           val rix = ix2.toVec
           val lft = res.lTake.map(x => lix.take(x)).getOrElse(lix)
           val rgt = res.rTake.map(x => rix.take(x)).getOrElse(rix)
 
-          
-
-          val pass = lft.toSeq.zip(rgt.toSeq).forall{ case (a,b) => 
-            if (ix1.contains(b) && ix2.contains(a)) a == b 
-            else if (a.isNaN && b.isNaN) ix1.exists(_.isNaN) && ix2.exists(_.isNaN)
-            else if (a.isNaN) ix2.contains(b) && !b.isNaN
-            else if (b.isNaN) ix1.contains(a) && !a.isNaN
-            else ???
-          }.&&{
-            val all = (ix1 ++ ix2).distinct.filterNot(_.isNaN)
-            all.forall{x =>
-
-              val c1 =  ix1.count(_ == x)
-              val c2 = ix2.count(_ == x)
-              jointype match {
-                case InnerJoin => 
-                  val m1 = c1 * c2                  
-                  val m2 = c2 * c1
-                    lft.toArray.count(_ == x) ==m1  && rgt.toArray.count(_ == x) == m2
-                case LeftJoin => 
-                  val m1 = c1 * math.max(1,c2)                  
-                  val m2 = c2 * math.max(0,c1)                  
-                    lft.toArray.count(_ == x) ==m1  && rgt.toArray.count(_ == x) == m2
-                case RightJoin => 
-                   val m1 = c1 * math.max(0,c2)                  
-                  val m2 = c2 * math.max(1,c1)                  
-                    lft.toArray.count(_ == x) ==m1  && rgt.toArray.count(_ == x) == m2
-                case OuterJoin =>
-                  val m1 = c1 * math.max(1,c2)                  
-                  val m2 = c2 * math.max(1,c1)                  
-                    lft.toArray.count(_ == x) ==m1  && rgt.toArray.count(_ == x) == m2
-              }
-
-              
-              
+          val pass = lft.toSeq
+            .zip(rgt.toSeq)
+            .forall { case (a, b) =>
+              if (ix1.contains(b) && ix2.contains(a)) a == b
+              else if (a.isNaN && b.isNaN)
+                ix1.exists(_.isNaN) && ix2.exists(_.isNaN)
+              else if (a.isNaN) ix2.contains(b) && !b.isNaN
+              else if (b.isNaN) ix1.contains(a) && !a.isNaN
+              else ???
             }
-          }
+            .&& {
+              val all = (ix1 ++ ix2).distinct.filterNot(_.isNaN)
+              all.forall { x =>
+
+                val c1 = ix1.count(_ == x)
+                val c2 = ix2.count(_ == x)
+                jointype match {
+                  case InnerJoin =>
+                    val m1 = c1 * c2
+                    val m2 = c2 * c1
+                    lft.toArray
+                      .count(_ == x) == m1 && rgt.toArray.count(_ == x) == m2
+                  case LeftJoin =>
+                    val m1 = c1 * math.max(1, c2)
+                    val m2 = c2 * math.max(0, c1)
+                    lft.toArray
+                      .count(_ == x) == m1 && rgt.toArray.count(_ == x) == m2
+                  case RightJoin =>
+                    val m1 = c1 * math.max(0, c2)
+                    val m2 = c2 * math.max(1, c1)
+                    lft.toArray
+                      .count(_ == x) == m1 && rgt.toArray.count(_ == x) == m2
+                  case OuterJoin =>
+                    val m1 = c1 * math.max(1, c2)
+                    val m2 = c2 * math.max(1, c1)
+                    lft.toArray
+                      .count(_ == x) == m1 && rgt.toArray.count(_ == x) == m2
+                }
+
+              }
+            }
 
           if (!pass) {
-            println((ix1,ix2,lft,rgt,jointype))
+            println((ix1, ix2, lft, rgt, jointype))
           }
-          
+
           pass.must_==(true)
-          
+
         }
         all.foldLeft(true)((acc, v) => acc && v.isSuccess)
       }
@@ -215,54 +241,56 @@ class IndexCheck extends Specification with ScalaCheck {
           OuterJoin,
           InnerJoin
         ) map { jointype =>
-          val res = (new ra3.join.JoinerImplAny[String](_ == null)).join(IndexS(ix1*),IndexS(ix2*),jointype) 
+          val res = (new ra3.join.JoinerImplCharSequence(_ == null))
+            .join(IndexS(ix1*), IndexS(ix2*), jointype)
           import org.saddle.*
           val lix = ix1.toVec
           val rix = ix2.toVec
           val lft = res.lTake.map(x => lix.take(x)).getOrElse(lix)
           val rgt = res.rTake.map(x => rix.take(x)).getOrElse(rix)
 
-          
-
-          val pass = lft.toSeq.zip(rgt.toSeq).forall{ case (a,b) => 
-            if (ix1.contains(b) && ix2.contains(a)) a == b 
-            else if (a == null) ix2.contains(b) && !(b == null)
-            else if (b == null) ix1.contains(a) && !(a == null)
-            else ???
-          }.&&{
-            val all = (ix1 ++ ix2).distinct.filterNot(_ == null)
-            all.forall{x =>
-
-              val c1 =  ix1.count(_ == x)
-              val c2 = ix2.count(_ == x)
-              jointype match {
-                case InnerJoin => 
-                  val m1 = c1 * c2                  
-                  val m2 = c2 * c1
-                    lft.toArray.count(_ == x) ==m1  && rgt.toArray.count(_ == x) == m2
-                case LeftJoin => 
-                  val m1 = c1 * math.max(1,c2)                  
-                  val m2 = c2 * math.max(0,c1)                  
-                    lft.toArray.count(_ == x) ==m1  && rgt.toArray.count(_ == x) == m2
-                case RightJoin => 
-                   val m1 = c1 * math.max(0,c2)                  
-                  val m2 = c2 * math.max(1,c1)                  
-                    lft.toArray.count(_ == x) ==m1  && rgt.toArray.count(_ == x) == m2
-                case OuterJoin =>
-                  val m1 = c1 * math.max(1,c2)                  
-                  val m2 = c2 * math.max(1,c1)                  
-                    lft.toArray.count(_ == x) ==m1  && rgt.toArray.count(_ == x) == m2
-              }
-
-              
-              
+          val pass = lft.toSeq
+            .zip(rgt.toSeq)
+            .forall { case (a, b) =>
+              if (ix1.contains(b) && ix2.contains(a)) a == b
+              else if (a == null) ix2.contains(b) && !(b == null)
+              else if (b == null) ix1.contains(a) && !(a == null)
+              else ???
             }
-          }
+            .&& {
+              val all = (ix1 ++ ix2).distinct.filterNot(_ == null)
+              all.forall { x =>
 
-          
-          
+                val c1 = ix1.count(_ == x)
+                val c2 = ix2.count(_ == x)
+                jointype match {
+                  case InnerJoin =>
+                    val m1 = c1 * c2
+                    val m2 = c2 * c1
+                    lft.toArray
+                      .count(_ == x) == m1 && rgt.toArray.count(_ == x) == m2
+                  case LeftJoin =>
+                    val m1 = c1 * math.max(1, c2)
+                    val m2 = c2 * math.max(0, c1)
+                    lft.toArray
+                      .count(_ == x) == m1 && rgt.toArray.count(_ == x) == m2
+                  case RightJoin =>
+                    val m1 = c1 * math.max(0, c2)
+                    val m2 = c2 * math.max(1, c1)
+                    lft.toArray
+                      .count(_ == x) == m1 && rgt.toArray.count(_ == x) == m2
+                  case OuterJoin =>
+                    val m1 = c1 * math.max(1, c2)
+                    val m2 = c2 * math.max(1, c1)
+                    lft.toArray
+                      .count(_ == x) == m1 && rgt.toArray.count(_ == x) == m2
+                }
+
+              }
+            }
+
           pass.must_==(true)
-          
+
         }
         all.foldLeft(true)((acc, v) => acc && v.isSuccess)
       }

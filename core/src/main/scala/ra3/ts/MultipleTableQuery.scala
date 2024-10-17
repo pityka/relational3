@@ -131,14 +131,16 @@ private[ra3] object MultipleTableQuery {
             })
 
             val selected: IO[List[NamedColumnSpec[?]]] = IO
-              .parSequenceN(32)(ReturnValueTuple.list(returnValue).zipWithIndex.map {
-                case (v: NamedColumnSpec[?], _) =>
-                  IO.pure((v))
-                case (v: UnnamedColumnSpec[?], idx) =>
-                  IO.pure((v.withName(s"V$idx")))
-                // case x =>
-                //   throw new RuntimeException("Unexpected unmatched case "+x)
-              })
+              .parSequenceN(32)(
+                ReturnValueTuple.list(returnValue).zipWithIndex.map {
+                  case (v: NamedColumnSpec[?], _) =>
+                    IO.pure((v))
+                  case (v: UnnamedColumnSpec[?], idx) =>
+                    IO.pure((v.withName(s"V$idx")))
+                  // case x =>
+                  //   throw new RuntimeException("Unexpected unmatched case "+x)
+                }
+              )
 
             selected.flatMap { selected =>
               val outputNumElemsBeforeFiltering =
@@ -235,32 +237,33 @@ private[ra3] object MultipleTableQuery {
   )(implicit
       tsc: TaskSystemComponents
   ): IO[Seq[(TaggedSegment, String)]] =
-    task(
-      MultipleTableQuery(
-        input.map(v => v.tag -> v.erase),
-        predicate,
-        outputPath,
-        takes
-      )
-    )(
-      ResourceRequest(
-        cpu = (1, 1),
-        memory =
-          input.flatMap(_.segment).map(ra3.Utils.guessMemoryUsageInMB).sum,
-        scratch = 0,
-        gpu = 0
-      )
+  task(
+    MultipleTableQuery(
+      input.map(v => v.tag -> v.erase),
+      predicate,
+      outputPath,
+      takes
     )
-    // $COVERAGE-OFF$
+  )(
+    ResourceRequest(
+      cpu = (1, 1),
+      memory = input.flatMap(_.segment).map(ra3.Utils.guessMemoryUsageInMB).sum,
+      scratch = 0,
+      gpu = 0
+    )
+  )
+  // $COVERAGE-OFF$
   implicit val codec: JsonValueCodec[MultipleTableQuery] = JsonCodecMaker.make
   implicit val codecOut: JsonValueCodec[Seq[(TaggedSegment, String)]] =
-      JsonCodecMaker.make
-      // $COVERAGE-ON$
+  JsonCodecMaker.make
+  // $COVERAGE-ON$
   val task =
-    Task[MultipleTableQuery, Seq[(TaggedSegment, String)]]("MultipleTableQuery", 1) {
-      case input =>
-        implicit ce =>
-          doit(input.input, input.predicate, input.outputPath, input.takes)
+    Task[MultipleTableQuery, Seq[(TaggedSegment, String)]](
+      "MultipleTableQuery",
+      1
+    ) { case input =>
+      implicit ce =>
+        doit(input.input, input.predicate, input.outputPath, input.takes)
 
     }
 }

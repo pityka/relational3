@@ -4,7 +4,10 @@ import tasks.TaskSystemComponents
 import cats.effect.unsafe.implicits.global
 import ColumnTag.I32
 
-class QuerySuite extends munit.FunSuite with WithTempTaskSystem with TableExtensions {
+class QuerySuite
+    extends munit.FunSuite
+    with WithTempTaskSystem
+    with TableExtensions {
 
   def toFrame(t: Table)(implicit tsc: TaskSystemComponents) = {
     t.bufferStream.compile.toList
@@ -24,9 +27,9 @@ class QuerySuite extends munit.FunSuite with WithTempTaskSystem with TableExtens
 
         val result = ra3Table
           .as[(I32Var, I32Var, I32Var)]
-          .schema   { case (col0, col1, col2) => schema =>
-              query(schema.all.where(col0 === 0))
-            
+          .schema { case (col0, col1, col2) =>
+            schema => query(schema.all.where(col0 === 0))
+
           }
           .evaluate
           .unsafeRunSync()
@@ -56,11 +59,12 @@ class QuerySuite extends munit.FunSuite with WithTempTaskSystem with TableExtens
 
         val result = ra3Table
           .as[(I32Var, I32Var, I32Var)]
-          .schema {  case (col0, col1, col2) => schema =>
+          .schema { case (col0, col1, col2) =>
+            schema =>
               query(
                 schema.all.where(col0.containedIn(Set(0, 1)))
               )
-            
+
           }
           .evaluate
           .unsafeRunSync()
@@ -90,10 +94,9 @@ class QuerySuite extends munit.FunSuite with WithTempTaskSystem with TableExtens
 
       val result = ra3Table
         .as[(I32Var, I32Var, I32Var)]
-        .schema {  case (col0, col1, col2) => schema =>
-            query(schema.all.where(col0 >= 0))
-          }
-        
+        .schema { case (col0, col1, col2) =>
+          schema => query(schema.all.where(col0 >= 0))
+        }
         .evaluate
         .unsafeRunSync()
 
@@ -121,10 +124,9 @@ class QuerySuite extends munit.FunSuite with WithTempTaskSystem with TableExtens
 
       val result = ra3Table
         .as[(I32Var, I32Var, I32Var)]
-        .schema { case (col0, col1, col2) => schema =>
-            query(schema.all.where(col0 <= 0))
+        .schema { case (col0, col1, col2) =>
+          schema => query(schema.all.where(col0 <= 0))
 
-          
         }
         .evaluate
         .unsafeRunSync()
@@ -153,15 +155,11 @@ class QuerySuite extends munit.FunSuite with WithTempTaskSystem with TableExtens
 
       val prg = ra3Table
         .as[(I32Var, I32Var, I32Var)]
-        .schema { case (col0, col1, col2) => schema =>
-            query(schema.all)
+        .schema { case (col0, col1, col2) => schema => query(schema.all) }
+        .in(t => t.concat(t))
 
-          
-        }.in(t => t.concat(t))
-
-        println(prg.render)
-      val result = prg
-        .evaluate
+      println(prg.render)
+      val result = prg.evaluate
         .unsafeRunSync()
 
       val takenF = (0 until result.segmentation.size)

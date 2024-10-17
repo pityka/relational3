@@ -69,7 +69,7 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
 
   def positiveLocations: BufferInt = {
     BufferInt(
-      ArrayUtil.findI(values,_ > 0)
+      ArrayUtil.findI(values, _ > 0)
     )
   }
 
@@ -120,8 +120,8 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
     else {
       val idx =
         if (lessThan)
-          ArrayUtil.findI(values,_ <= c)
-        else ArrayUtil.findI(values,_ >= c)
+          ArrayUtil.findI(values, _ <= c)
+        else ArrayUtil.findI(values, _ >= c)
 
       BufferInt(idx.toArray)
     }
@@ -129,26 +129,33 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
 
   def toSeq = values.toSeq
 
-  def element(i:Int)  = values(i)
+  def element(i: Int) = values(i)
 
   def length = values.length
 
+  def groups = {
+    val (counts, uniqueIdx) = ra3.hashtable.IntTable
+      .buildWithUniques(values, Array.ofDim[Int](values.length))
 
-   def groups = {
-    val idx = LocatorInt.fromKeys(values)
-    val uniques = idx.uniqueKeys
-    val uniquesLoc = LocatorInt.fromKeys(uniques)
-    val counts = idx.counts
     val map = Array.ofDim[Int](values.length)
     var i = 0
     while (i < values.length) {
-      map(i) = uniquesLoc.get(values(i))
+      counts.mutate(values(i), _ + 1)
       i += 1
     }
-    ra3.Buffer.GroupMap(
+    i = 0
+    val groups = uniqueIdx.map(values)
+    val groupmap = ra3.hashtable.GenericTable.buildFirst(groups, null)
+    while (i < values.length) {
+      map(i) = groupmap.lookupIdx(values(i))
+      i += 1
+    }
+
+    val c = groups.map(cs => counts.payload(counts.lookupIdx(cs)))
+    Buffer.GroupMap(
       map = BufferInt(map),
-      numGroups = uniques.length,
-      groupSizes = BufferInt(counts)
+      numGroups = uniqueIdx.length,
+      groupSizes = BufferInt(c)
     )
   }
 
@@ -169,13 +176,13 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
 
   }
 
-def computeJoinIndexes(
+  def computeJoinIndexes(
       other: BufferType,
       how: String
   ): (Option[BufferInt], Option[BufferInt]) = {
     val idx1 = LocatorInt.fromKeys(values)
     val idx2 = LocatorInt.fromKeys(other.values)
-    val reindexer =  (ra3.join.JoinerImplInt).join(
+    val reindexer = (ra3.join.JoinerImplInt).join(
       left = idx1,
       right = idx2,
       how = how match {
@@ -190,7 +197,7 @@ def computeJoinIndexes(
 
   /** Returns an array of indices */
   def where(i: Int): BufferInt = {
-    BufferInt(ArrayUtil.findI(values,_ == i))
+    BufferInt(ArrayUtil.findI(values, _ == i))
   }
 
   def take(locs: Location): BufferInt = locs match {
@@ -199,7 +206,7 @@ def computeJoinIndexes(
       System.arraycopy(values, start, r, 0, until - start)
       BufferInt(r)
     case idx: BufferInt =>
-      BufferInt(ArrayUtil.takeI(values,idx.values).toArray)
+      BufferInt(ArrayUtil.takeI(values, idx.values).toArray)
   }
 
   override def isMissing(l: Int): Boolean = {

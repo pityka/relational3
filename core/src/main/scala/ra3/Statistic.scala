@@ -154,10 +154,10 @@ private[ra3] case class StatisticDouble(
 private[ra3] object StatisticDouble {
   val empty = StatisticDouble(false, None, None)
   implicit val customCodecOfDouble: JsonValueCodec[Double] =
-  Utils.customDoubleCodec
+    Utils.customDoubleCodec
   // $COVERAGE-ON$
   implicit val segmentCodec: JsonValueCodec[StatisticDouble] =
-  JsonCodecMaker.make
+    JsonCodecMaker.make
   // $COVERAGE-OFF$
 }
 private[ra3] case class StatisticCharSequence(
@@ -217,6 +217,6 @@ private[ra3] object StatisticCharSequence {
   implicit val cs: JsonValueCodec[CharSequence] = ra3.Utils.charSequenceCodec
   // $COVERAGE-OFF$
   implicit val segmentCodec: JsonValueCodec[StatisticCharSequence] =
-  JsonCodecMaker.make
+    JsonCodecMaker.make
   // $COVERAGE-ON$
 }

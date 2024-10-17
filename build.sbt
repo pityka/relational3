@@ -123,7 +123,7 @@ lazy val core = project
       "io.airlift" % "aircompressor" % "0.25",
       "org.scalameta" %% "munit" % "1.0.0-M10" % Test,
       "com.typesafe.akka" %% "akka-testkit" % akkaVersion % Test,
-      "io.github.pityka" %% "saddle-core" % "4.0.0-M11" ,
+      "io.github.pityka" %% "saddle-core" % "4.0.0-M11",
       "io.github.pityka" %% "tasks-core" % "3.0.0-M13",
       "de.lhns" %% "fs2-compress-gzip" % "1.0.0",
       "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % "2.30.13" % "compile-internal"

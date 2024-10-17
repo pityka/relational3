@@ -281,27 +281,26 @@ private[ra3] object SimpleQuery {
   )(implicit
       tsc: TaskSystemComponents
   ): IO[Seq[(TaggedSegment, String)]] =
-    task(
-      SimpleQuery(
-        input.map(v => v.tag -> v.erase),
-        predicate,
-        outputPath,
-        groupMap
-      )
-    )(
-      ResourceRequest(
-        cpu = (1, 1),
-        memory =
-          input.flatMap(_.segment).map(ra3.Utils.guessMemoryUsageInMB).sum,
-        scratch = 0,
-        gpu = 0
-      )
+  task(
+    SimpleQuery(
+      input.map(v => v.tag -> v.erase),
+      predicate,
+      outputPath,
+      groupMap
     )
-    // $COVERAGE-OFF$
+  )(
+    ResourceRequest(
+      cpu = (1, 1),
+      memory = input.flatMap(_.segment).map(ra3.Utils.guessMemoryUsageInMB).sum,
+      scratch = 0,
+      gpu = 0
+    )
+  )
+  // $COVERAGE-OFF$
   implicit val codec: JsonValueCodec[SimpleQuery] = JsonCodecMaker.make
   implicit val codecOut: JsonValueCodec[Seq[(TaggedSegment, String)]] =
-    JsonCodecMaker.make
-    // $COVERAGE-ON$
+  JsonCodecMaker.make
+  // $COVERAGE-ON$
   val task = Task[SimpleQuery, Seq[(TaggedSegment, String)]]("SimpleQuery", 1) {
     case input =>
       implicit ce =>

@@ -303,11 +303,11 @@ object ColumnTag {
           1d
         )).distinct
 
-       val sorted : Array[Int] = {
-      val cpy = ra3.bufferimpl.ArrayUtil.dropNAI(buffer.values)
-      java.util.Arrays.sort(cpy)
-      cpy
-    }
+      val sorted: Array[Int] = {
+        val cpy = ra3.bufferimpl.ArrayUtil.dropNAI(buffer.values)
+        java.util.Arrays.sort(cpy)
+        cpy
+      }
       val cdf = percentiles.map { p =>
         val idx = (p * (sorted.length - 1)).toInt
         (sorted(idx), p)
@@ -457,11 +457,11 @@ object ColumnTag {
         ((0 until (numPoints - 1)).map(i => i * (1d / (numPoints - 1))) ++ List(
           1d
         )).distinct
-       val sorted : Array[Long] = {
-      val cpy = ra3.bufferimpl.ArrayUtil.dropNAL(buffer.values)
-      java.util.Arrays.sort(cpy)
-      cpy
-    }
+      val sorted: Array[Long] = {
+        val cpy = ra3.bufferimpl.ArrayUtil.dropNAL(buffer.values)
+        java.util.Arrays.sort(cpy)
+        cpy
+      }
       val cdf = percentiles.map { p =>
         val idx = (p * (sorted.length - 1)).toInt
         (sorted(idx), p)
@@ -617,11 +617,11 @@ object ColumnTag {
         ((0 until (numPoints - 1)).map(i => i * (1d / (numPoints - 1))) ++ List(
           1d
         )).distinct
-       val sorted : Array[Long] = {
-      val cpy = ra3.bufferimpl.ArrayUtil.dropNAL(buffer.values)
-      java.util.Arrays.sort(cpy)
-      cpy
-    }
+      val sorted: Array[Long] = {
+        val cpy = ra3.bufferimpl.ArrayUtil.dropNAL(buffer.values)
+        java.util.Arrays.sort(cpy)
+        cpy
+      }
       val cdf = percentiles.map { p =>
         val idx = (p * (sorted.length - 1)).toInt
         (sorted(idx), p)
@@ -922,26 +922,26 @@ object ColumnTag {
     }
 
     override def computeJoinIndexes(
-      first: BufferType,
-      other: BufferType,
-      how: String
-  ): (Option[BufferInt], Option[BufferInt]) = {
-    import ra3.join.locator.LocatorDouble
-    import ra3.join.*
-    val idx1 = LocatorDouble.fromKeys(first.values)
-    val idx2 = LocatorDouble.fromKeys(other.values)
-    val reindexer =  (ra3.join.JoinerImplDouble).join(
-      left = idx1,
-      right = idx2,
-      how = how match {
-        case "inner" => InnerJoin
-        case "left"  => LeftJoin
-        case "right" => RightJoin
-        case "outer" => OuterJoin
-      }
-    )
-    (reindexer.lTake.map(BufferInt(_)), reindexer.rTake.map(BufferInt(_)))
-  }
+        first: BufferType,
+        other: BufferType,
+        how: String
+    ): (Option[BufferInt], Option[BufferInt]) = {
+      import ra3.join.locator.LocatorDouble
+      import ra3.join.*
+      val idx1 = LocatorDouble.fromKeys(first.values)
+      val idx2 = LocatorDouble.fromKeys(other.values)
+      val reindexer = (ra3.join.JoinerImplDouble).join(
+        left = idx1,
+        right = idx2,
+        how = how match {
+          case "inner" => InnerJoin
+          case "left"  => LeftJoin
+          case "right" => RightJoin
+          case "outer" => OuterJoin
+        }
+      )
+      (reindexer.lTake.map(BufferInt(_)), reindexer.rTake.map(BufferInt(_)))
+    }
     type Elem = Double
     type BufferType = BufferDouble
     type ColumnType = Column.F64Column

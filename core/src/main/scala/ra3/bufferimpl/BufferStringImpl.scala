@@ -6,12 +6,12 @@ import java.nio.ByteOrder
 import tasks.{TaskSystemComponents, SharedFile}
 import ra3.join.*
 import ra3.join.locator.*
-import org.saddle.scalar.{ScalarTagInt,ScalarTagDouble,ScalarTagLong}
+import org.saddle.scalar.{ScalarTagInt, ScalarTagDouble, ScalarTagLong}
 
 private[ra3] object CharSequenceOrdering
     extends scala.math.Ordering[CharSequence] { self =>
 
-  val joiner = (new ra3.join.JoinerImplAny[CharSequence](v => isMissing(v)))
+  val joiner = (new ra3.join.JoinerImplCharSequence(v => isMissing(v)))
   def charSeqEquals(x: CharSequence, y: CharSequence) = {
     if (x.length() != y.length) false
     else {
@@ -120,7 +120,7 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
 
   def positiveLocations: BufferInt = {
     BufferInt(
-      ArrayUtil.findG(values,s => s != BufferString.missing && s.length > 0)
+      ArrayUtil.findG(values, s => s != BufferString.missing && s.length > 0)
     )
   }
 
@@ -140,8 +140,8 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
     else {
       val idx =
         if (lessThan)
-          ArrayUtil.findG(values,x => !ord.isMissing(x) && ord.lteq(x, c))
-        else ArrayUtil.findG(values,x => !ord.isMissing(x) && ord.gteq(x, c))
+          ArrayUtil.findG(values, x => !ord.isMissing(x) && ord.lteq(x, c))
+        else ArrayUtil.findG(values, x => !ord.isMissing(x) && ord.gteq(x, c))
 
       BufferInt(idx.toArray)
     }
@@ -149,7 +149,7 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
 
   def toSeq = values.toSeq
 
-  def element(i:Int) = values(i)
+  def element(i: Int) = values(i)
 
   def cdf(numPoints: Int): (BufferString, BufferDouble) = {
     val percentiles =
@@ -172,34 +172,28 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
 
   def length = values.length
 
-
   def groups = {
-    val counts = scala.collection.mutable.AnyRefMap[CharSequence, Int]()
-    val buffer = MutableBuffer.emptyG[CharSequence]
+
+    val (counts, uniqueIdx) = ra3.hashtable.CharSequenceTable
+      .buildWithUniques(values, Array.ofDim[Int](values.length))
 
     val map = Array.ofDim[Int](values.length)
     var i = 0
     while (i < values.length) {
-      val cs = values(i)
-      counts.get(cs) match {
-        case None =>
-          counts.update(cs, 1)
-          buffer.+=(cs)
-        case Some(value) => counts.update(cs, value + 1)
-      }
+      counts.mutate(values(i), _ + 1)
       i += 1
     }
     i = 0
-    val groups = buffer.toArray
-    val groupmap = groups.zipWithIndex.toMap
+    val groups = uniqueIdx.map(values)
+    val groupmap = ra3.hashtable.GenericTable.buildFirst(groups, null)
     while (i < values.length) {
-      map(i) = groupmap(values(i))
+      map(i) = groupmap.lookupIdx(values(i))
       i += 1
     }
-    val c = groups.map(cs => counts(cs))
+    val c = groups.map(cs => counts.payload(counts.lookupIdx(cs)))
     Buffer.GroupMap(
       map = BufferInt(map),
-      numGroups = buffer.length,
+      numGroups = uniqueIdx.length,
       groupSizes = BufferInt(c)
     )
   }
@@ -222,12 +216,13 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
 
   }
 
- def computeJoinIndexes(
+  def computeJoinIndexes(
       other: BufferType,
       how: String
   ): (Option[BufferInt], Option[BufferInt]) = {
-    val idx1 = LocatorAny.fromKeys(values)
-    val idx2 = LocatorAny.fromKeys(other.values)
+
+    val idx1 = LocatorCharSequence.fromKeys(values)
+    val idx2 = LocatorCharSequence(other.values)
     val reindexer = CharSequenceOrdering.joiner.join(
       left = idx1,
       right = idx2,
@@ -300,10 +295,12 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
             -1L
           )
         else {
+          val t1 = System.nanoTime()
           val bb =
             ByteBuffer.allocate(byteSize.toInt).order(ByteOrder.BIG_ENDIAN)
           var numBytes = 0L
           values.foreach { str =>
+
             numBytes += str.length() * 2 + 40
             bb.putInt(str.length)
             var i = 0
@@ -311,10 +308,12 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
               bb.putChar(str.charAt(i))
               i += 1
             }
+
           }
           bb.flip()
 
           val bbCompressed = Utils.compress(bb)
+          val t2 = System.nanoTime()
 
           (fs2.Stream.chunk(fs2.Chunk.byteBuffer(bbCompressed)), numBytes)
         }

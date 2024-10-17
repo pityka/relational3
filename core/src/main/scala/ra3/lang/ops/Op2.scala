@@ -83,7 +83,7 @@ private[ra3] object Op2 {
     }
   }
 
-  class MkReturnWhere[K<:Tuple] extends Op2Unserializable {
+  class MkReturnWhere[K <: Tuple] extends Op2Unserializable {
     def erase = MkReturnWhereUntyped
     type A0 = ra3.lang.ReturnValueTuple[K]
     type A1 = DI32

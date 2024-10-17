@@ -7,7 +7,181 @@ import scodec.bits.ByteVector
 import java.nio.CharBuffer
 import java.io.InputStream
 import tasks.TaskSystemComponents
+import io.netty.util.internal.shaded.org.jctools.util.UnsafeAccess
 
+object Fnv1 {
+  inline def hashByteBuffer(buff: ByteBuffer) = {
+    // // fnv 32bit
+    var hash = 0x811c9dc5
+    val n = buff.remaining
+    var i = 0
+    while (i < n) {
+      hash *= 16777619
+      hash ^= (buff.get(i) & 0xff)
+      i += 1
+    }
+    hash.toInt
+  }
+}
+object Murmur3 {
+  /* Derived from https://github.com/scala/scala/blob/v2.13.14/src/library/scala/util/hashing/MurmurHash3.scala#L330
+   *
+   * Scala (https://www.scala-lang.org)
+   *
+   * Copyright EPFL and Lightbend, Inc.
+   *
+   * Licensed under Apache License 2.0
+   * (http://www.apache.org/licenses/LICENSE-2.0).
+   *
+   * See the NOTICE file distributed with this work for
+   * additional information regarding copyright ownership.
+   */
+  inline def hashByteBuffer(buff: ByteBuffer) = {
+    var len = buff.remaining()
+    var h = 0x3c074a61
+
+    // Body
+    var i = 0
+    while (len >= 4) {
+      var k = buff.get(i + 0) & 0xff
+      k |= (buff.get(i + 1) & 0xff) << 8
+      k |= (buff.get(i + 2) & 0xff) << 16
+      k |= (buff.get(i + 3) & 0xff) << 24
+
+      h = Murmur3.mix(h, k)
+
+      i += 4
+      len -= 4
+    }
+
+    // Tail
+    var k = 0
+    if (len == 3) k ^= (buff.get(i + 2) & 0xff) << 16
+    if (len >= 2) k ^= (buff.get(i + 1) & 0xff) << 8
+    if (len >= 1) {
+      k ^= (buff.get(i + 0) & 0xff)
+      h = Murmur3.mixLast(h, k)
+    }
+
+    // Finalization
+    Murmur3.finalizeHash(h, buff.remaining())
+  }
+  inline def hashLong(l: Long) = {
+    var h = 0x3c074a61
+
+    // Body
+    var i0 = (l & 0xff).toInt
+    var i1 = (l >> 32).toInt
+
+    h = Murmur3.mix(h, i0)
+    h = Murmur3.mixLast(h, i1)
+
+    // Finalization
+    Murmur3.finalizeHash(h, 2)
+  }
+  inline def hashDouble(l: Double) =
+    hashLong(java.lang.Double.doubleToLongBits(l))
+  inline def hashInt(l: Int) = {
+    var h = 0x3c074a61
+
+    // Body
+
+    h = Murmur3.mixLast(h, l)
+
+    // Finalization
+    Murmur3.finalizeHash(h, 2)
+  }
+
+  import java.lang.Integer.{rotateLeft => rotl}
+
+  /** Mix in a block of data into an intermediate hash value. */
+  inline def mix(hash: Int, data: Int): Int = {
+    var h = mixLast(hash, data)
+    h = rotl(h, 13)
+    h * 5 + 0xe6546b64
+  }
+
+  /** May optionally be used as the last mixing step. Is a little bit faster
+    * than mix, as it does no further mixing of the resulting hash. For the last
+    * element this is not necessary as the hash is thoroughly mixed during
+    * finalization anyway.
+    */
+  inline def mixLast(hash: Int, data: Int): Int = {
+    var k = data
+
+    k *= 0xcc9e2d51
+    k = rotl(k, 15)
+    k *= 0x1b873593
+
+    hash ^ k
+  }
+
+  /** Finalize a hash to incorporate the length and make sure all bits
+    * avalanche.
+    */
+  inline def finalizeHash(hash: Int, length: Int): Int = avalanche(
+    hash ^ length
+  )
+
+  /** Force all bits of the hash to avalanche. Used for finalizing the hash. */
+  private final def avalanche(hash: Int): Int = {
+    var h = hash
+
+    h ^= h >>> 16
+    h *= 0x85ebca6b
+    h ^= h >>> 13
+    h *= 0xc2b2ae35
+    h ^= h >>> 16
+
+    h
+  }
+}
+
+private[ra3] case class ByteBufferAsCharSequence(buff: ByteBuffer)
+    extends CharSequence {
+
+  override def toString = {
+    buff.asCharBuffer().toString
+  }
+
+  def toCharArray = {
+    val a = Array.ofDim[Char](length)
+    0 until length foreach { i => a(i) = charAt(i) }
+    a
+  }
+
+  override def equals(other: Any): Boolean =
+    other.asInstanceOf[Matchable] match {
+      case other: CharSequence if this.length == other.length =>
+        var b = true
+        var i = 0
+        val n = length
+        while (i < n && b) {
+          b = (charAt(i) == other.charAt(i))
+          i += 1
+        }
+
+        b
+      case _ =>
+        false
+    }
+
+  override def hashCode(): Int = {
+
+    Murmur3.hashByteBuffer(buff)
+
+  }
+
+  override def length(): Int = buff.remaining() / 2
+
+  override def charAt(index: Int): Char = {
+    buff.getChar(index * 2)
+  }
+
+  override def subSequence(start: Int, end: Int): CharSequence =
+    throw new NotImplementedError
+
+}
 private[ra3] case class CharArraySubSeq(buff: Array[Char], start: Int, to: Int)
     extends CharSequence {
 
@@ -21,8 +195,8 @@ private[ra3] case class CharArraySubSeq(buff: Array[Char], start: Int, to: Int)
         var b = true
         var i = 0
         val n = length
-        while (i < n && !b) {
-          b = (charAt(i) != other.charAt(i))
+        while (i < n && b) {
+          b = (charAt(i) == other.charAt(i))
           i += 1
         }
         b
@@ -96,46 +270,53 @@ private[ra3] object Utils {
       .map(b => tag.cat(b*))
   }
 
+  val skipCompress = true
+
   def compress(bb: ByteBuffer) = {
-    bb
-    // val t1 = System.nanoTime()
-    // val compressor = new _root_.io.airlift.compress.zstd.ZstdCompressor
-    // val ar = bb.array()
-    // val offs = bb.arrayOffset()
-    // val len = bb.remaining()
-    // val maxL = compressor.maxCompressedLength(len)
-    // val compressed = Array.ofDim[Byte](maxL)
-    // val actualLength =
-    //   compressor.compress(ar, offs, len, compressed, 0, maxL)
-    // val t2 = System.nanoTime()
-    // scribe.debug(
-    //   f"zstd compression ratio: ${actualLength.toDouble / len} in ${(t2 - t1) * 1e-6}ms (${actualLength.toDouble / 1024 / 1024}%.2f megabytes)"
-    // )
-    // ByteBuffer.wrap(compressed, 0, actualLength)
+    if (skipCompress) bb
+    else {
+      // bb
+      val t1 = System.nanoTime()
+      val compressor = new _root_.io.airlift.compress.zstd.ZstdCompressor
+      val ar = bb.array()
+      val offs = bb.arrayOffset()
+      val len = bb.remaining()
+      val maxL = compressor.maxCompressedLength(len)
+      val compressed = Array.ofDim[Byte](maxL)
+      val actualLength =
+        compressor.compress(ar, offs, len, compressed, 0, maxL)
+      val t2 = System.nanoTime()
+      scribe.debug(
+        f"zstd compression ratio: ${actualLength.toDouble / len} in ${(t2 - t1) * 1e-6}ms (${actualLength.toDouble / 1024 / 1024}%.2f megabytes)"
+      )
+      ByteBuffer.wrap(compressed, 0, actualLength)
+    }
 
   }
 
   def decompress(byteVector: ByteVector) = {
-    java.nio.ByteBuffer.wrap(byteVector.toArrayUnsafe)
-    // val compressed = byteVector.toArrayUnsafe
-    // val decompressor =
-    //   new _root_.io.airlift.compress.zstd.ZstdDecompressor
-    // val ar = compressed
-    // val offs = 0
-    // val len = compressed.length
-    // val decLen = _root_.io.airlift.compress.zstd.ZstdDecompressor
-    //   .getDecompressedSize(ar, offs, len)
-    //   .toInt
-    // val decompressedBuffer = Array.ofDim[Byte](decLen)
-    // decompressor.decompress(
-    //   ar,
-    //   offs,
-    //   len,
-    //   decompressedBuffer,
-    //   0,
-    //   decLen
-    // )
-    // java.nio.ByteBuffer.wrap(decompressedBuffer)
+    if (skipCompress) java.nio.ByteBuffer.wrap(byteVector.toArrayUnsafe)
+    else {
+      val compressed = byteVector.toArrayUnsafe
+      val decompressor =
+        new _root_.io.airlift.compress.zstd.ZstdDecompressor
+      val ar = compressed
+      val offs = 0
+      val len = compressed.length
+      val decLen = _root_.io.airlift.compress.zstd.ZstdDecompressor
+        .getDecompressedSize(ar, offs, len)
+        .toInt
+      val decompressedBuffer = Array.ofDim[Byte](decLen)
+      decompressor.decompress(
+        ar,
+        offs,
+        len,
+        decompressedBuffer,
+        0,
+        decLen
+      )
+      java.nio.ByteBuffer.wrap(decompressedBuffer)
+    }
 
   }
 

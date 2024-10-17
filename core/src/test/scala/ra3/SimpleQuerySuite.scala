@@ -29,12 +29,11 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
         val less = ra3Table
           .as[(F64Var, F64Var)]
           .schema { (col0, col1) => schema =>
-              query(
-                schema.all
-                  .where(p(col0, col1))
-              )
+            query(
+              schema.all
+                .where(p(col0, col1))
+            )
 
-            
           }
           .evaluate
           .unsafeRunSync()
@@ -132,7 +131,8 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
       }
       val ra3Table = csvStringToStringTable("table", tableCsv, 2, 3)
         .as[(StrVar, StrVar)]
-        .schema( (col0, col1) => _ =>
+        .schema((col0, col1) =>
+          _ =>
             query(
               ra3.select0
                 .extend(col0.matchAndReplace("NA", MissingString) as "V0")
@@ -140,7 +140,6 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
                   col1.matchAndReplace("NA", MissingString) as "V1"
                 )
             )
-          
         )
         .evaluate
         .unsafeRunSync()
@@ -149,10 +148,8 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
       )(p2: (Vec[String], Vec[String]) => Array[Int]) = {
         val less = ra3Table
           .as[(StrVar, StrVar)]
-          .schema( (col0, col1) => schema =>
-              query(schema.all.where(p(col0, col1)))
-
-            
+          .schema((col0, col1) =>
+            schema => query(schema.all.where(p(col0, col1)))
           )
           .evaluate
           .unsafeRunSync()
@@ -255,13 +252,12 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
       )(p2: (Vec[Long], Vec[Long]) => Array[Int]) = {
         val less = ra3Table
           .as[(I64Var, I64Var)]
-          .schema( (col0, col1) => schema =>
+          .schema((col0, col1) =>
+            schema =>
               query(
                 schema.all
                   .where(p(col0, col1))
               )
-
-            
           )
           .evaluate
           .unsafeRunSync()
@@ -363,15 +359,14 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
       )(p2: (Vec[Long], Vec[Long]) => Array[Int]) = {
         val less = ra3Table
           .as[(I64Var, I64Var)]
-          .schema( (col0, col1) => schema =>
+          .schema((col0, col1) =>
+            schema =>
               query(
                 schema.none
                   .extend(col0.toInstantEpochMilli)
                   .extend(col1.toInstantEpochMilli)
                   .where(p(col0.toInstantEpochMilli, col1.toInstantEpochMilli))
               )
-
-            
           )
           .evaluate
           .unsafeRunSync()
@@ -463,13 +458,12 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
       )(p2: (Vec[Int], Vec[Int]) => Array[Int]) = {
         val less = ra3Table
           .as[(I32Var, I32Var)]
-          .schema( (col0, col1) => schema =>
+          .schema((col0, col1) =>
+            schema =>
               query(
                 schema.all
                   .where(p(col0, col1))
               )
-
-            
           )
           .evaluate
           .unsafeRunSync()
@@ -568,12 +562,12 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
       val less =
         ra3Table
           .as[(StrVar, StrVar)]
-          .schema( (col0, col1) => schema =>
+          .schema((col0, col1) =>
+            schema =>
               query(
                 schema.all
                   .where(col0.tap("col0").containedIn(Set("1", "2")))
               )
-            
           )
           .evaluate
           .unsafeRunSync()
@@ -613,11 +607,11 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
       val less =
         ra3Table
           .as[(I32Var, I32Var)]
-          .schema( (col0, col1) => schema =>
+          .schema((col0, col1) =>
+            schema =>
               query(
                 schema.none.extend(col0.ifelse(col0, col1))
               )
-            
           )
           .evaluate
           .unsafeRunSync()

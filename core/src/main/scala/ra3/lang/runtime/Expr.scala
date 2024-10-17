@@ -31,11 +31,11 @@ object Expr {
   ): IO[Value] = expr.evalWith(map)
 
   implicit val customCodecOfDouble: JsonValueCodec[Double] =
-  ra3.Utils.customDoubleCodec
+    ra3.Utils.customDoubleCodec
 
   // $COVERAGE-OFF$
   implicit val codec: JsonValueCodec[Expr] =
-  JsonCodecMaker.make(CodecMakerConfig.withAllowRecursiveTypes(true))
+    JsonCodecMaker.make(CodecMakerConfig.withAllowRecursiveTypes(true))
   // $COVERAGE-ON$
 
   final case class DelayedIdent private[ra3] (private[ra3] val name: Delayed)

@@ -23,18 +23,18 @@ private[ra3] object MakePartitionMap {
   )(implicit
       tsc: TaskSystemComponents
   ): IO[SegmentInt] =
-    task(MakePartitionMap(input, outputPath, partitionBase))(
-      ResourceRequest(
-        cpu = (1, 1),
-        memory = input.map(s => ra3.Utils.guessMemoryUsageInMB(s.segment)).sum,
-        scratch = 0,
-        gpu = 0
-      )
-    ).map(_.segment)
-    // $COVERAGE-OFF$
+  task(MakePartitionMap(input, outputPath, partitionBase))(
+    ResourceRequest(
+      cpu = (1, 1),
+      memory = input.map(s => ra3.Utils.guessMemoryUsageInMB(s.segment)).sum,
+      scratch = 0,
+      gpu = 0
+    )
+  ).map(_.segment)
+  // $COVERAGE-OFF$
   implicit val codec: JsonValueCodec[MakePartitionMap] = JsonCodecMaker.make
   implicit val c2: JsonValueCodec[Output] = JsonCodecMaker.make
-    // $COVERAGE-ON$
+  // $COVERAGE-ON$
   val task = Task[MakePartitionMap, Output]("makepartitionmap", 1) {
     case input =>
       implicit ce =>

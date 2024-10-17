@@ -9,7 +9,7 @@ import ra3.lang.Expr.DelayedIdent
 import java.time.temporal.TemporalUnit
 import ra3.lang.ReturnValueTuple
 
-object Main  {
+object Main {
 
   /** Generate bogus data Each row is a transaction of some value between two
     * customers Each row consists of:
@@ -30,7 +30,12 @@ object Main  {
       val hundredsOfThousands1 = Random.alphanumeric.take(3).mkString
       val thousands = Random.nextInt(5000)
       val float = Random.nextDouble()
-      val instant = java.time.Instant.now().plus(Random.nextLong(1000*60*60*24L),java.time.temporal.ChronoUnit.MILLIS) 
+      val instant = java.time.Instant
+        .now()
+        .plus(
+          Random.nextLong(1000 * 60 * 60 * 24L),
+          java.time.temporal.ChronoUnit.MILLIS
+        )
 
       (s"$millions\t$millions2\t$hundredsOfThousands1\t$thousands\t$float\t$instant\n")
     }
@@ -85,7 +90,7 @@ object Main  {
               fieldSeparator = '\t',
               compression = Some(ra3.CompressionFormat.Gzip)
             )
-          
+
           _ <- IO {
             println(table.table)
           }
@@ -95,11 +100,14 @@ object Main  {
           }
         } yield table
 
-      def avgInAndOutWithoutAbstractions(transactions: TableExpr[ReturnValueTuple[(StrVar, StrVar, StrVar, I32Var, F64Var)]]) = {
+      def avgInAndOutWithoutAbstractions(
+          transactions: TableExpr[
+            ReturnValueTuple[(StrVar, StrVar, StrVar, I32Var, F64Var)]
+          ]
+      ) = {
         val query = transactions
-          .schema{ (customerIn, customerOut, _, _, value) => _ =>
-            customerIn
-              .groupBy
+          .schema { (customerIn, customerOut, _, _, value) => _ =>
+            customerIn.groupBy
               .reducePartial(
                 customerIn.first.unnamed :*
                   value.sum.unnamed :*
@@ -107,44 +115,40 @@ object Main  {
                   value.min.unnamed :*
                   value.max.unnamed
               )
-              
               .in(_.tap("partial group by"))
-              .schema{ case (customer, sum, count, min, max) => _ =>
-                customer
-                  .groupBy
-                  .reduceTotal(
-                    (customer.first `as` "customer") :*
-                      ((sum.sum / count.sum) `as` "avg") :*
-                      (min.min `as` "min") :*
-                      (max.max `as` "max")
-                  )
+              .schema { case (customer, sum, count, min, max) =>
+                _ =>
+                  customer.groupBy
+                    .reduceTotal(
+                      (customer.first `as` "customer") :*
+                        ((sum.sum / count.sum) `as` "avg") :*
+                        (min.min `as` "min") :*
+                        (max.max `as` "max")
+                    )
               }
-              .schema{ (customerIn, avgInValue, _, _) => _ =>
-                customerOut
-                  .groupBy
+              .schema { (customerIn, avgInValue, _, _) => _ =>
+                customerOut.groupBy
                   .reducePartial(
-                    
-                      customerOut.first.unnamed :*
+                    customerOut.first.unnamed :*
                       value.sum.unnamed :*
                       value.count.unnamed :*
                       value.min.unnamed :*
                       value.max.unnamed
                   )
-                  .schema { case (customer, sum, count, min, max) => _ =>
-                    customer
-                      .groupBy
-                      .reduceTotal(
-                        (
-                          
+                  .schema { case (customer, sum, count, min, max) =>
+                    _ =>
+                      customer.groupBy
+                        .reduceTotal(
+                          (
                             (customer.first `as` "customer") :*
-                            ((sum.sum / count.sum) `as` "avg") :*
-                            (min.min `as` "min") :*
-                            (max.max `as` "max")
+                              ((sum.sum / count.sum) `as` "avg") :*
+                              (min.min `as` "min") :*
+                              (max.max `as` "max")
+                          )
                         )
-                      )
-                      
+
                   }
-                  .schema{ (customerOut, avgOutValue, _, _) => _ =>
+                  .schema { (customerOut, avgOutValue, _, _) => _ =>
                     customerIn
                       .outer(customerOut)
                       .select(
@@ -206,8 +210,6 @@ object Main  {
     }
   }
 
-
-
   scribe
     .Logger("tasks.queue") // Look-up or create the named logger
     .orphan() // This keeps the logger from propagating any records up the hierarchy
@@ -223,6 +225,7 @@ object Main  {
     .withHandler(minimumLevel = Some(scribe.Level.Info))
     .replace()
 
-   def main(args: Array[String]): Unit = ParserForMethods(this).runOrExit(args.toIndexedSeq)
+  def main(args: Array[String]): Unit =
+    ParserForMethods(this).runOrExit(args.toIndexedSeq)
 
 }

@@ -28,7 +28,7 @@ class IndexSpec extends Specification {
     "Right join with missing " in {
       val ix1 = Index()
       val ix2 = Index(Int.MinValue)
-      val res = ( ra3.join.JoinerImplInt)
+      val res = (ra3.join.JoinerImplInt)
         .join(ix1, ix2, RightJoin)
 
       res.lTake.get must_== Array[Int](-1)
@@ -37,18 +37,18 @@ class IndexSpec extends Specification {
     }
     "Right join with missing 2 " in {
       val ix1 = Index()
-      val ix2 = Index(Int.MinValue,Int.MinValue)
-      val res = ( ra3.join.JoinerImplInt)
+      val ix2 = Index(Int.MinValue, Int.MinValue)
+      val res = (ra3.join.JoinerImplInt)
         .join(ix1, ix2, RightJoin)
 
-      res.lTake.get must_== Array[Int](-1,-1)
+      res.lTake.get must_== Array[Int](-1, -1)
       res.rTake must_== None
 
     }
     "Outer join with dup missing " in {
       val ix1 = Index(0, 1, Int.MinValue, Int.MinValue, Int.MinValue)
       val ix2 = Index(1, 2, Int.MinValue, Int.MinValue, Int.MinValue)
-      val res = ( ra3.join.JoinerImplInt)
+      val res = (ra3.join.JoinerImplInt)
         .join(ix1, ix2, OuterJoin)
 
       res.lTake.get must_== Array(0, 1, 2, 3, 4, -1, -1, -1, -1)
@@ -58,7 +58,7 @@ class IndexSpec extends Specification {
     "Inner join with dup missing " in {
       val ix1 = Index(0, 1, Int.MinValue, Int.MinValue, Int.MinValue)
       val ix2 = Index(1, 2, Int.MinValue, Int.MinValue, Int.MinValue)
-      val res = ( ra3.join.JoinerImplInt)
+      val res = (ra3.join.JoinerImplInt)
         .join(ix1, ix2, InnerJoin)
 
       res.lTake.get must_== Array(1)
@@ -68,7 +68,7 @@ class IndexSpec extends Specification {
     "Left outer join with dup missing " in {
       val ix1 = Index(0, 1, Int.MinValue, Int.MinValue, Int.MinValue)
       val ix2 = Index(1, 1, 2, Int.MinValue, Int.MinValue, Int.MinValue)
-      val res = ( ra3.join.JoinerImplInt)
+      val res = (ra3.join.JoinerImplInt)
         .join(ix1, ix2, LeftJoin)
 
       res.lTake.get must_== Array(0, 1, 1, 2, 3, 4)
@@ -79,7 +79,7 @@ class IndexSpec extends Specification {
     "Left outer join with dup missing " in {
       val ix1 = Index(0, 1, Int.MinValue, Int.MinValue, Int.MinValue)
       val ix2 = Index(1, 2, Int.MinValue, Int.MinValue, Int.MinValue)
-      val res = ( ra3.join.JoinerImplInt)
+      val res = (ra3.join.JoinerImplInt)
         .join(ix1, ix2, LeftJoin)
 
       res.lTake.isEmpty must_== true
@@ -90,7 +90,7 @@ class IndexSpec extends Specification {
     "Outer join of same non-unique indexes " in {
       val ix1 = Index(0, 0)
       val ix2 = Index(0, 0)
-      val res = ( ra3.join.JoinerImplInt)
+      val res = (ra3.join.JoinerImplInt)
         .join(ix1, ix2, OuterJoin)
 
       res.lTake.get must_== Array(0, 0, 1, 1)
@@ -103,7 +103,7 @@ class IndexSpec extends Specification {
       val ix2 = Index(1, 2, 3)
 
       val res =
-        ( ra3.join.JoinerImplInt).join(ix1, ix2, how = LeftJoin)
+        (ra3.join.JoinerImplInt).join(ix1, ix2, how = LeftJoin)
       res.lTake must_== None
       res.rTake.get must_== Array(-1, 0, 1)
     }
@@ -113,7 +113,7 @@ class IndexSpec extends Specification {
       val ix2 = Index(1, 2, 3)
 
       val res =
-        ( ra3.join.JoinerImplInt).join(ix1, ix2, how = RightJoin)
+        (ra3.join.JoinerImplInt).join(ix1, ix2, how = RightJoin)
 
       res.lTake.get must_== Array(1, 2, -1)
       res.rTake must_== None
@@ -124,7 +124,7 @@ class IndexSpec extends Specification {
       val ix2 = Index(1, 2, 3)
 
       val res =
-        ( ra3.join.JoinerImplInt).join(ix1, ix2, how = InnerJoin)
+        (ra3.join.JoinerImplInt).join(ix1, ix2, how = InnerJoin)
       res.lTake.get must_== Array(1, 2)
       res.rTake.get must_== Array(0, 1)
     }
@@ -134,7 +134,7 @@ class IndexSpec extends Specification {
       val ix2 = Index(1, 2, 3)
 
       val res =
-        ( ra3.join.JoinerImplInt).join(ix1, ix2, how = OuterJoin)
+        (ra3.join.JoinerImplInt).join(ix1, ix2, how = OuterJoin)
 
       res.lTake.get must_== Array(0, 1, 2, -1)
       res.rTake.get must_== Array(-1, 0, 1, 2)
@@ -145,7 +145,7 @@ class IndexSpec extends Specification {
       val ix2 = Index(2, 3, 1)
 
       val res =
-        ( ra3.join.JoinerImplInt).join(ix1, ix2, how = LeftJoin)
+        (ra3.join.JoinerImplInt).join(ix1, ix2, how = LeftJoin)
 
       res.lTake must_== None
       res.rTake.get must_== Array(2, -1, 0)
@@ -156,7 +156,7 @@ class IndexSpec extends Specification {
       val ix2 = Index(2, 1, 3)
 
       val res =
-        ( ra3.join.JoinerImplInt).join(ix1, ix2, how = RightJoin)
+        (ra3.join.JoinerImplInt).join(ix1, ix2, how = RightJoin)
 
       res.lTake.get must_== Array(2, 0, -1)
       res.rTake must_== None
@@ -167,7 +167,7 @@ class IndexSpec extends Specification {
       val ix2 = Index(2, 1, 3)
 
       val res =
-        ( ra3.join.JoinerImplInt).join(ix1, ix2, how = InnerJoin)
+        (ra3.join.JoinerImplInt).join(ix1, ix2, how = InnerJoin)
 
       res.lTake.get must_== Array(0, 2)
       res.rTake.get must_== Array(1, 0)
@@ -178,7 +178,7 @@ class IndexSpec extends Specification {
       val ix2 = Index(2, 1, 3)
 
       val res =
-        ( ra3.join.JoinerImplInt).join(ix1, ix2, how = OuterJoin)
+        (ra3.join.JoinerImplInt).join(ix1, ix2, how = OuterJoin)
 
       res.lTake.get must_== Array(0, 1, 2, -1)
       res.rTake.get must_== Array(1, -1, 0, 2)
@@ -189,7 +189,7 @@ class IndexSpec extends Specification {
       val ix2 = Index(1, 2, 2, 3)
 
       val res =
-        ( ra3.join.JoinerImplInt).join(ix1, ix2, how = LeftJoin)
+        (ra3.join.JoinerImplInt).join(ix1, ix2, how = LeftJoin)
 
       res.lTake.get must_== Array(0, 1, 2, 3, 3)
       res.rTake.get must_== Array(-1, 0, 0, 1, 2)
@@ -200,12 +200,12 @@ class IndexSpec extends Specification {
       val ix2 = Index(1)
 
       val res1 =
-        ( ra3.join.JoinerImplInt).join(ix1, ix2, how = LeftJoin)
+        (ra3.join.JoinerImplInt).join(ix1, ix2, how = LeftJoin)
 
       res1.lTake must_== None
       res1.rTake.get must_== Array(-1, 0, 0, -1)
 
-      val res2 = ( ra3.join.JoinerImplInt).join(ix2, ix1, how = LeftJoin)
+      val res2 = (ra3.join.JoinerImplInt).join(ix2, ix1, how = LeftJoin)
 
       res2.lTake.get must_== Array(0, 0)
       res2.rTake.get must_== Array(1, 2)
@@ -216,7 +216,7 @@ class IndexSpec extends Specification {
       val ix2 = Index(1, 2, 2, 3)
 
       val res =
-        ( ra3.join.JoinerImplInt).join(ix1, ix2, how = LeftJoin)
+        (ra3.join.JoinerImplInt).join(ix1, ix2, how = LeftJoin)
 
       res.lTake.get must_== Array(0, 1, 2, 3, 3, 4, 4)
       res.rTake.get must_== Array(-1, 0, 0, 1, 2, 1, 2)
@@ -227,7 +227,7 @@ class IndexSpec extends Specification {
       val ix2 = Index(1, 2, 2, 3)
 
       val res =
-        ( ra3.join.JoinerImplInt).join(ix1, ix2, how = RightJoin)
+        (ra3.join.JoinerImplInt).join(ix1, ix2, how = RightJoin)
 
       res.lTake.get must_== Array(1, 2, 3, 3, -1)
       res.rTake.get must_== Array(0, 0, 1, 2, 3)
@@ -238,7 +238,7 @@ class IndexSpec extends Specification {
       val ix2 = Index(1, 2, 2, 3)
 
       val res =
-        ( ra3.join.JoinerImplInt).join(ix1, ix2, how = InnerJoin)
+        (ra3.join.JoinerImplInt).join(ix1, ix2, how = InnerJoin)
 
       res.lTake.get must_== Array(1, 2, 3, 3)
       res.rTake.get must_== Array(0, 0, 1, 2)
@@ -249,12 +249,12 @@ class IndexSpec extends Specification {
       val ix2 = Index(1)
 
       val res1 =
-        ( ra3.join.JoinerImplInt).join(ix1, ix2, how = InnerJoin)
+        (ra3.join.JoinerImplInt).join(ix1, ix2, how = InnerJoin)
 
       res1.lTake.get must_== Array(0, 1)
       res1.rTake.get must_== Array(0, 0)
 
-      val res2 = ( ra3.join.JoinerImplInt).join(ix2, ix1, how = InnerJoin)
+      val res2 = (ra3.join.JoinerImplInt).join(ix2, ix1, how = InnerJoin)
 
       res2.lTake.get must_== Array(0, 0)
       res2.rTake.get must_== Array(0, 1)
@@ -265,7 +265,7 @@ class IndexSpec extends Specification {
       val ix2 = Index(1, 2, 2, 3)
 
       val res =
-        ( ra3.join.JoinerImplInt).join(ix1, ix2, how = InnerJoin)
+        (ra3.join.JoinerImplInt).join(ix1, ix2, how = InnerJoin)
       res.lTake.get must_== Array(1, 2, 3, 4, 3, 4)
       res.rTake.get must_== Array(0, 0, 1, 1, 2, 2)
     }
@@ -275,7 +275,7 @@ class IndexSpec extends Specification {
       val ix2 = Index(1, 2, 2, 3)
 
       val res =
-        ( ra3.join.JoinerImplInt).join(ix1, ix2, how = OuterJoin)
+        (ra3.join.JoinerImplInt).join(ix1, ix2, how = OuterJoin)
 
       res.lTake.get must_== Array(0, 1, 2, 3, 3, -1)
       res.rTake.get must_== Array(-1, 0, 0, 1, 2, 3)
@@ -286,14 +286,13 @@ class IndexSpec extends Specification {
       val ix2 = Index(1)
 
       val res1 =
-        ( ra3.join.JoinerImplInt).join(ix1, ix2, how = OuterJoin)
+        (ra3.join.JoinerImplInt).join(ix1, ix2, how = OuterJoin)
 
       res1.lTake.get must_== Array(0, 1, 2, 3)
       res1.rTake.get must_== Array(-1, 0, 0, -1)
 
-      val res2 = ( ra3.join.JoinerImplInt).join(ix2, ix1, how = OuterJoin)
+      val res2 = (ra3.join.JoinerImplInt).join(ix2, ix1, how = OuterJoin)
 
-      
       res2.lTake.get must_== Array(0, 0, -1, -1)
       res2.rTake.get must_== Array(1, 2, 0, 3)
     }
@@ -303,7 +302,7 @@ class IndexSpec extends Specification {
       val ix2 = Index(1, 3, 2, 2)
 
       val res =
-        ( ra3.join.JoinerImplInt).join(ix1, ix2, how = LeftJoin)
+        (ra3.join.JoinerImplInt).join(ix1, ix2, how = LeftJoin)
 
       res.lTake.get must_== Array(0, 1, 2, 2, 3)
       res.rTake.get must_== Array(0, 0, 2, 3, -1)
@@ -314,7 +313,7 @@ class IndexSpec extends Specification {
       val ix2 = Index(1, 3, 2, 2)
 
       val res =
-        ( ra3.join.JoinerImplInt).join(ix1, ix2, how = LeftJoin)
+        (ra3.join.JoinerImplInt).join(ix1, ix2, how = LeftJoin)
 
       res.lTake.get must_== Array(0, 1, 2, 2, 3, 3, 4)
       res.rTake.get must_== Array(0, 0, 2, 3, 2, 3, -1)
@@ -325,7 +324,7 @@ class IndexSpec extends Specification {
       val ix2 = Index(1, 3, 2, 2)
 
       val res =
-        ( ra3.join.JoinerImplInt).join(ix1, ix2, how = RightJoin)
+        (ra3.join.JoinerImplInt).join(ix1, ix2, how = RightJoin)
 
       res.lTake.get must_== Array(0, 1, -1, 2, 2)
       res.rTake.get must_== Array(0, 0, 1, 2, 3)
@@ -336,7 +335,7 @@ class IndexSpec extends Specification {
       val ix2 = Index(1, 3, 2, 2)
 
       val res =
-        ( ra3.join.JoinerImplInt).join(ix1, ix2, how = InnerJoin)
+        (ra3.join.JoinerImplInt).join(ix1, ix2, how = InnerJoin)
 
       res.lTake.get must_== Array(0, 1, 2, 2)
       res.rTake.get must_== Array(0, 0, 2, 3)
@@ -347,7 +346,7 @@ class IndexSpec extends Specification {
       val ix2 = Index(1, 3, 2, 2)
 
       val res =
-        ( ra3.join.JoinerImplInt).join(ix1, ix2, how = OuterJoin)
+        (ra3.join.JoinerImplInt).join(ix1, ix2, how = OuterJoin)
 
       res.lTake.get must_== Array(0, 1, 2, 2, 3, -1)
       res.rTake.get must_== Array(0, 0, 2, 3, -1, 1)

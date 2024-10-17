@@ -13,65 +13,44 @@
   * under the License.
   */
 package ra3.join.locator
-import ra3.join.MutableBuffer
-import ra3.join.util._
-  
 
+import ra3.join.*
 
+@scala.annotation.nowarn
 private[ra3] class LocatorDouble(val allKeys: Array[Double]) {
-  private val uniqueBuffer = MutableBuffer.emptyD
-  private val map = new DoubleMap
-  private val cts = new DoubleMap
-  private val mapAll = new DoubleBufferMap
+  private val (cts, uniqueIdx) = ra3.hashtable.DoubleTable
+    .buildWithUniques(allKeys, Array.ofDim[Int](allKeys.length))
 
+  private val uniqueBuffer = uniqueIdx.map(allKeys)
+  private var i = 0
+  while (i < allKeys.length) {
+    cts.mutate(allKeys(i), _ + 1)
+    i += 1
+  }
+  private val map = ra3.hashtable.DoubleTable
+    .build(allKeys, null)
 
-  def getAll(key: Double): Array[Int] = if (mapAll.contains(key)) mapAll.get(key).toArray else Locator.emptyArray
-
-  def length: Int = allKeys.length
   def contains(key: Double): Boolean = map.contains(key)
-  def get(key: Double): Int = if (map.contains(key)) map.get(key) else -1 
-  def getFirst(key: Double): Int = get(key)
-  def put(key: Double, value: Int) = if (!contains(key)) {
-    map.update(key, value)
-    mapAll.update(key,value)
-    uniqueBuffer.+=(key)
+  def get(key: Double): Int = map.lookupIdx(key)
+  def getAll(key: Double): Array[Int] = if (map.contains(key))
+    map.lookupAllIdx(key)
+  else Locator.emptyArray
+
+  def count(key: Double): Int = {
+    val c = cts.lookupIdx(key)
+    if (c == -1) 0 else cts.payload(c)
   }
-  def put2(key: Double, value: Int) = {
-    mapAll.update(key,value)
-  }
-  def count(key: Double): Int = if (cts.contains(key)) cts.get(key) else 0 
-  def inc(key: Double): Int = {
-    val u = count(key)
-    cts.update(key, u + 1)
-    u
-  }
+
   def uniqueKeys: Array[Double] = uniqueBuffer.toArray
-  def counts: Array[Int] = {
-    val res = Array.ofDim[Int](uniqueKeys.length)
-    var i = 0
-    uniqueKeys.foreach { key =>
-      res(i) = count(key)
-      i += 1
-    }
-    res
-  }
+  def length: Int = allKeys.length
+  def getFirst(key: Double): Int = get(key)
 }
 
 private[ra3] object LocatorDouble {
   def fromKeys(
       keys: Array[Double]
   ): LocatorDouble = {
-    val map =  LocatorDouble(keys)
-    var i = 0
-    while (i < keys.length) {
-      val k = keys(i)
-      if (map.inc(k) == 0) {
-        map.put(k, i)
-      } else {
-        map.put2(k,i)
-      }
-      i += 1
-    }
-    map
+    LocatorDouble(keys)
+
   }
 }

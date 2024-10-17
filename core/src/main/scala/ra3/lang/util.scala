@@ -5,7 +5,6 @@ import ra3.tablelang.TableExpr
 import ra3.*
 object util {
 
-
   type IntExpr = Expr[Int]
   type StrExpr = Expr[String]
   type LongExpr = Expr[Long]
@@ -17,8 +16,6 @@ object util {
   type F64ColumnExpr = Expr[DF64]
   type StrColumnExpr = Expr[DStr]
   type InstColumnExpr = Expr[DInst]
-
-
 
   private[ra3] def bufferIfNeededI32(
       arg: Either[BufferInt, Seq[SegmentInt]]

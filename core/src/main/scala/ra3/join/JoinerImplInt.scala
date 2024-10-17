@@ -21,7 +21,6 @@ package ra3.join
 import ra3.join.locator.LocatorInt
 import ra3.join.MutableBuffer
 
-
 /** Concrete implementation of Joiner instance which is specialized on basic
   * types.
   */
@@ -55,7 +54,7 @@ private[ra3] object JoinerImplInt {
   private def leftJoin(left: LocatorInt, right: LocatorInt): ReIndexer = {
     val ll = left.length
     val rightBuffer = MutableBuffer.emptyI(ll)
-    val leftBuffer =  MutableBuffer.emptyI(ll)
+    val leftBuffer = MutableBuffer.emptyI(ll)
     val leftKeys = left.allKeys
     var returnLeftBuffer = false
     var i = 0
@@ -101,9 +100,9 @@ private[ra3] object JoinerImplInt {
     val rightBuffer = MutableBuffer.emptyI(sizeHint)
 
     val switchLR = left.length > right.length
-    
+
     val (ltmp, rtmp) = if (switchLR) (right, left) else (left, right)
-    val ltmpKeys =ltmp.allKeys 
+    val ltmpKeys = ltmp.allKeys
     var i = 0
     while (i < ltmp.length) {
       val k = ltmpKeys(i)

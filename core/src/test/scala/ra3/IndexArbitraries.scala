@@ -40,5 +40,10 @@ object IndexArbitraries {
       l <- Gen.choose(0, 20)
       lst <- Gen.listOfN(l, Gen.chooseNum(0, l))
     } yield (lst.map(_.toString) ++ List(null, null)).toVector
+  def indexStrWithDupsNonnull: Gen[Vector[String]] =
+    for {
+      l <- Gen.choose(0, 20)
+      lst <- Gen.listOfN(l, Gen.chooseNum(0, l))
+    } yield (lst.map(_.toString)).toVector
 
 }

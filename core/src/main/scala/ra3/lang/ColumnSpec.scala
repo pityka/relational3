@@ -118,7 +118,7 @@ object NamedColumnSpecWithColumnChunkValueExtractor {
   def unapply(
       t: NamedColumnSpec[?]
   ): Option[(Either[TaggedBuffer, TaggedSegments], String)] = {
-    t match{
+    t match {
       case NamedColumnChunkI32(value, name) =>
         Some(
           (

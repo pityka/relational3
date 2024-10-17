@@ -64,21 +64,21 @@ private[ra3] object MakeGroupMap {
   )(implicit
       tsc: TaskSystemComponents
   ) =
-    task(MakeGroupMap(input, outputPath))(
-      ResourceRequest(
-        cpu = (1, 1),
-        memory = input.map(ra3.Utils.guessMemoryUsageInMB).sum * 8,
-        scratch = 0,
-        gpu = 0
-      )
-    ).map { case (map, numberOfGroups, sizes) =>
-      (map, numberOfGroups, sizes)
-    }
-    // $COVERAGE-OFF$
+  task(MakeGroupMap(input, outputPath))(
+    ResourceRequest(
+      cpu = (1, 1),
+      memory = input.map(ra3.Utils.guessMemoryUsageInMB).sum * 8,
+      scratch = 0,
+      gpu = 0
+    )
+  ).map { case (map, numberOfGroups, sizes) =>
+    (map, numberOfGroups, sizes)
+  }
+  // $COVERAGE-OFF$
   implicit val codec: JsonValueCodec[MakeGroupMap] = JsonCodecMaker.make
   implicit val codec2: JsonValueCodec[(SegmentInt, Int, SegmentInt)] =
-      JsonCodecMaker.make
-      // $COVERAGE-ON$
+  JsonCodecMaker.make
+  // $COVERAGE-ON$
 
   val task =
     Task[MakeGroupMap, (SegmentInt, Int, SegmentInt)]("MakeGroupMap", 1) {

@@ -22,7 +22,13 @@ private[ra3] case class DelayedTableSchema(
     .getOrElse(throw new NoSuchElementException(s"column $n not found"))
     ._2
   def replace(delayed: ra3.lang.Delayed) = {
-    val (tableUniqueId, colNames) = map.get(delayed.table).getOrElse(throw new RuntimeException(s"Reference to table not found in query. Missing table ${delayed.table}[${delayed.selection.fold(identity,_.toString)}]. This happens when an elementwise program is referencing a column of table but the table is not in the query. Possible fix is to include the table in the join."))
+    val (tableUniqueId, colNames) = map
+      .get(delayed.table)
+      .getOrElse(
+        throw new RuntimeException(
+          s"Reference to table not found in query. Missing table ${delayed.table}[${delayed.selection.fold(identity, _.toString)}]. This happens when an elementwise program is referencing a column of table but the table is not in the query. Possible fix is to include the table in the join."
+        )
+      )
     val idx = delayed.selection match {
       case Left(i)  => findIdx(i, colNames)
       case Right(i) => i

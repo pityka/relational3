@@ -84,22 +84,22 @@ case class JoinBuilder[J](
   def withPartitionBase(num: Int) = copy(partitionBase = Some(num))
   def withPartitionLimit(num: Int) = copy(partitionLimit = Some(num))
   def select[K <: Tuple](
-    prg: ra3.lang.Expr[ReturnValueTuple[K]]
+      prg: ra3.lang.Expr[ReturnValueTuple[K]]
   ) = ra3.tablelang.TableExpr.Join(
-      first,
-      others,
-      partitionBase.getOrElse(128),
-      partitionLimit.getOrElse(10_000_000),
-      maxSegmentsToBufferAtOnce.getOrElse(10),
-      prg
-    )
+    first,
+    others,
+    partitionBase.getOrElse(128),
+    partitionLimit.getOrElse(10_000_000),
+    maxSegmentsToBufferAtOnce.getOrElse(10),
+    prg
+  )
 }
 
 private[ra3] object JoinBuilder {
   def apply[J](
       a: Expr.DelayedIdent[J]
-  ):JoinBuilder[J] =
-    JoinBuilder[J](a, Vector.empty,  None, None, None)
+  ): JoinBuilder[J] =
+    JoinBuilder[J](a, Vector.empty, None, None, None)
 }
 
 // /** Builder pattern for joins. Exit the builder with the done method or

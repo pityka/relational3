@@ -41,18 +41,19 @@ private[ra3] object EstimateCDF {
   )(implicit
       tsc: TaskSystemComponents
   ): IO[(tag.SegmentType, SegmentDouble)] =
-    task(EstimateCDF(tag.makeTaggedSegment(input), numberOfPoints, outputPath))(
-      ResourceRequest(
-        cpu = (1, 1),
-        memory = ra3.Utils.guessMemoryUsageInMB(input),
-        scratch = 0,
-        gpu = 0
-      )
-    ).map(pair => (pair._1.asInstanceOf[input.type], pair._2))
-    // $COVERAGE-OFF$
+  task(EstimateCDF(tag.makeTaggedSegment(input), numberOfPoints, outputPath))(
+    ResourceRequest(
+      cpu = (1, 1),
+      memory = ra3.Utils.guessMemoryUsageInMB(input),
+      scratch = 0,
+      gpu = 0
+    )
+  ).map(pair => (pair._1.asInstanceOf[input.type], pair._2))
+  // $COVERAGE-OFF$
   implicit val codec: JsonValueCodec[EstimateCDF] = JsonCodecMaker.make
-  implicit val code2: JsonValueCodec[(Segment, SegmentDouble)] = JsonCodecMaker.make
-      // $COVERAGE-ON$
+  implicit val code2: JsonValueCodec[(Segment, SegmentDouble)] =
+    JsonCodecMaker.make
+  // $COVERAGE-ON$
   val task = Task[EstimateCDF, (Segment, SegmentDouble)]("estimatecdf", 1) {
     case input =>
       implicit ce => doit(input.input, input.numberOfPoints, input.outputPath)

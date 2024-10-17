@@ -205,7 +205,7 @@ private[ra3] object Equijoin {
                 (
                   TableHelper(
                     columnsAsSingleSegment.map { case (taggedSegment, _) =>
-                      val tag = taggedSegment.tag 
+                      val tag = taggedSegment.tag
                       val segment = taggedSegment.segment
                       tag.makeTaggedColumn(
                         tag.makeColumn(
@@ -374,7 +374,7 @@ private[ra3] object Equijoin {
                 (
                   TableHelper(
                     columnsAsSingleSegment.map { case (taggedSegment, _) =>
-                      val tag = taggedSegment.tag 
+                      val tag = taggedSegment.tag
                       val segment = taggedSegment.segment
                       tag.makeTaggedColumn(
                         tag.makeColumn(

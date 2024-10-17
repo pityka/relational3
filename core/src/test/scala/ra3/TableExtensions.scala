@@ -125,8 +125,6 @@ trait TableExtensions {
       }
     }
 
-  
-
     /**   - For each aligned index segment, buffer it
       *   - For each column
       *   - For each segment in the column
