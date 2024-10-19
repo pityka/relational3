@@ -112,7 +112,11 @@ private[ra3] object SimpleQueryCount {
   )(implicit
       tsc: TaskSystemComponents
   ): IO[Long] =
-  task(
+   IO {
+      scribe.debug(
+        s"Queueing SimpleQueryCount on ${input.size} table segments. Groups present: ${groupMap.isDefined}"
+      )
+    } *>task(
     SimpleQueryCount(input, predicate, groupMap)
   )(
     ResourceRequest(

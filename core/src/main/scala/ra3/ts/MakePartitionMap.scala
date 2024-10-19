@@ -23,7 +23,11 @@ private[ra3] object MakePartitionMap {
   )(implicit
       tsc: TaskSystemComponents
   ): IO[SegmentInt] =
-  task(MakePartitionMap(input, outputPath, partitionBase))(
+   IO {
+      scribe.debug(
+        s"Queueing MakePartitionMap with base $partitionBase on ${input.map(_.segment.numElems.toLong).sum} total size"
+      )
+    } *> task(MakePartitionMap(input, outputPath, partitionBase))(
     ResourceRequest(
       cpu = (1, 1),
       memory = input.map(s => ra3.Utils.guessMemoryUsageInMB(s.segment)).sum,

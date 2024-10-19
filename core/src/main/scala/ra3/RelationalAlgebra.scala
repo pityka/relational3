@@ -58,14 +58,14 @@ private[ra3] trait RelationalAlgebra { self: Table =>
       columnIdx: Seq[Int],
       partitionBase: Int,
       partitionLimit: Int,
-      maxSegmentsToBufferAtOnce: Int
+      maxItemsToBufferAtOnce: Int
   )(implicit tsc: TaskSystemComponents) = {
     partition(
       columnIdx = columnIdx,
       partitionBase = partitionBase,
       numPartitionsIsImportant = true,
       partitionLimit = partitionLimit,
-      maxSegmentsToBufferAtOnce = maxSegmentsToBufferAtOnce
+      maxItemsToBufferAtOnce = maxItemsToBufferAtOnce
     ).map { parts =>
       val pz = parts.zipWithIndex
       val partitionMapOverSegments =
@@ -98,7 +98,7 @@ private[ra3] trait RelationalAlgebra { self: Table =>
       partitionBase: Int,
       numPartitionsIsImportant: Boolean,
       partitionLimit: Int,
-      maxSegmentsToBufferAtOnce: Int
+      maxItemsToBufferAtOnce: Int
   )(implicit tsc: TaskSystemComponents): IO[Vector[PartitionedTable]] =
     if (self.numRows <= partitionLimit.toLong)
       IO.pure(Vector(PartitionedTable(self.columns, PartitionMeta(Nil, 1))))
@@ -152,7 +152,7 @@ private[ra3] trait RelationalAlgebra { self: Table =>
         columnIdx = columnIdx,
         inputColumns = self.columns,
         partitionBase = partitionBase,
-        maxSegmentsToBufferAtOnce = maxSegmentsToBufferAtOnce,
+        maxItemsToBufferAtOnce = maxItemsToBufferAtOnce,
         uniqueId = self.uniqueId + "partitioned-" + columnIdx.mkString(
           "-"
         ) + "-" + partitionBase + "-" + partitionLimit
@@ -168,7 +168,7 @@ private[ra3] trait RelationalAlgebra { self: Table =>
       cols: Seq[Int],
       partitionBase: Int,
       partitionLimit: Int,
-      maxSegmentsToBufferAtOnce: Int
+      maxItemsToBufferAtOnce: Int
   )(implicit
       tsc: TaskSystemComponents
   ): IO[GroupedTable] = {
@@ -188,7 +188,7 @@ private[ra3] trait RelationalAlgebra { self: Table =>
           partitionBase = partitionBase,
           numPartitionsIsImportant = false,
           partitionLimit = partitionLimit,
-          maxSegmentsToBufferAtOnce = maxSegmentsToBufferAtOnce
+          maxItemsToBufferAtOnce = maxItemsToBufferAtOnce
         )
         .flatMap { case partitions =>
           scribe.info(

@@ -41,7 +41,11 @@ private[ra3] object EstimateCDF {
   )(implicit
       tsc: TaskSystemComponents
   ): IO[(tag.SegmentType, SegmentDouble)] =
-  task(EstimateCDF(tag.makeTaggedSegment(input), numberOfPoints, outputPath))(
+  IO {
+      scribe.debug(
+        s"Queueing EstimateCDF of type $tag with items ${tag.numElems(input)}"
+      )
+    } *> task(EstimateCDF(tag.makeTaggedSegment(input), numberOfPoints, outputPath))(
     ResourceRequest(
       cpu = (1, 1),
       memory = ra3.Utils.guessMemoryUsageInMB(input),

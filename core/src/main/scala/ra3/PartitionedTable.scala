@@ -103,7 +103,7 @@ private[ra3] object PartitionedTable {
       inputColumns: Vector[TaggedColumn],
       partitionBase: Int,
       uniqueId: String,
-      maxSegmentsToBufferAtOnce: Int
+      maxItemsToBufferAtOnce: Int
   )(implicit tsc: TaskSystemComponents): IO[Vector[PartitionedTable]] = {
     assert(columnIdx.nonEmpty)
     val partitionColumns = columnIdx.map(inputColumns.apply)
@@ -134,11 +134,22 @@ private[ra3] object PartitionedTable {
       partitionMap
     }.flatMap { partitionMapsPerSegment =>
       val segmentIndices = (0 until numSegments).toList
-      val groups: List[(List[(Int, SegmentInt)], Int)] = segmentIndices
+      val groups: List[(List[(Int, SegmentInt)], Int)] = {
+
+        val zip : List[(Int,SegmentInt)] = segmentIndices
         .zip(partitionMapsPerSegment)
-        .grouped(maxSegmentsToBufferAtOnce)
-        .toList
+
+        def group(l:List[(Int,SegmentInt)],acc:List[List[(Int,SegmentInt)]]) : List[List[(Int,SegmentInt)]]= if (l.isEmpty) acc.reverse else  {
+          val scan = l.scanLeft(0)((a,b) => a +b._2.numElems)
+          val g = l.zip(scan).takeWhile(_._2 < maxItemsToBufferAtOnce).map(_._1)
+          val h = l.take(math.max(1,g.size))
+          val t = l.drop(h.size)
+          group(t,h::acc)
+        }
+
+        group(zip,Nil)
         .zipWithIndex
+      }
 
       // columns x partition x groupOfSegments
       val partitionsOfColumns =

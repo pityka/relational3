@@ -43,7 +43,11 @@ private[ra3] object ImportCsv {
   )(implicit
       tsc: TaskSystemComponents
   ): IO[Table] = {
-
+ IO {
+      scribe.debug(
+        s"Queueing ImportCSV of ${file} ${columns.size} columns"
+      )
+    } *> 
     task(
       ImportCsv(
         file,
@@ -84,7 +88,7 @@ private[ra3] object ImportCsv {
       bufferSize: Int,
       characterDecoder: CharacterDecoder
   )(implicit tsc: TaskSystemComponents): IO[Table] = {
-
+    scribe.info("Start import csv")
     val rawStream = file.stream
 
     val charset = {

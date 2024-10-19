@@ -651,7 +651,7 @@ class RelationlAlgebraSuite
 
       //     partitionBase: Int,
       //     partitionLimit: Int,
-      //     maxSegmentsToBufferAtOnce: Int
+      //     maxItemsToBufferAtOnce: Int
 
       val result = tableA
         .as[(DI32, DI32, DI32, DI32)]

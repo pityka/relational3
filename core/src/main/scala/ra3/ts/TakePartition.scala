@@ -80,7 +80,11 @@ private[ra3] object TakePartition {
   )(implicit
       tsc: TaskSystemComponents
   ): IO[Seq[Segment]] =
-  task(
+   IO {
+      scribe.debug(
+        s"Queueing TakePartition partition idx: ${numPartition} segments: ${inputSegmentsWithPartitionMaps.size}"
+      )
+    } *>task(
     TakePartition(
       inputSegmentsWithPartitionMaps = inputSegmentsWithPartitionMaps,
       numPartition = numPartition,

@@ -207,7 +207,11 @@ private[ra3] object ComputeJoinIndex {
   )(implicit
       tsc: TaskSystemComponents
   ): IO[Seq[Option[SegmentInt]]] =
-    task(ComputeJoinIndex(tag, first, rest, outputPath))(
+    IO {
+      scribe.debug(
+        s"Queuing ComputeJoinIndex of type $tag with items ${tag.numElems(first)} and ${rest.map(v => tag.numElems(v._1))} sizes"
+      )
+    } *> task(ComputeJoinIndex(tag, first, rest, outputPath))(
       ResourceRequest(
         cpu = (1, 1),
         memory = (ra3.Utils.guessMemoryUsageInMB(tag)(first) + rest

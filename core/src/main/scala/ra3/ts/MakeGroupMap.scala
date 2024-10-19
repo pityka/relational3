@@ -64,7 +64,11 @@ private[ra3] object MakeGroupMap {
   )(implicit
       tsc: TaskSystemComponents
   ) =
-  task(MakeGroupMap(input, outputPath))(
+   IO {
+      scribe.debug(
+        s"Queueing MakeGroupMap on ${input.head.segments.map(_.numElems.toLong).sum} total size (${input.size} columns)"
+      )
+    } *> task(MakeGroupMap(input, outputPath))(
     ResourceRequest(
       cpu = (1, 1),
       memory = input.map(ra3.Utils.guessMemoryUsageInMB).sum * 8,

@@ -237,7 +237,11 @@ private[ra3] object MultipleTableQuery {
   )(implicit
       tsc: TaskSystemComponents
   ): IO[Seq[(TaggedSegment, String)]] =
-  task(
+   IO {
+      scribe.debug(
+        s"Queueing MultipleTableQuery on ${input.size} table segments"
+      )
+    } *> task(
     MultipleTableQuery(
       input.map(v => v.tag -> v.erase),
       predicate,

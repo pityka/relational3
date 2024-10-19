@@ -281,7 +281,11 @@ private[ra3] object SimpleQuery {
   )(implicit
       tsc: TaskSystemComponents
   ): IO[Seq[(TaggedSegment, String)]] =
-  task(
+  IO {
+      scribe.debug(
+        s"Queueing SimpleQuery on ${input.size} table segments. Groups present: ${groupMap.isDefined}"
+      )
+    } *>task(
     SimpleQuery(
       input.map(v => v.tag -> v.erase),
       predicate,

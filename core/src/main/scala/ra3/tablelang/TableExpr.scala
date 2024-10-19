@@ -263,7 +263,7 @@ object TableExpr {
       arg1: Seq[ra3.lang.Expr.DelayedIdent[?]],
       partitionBase: Int,
       partitionLimit: Int,
-      maxSegmentsToBufferAtOnce: Int
+      maxItemsToBufferAtOnce: Int
   ) extends TableExpr[K] {
 
     assert(arg1.forall(_.name.table == arg0.name.table))
@@ -288,7 +288,7 @@ object TableExpr {
               columnIdx = columnIdx,
               partitionBase = partitionBase,
               partitionLimit = partitionLimit,
-              maxSegmentsToBufferAtOnce = maxSegmentsToBufferAtOnce
+              maxItemsToBufferAtOnce = maxItemsToBufferAtOnce
             )
             .map(TableValue(_))
         }
@@ -380,7 +380,7 @@ object TableExpr {
       groupwise: ra3.lang.Expr[A],
       partitionBase: Int,
       partitionLimit: Int,
-      maxSegmentsToBufferAtOnce: Int
+      maxItemsToBufferAtOnce: Int
   ) extends TableExpr[A] {
 
     def where(i: Expr[ra3.DI32]) = copy(groupwise = groupwise.where(i))
@@ -409,7 +409,7 @@ object TableExpr {
               cols = cols,
               partitionBase = partitionBase,
               partitionLimit = partitionLimit,
-              maxSegmentsToBufferAtOnce = maxSegmentsToBufferAtOnce
+              maxItemsToBufferAtOnce = maxItemsToBufferAtOnce
             )
             .flatMap { groupedTable =>
               scribe.info(
@@ -440,7 +440,7 @@ object TableExpr {
       groupwise: ra3.lang.Expr[A],
       partitionBase: Int,
       partitionLimit: Int,
-      maxSegmentsToBufferAtOnce: Int
+      maxItemsToBufferAtOnce: Int
   ) extends TableExpr[ra3.DI64] {
 
     def where(i: Expr[ra3.DI32]) = copy(groupwise = groupwise.where(i))
@@ -469,7 +469,7 @@ object TableExpr {
               cols = cols,
               partitionBase = partitionBase,
               partitionLimit = partitionLimit,
-              maxSegmentsToBufferAtOnce = maxSegmentsToBufferAtOnce
+              maxItemsToBufferAtOnce = maxItemsToBufferAtOnce
             )
             .flatMap { groupedTable =>
               scribe.info(
@@ -630,7 +630,7 @@ object TableExpr {
       arg1: Seq[(ra3.lang.Expr.DelayedIdent[J], String, ra3.tablelang.Key)],
       partitionBase: Int,
       partitionLimit: Int,
-      maxSegmentsToBufferAtOnce: Int,
+      maxItemsToBufferAtOnce: Int,
       elementwise: ra3.lang.Expr[R]
   ) extends TableExpr[R] {
 
@@ -695,7 +695,7 @@ object TableExpr {
                 },
                 partitionBase,
                 partitionLimit,
-                maxSegmentsToBufferAtOnce,
+                maxItemsToBufferAtOnce,
                 program
               )
               .map(TableValue(_))

@@ -109,7 +109,7 @@ case class Table(
     this.segmentation.zipWithIndex.find(_._1 > 0).map(_._2) match {
       case None => IO.pure("")
       case Some(segmentIdx) =>
-        bufferSegment(segmentIdx).map(_.toStringFrame.stringify(nrows, ncols))
+        bufferSegment(segmentIdx).map(_.toStringFrame(nrows).stringify(nrows, ncols))
     }
   }
 

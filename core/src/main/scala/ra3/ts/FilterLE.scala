@@ -23,7 +23,11 @@ private[ra3] object FilterInequality {
   )(implicit
       tsc: TaskSystemComponents
   ): IO[tag.SegmentType] = {
-
+ IO {
+      scribe.debug(
+        s"Queueing FilterInequaity on ${input.numElems} size of type $tag"
+      )
+    } *> 
     task(
       FilterInequality(
         comparisonTag.makeTaggedSegments(List(comparison, cutoff)),
@@ -48,6 +52,7 @@ private[ra3] object FilterInequality {
       outputPath: LogicalPath,
       lessThan: Boolean
   )(implicit tsc: TaskSystemComponents) = {
+    scribe.debug("FilterLE start")
     val nonEmpty =
       cutoffTag.buffer(cutoff).map(_.toSeq.head).map { cutoffValue =>
         cutoffTag

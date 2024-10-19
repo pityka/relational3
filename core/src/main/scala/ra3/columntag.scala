@@ -43,6 +43,7 @@ sealed trait ColumnTag { self =>
     type Elem = self.Elem
   }
   def numElems(column: ColumnType) = segments(column).map(_.numElems).sum
+  def numElems(segment: SegmentType) = segment.numElems
   def numBytes(column: ColumnType) = segments(column).map(_.numBytes).sum
 
   def makeTaggedColumn(first: ColumnType): TaggedColumn

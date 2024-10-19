@@ -16,7 +16,7 @@ case class PrepartitionBuilderSyntax(
     ],
     private val partitionBase: Option[Int],
     private val partitionLimit: Option[Int],
-    private val maxSegmentsToBufferAtOnce: Option[Int]
+    private val maxItemsToBufferAtOnce: Option[Int]
 ) { self =>
 
   def by(n: Expr.DelayedIdent[?]) = {
@@ -27,7 +27,7 @@ case class PrepartitionBuilderSyntax(
   def withPartitionBase(num: Int) = copy(partitionBase = Some(num))
   def withPartitionLimit(num: Int) = copy(partitionLimit = Some(num))
   def withMaxSegmentsBufferingAtOnce(num: Int) =
-  copy(maxSegmentsToBufferAtOnce = Some(num))
+  copy(maxItemsToBufferAtOnce = Some(num))
 
   /** Total reduction. Applies the group wise program to each group.
     *
@@ -41,7 +41,7 @@ case class PrepartitionBuilderSyntax(
       others,
       partitionBase.getOrElse(128),
       partitionLimit.getOrElse(10_000_000),
-      maxSegmentsToBufferAtOnce.getOrElse(10)
+      maxItemsToBufferAtOnce.getOrElse(1000_000)
     )
 
 }

@@ -23,7 +23,7 @@ private[ra3] object ExtractGroups {
   )(implicit
       tsc: TaskSystemComponents
   ): IO[Seq[tag.SegmentType]] =
-    task(
+    IO{scribe.debug(s"Queuing ExtractGroups with numGroups=$numGroups map size=${map.numElems}, segment type $tag")} *> task(
       ExtractGroups(
         tag = tag,
         input = input,
@@ -46,6 +46,7 @@ private[ra3] object ExtractGroups {
       numGroups: Int,
       outputPath: LogicalPath
   )(implicit tsc: TaskSystemComponents) = {
+    scribe.debug(s"ExtractGroups on $numGroups groups with map size ${map.numElems}")
     val parts = map.buffer
     val bIn = IO
       .parSequenceN(32)(input.map(s => tag.buffer(s)))

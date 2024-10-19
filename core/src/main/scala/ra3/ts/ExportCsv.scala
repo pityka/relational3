@@ -34,7 +34,11 @@ private[ra3] object ExportCsv {
   )(implicit
       tsc: TaskSystemComponents
   ): IO[SharedFile] = {
-
+    IO {
+      scribe.debug(
+        s"Queueing ExportCSV on ${segments.size} segments, total rows: ${segments.map(_.segment.numElems.toLong).sum}"
+      )
+    } *> 
     task(
       ExportCsv(
         segments,
@@ -65,7 +69,7 @@ private[ra3] object ExportCsv {
       outputSegmentIndex: Int,
       compression: Option[ExportCsv.CompressionFormat]
   )(implicit tsc: TaskSystemComponents): IO[SharedFile] = {
-
+    scribe.debug("ExportCSV start.")
     def contains(cs: CharSequence, c: Char) = {
       var i = 0
       val n = cs.length

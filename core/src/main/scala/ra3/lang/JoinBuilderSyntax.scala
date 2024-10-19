@@ -8,10 +8,10 @@ case class JoinBuilder[J](
     ],
     private val partitionBase: Option[Int],
     private val partitionLimit: Option[Int],
-    private val maxSegmentsToBufferAtOnce: Option[Int]
+    private val maxItemsToBufferAtOnce: Option[Int]
 ) {
   def withMaxSegmentsBufferingAtOnce(num: Int) =
-    copy(maxSegmentsToBufferAtOnce = Some(num))
+    copy(maxItemsToBufferAtOnce = Some(num))
 
   def inner[A <: Tuple](
       ref: Expr.DelayedIdent[J],
@@ -90,7 +90,7 @@ case class JoinBuilder[J](
     others,
     partitionBase.getOrElse(128),
     partitionLimit.getOrElse(10_000_000),
-    maxSegmentsToBufferAtOnce.getOrElse(10),
+    maxItemsToBufferAtOnce.getOrElse(1000_000),
     prg
   )
 }
@@ -113,7 +113,7 @@ private[ra3] object JoinBuilder {
 //     val prg: ra3.lang.Expr[R],
 //     private val partitionBase: Option[Int],
 //     private val partitionLimit: Option[Int],
-//     private val maxSegmentsToBufferAtOnce: Option[Int]
+//     private val maxItemsToBufferAtOnce: Option[Int]
 // ) { self =>
 
 //   def done = {
@@ -122,7 +122,7 @@ private[ra3] object JoinBuilder {
 //       others,
 //       partitionBase.getOrElse(128),
 //       partitionLimit.getOrElse(10_000_000),
-//       maxSegmentsToBufferAtOnce.getOrElse(10),
+//       maxItemsToBufferAtOnce.getOrElse(1000_000),
 //       prg
 //       // prg.getOrElse(ra3.select(ra3.star))
 //     )

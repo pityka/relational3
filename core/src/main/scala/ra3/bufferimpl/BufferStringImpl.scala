@@ -185,7 +185,7 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
     }
     i = 0
     val groups = uniqueIdx.map(values)
-    val groupmap = ra3.hashtable.GenericTable.buildFirst(groups, null)
+    val groupmap = ra3.hashtable.CharSequenceTable.buildFirst(groups, null)
     while (i < values.length) {
       map(i) = groupmap.lookupIdx(values(i))
       i += 1

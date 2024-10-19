@@ -97,7 +97,7 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
         .compile
         .toList
         .unsafeRunSync()
-        .map(_.toStringFrame)
+        .map(_.toStringFrame())
         .reduce(_ concat _)
         .colAt(0)
         .mapValues(_.toDouble)
@@ -188,7 +188,7 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
         .compile
         .toList
         .unsafeRunSync()
-        .map(_.toStringFrame)
+        .map(_.toStringFrame())
         .reduce(_ concat _)
         .withRowIndex(0)
         .colAt(0)
@@ -264,7 +264,7 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
         .compile
         .toList
         .unsafeRunSync()
-        .map(_.toStringFrame)
+        .map(_.toStringFrame())
         .reduce(_ concat _)
         .withRowIndex(0)
         .colAt(0)
@@ -352,7 +352,7 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
         .compile
         .toList
         .unsafeRunSync()
-        .map(_.toStringFrame)
+        .map(_.toStringFrame())
         .reduce(_ concat _)
         .colAt(0)
         .toVec
@@ -454,7 +454,7 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
         .compile
         .toList
         .unsafeRunSync()
-        .map(_.toStringFrame)
+        .map(_.toStringFrame())
         .reduce(_ concat _)
       println(f)
       val data =

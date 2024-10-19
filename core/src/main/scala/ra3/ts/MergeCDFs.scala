@@ -33,6 +33,7 @@ private[ra3] object MergeCDFs {
       tsc: TaskSystemComponents,
       ordering: Ordering[tag.Elem]
   ): IO[UntypedCDF] = {
+    scribe.debug("Merge CDF start")
     IO.parSequenceN(32)(inputs.map { case (x, y) =>
       IO.both(tag.buffer(x), y.buffer)
     }).flatMap { cdfs =>
@@ -63,7 +64,11 @@ private[ra3] object MergeCDFs {
   )(implicit
       tsc: TaskSystemComponents
   ) =
-  task(
+   IO {
+      scribe.debug(
+        s"Queueing MergeCDF"
+      )
+    } *> task(
     MergeCDFs(
       tag.makeTaggedSegments(inputs.map(_._1)),
       inputs.map(_._2),

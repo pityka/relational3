@@ -573,7 +573,7 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
           .unsafeRunSync()
       println(less)
       val takenF = (0 until 4)
-        .map(i => less.bufferSegment(i).unsafeRunSync().toStringFrame)
+        .map(i => less.bufferSegment(i).unsafeRunSync().toStringFrame())
         .reduce(_ concat _)
         .resetRowIndex
         .filterIx(_.nonEmpty)
@@ -616,7 +616,7 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
           .evaluate
           .unsafeRunSync()
       val takenF = (0 until 4)
-        .map(i => less.bufferSegment(i).unsafeRunSync().toStringFrame)
+        .map(i => less.bufferSegment(i).unsafeRunSync().toStringFrame())
         .reduce(_ concat _)
         .resetRowIndex
         .filterIx(_.nonEmpty)

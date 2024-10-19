@@ -10,7 +10,7 @@ private[ra3] object Equijoin {
       others: Seq[(Table, Int, String, Int)],
       partitionBase: Int,
       partitionLimit: Int,
-      maxSegmentsToBufferAtOnce: Int,
+      maxItemsToBufferAtOnce: Int,
       program: ra3.lang.runtime.Expr
   )(implicit tsc: TaskSystemComponents): IO[Table] = {
     if (others.size == 0) {
@@ -26,7 +26,7 @@ private[ra3] object Equijoin {
         how = others.head._3,
         partitionBase = partitionBase,
         partitionLimit = partitionLimit,
-        maxSegmentsToBufferAtOnce = maxSegmentsToBufferAtOnce,
+        maxItemsToBufferAtOnce = maxItemsToBufferAtOnce,
         program
       )
     } else {
@@ -75,7 +75,7 @@ private[ra3] object Equijoin {
       how: String,
       partitionBase: Int,
       partitionLimit: Int,
-      maxSegmentsToBufferAtOnce: Int,
+      maxItemsToBufferAtOnce: Int,
       program: ra3.lang.runtime.Expr
   )(implicit tsc: TaskSystemComponents) = {
 
@@ -111,7 +111,7 @@ private[ra3] object Equijoin {
         partitionBase = partitionBase,
         numPartitionsIsImportant = true,
         partitionLimit = partitionLimit,
-        maxSegmentsToBufferAtOnce = maxSegmentsToBufferAtOnce
+        maxItemsToBufferAtOnce = maxItemsToBufferAtOnce
       )
 
     val pOther = if (noPartitioning) {
@@ -127,7 +127,7 @@ private[ra3] object Equijoin {
         partitionBase = partitionBase,
         numPartitionsIsImportant = true,
         partitionLimit = partitionLimit,
-        maxSegmentsToBufferAtOnce = maxSegmentsToBufferAtOnce
+        maxItemsToBufferAtOnce = maxItemsToBufferAtOnce
       )
     IO.both(name, IO.both(pSelf, pOther))
       .flatMap { case (name, (pSelf, pOther)) =>

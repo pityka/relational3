@@ -68,6 +68,7 @@ object Main {
       akka.loglevel=OFF
       tasks.disableRemoting = true
       tasks.skipContentHashVerificationAfterCache = true
+      tasks.skipContentHashCreationUponImport = true
       """
     )
 
@@ -85,7 +86,7 @@ object Main {
                 ra3.CSVColumnDefinition.I32Column(3),
                 ra3.CSVColumnDefinition.F64Column(4)
               ),
-              maxSegmentLength = 1_000_000,
+              maxSegmentLength = 10_000_000,
               recordSeparator = "\n",
               fieldSeparator = '\t',
               compression = Some(ra3.CompressionFormat.Gzip)
@@ -108,6 +109,7 @@ object Main {
         val query = transactions
           .schema { (customerIn, customerOut, _, _, value) => _ =>
             customerIn.groupBy
+            .withPartitionBase(16)
               .reducePartial(
                 customerIn.first.unnamed :*
                   value.sum.unnamed :*
@@ -119,6 +121,7 @@ object Main {
               .schema { case (customer, sum, count, min, max) =>
                 _ =>
                   customer.groupBy
+                  .withPartitionBase(16)
                     .reduceTotal(
                       (customer.first `as` "customer") :*
                         ((sum.sum / count.sum) `as` "avg") :*
@@ -128,6 +131,7 @@ object Main {
               }
               .schema { (customerIn, avgInValue, _, _) => _ =>
                 customerOut.groupBy
+                .withPartitionBase(16)
                   .reducePartial(
                     customerOut.first.unnamed :*
                       value.sum.unnamed :*
@@ -138,6 +142,7 @@ object Main {
                   .schema { case (customer, sum, count, min, max) =>
                     _ =>
                       customer.groupBy
+                      .withPartitionBase(16)
                         .reduceTotal(
                           (
                             (customer.first `as` "customer") :*
@@ -151,6 +156,7 @@ object Main {
                   .schema { (customerOut, avgOutValue, _, _) => _ =>
                     customerIn
                       .outer(customerOut)
+                      .withPartitionBase(16)
                       .select(
                         ra3.select0
                           .extend(customerIn as "cIn")
@@ -211,7 +217,7 @@ object Main {
   }
 
   scribe
-    .Logger("tasks.queue") // Look-up or create the named logger
+    .Logger("tasks") // Look-up or create the named logger
     .orphan() // This keeps the logger from propagating any records up the hierarchy
     .clearHandlers() // Clears any existing handlers on this logger
     .withHandler(minimumLevel =
@@ -222,7 +228,7 @@ object Main {
   scribe.Logger.root
     .clearHandlers()
     .clearModifiers()
-    .withHandler(minimumLevel = Some(scribe.Level.Info))
+    .withHandler(minimumLevel = Some(scribe.Level.Debug))
     .replace()
 
   def main(args: Array[String]): Unit =

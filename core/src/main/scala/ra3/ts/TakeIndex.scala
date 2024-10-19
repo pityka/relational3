@@ -20,7 +20,11 @@ private[ra3] object TakeIndex {
   )(implicit
       tsc: TaskSystemComponents
   ): IO[tag.SegmentType] =
-  task(TakeIndex(tag.makeTaggedSegment(input), idx, outputPath))(
+   IO {
+      scribe.debug(
+        s"Queueing TakeIndex on $tag type ${input.numElems} and ${idx.numElems} sizes"
+      )
+    } *>task(TakeIndex(tag.makeTaggedSegment(input), idx, outputPath))(
     ResourceRequest(
       cpu = (1, 1),
       memory = ra3.Utils.guessMemoryUsageInMB(input) + ra3.Utils
@@ -35,6 +39,7 @@ private[ra3] object TakeIndex {
   // $COVERAGE-ON$
   val task = Task[TakeIndex, Segment]("take", 1) { case input =>
     implicit ce =>
+      scribe.debug("Start TakeIndex")
       val bI = input.idx.buffer
       val bIn: IO[input.input.tag.BufferType] =
         input.input.tag.buffer(input.input.segment)
