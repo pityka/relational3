@@ -236,11 +236,10 @@ package object ra3 {
       maxLines: Long = Long.MaxValue,
       bufferSize: Int = 8292,
       characterDecoder: CharacterDecoder = CharacterDecoder.ASCII(silent = true)
-  )(implicit
-      tsc: TaskSystemComponents
-  ) = {
+  ) : TableExpr[ReturnValueTuple[Tuple.Map[T, ra3.CsvColumnDefToColumnType]]] = {
     val list = untuple(columns)
-    importCsvUntyped(
+    
+    ra3.tablelang.TableExpr.ImportCsv(
       file,
       name,
       list,
@@ -253,7 +252,7 @@ package object ra3 {
       maxLines,
       bufferSize,
       characterDecoder
-    ).map { _.as[Tuple.Map[T, CsvColumnDefToColumnType]] }
+    )
   }
 
   inline def importFromStream[T <: Tuple: ClassTag](

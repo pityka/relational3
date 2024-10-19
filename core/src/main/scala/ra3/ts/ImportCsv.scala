@@ -115,7 +115,7 @@ private[ra3] object ImportCsv {
     }
 
     fs2.io.toInputStreamResource(rawStream).use { is =>
-      IO {
+      IO.blocking {
         val is2 = compression match {
           case None => is
           case Some(CompressionFormat.Gzip) =>

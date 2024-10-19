@@ -9,6 +9,10 @@ import ra3.NotNothing
 import ra3.lang.Expr.DelayedIdent
 import ra3.lang.ReturnValueTuple
 import akka.protobufv3.internal.Empty
+import tasks.fileservice.SharedFile
+import ra3.CSVColumnDefinition
+import ra3.CompressionFormat
+import ra3.CharacterDecoder
 
 sealed trait TableExpr[+T] { self =>
 
@@ -221,6 +225,51 @@ object TableExpr {
 
         }
 
+    }
+  }
+
+  case class ImportCsv[K <: Tuple](
+      arg0: SharedFile,
+      name: String,
+      columns: Seq[CSVColumnDefinition],
+      maxSegmentLength: Int,
+      files: Seq[SharedFile] = Nil,
+      compression: Option[CompressionFormat] = None,
+      recordSeparator: String = "\r\n",
+      fieldSeparator: Char = ',',
+      header: Boolean = false,
+      maxLines: Long = Long.MaxValue,
+      bufferSize: Int = 8292,
+      characterDecoder: CharacterDecoder =
+        CharacterDecoder.ASCII(silent = true),
+      parallelism: Int = 32
+  ) extends TableExpr[
+        ReturnValueTuple[Tuple.Map[K, ra3.CsvColumnDefToColumnType]]
+      ] {
+
+    protected val tags: Set[KeyTag] =
+      Set.empty
+
+    protected def evalWith(
+        env: Map[Key, TableValue]
+    )(implicit tsc: TaskSystemComponents) = {
+      ra3
+        .importCsvUntyped(
+          file = arg0,
+          name,
+          columns,
+          maxSegmentLength,
+          files,
+          compression,
+          recordSeparator,
+          fieldSeparator,
+          header,
+          maxLines,
+          bufferSize,
+          characterDecoder,
+          parallelism
+        )
+        .map { table => TableValue(table) }
     }
   }
 

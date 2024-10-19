@@ -76,34 +76,22 @@ object Main {
     withTaskSystem(Some(config)) { implicit tsc =>
 
       def parseTransactions(fileHandle: SharedFile) =
-        for {
-          // Returns an expression which can be combined into a series of queries and
-          // eventually evaluated
-          table <- ra3
-            .importCsv(
-              file = fileHandle,
-              name = fileHandle.name,
-              columns = (
-                ra3.CSVColumnDefinition.StrColumn(0),
-                ra3.CSVColumnDefinition.StrColumn(1),
-                ra3.CSVColumnDefinition.StrColumn(2),
-                ra3.CSVColumnDefinition.I32Column(3),
-                ra3.CSVColumnDefinition.F64Column(4)
-              ),
-              maxSegmentLength = 10_000_000,
-              recordSeparator = "\n",
-              fieldSeparator = '\t',
-              compression = Some(ra3.CompressionFormat.Gzip)
-            )
-
-          _ <- IO {
-            println(table.table)
-          }
-          sample <- table.table.showSample(nrows = 10)
-          _ <- IO {
-            println(sample)
-          }
-        } yield table
+        ra3
+          .importCsv(
+            file = fileHandle,
+            name = fileHandle.name,
+            columns = (
+              ra3.CSVColumnDefinition.StrColumn(0),
+              ra3.CSVColumnDefinition.StrColumn(1),
+              ra3.CSVColumnDefinition.StrColumn(2),
+              ra3.CSVColumnDefinition.I32Column(3),
+              ra3.CSVColumnDefinition.F64Column(4)
+            ),
+            maxSegmentLength = 10_000_000,
+            recordSeparator = "\n",
+            fieldSeparator = '\t',
+            compression = Some(ra3.CompressionFormat.Gzip)
+          )
 
       def avgInAndOutWithoutAbstractions(
           transactions: TableExpr[
@@ -193,23 +181,23 @@ object Main {
         IO { println(ra3.render(query)) }.flatMap(_ => query.evaluate)
       }
 
-      val (transactionTabl, avgTable, avgCsv) =
+      val (avgTable, avgCsv) =
         (for {
           fileHandle <- SharedFile(uri =
             tasks.util.Uri(
               s"file://${new java.io.File(path).getAbsolutePath()}"
             )
           )
-          table <- parseTransactions(fileHandle)
-          avgTable <- avgInAndOutWithoutAbstractions(table)
+          avgTable <- avgInAndOutWithoutAbstractions(
+            parseTransactions(fileHandle)
+          )
           // export.ToCsv writes a series a csv files from the final table
 
           exportedFiles <- avgTable.exportToCsv()
           _ <- avgTable.showSample().flatMap(sample => IO { println(sample) })
-        } yield (table, avgTable, exportedFiles))
+        } yield (avgTable, exportedFiles))
           .unsafeRunSync()
 
-      println(transactionTabl)
       println(avgTable)
       println(avgCsv)
     }

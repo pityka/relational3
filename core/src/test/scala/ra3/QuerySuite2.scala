@@ -133,39 +133,24 @@ class QuerySuite2 extends munit.FunSuite with WithTempTaskSystem {
           s"file://${file.getAbsolutePath()}"
         )
       )
-      table <- ra3
-        .importCsv(
-          file = fileHandle,
-          name = fileHandle.name,
-          columns = (
-            ra3.CSVColumnDefinition.StrColumn(0),
-            ra3.CSVColumnDefinition.StrColumn(1),
-            ra3.CSVColumnDefinition.StrColumn(2),
-            ra3.CSVColumnDefinition.I32Column(3),
-            ra3.CSVColumnDefinition.F64Column(4),
-            ra3.CSVColumnDefinition.InstantColumn(5)
-          ),
-          maxSegmentLength = 1_000_000,
-          recordSeparator = "\n",
-          fieldSeparator = '\t',
-          compression = None
-        )
-      renamed = table.table.mapColIndex {
-        case "V0" => "customer1"
-        case "V1" => "customer2"
-        case "V2" => "category_string"
-        case "V3" => "category_int"
-        case "V4" => "value"
-        case "V5" => "instant"
-      }
-      _ <- IO {
-        println(renamed)
-      }
-      sample <- renamed.showSample(nrows = 10)
-      _ <- IO {
-        println(sample)
-      }
-    } yield table
+
+    } yield ra3
+      .importCsv(
+        file = fileHandle,
+        name = fileHandle.name,
+        columns = (
+          ra3.CSVColumnDefinition.StrColumn(0),
+          ra3.CSVColumnDefinition.StrColumn(1),
+          ra3.CSVColumnDefinition.StrColumn(2),
+          ra3.CSVColumnDefinition.I32Column(3),
+          ra3.CSVColumnDefinition.F64Column(4),
+          ra3.CSVColumnDefinition.InstantColumn(5)
+        ),
+        maxSegmentLength = 1_000_000,
+        recordSeparator = "\n",
+        fieldSeparator = '\t',
+        compression = None
+      )
 
   /** Generate bogus data Each row is a transaction of some value between two
     * customers Each row consists of:

@@ -306,6 +306,7 @@ private[ra3] object Render {
     import TableExpr.*
     val padInt = (0 until indent).map(_ => "  ").mkString
     expr match {
+      case ImportCsv(arg0, name, columns, maxSegmentLength, files, compression, recordSeparator, fieldSeparator, header, maxLines, bufferSize, characterDecoder, parallelism) => s"IMPORT CSV FROM ${(List(arg0) ++ files).mkString(", ")} as $columns"
       case Const(table) =>
         f"<${table.uniqueId}|${table.numRows}%,2d x${table.numCols}%,2d|${table.colNames.zip(table.columns.map(_.tag)).map { case (name, tag) => name + " " + tag }.mkString("| ")}>"
       case Ident(key) =>
