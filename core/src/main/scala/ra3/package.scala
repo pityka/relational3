@@ -7,8 +7,8 @@ import scala.reflect.ClassTag
 /** ra3 provides an embedded query language and its corresponding query engine.
   *
   * ra3 is built on a distributed task execution library named tasks.
-  * Consequently almost all interactions with ra3 needs a handle for a
-  * configured tasks runtime environment represented by a value of the type
+  * Consequently almost all interactions with ra3 need a handle for a
+  * configured runtime environment represented by a value of the type
   * tasks.TaskSystemComponents. You can configure and start the tasks
   * environment with tasks.withTaskSystem method.
   *
@@ -22,15 +22,14 @@ import scala.reflect.ClassTag
   * Each query in ra3 is persisted to secondary storage and checkpointed.
   *
   * The entry points to the query language are the various methods in the
-  * [[ra3]] package or in the [[ra3.Table]] class which provide typed references
+  * [[ra3]] package or in the [[ra3.tablelang.TableExpr]] class which provide typed references
   * to columns or references to tables, e.g.:
-  *   - [[ra3.let]] and [[ra3.let0]]
-  *   - [[ra3.Table.in]] and [[ra3.Table.in0]]
+  *   - [[ra3.tablelang.TableExpr.scheam]] 
   *
   * The query language builds an expression tree of type
   * [[ra3.tablelang.TableExpr]], which is evaluated with the
   * [[ra3.tablelang.TableExpr.evaluate]] into an IO[Table].
-  * [[ra3.tablelang.TableExpr]] is a serializable description the query. The
+  * [[ra3.tablelang.TableExpr]] is a description the query. The
   * expression tree of the query may be printed in human readable form with
   * [[ra3.tablelang.TableExpr.render]].
   *
@@ -54,7 +53,7 @@ import scala.reflect.ClassTag
   *   - sub-query in filter (WHERE in (select id FROM ..))
   *
   * Partitioning. ra3 does not maintain random access indexes, but it is
-  * repartitioning (sharding / bucketizing) the needed columns for a given group
+  * repartitioning (sharding / bucketizing / shuffling) the needed columns for a given group
   * by or join operator such that all the keys needed to complete the operation
   * are in the same partition.
   *

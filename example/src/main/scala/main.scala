@@ -72,9 +72,13 @@ object Main {
       """
     )
 
+    // Start the  distributed runtime
     withTaskSystem(Some(config)) { implicit tsc =>
+
       def parseTransactions(fileHandle: SharedFile) =
         for {
+          // Returns an expression which can be combined into a series of queries and
+          // eventually evaluated
           table <- ra3
             .importCsv(
               file = fileHandle,
@@ -106,17 +110,24 @@ object Main {
             ReturnValueTuple[(StrVar, StrVar, StrVar, I32Var, F64Var)]
           ]
       ) = {
+        // query is an expression which can be further combined or evaluated
+        // .schema 'assigns variables' to the columns of a table via an appropriately typed lambda
         val query = transactions
           .schema { (customerIn, customerOut, _, _, value) => _ =>
             customerIn.groupBy
               .withPartitionBase(16)
+              // partial reduction reduces a partial groups: it is not guaranteed that all elements
+              // are present in the group. This is quicker to compute and for associative and
+              // distributive reductions one can follow up with a total reduction
               .reducePartial(
+                // :* is building a tuple of selected columns
                 customerIn.first.unnamed :*
                   value.sum.unnamed :*
                   value.count.unnamed :*
                   value.min.unnamed :*
                   value.max.unnamed
               )
+              // .in provides a local reference to an already evaluated table
               .in(_.tap("partial group by"))
               .schema { case (customer, sum, count, min, max) =>
                 _ =>
@@ -177,6 +188,8 @@ object Main {
 
           }
 
+        // query.evaluate evaluates the query into an IO[Table] (which needs to be run as well)
+        // an alternative is evaluateToStream which evaluates into an fs2.Stream of tuples
         IO { println(ra3.render(query)) }.flatMap(_ => query.evaluate)
       }
 
@@ -189,6 +202,8 @@ object Main {
           )
           table <- parseTransactions(fileHandle)
           avgTable <- avgInAndOutWithoutAbstractions(table)
+          // export.ToCsv writes a series a csv files from the final table
+
           exportedFiles <- avgTable.exportToCsv()
           _ <- avgTable.showSample().flatMap(sample => IO { println(sample) })
         } yield (table, avgTable, exportedFiles))
