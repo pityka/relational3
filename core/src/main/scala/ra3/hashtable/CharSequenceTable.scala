@@ -1,6 +1,6 @@
 package ra3.hashtable
 import ra3.join.MutableBuffer
-class CharSequenceTable(
+private[ra3] class CharSequenceTable(
     hashTable: Array[Int],
     keys: Array[CharSequence],
     val payload: Array[Int]
@@ -20,7 +20,7 @@ class CharSequenceTable(
   }
 
 }
-object CharSequenceTable {
+private[ra3] object CharSequenceTable {
   inline private def hash(cs: CharSequence, tableLength: Int): Int = {
     if (cs == null) 0 else math.abs(cs.hashCode) & (tableLength - 1)
   }

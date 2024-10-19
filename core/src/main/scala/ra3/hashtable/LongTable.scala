@@ -1,6 +1,6 @@
 package ra3.hashtable
 import ra3.join.MutableBuffer
-class LongTable(
+private[ra3] class LongTable(
     hashTable: Array[Int],
     keys: Array[Long],
     val payload: Array[Int]
@@ -20,7 +20,7 @@ class LongTable(
   }
 
 }
-object LongTable {
+private[ra3] object LongTable {
   inline private def hash(cs: Long, tableLength: Int): Int = {
     math.abs(ra3.Murmur3.hashLong(cs)) & (tableLength - 1)
   }

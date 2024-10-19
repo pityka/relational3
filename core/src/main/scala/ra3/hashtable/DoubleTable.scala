@@ -1,7 +1,7 @@
 package ra3.hashtable
 import ra3.join.MutableBuffer
 import java.lang.Double.{doubleToLongBits as lb}
-class DoubleTable(
+private[ra3] class DoubleTable(
     longTable: LongTable,
     val payload: Array[Int]
 ) {
@@ -16,7 +16,7 @@ class DoubleTable(
     longTable.mutate(lb(q), v)
 
 }
-object DoubleTable {
+private[ra3] object DoubleTable {
 
   def buildFirst(keys: Array[Double], payload: Array[Int]) = {
     DoubleTable(LongTable.buildFirst(keys.map(lb), payload), payload)

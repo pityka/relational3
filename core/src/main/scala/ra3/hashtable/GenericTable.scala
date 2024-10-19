@@ -2,7 +2,7 @@ package ra3.hashtable
 import ra3.join.MutableBuffer
 import scala.reflect.ClassTag
 
-class GenericTable[T: ClassTag](
+private[ra3] class GenericTable[T: ClassTag](
     hashTable: Array[Int],
     keys: Array[T],
     val payload: Array[Int]
@@ -22,7 +22,7 @@ class GenericTable[T: ClassTag](
   }
 
 }
-object GenericTable {
+private[ra3] object GenericTable {
   inline private def hash[T](cs: T, tableLength: Int): Int = {
     if (cs == null) 0 else math.abs(cs.hashCode) & (tableLength - 1)
   }
