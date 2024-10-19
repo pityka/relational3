@@ -1,31 +1,27 @@
 
-RA3 implements type safe queries on tabular datasets.
+RA3 implements type safe queries on large tabular datasets.
 
 - Partitioned joins and groupings.
 - Inner, left, right and full outer joins.
 - Projections and filters. 
 - Selection of top K elements 
 - Data import and export to and from csv.
+- Streaming data import and export via fs2 streams.
 - RA3 supports only integer, long, double, string and instant (datetime) data types.
 
 The following table level operators are available in ra3:
-  - simple query, i.e. element-wise filter and projection. Corresponds to
-    SQL queries of SELECT and WHERE.
-  - count query, i.e. element-wise filter and count. Corresponds to SQL
-    queries of SELECT count(*) and WHERE (but no GROUP BY).
-  - equi-join, i.e. join with a join condition restricted to be equality
-    among two columns.
-  - group by then reduce. Corresponds to SELECT aggregations, WHERE, GROUP
-    BY clauses of SQL
-  - group by then count. Corresponds to SELECT count(*), WHERE, GROUP BY
-    clauses of SQL
-  - approximate selection of the top K number of elements by a single column
+- simple query, i.e. element-wise filter and projection. Corresponds to SQL queries of SELECT and WHERE.
+- count query, i.e. element-wise filter and count. Corresponds to SQL queries of SELECT count(*) and WHERE (but no GROUP BY).
+- equi-join, i.e. join with a join condition restricted to be equality among two columns.
+- group by then reduce. Corresponds to SELECT aggregations, WHERE, GROUP BY clauses of SQL
+- group by then count. Corresponds to SELECT count(*), WHERE, GROUP BY clauses of SQL
+- approximate selection of the top K number of elements by a single column
 
 Common features of SQL engines which are not available:
   - arbitrary join condition (e.g. join by inequalities)
   - complete products of tables (Cartesian products)
   - full table sort
-  - sub-query in filter (WHERE in (select id FROM ..))
+  - sub-query in filter (WHERE in (select id FROM ..)). This can be rewritten into a join.
   - queries are not heuristically reorganized (optimized)
 
 RA3 supports Scala 3 only because it uses the following language features not present in Scala2:
