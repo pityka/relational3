@@ -43,34 +43,34 @@ private[ra3] object ImportCsv {
   )(implicit
       tsc: TaskSystemComponents
   ): IO[Table] = {
- IO {
+    IO {
       scribe.debug(
         s"Queueing ImportCSV of ${file} ${columns.size} columns"
       )
-    } *> 
-    task(
-      ImportCsv(
-        file,
-        name,
-        columns,
-        recordSeparator,
-        fieldSeparator,
-        header,
-        maxLines,
-        maxSegmentLength,
-        compression,
-        bufferSize,
-        characterDecoder
+    } *>
+      task(
+        ImportCsv(
+          file,
+          name,
+          columns,
+          recordSeparator,
+          fieldSeparator,
+          header,
+          maxLines,
+          maxSegmentLength,
+          compression,
+          bufferSize,
+          characterDecoder
+        )
+      )(
+        ResourceRequest(
+          cpu = (1, 1),
+          memory =
+            ra3.Utils.guessMemoryUsageInMB(maxSegmentLength) * columns.size,
+          scratch = 0,
+          gpu = 0
+        )
       )
-    )(
-      ResourceRequest(
-        cpu = (1, 1),
-        memory =
-          ra3.Utils.guessMemoryUsageInMB(maxSegmentLength) * columns.size,
-        scratch = 0,
-        gpu = 0
-      )
-    )
   }
 
   private def doit(

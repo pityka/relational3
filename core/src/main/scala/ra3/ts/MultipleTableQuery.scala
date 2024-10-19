@@ -237,29 +237,30 @@ private[ra3] object MultipleTableQuery {
   )(implicit
       tsc: TaskSystemComponents
   ): IO[Seq[(TaggedSegment, String)]] =
-   IO {
+    IO {
       scribe.debug(
         s"Queueing MultipleTableQuery on ${input.size} table segments"
       )
     } *> task(
-    MultipleTableQuery(
-      input.map(v => v.tag -> v.erase),
-      predicate,
-      outputPath,
-      takes
+      MultipleTableQuery(
+        input.map(v => v.tag -> v.erase),
+        predicate,
+        outputPath,
+        takes
+      )
+    )(
+      ResourceRequest(
+        cpu = (1, 1),
+        memory =
+          input.flatMap(_.segment).map(ra3.Utils.guessMemoryUsageInMB).sum,
+        scratch = 0,
+        gpu = 0
+      )
     )
-  )(
-    ResourceRequest(
-      cpu = (1, 1),
-      memory = input.flatMap(_.segment).map(ra3.Utils.guessMemoryUsageInMB).sum,
-      scratch = 0,
-      gpu = 0
-    )
-  )
   // $COVERAGE-OFF$
   implicit val codec: JsonValueCodec[MultipleTableQuery] = JsonCodecMaker.make
   implicit val codecOut: JsonValueCodec[Seq[(TaggedSegment, String)]] =
-  JsonCodecMaker.make
+    JsonCodecMaker.make
   // $COVERAGE-ON$
   val task =
     Task[MultipleTableQuery, Seq[(TaggedSegment, String)]](

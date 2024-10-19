@@ -80,26 +80,26 @@ private[ra3] object TakePartition {
   )(implicit
       tsc: TaskSystemComponents
   ): IO[Seq[Segment]] =
-   IO {
+    IO {
       scribe.debug(
         s"Queueing TakePartition partition idx: ${numPartition} segments: ${inputSegmentsWithPartitionMaps.size}"
       )
-    } *>task(
-    TakePartition(
-      inputSegmentsWithPartitionMaps = inputSegmentsWithPartitionMaps,
-      numPartition = numPartition,
-      outputPath = outputPath
+    } *> task(
+      TakePartition(
+        inputSegmentsWithPartitionMaps = inputSegmentsWithPartitionMaps,
+        numPartition = numPartition,
+        outputPath = outputPath
+      )
+    )(
+      ResourceRequest(
+        cpu = (1, 1),
+        memory = inputSegmentsWithPartitionMaps
+          .map(v => ra3.Utils.guessMemoryUsageInMB(v._1.segment) * 2)
+          .sum,
+        scratch = 0,
+        gpu = 0
+      )
     )
-  )(
-    ResourceRequest(
-      cpu = (1, 1),
-      memory = inputSegmentsWithPartitionMaps
-        .map(v => ra3.Utils.guessMemoryUsageInMB(v._1.segment) * 2)
-        .sum,
-      scratch = 0,
-      gpu = 0
-    )
-  )
   // $COVERAGE-OFF$
   implicit val codec: JsonValueCodec[TakePartition] = JsonCodecMaker.make
   implicit val codecOut: JsonValueCodec[Seq[Segment]] = JsonCodecMaker.make

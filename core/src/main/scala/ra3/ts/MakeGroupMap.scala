@@ -64,24 +64,24 @@ private[ra3] object MakeGroupMap {
   )(implicit
       tsc: TaskSystemComponents
   ) =
-   IO {
+    IO {
       scribe.debug(
         s"Queueing MakeGroupMap on ${input.head.segments.map(_.numElems.toLong).sum} total size (${input.size} columns)"
       )
     } *> task(MakeGroupMap(input, outputPath))(
-    ResourceRequest(
-      cpu = (1, 1),
-      memory = input.map(ra3.Utils.guessMemoryUsageInMB).sum * 8,
-      scratch = 0,
-      gpu = 0
-    )
-  ).map { case (map, numberOfGroups, sizes) =>
-    (map, numberOfGroups, sizes)
-  }
+      ResourceRequest(
+        cpu = (1, 1),
+        memory = input.map(ra3.Utils.guessMemoryUsageInMB).sum * 8,
+        scratch = 0,
+        gpu = 0
+      )
+    ).map { case (map, numberOfGroups, sizes) =>
+      (map, numberOfGroups, sizes)
+    }
   // $COVERAGE-OFF$
   implicit val codec: JsonValueCodec[MakeGroupMap] = JsonCodecMaker.make
   implicit val codec2: JsonValueCodec[(SegmentInt, Int, SegmentInt)] =
-  JsonCodecMaker.make
+    JsonCodecMaker.make
   // $COVERAGE-ON$
 
   val task =

@@ -68,15 +68,15 @@ private[ra3] object MakeUniqueId {
   )(implicit
       tsc: TaskSystemComponents
   ) =
-  task(
-    MakeUniqueId(
-      parent = parents.map(_.uniqueId).mkString("-"),
-      tag = tag,
-      aux = aux
+    task(
+      MakeUniqueId(
+        parent = parents.map(_.uniqueId).mkString("-"),
+        tag = tag,
+        aux = aux
+      )
+    )(
+      ResourceRequest(cpu = (1, 1), memory = 1, scratch = 0, gpu = 0)
     )
-  )(
-    ResourceRequest(cpu = (1, 1), memory = 1, scratch = 0, gpu = 0)
-  )
 
   // $COVERAGE-OFF$
   implicit val codec: JsonValueCodec[MakeUniqueId] = JsonCodecMaker.make

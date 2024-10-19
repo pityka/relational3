@@ -124,7 +124,7 @@ lazy val core = project
       "org.scalameta" %% "munit" % "1.0.0-M10" % Test,
       "com.typesafe.akka" %% "akka-testkit" % akkaVersion % Test,
       "io.github.pityka" %% "saddle-core" % "4.0.0-M11",
-      "io.github.pityka" %% "tasks-core" % "3.0.0-M13+0-bf44b790+20241018-2130-SNAPSHOT",
+      "io.github.pityka" %% "tasks-core" % "3.0.0-M14",
       "de.lhns" %% "fs2-compress-gzip" % "1.0.0",
       "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % "2.30.13" % "compile-internal"
     ) ++ akkaProvided ++ specs

@@ -64,28 +64,28 @@ private[ra3] object MergeCDFs {
   )(implicit
       tsc: TaskSystemComponents
   ) =
-   IO {
+    IO {
       scribe.debug(
         s"Queueing MergeCDF"
       )
     } *> task(
-    MergeCDFs(
-      tag.makeTaggedSegments(inputs.map(_._1)),
-      inputs.map(_._2),
-      outputPath
-    )
-  )(
-    ResourceRequest(
-      cpu = (1, 1),
-      memory = inputs.map(v => ra3.Utils.guessMemoryUsageInMB(v._1) * 2).sum,
-      scratch = 0,
-      gpu = 0
-    )
-  ).map(_.toTyped(tag))
+      MergeCDFs(
+        tag.makeTaggedSegments(inputs.map(_._1)),
+        inputs.map(_._2),
+        outputPath
+      )
+    )(
+      ResourceRequest(
+        cpu = (1, 1),
+        memory = inputs.map(v => ra3.Utils.guessMemoryUsageInMB(v._1) * 2).sum,
+        scratch = 0,
+        gpu = 0
+      )
+    ).map(_.toTyped(tag))
   // $COVERAGE-OFF$
   implicit val codec: JsonValueCodec[MergeCDFs] = JsonCodecMaker.make
   implicit val code2: JsonValueCodec[UntypedCDF] =
-  JsonCodecMaker.make
+    JsonCodecMaker.make
   // $COVERAGE-ON$
   val task = Task[MergeCDFs, UntypedCDF]("mergecdf", 1) { case input =>
     implicit ce => doitUntyped(input)

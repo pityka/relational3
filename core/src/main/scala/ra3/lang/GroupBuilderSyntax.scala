@@ -27,7 +27,7 @@ case class GroupBuilderSyntax(
   def withPartitionBase(num: Int) = copy(partitionBase = Some(num))
   def withPartitionLimit(num: Int) = copy(partitionLimit = Some(num))
   def withMaxSegmentsBufferingAtOnce(num: Int) =
-  copy(maxItemsToBufferAtOnce = Some(num))
+    copy(maxItemsToBufferAtOnce = Some(num))
 
   /** Total reduction. Applies the group wise program to each group.
     *

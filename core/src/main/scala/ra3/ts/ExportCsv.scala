@@ -38,26 +38,28 @@ private[ra3] object ExportCsv {
       scribe.debug(
         s"Queueing ExportCSV on ${segments.size} segments, total rows: ${segments.map(_.segment.numElems.toLong).sum}"
       )
-    } *> 
-    task(
-      ExportCsv(
-        segments,
-        columnSeparator,
-        quoteChar,
-        recordSeparator,
-        outputName,
-        outputSegmentIndex,
-        compression
+    } *>
+      task(
+        ExportCsv(
+          segments,
+          columnSeparator,
+          quoteChar,
+          recordSeparator,
+          outputName,
+          outputSegmentIndex,
+          compression
+        )
+      )(
+        ResourceRequest(
+          cpu = (1, 1),
+          memory = segments
+            .map(_.segment)
+            .map(ra3.Utils.guessMemoryUsageInMB)
+            .sum * 10,
+          scratch = 0,
+          gpu = 0
+        )
       )
-    )(
-      ResourceRequest(
-        cpu = (1, 1),
-        memory =
-          segments.map(_.segment).map(ra3.Utils.guessMemoryUsageInMB).sum * 10,
-        scratch = 0,
-        gpu = 0
-      )
-    )
   }
 
   private def doit(

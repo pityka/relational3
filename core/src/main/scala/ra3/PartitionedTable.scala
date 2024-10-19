@@ -136,19 +136,22 @@ private[ra3] object PartitionedTable {
       val segmentIndices = (0 until numSegments).toList
       val groups: List[(List[(Int, SegmentInt)], Int)] = {
 
-        val zip : List[(Int,SegmentInt)] = segmentIndices
-        .zip(partitionMapsPerSegment)
+        val zip: List[(Int, SegmentInt)] = segmentIndices
+          .zip(partitionMapsPerSegment)
 
-        def group(l:List[(Int,SegmentInt)],acc:List[List[(Int,SegmentInt)]]) : List[List[(Int,SegmentInt)]]= if (l.isEmpty) acc.reverse else  {
-          val scan = l.scanLeft(0)((a,b) => a +b._2.numElems)
+        def group(
+            l: List[(Int, SegmentInt)],
+            acc: List[List[(Int, SegmentInt)]]
+        ): List[List[(Int, SegmentInt)]] = if (l.isEmpty) acc.reverse
+        else {
+          val scan = l.scanLeft(0)((a, b) => a + b._2.numElems)
           val g = l.zip(scan).takeWhile(_._2 < maxItemsToBufferAtOnce).map(_._1)
-          val h = l.take(math.max(1,g.size))
+          val h = l.take(math.max(1, g.size))
           val t = l.drop(h.size)
-          group(t,h::acc)
+          group(t, h :: acc)
         }
 
-        group(zip,Nil)
-        .zipWithIndex
+        group(zip, Nil).zipWithIndex
       }
 
       // columns x partition x groupOfSegments

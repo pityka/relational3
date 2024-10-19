@@ -23,26 +23,26 @@ private[ra3] object FilterInequality {
   )(implicit
       tsc: TaskSystemComponents
   ): IO[tag.SegmentType] = {
- IO {
+    IO {
       scribe.debug(
         s"Queueing FilterInequaity on ${input.numElems} size of type $tag"
       )
-    } *> 
-    task(
-      FilterInequality(
-        comparisonTag.makeTaggedSegments(List(comparison, cutoff)),
-        tag.makeTaggedSegment(input),
-        outputPath,
-        lessThan
-      )
-    )(
-      ResourceRequest(
-        cpu = (1, 1),
-        memory = ra3.Utils.guessMemoryUsageInMB(input),
-        scratch = 0,
-        gpu = 0
-      )
-    ).map(_.asInstanceOf[input.type])
+    } *>
+      task(
+        FilterInequality(
+          comparisonTag.makeTaggedSegments(List(comparison, cutoff)),
+          tag.makeTaggedSegment(input),
+          outputPath,
+          lessThan
+        )
+      )(
+        ResourceRequest(
+          cpu = (1, 1),
+          memory = ra3.Utils.guessMemoryUsageInMB(input),
+          scratch = 0,
+          gpu = 0
+        )
+      ).map(_.asInstanceOf[input.type])
   }
 
   private def doit(cutoffTag: ColumnTag, inputTag: ColumnTag)(

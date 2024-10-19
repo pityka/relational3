@@ -41,18 +41,20 @@ private[ra3] object EstimateCDF {
   )(implicit
       tsc: TaskSystemComponents
   ): IO[(tag.SegmentType, SegmentDouble)] =
-  IO {
+    IO {
       scribe.debug(
         s"Queueing EstimateCDF of type $tag with items ${tag.numElems(input)}"
       )
-    } *> task(EstimateCDF(tag.makeTaggedSegment(input), numberOfPoints, outputPath))(
-    ResourceRequest(
-      cpu = (1, 1),
-      memory = ra3.Utils.guessMemoryUsageInMB(input),
-      scratch = 0,
-      gpu = 0
-    )
-  ).map(pair => (pair._1.asInstanceOf[input.type], pair._2))
+    } *> task(
+      EstimateCDF(tag.makeTaggedSegment(input), numberOfPoints, outputPath)
+    )(
+      ResourceRequest(
+        cpu = (1, 1),
+        memory = ra3.Utils.guessMemoryUsageInMB(input),
+        scratch = 0,
+        gpu = 0
+      )
+    ).map(pair => (pair._1.asInstanceOf[input.type], pair._2))
   // $COVERAGE-OFF$
   implicit val codec: JsonValueCodec[EstimateCDF] = JsonCodecMaker.make
   implicit val code2: JsonValueCodec[(Segment, SegmentDouble)] =

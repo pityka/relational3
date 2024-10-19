@@ -292,7 +292,7 @@ private[ra3] final case class SegmentString(
           while (i < numElems) {
             val len = bb.getInt()
             val wrap2 =
-            ByteBufferAsCharSequence(bb.slice(bb.position(), len * 2))
+              ByteBufferAsCharSequence(bb.slice(bb.position(), len * 2))
             // val char = bb.slice(bb.position(), len * 2).asCharBuffer()
             // assert(wrap2 == char,"X "+char.toString+" "+wrap2.toCharArray.toVector)
             // assert(CharSequence.compare(wrap2,char) == 0,"Y"+char.toString+" "+wrap2.toCharArray.toVector)

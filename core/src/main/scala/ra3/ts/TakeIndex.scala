@@ -20,19 +20,19 @@ private[ra3] object TakeIndex {
   )(implicit
       tsc: TaskSystemComponents
   ): IO[tag.SegmentType] =
-   IO {
+    IO {
       scribe.debug(
         s"Queueing TakeIndex on $tag type ${input.numElems} and ${idx.numElems} sizes"
       )
-    } *>task(TakeIndex(tag.makeTaggedSegment(input), idx, outputPath))(
-    ResourceRequest(
-      cpu = (1, 1),
-      memory = ra3.Utils.guessMemoryUsageInMB(input) + ra3.Utils
-        .guessMemoryUsageInMB(idx),
-      scratch = 0,
-      gpu = 0
-    )
-  ).map(_.asInstanceOf[input.type])
+    } *> task(TakeIndex(tag.makeTaggedSegment(input), idx, outputPath))(
+      ResourceRequest(
+        cpu = (1, 1),
+        memory = ra3.Utils.guessMemoryUsageInMB(input) + ra3.Utils
+          .guessMemoryUsageInMB(idx),
+        scratch = 0,
+        gpu = 0
+      )
+    ).map(_.asInstanceOf[input.type])
   // $COVERAGE-OFF$
   implicit val codec: JsonValueCodec[TakeIndex] = JsonCodecMaker.make
   implicit val codecOut: JsonValueCodec[Segment] = JsonCodecMaker.make

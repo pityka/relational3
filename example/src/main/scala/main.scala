@@ -109,7 +109,7 @@ object Main {
         val query = transactions
           .schema { (customerIn, customerOut, _, _, value) => _ =>
             customerIn.groupBy
-            .withPartitionBase(16)
+              .withPartitionBase(16)
               .reducePartial(
                 customerIn.first.unnamed :*
                   value.sum.unnamed :*
@@ -121,7 +121,7 @@ object Main {
               .schema { case (customer, sum, count, min, max) =>
                 _ =>
                   customer.groupBy
-                  .withPartitionBase(16)
+                    .withPartitionBase(16)
                     .reduceTotal(
                       (customer.first `as` "customer") :*
                         ((sum.sum / count.sum) `as` "avg") :*
@@ -131,7 +131,7 @@ object Main {
               }
               .schema { (customerIn, avgInValue, _, _) => _ =>
                 customerOut.groupBy
-                .withPartitionBase(16)
+                  .withPartitionBase(16)
                   .reducePartial(
                     customerOut.first.unnamed :*
                       value.sum.unnamed :*
@@ -142,7 +142,7 @@ object Main {
                   .schema { case (customer, sum, count, min, max) =>
                     _ =>
                       customer.groupBy
-                      .withPartitionBase(16)
+                        .withPartitionBase(16)
                         .reduceTotal(
                           (
                             (customer.first `as` "customer") :*

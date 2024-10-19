@@ -37,18 +37,18 @@ case class BufferedTable(
     fs2.Stream.fromIterator[cats.effect.IO](iter, 1024)
 
   }
-  
-  def toStringFrame(nrows:Int = Int.MaxValue) = {
+
+  def toStringFrame(nrows: Int = Int.MaxValue) = {
     import org.saddle.*
     Frame(columns.map { buffer =>
       buffer match {
         case buffer: BufferInstant =>
-          buffer
-            .toSeq.take(nrows)
+          buffer.toSeq
+            .take(nrows)
             .map(v => java.time.Instant.ofEpochMilli(v).toString)
             .toVec
         case _ => {
-          val ar = Array.ofDim[String](math.min(buffer.length,nrows))
+          val ar = Array.ofDim[String](math.min(buffer.length, nrows))
           var i = 0
           val n = ar.length
           while (i < n) {

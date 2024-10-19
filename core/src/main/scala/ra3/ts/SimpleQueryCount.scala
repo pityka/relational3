@@ -112,20 +112,21 @@ private[ra3] object SimpleQueryCount {
   )(implicit
       tsc: TaskSystemComponents
   ): IO[Long] =
-   IO {
+    IO {
       scribe.debug(
         s"Queueing SimpleQueryCount on ${input.size} table segments. Groups present: ${groupMap.isDefined}"
       )
-    } *>task(
-    SimpleQueryCount(input, predicate, groupMap)
-  )(
-    ResourceRequest(
-      cpu = (1, 1),
-      memory = input.flatMap(_.segment).map(ra3.Utils.guessMemoryUsageInMB).sum,
-      scratch = 0,
-      gpu = 0
+    } *> task(
+      SimpleQueryCount(input, predicate, groupMap)
+    )(
+      ResourceRequest(
+        cpu = (1, 1),
+        memory =
+          input.flatMap(_.segment).map(ra3.Utils.guessMemoryUsageInMB).sum,
+        scratch = 0,
+        gpu = 0
+      )
     )
-  )
   // $COVERAGE-OFF$
   implicit val codec: JsonValueCodec[SimpleQueryCount] = JsonCodecMaker.make
   // $COVERAGE-ON$
