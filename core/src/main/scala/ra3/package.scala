@@ -72,7 +72,15 @@ package object ra3 {
   type F64Var = DF64
   type InstVar = DInst
 
-  type TableExpr[R] = ra3.tablelang.TableExpr[R]
+  /** Table query with value type R
+    * 
+    */
+  type TQ[R] = ra3.tablelang.TableExpr[R]
+
+  /** Row query with valeu type A
+    * 
+    */
+  type RQ[A] = ra3.lang.Expr[A]
 
   /** Data type of I32 columns */
   private[ra3] type DI32 = Either[BufferInt, Seq[SegmentInt]]
@@ -89,7 +97,7 @@ package object ra3 {
   /** Data type of Instant columns */
   private[ra3] type DInst = Either[BufferInstant, Seq[SegmentInstant]]
 
-  type Primitives =
+  private[ra3] type Primitives =
     DI32 | DStr | DInst | DF64 | DI64 | String | Int | Long | Double | String |
       java.time.Instant
   type ColumnSpecExpr[T <: Primitives] = Expr[ColumnSpec[T]]
@@ -236,7 +244,7 @@ package object ra3 {
       maxLines: Long = Long.MaxValue,
       bufferSize: Int = 8292,
       characterDecoder: CharacterDecoder = CharacterDecoder.ASCII(silent = true)
-  ) : TableExpr[ReturnValueTuple[Tuple.Map[T, ra3.CsvColumnDefToColumnType]]] = {
+  ) : TableExpr[Tuple.Map[T, ra3.CsvColumnDefToColumnType]] = {
     val list = untuple(columns)
     
     ra3.tablelang.TableExpr.ImportCsv(

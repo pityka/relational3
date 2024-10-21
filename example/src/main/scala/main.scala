@@ -4,7 +4,7 @@ import cats.effect.IO
 import com.typesafe.config.ConfigFactory
 import scala.util.Random
 import mainargs.{main, arg, ParserForMethods, Flag}
-import ra3.{StrVar, I32Var, F64Var, select, TableExpr, Table}
+import ra3.{StrVar, I32Var, F64Var, select, Table}
 import ra3.lang.Expr.DelayedIdent
 import java.time.temporal.TemporalUnit
 import ra3.lang.ReturnValueTuple
@@ -94,8 +94,8 @@ object Main {
           )
 
       def avgInAndOutWithoutAbstractions(
-          transactions: TableExpr[
-            ReturnValueTuple[(StrVar, StrVar, StrVar, I32Var, F64Var)]
+          transactions: ra3.TQ[
+            (StrVar, StrVar, StrVar, I32Var, F64Var)
           ]
       ) = {
         // query is an expression which can be further combined or evaluated
@@ -118,7 +118,7 @@ object Main {
               // .in provides a local reference to an already evaluated table
               .in(_.tap("partial group by"))
               .schema { case (customer, sum, count, min, max) =>
-                _ =>
+                _ =>                  
                   customer.groupBy
                     .withPartitionBase(16)
                     .reduceTotal(

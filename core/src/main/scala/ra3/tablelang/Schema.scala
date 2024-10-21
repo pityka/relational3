@@ -17,7 +17,7 @@ case class SchemaCurryT[T0 <: Tuple](
 }
 object Schema {
   inline def fromIdent[T0 <: Tuple](
-      t: TableExpr.Ident[ReturnValueTuple[T0]]
+      t: TableExpr.Ident[T0]
   ) = {
     val size = scala.compiletime.constValue[scala.Tuple.Size[T0]]
     val list = 0 until size map { i =>

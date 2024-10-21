@@ -50,7 +50,7 @@ sealed trait TableExpr[+T] { self =>
 object TableExpr {
 
   case class curryColumnsTuple[T0 <: Tuple](
-      private val a: TableExpr[ra3.lang.ReturnValueTuple[T0]]
+      private val a: TableExpr[T0]
   ) {
     inline def apply[R](
         inline body: Tuple.Map[T0, ra3.lang.Expr.DelayedIdent] => Schema[
@@ -58,11 +58,11 @@ object TableExpr {
         ] => TableExpr[R]
     ): TableExpr[R] =
       a match {
-        case b: Ident[ReturnValueTuple[T0]] =>
+        case b: Ident[T0] =>
           val sch = Schema.fromIdent(b)
           sch.columns.apply[R]((tup) => body(tup)(sch))
         case _ =>
-          a.assignIdent { (t: Ident[ReturnValueTuple[T0]]) =>
+          a.assignIdent { (t: Ident[T0]) =>
             val sch = Schema.fromIdent(t)
 
             sch.columns.apply[R]((tup) => body(tup)(sch))
@@ -72,20 +72,20 @@ object TableExpr {
   }
   case class curryColumnsByName[T0 <: Tuple, A](
       columnName: String,
-      a: TableExpr[ReturnValueTuple[T0]]
+      a: TableExpr[T0]
   ) {
     inline def apply[R](
         inline body: (Schema[A *: EmptyTuple]) => TableExpr[R]
     ): TableExpr[R] =
       a match {
-        case b: Ident[ReturnValueTuple[T0]] =>
+        case b: Ident[T0] =>
           body(
             Schema.fromDelayedIdent[A](
               Expr.DelayedIdent[A](ra3.lang.Delayed(b.key, Left(columnName)))
             )
           )
         case _ =>
-          a.assignIdent { (t: Ident[ReturnValueTuple[T0]]) =>
+          a.assignIdent { (t: Ident[T0]) =>
             body(
               Schema.fromDelayedIdent[A](
                 Expr.DelayedIdent[A](ra3.lang.Delayed(t.key, Left(columnName)))
@@ -109,7 +109,7 @@ object TableExpr {
     case Either[ra3.BufferInstant, ?] *: t => Long *: Elements[t]
   }
   extension [T0](
-      inline a: TableExpr[ra3.lang.ReturnValueTuple[T0 *: EmptyTuple]]
+      inline a: TableExpr[T0 *: EmptyTuple]
   ) {
 
     transparent inline def evaluateToStreamOfSingleColumn(implicit
@@ -120,12 +120,12 @@ object TableExpr {
       a.evaluate.map(_.streamOfSingleColumnChunk[T0])
     }
   }
-  extension [T0 <: Tuple](a: TableExpr[ra3.lang.ReturnValueTuple[T0]]) {
+  extension [T0 <: Tuple](a: TableExpr[T0]) {
 
-    def concat(b: TableExpr[ReturnValueTuple[T0]]*): TableExpr[T0] =
+    def concat(b: TableExpr[T0]*): TableExpr[T0] =
       Concat(a, b, 32)
   }
-  extension [T0 <: Tuple](inline a: TableExpr[ra3.lang.ReturnValueTuple[T0]]) {
+  extension [T0 <: Tuple](inline a: TableExpr[T0]) {
 
     transparent inline def evaluateToStream(implicit
         tsc: TaskSystemComponents
@@ -146,8 +146,8 @@ object TableExpr {
 
   def const[T1 <: Tuple](
       table: ra3.Table
-  ): TableExpr.Const[ReturnValueTuple[T1]] =
-    TableExpr.Const[ReturnValueTuple[T1]](table)
+  ): TableExpr.Const[T1] =
+    TableExpr.Const[T1](table)
 
   case class Const[T](table: ra3.Table) extends TableExpr[T] {
 
@@ -196,7 +196,7 @@ object TableExpr {
   case class SimpleQuery[I, K <: Tuple, A <: ReturnValueTuple[K]](
       arg0: TableExpr.Ident[I],
       elementwise: ra3.lang.Expr[A]
-  ) extends TableExpr[A] {
+  ) extends TableExpr[K] {
 
     def where(i: Expr[ra3.DI32]) = copy(elementwise = elementwise.where(i))
 
@@ -244,7 +244,7 @@ object TableExpr {
         CharacterDecoder.ASCII(silent = true),
       parallelism: Int = 32
   ) extends TableExpr[
-        ReturnValueTuple[Tuple.Map[K, ra3.CsvColumnDefToColumnType]]
+        Tuple.Map[K, ra3.CsvColumnDefToColumnType]
       ] {
 
     protected val tags: Set[KeyTag] =
@@ -344,8 +344,8 @@ object TableExpr {
     }
   }
   case class Concat[K <: Tuple](
-      arg0: TableExpr[ReturnValueTuple[K]],
-      args: Seq[TableExpr[ReturnValueTuple[K]]],
+      arg0: TableExpr[K],
+      args: Seq[TableExpr[K]],
       parallelism: Int
   ) extends TableExpr[K] {
 
@@ -367,7 +367,7 @@ object TableExpr {
   case class SimpleQueryCount[I, K <: Tuple, A <: ReturnValueTuple[K]](
       arg0: TableExpr.Ident[I],
       elementwise: ra3.lang.Expr[A]
-  ) extends TableExpr[A] {
+  ) extends TableExpr[K] {
 
     def where(i: Expr[ra3.DI32]) = copy(elementwise = elementwise.where(i))
 
@@ -430,7 +430,7 @@ object TableExpr {
       partitionBase: Int,
       partitionLimit: Int,
       maxItemsToBufferAtOnce: Int
-  ) extends TableExpr[A] {
+  ) extends TableExpr[K] {
 
     def where(i: Expr[ra3.DI32]) = copy(groupwise = groupwise.where(i))
 
@@ -490,7 +490,7 @@ object TableExpr {
       partitionBase: Int,
       partitionLimit: Int,
       maxItemsToBufferAtOnce: Int
-  ) extends TableExpr[ra3.DI64] {
+  ) extends TableExpr[ra3.DI64*:EmptyTuple] {
 
     def where(i: Expr[ra3.DI32]) = copy(groupwise = groupwise.where(i))
 
@@ -548,7 +548,7 @@ object TableExpr {
       arg0: ra3.lang.Expr.DelayedIdent[?],
       arg1: Seq[(ra3.lang.Expr.DelayedIdent[?])],
       groupwise: ra3.lang.Expr[A]
-  ) extends TableExpr[A] {
+  ) extends TableExpr[K] {
 
     def where(i: Expr[ra3.DI32]) = copy(groupwise = groupwise.where(i))
 
@@ -601,7 +601,7 @@ object TableExpr {
   case class FullTablePartialReduce[I, K <: Tuple, A <: ReturnValueTuple[K]](
       arg0: TableExpr.Ident[I],
       groupwise: ra3.lang.Expr[A]
-  ) extends TableExpr[A] {
+  ) extends TableExpr[K] {
 
     def where(i: Expr[ra3.DI32]) = copy(groupwise = groupwise.where(i))
 
@@ -639,7 +639,7 @@ object TableExpr {
   case class ReduceTable[I, K <: Tuple, A <: ReturnValueTuple[K]](
       arg0: TableExpr.Ident[I],
       groupwise: ra3.lang.Expr[A]
-  ) extends TableExpr[A] {
+  ) extends TableExpr[K] {
 
     def where(i: Expr[ra3.DI32]) = copy(groupwise = groupwise.where(i))
 
@@ -681,7 +681,7 @@ object TableExpr {
       partitionLimit: Int,
       maxItemsToBufferAtOnce: Int,
       elementwise: ra3.lang.Expr[R]
-  ) extends TableExpr[R] {
+  ) extends TableExpr[K] {
 
     def where(i: Expr[ra3.DI32]) = copy(elementwise = elementwise.where(i))
     val tags: Set[KeyTag] =
