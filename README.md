@@ -52,6 +52,11 @@ See an exampe in the example/ folder.
 - Missing values are encoded as one of the values of the data type. As such these values can not be used for to encode their usual non-missing semantics: Double.NaN, Long.MinValue, Int.MinValue, "\u0001". 
 - ordering of missing values below or above other elements are unobservable in ra3 because there is no full table sort operation. The operation which selects the top-k elements will not return missing values.
 
+
+# Example
+
+`example_cli/` is a self contained example built with scala-cli. Open in a separate vscode workspace.
+
 # Build and test
 
 `sbt test`
