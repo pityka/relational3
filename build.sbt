@@ -130,19 +130,4 @@ lazy val core = project
     ) ++ akkaProvided ++ specs
   )
 
-lazy val example = project
-  .in(file("example"))
-  .settings(commonSettings: _*)
-  .settings(
-    name := "ra3-example",
-    publish / skip := true,
-    publishArtifact := false,
-    libraryDependencies ++= List(
-      "com.lihaoyi" %% "mainargs" % "0.7.5",
-      "com.typesafe.akka" %% "akka-actor" % akkaVersion,
-      "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
-      "com.typesafe.akka" %% "akka-remote" % akkaVersion
-    )
-  )
-  .dependsOn(core)
-  .enablePlugins(JavaAppPackaging)
+

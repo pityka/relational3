@@ -1,6 +1,6 @@
 //> using scala 3.5.1
 //> using option -experimental
-//> using dep io.github.pityka::ra3-core:0.2.0+3-98f6437b+20241019-2146-SNAPSHOT
+//> using dep io.github.pityka::ra3-core:0.3.0+2-25b7d1b2-SNAPSHOT
 //> using dep com.typesafe.akka::akka-actor:2.6.19
 //> using dep com.typesafe.akka::akka-slf4j:2.6.19
 //> using dep com.typesafe.akka::akka-remote:2.6.19
@@ -15,7 +15,7 @@ object Transactions {
       fileHandle: SharedFile
   ) =
     for {
-      transactions <- ra3
+      transactionsTable <- ra3
         .importCsv(
           file = fileHandle,
           name = fileHandle.name,
@@ -31,24 +31,39 @@ object Transactions {
           fieldSeparator = '\t',
           compression = Some(ra3.CompressionFormat.Gzip)
         )
-      avgByIn <-
-        transactions
+      avgByInTable <-
+        transactionsTable
           .schema { (customerIn, customerOut, _, _, value) => _ =>
             customerIn.groupBy
               .withPartitionBase(16)
               // partial reduction reduces a partial groups: it is not guaranteed that all elements
               // are present in the group. This is quicker to compute and for associative and
               // distributive reductions one can follow up with a total reduction
-              .reduceTotal(
+              .reducePartial(
                 // :* is building a tuple of selected columns
                 customerIn.first.unnamed :*
-                  (value.sum / value.count).unnamed
+                  value.sum.unnamed :*
+                  value.count.unnamed :*
+                  value.min.unnamed :*
+                  value.max.unnamed
               )
               // .in provides a local reference to an already evaluated table
+              .in(_.tap("partial group by"))
+              .schema { case (customer, sum, count, min, max) =>
+                _ =>                  
+                  customer.groupBy
+                    .withPartitionBase(16)
+                    .reduceTotal(
+                      (customer.first `as` "customer") :*
+                        ((sum.sum / count.sum) `as` "avg") :*
+                        (min.min `as` "min") :*
+                        (max.max `as` "max")
+                    )
+              }            
               .in(_.tap("group by in looks like this "))
           }
-      avgByOut <-
-        transactions
+      avgByOutTable <-
+        transactionsTable
           .schema { (_, customerOut, _, _, value) => _ =>
             customerOut.groupBy
               .withPartitionBase(16)
@@ -59,8 +74,8 @@ object Transactions {
               // .in provides a local reference to an already evaluated table
               .in(_.tap("group by out"))
           }
-      joined <- avgByIn.schema { (customerIn, avgIn) => _ =>
-        avgByOut.schema { (customerOut, avgOut) => _ =>
+      joined <- avgByInTable.schema { (customerIn, avgIn, minIn, maxIn) => _ =>
+        avgByOutTable.schema { (customerOut, avgOut) => _ =>
           customerIn
             .outer(customerOut)
             .withPartitionBase(16)
@@ -76,7 +91,7 @@ object Transactions {
         }
       }
 
-    } yield joined
+    } yield avgByInTable
   end makeQuery
 
 }
@@ -107,7 +122,7 @@ object App extends IOApp {
 
     // Start the  distributed runtime
     // defaultTaskSystem returns a cats effect Resource
-    defaultTaskSystem(Some(config))._1.use { implicit tsc =>
+    defaultTaskSystem(Some(config)).map(_._1).use { implicit tsc  =>
       for {
         _ <- IO { println("io") }
         fileHandle <- SharedFile(uri =
