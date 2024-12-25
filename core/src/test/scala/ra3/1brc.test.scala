@@ -81,16 +81,16 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
           case "V1" => "value"
         }
 
-      val tpe = table.as[(StrVar, F64Var)]
+      val tpe = table.as[("station", "value"), (StrVar, F64Var)]
 
       val result = tpe
-        .schema { (station, value) => _ =>
-          ra3.partialReduce(ra3.S :* value.max)
+        .schema { table =>
+          ra3.partialReduce(ra3.S :* table.value.max.as("max"))
         }
-        .in(_.schema { case (max *: EmptyTuple) =>
-          _ => ra3.reduce(ra3.S :* max.max)
+        .schema { case (max *: EmptyTuple) =>
+          ra3.reduce(ra3.S :* max.max.as("max"))
 
-        })
+        }
         .evaluate
         .unsafeRunSync()
         .bufferStream
@@ -158,29 +158,27 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
           case "V1" => "value"
         }
 
-      val tpe = table.as[(StrVar, F64Var)]
+      val tpe = table.as[("station", "value"), (StrVar, F64Var)]
 
       val result = tpe
         .schema { case (station, value) =>
-          _ =>
-            val t0 = station.groupBy.reducePartial(
-              ra3.select0
-                .extend(station.first as "station")
-                .extend(value.sum as "sum")
-                .extend(value.count as "count")
-            )
+          val t0 = station.groupBy.reducePartial(
+            ra3.select0
+              .extend(station.first as "station")
+              .extend(value.sum as "sum")
+              .extend(value.count as "count")
+          )
 
-            val t = t0
-              .schema { case (station, sum, count) =>
-                schema =>
-                  station.groupBy.reduceTotal(
-                    schema.none
-                      .extend(station.first)
-                      .extend((sum.sum / count.sum).unnamed)
-                  )
-              }
+          val t = t0
+            .schema { case table =>
+              table.station.groupBy.reduceTotal(
+                ra3.select0
+                  .extend(table.station.first.as("firstStation"))
+                  .extend((table.sum.sum / table.count.sum).as("avg"))
+              )
+            }
 
-            t
+          t
         }
         .evaluate
         .unsafeRunSync()
@@ -251,11 +249,11 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
           case "V1" => "value"
         }
 
-      val tpe = table.as[(StrVar, F64Var)]
+      val tpe = table.as[("station", "value"), (StrVar, F64Var)]
 
       val result = tpe
-        .schema({ (station, _) => schema =>
-          query(schema.all.where(station === "Skopje"))
+        .schema({ table =>
+          query(ra3.all(table).where(table.station === "Skopje"))
 
         })
         .evaluate
@@ -325,23 +323,22 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
           case "V0" => "station"
           case "V1" => "value"
         }
-      val typedTable = table.as[(StrVar, F64Var)]
+      val typedTable = table.as[("station", "value"), (StrVar, F64Var)]
 
       val result = typedTable
-        .schema { (station, col1) => _ =>
-          station.groupBy
+        .schema { table =>
+          table.station.groupBy
             .reduceTotal(
               select0.extend(
-                station.first as "station"
+                table.station.first as "station"
               )
             )
-            .schema { case (station *: EmptyTuple) =>
-              _ =>
-                station.groupBy.reduceTotal(
-                  select0.extend(
-                    station.first
-                  )
+            .schema { case table =>
+              table.station.groupBy.reduceTotal(
+                select0.extend(
+                  table.station.first.as("station")
                 )
+              )
 
             }
 
@@ -407,44 +404,39 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
           case "V0" => "station"
           case "V1" => "value"
         }
-        .as[(StrVar, F64Var)]
+        .as[("station", "value"), (StrVar, F64Var)]
 
       val program = for {
-        stations <- table.tap("tap")
-        maxValues <- stations.schema { case (station, value) =>
-          _ =>
-            station.groupBy
-              .reduceTotal(
-                station.first :* value.max
-              )
-        }
-        minValues <- stations.schema { case (station, value) =>
-          _ =>
-            station.groupBy
-              .reduceTotal(
-                station.first :* value.min
-              )
-        }
-        minMax <- stations.schema { case (station, value) =>
-          _ =>
-            maxValues.schema { case (maxStation, maxValue) =>
-              _ =>
-                minValues.schema { case minValues =>
-                  _ =>
-                    station
-                      .inner(maxStation)
-                      .inner(minValues._1)
-                      .select(
-                        (station :* value :* maxValue :* minValues._2 :* (
-                          (value === maxValue).ifelse("HIGHEST", "LOWEST")
-                        ))
-                      )
-                      .where(
-                        (value === maxValue) || (value === minValues._2)
-                      )
-                }
-            }
-        }
+        table <- table.tap("tap")
+        maxTable <-
+          table.station.groupBy
+            .reduceTotal(
+              table.station.first.as("station") :* table.value.max.as("max")
+            )
+
+        minTable <-
+          table.station.groupBy
+            .reduceTotal(
+              table.station.first.as("station") :* table.value.min.as("min")
+            )
+
+        minMax <-
+          table.station
+            .inner(maxTable.station)
+            .inner(minTable.station)
+            .select(
+              (ra3.S :* table.station.as("station") :* table.value.as(
+                "value"
+              ) :* maxTable.max.as("max") :* minTable.min.as("min") :* (
+                (table.value === maxTable.max)
+                  .ifelse("HIGHEST", "LOWEST")
+                  .as("minmax")
+              ))
+            )
+            .where(
+              (table.value === maxTable.max) || (table.value === minTable.min)
+            )
+
       } yield minMax
       println(program.render)
 
@@ -456,6 +448,9 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
         .unsafeRunSync()
         .map(_.toStringFrame())
         .reduce(_ concat _)
+
+      Elapsed.logResult.unsafeRunSync()
+      IOMetricState.logResult.unsafeRunSync()
       println(f)
       val data =
         org.saddle.csv.CsvParser
@@ -495,7 +490,7 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
           }*
       ).T
         .col("station", "value", "max", "min", "minmax")
-        .setColIndex(Index("V0", "V1", "V2", "V3", "V4"))
+        // .setColIndex(Index("V0", "V1", "V2", "V3", "V4"))
 
       assert(f.toRowSeq.toSet.map(_._2) == joined.toRowSeq.toSet.map(_._2))
 

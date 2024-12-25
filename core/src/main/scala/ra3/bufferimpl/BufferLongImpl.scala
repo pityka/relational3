@@ -231,7 +231,7 @@ private[ra3] trait BufferLongImpl { self: BufferLong =>
           .apply(stream, name.toString)
           .map(sf => SegmentLong(Some(sf), values.length, self.makeStatistic()))
       }
-
+      .logElapsed
   }
 
   def elementwise_printf(s: String): BufferString = {

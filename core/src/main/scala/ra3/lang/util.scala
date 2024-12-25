@@ -11,11 +11,11 @@ object util {
   type DoubleExpr = Expr[Double]
 
   // type ColumnExpr[T] = Expr[ Either[Ta, TaggedSegments]]
-  type I32ColumnExpr = Expr[DI32]
-  type I64ColumnExpr = Expr[DI64]
-  type F64ColumnExpr = Expr[DF64]
-  type StrColumnExpr = Expr[DStr]
-  type InstColumnExpr = Expr[DInst]
+  type I32ColumnExpr = Expr[I32Var]
+  type I64ColumnExpr = Expr[I64Var]
+  type F64ColumnExpr = Expr[F64Var]
+  type StrColumnExpr = Expr[StrVar]
+  type InstColumnExpr = Expr[InstVar]
 
   private[ra3] def bufferIfNeededI32(
       arg: Either[BufferInt, Seq[SegmentInt]]

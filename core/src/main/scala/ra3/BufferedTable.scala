@@ -25,13 +25,18 @@ case class BufferedTable(
 
   }
 
-  private[ra3] transparent inline def toTuplesFromColumnChunks[T <: Tuple] = {
+  private[ra3] transparent inline def toTuplesFromColumnChunks[
+      N <: Tuple,
+      T <: Tuple
+  ] = {
     assert(scala.compiletime.constValue[Tuple.Size[T]] == columns.size)
 
     val numRows = columns.head.length
     val iter = (0 until numRows).iterator.map { idx =>
-      TupleUtils
-        .buildTupleFromElements[T](0, (i: Int) => columns(i).element(idx))
+      scala.NamedTuple.apply[N, ra3.M2[T]](
+        TupleUtils
+          .buildTupleFromElements[T](0, (i: Int) => columns(i).element(idx))
+      )
 
     }
     fs2.Stream.fromIterator[cats.effect.IO](iter, 1024)

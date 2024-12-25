@@ -17,58 +17,51 @@ class QuerySuite2 extends munit.FunSuite with WithTempTaskSystem {
     ) = {
       customer.groupBy
         .reducePartial(
-          customer.first.unnamed :*
-            value.sum.unnamed :*
-            value.count.unnamed :*
-            value.min.unnamed :*
-            value.max.unnamed
+          customer.first.as("customer") :*
+            value.sum.as("sum") :*
+            value.count.as("count") :*
+            value.min.as("min") :*
+            value.max.as("max")
         )
-        .schema { case (customer, sum, count, min, max) =>
-          _ =>
-            customer.groupBy
-              .reduceTotal(
-                (customer.first `as` "customer") :*
-                  ((sum.sum / count.sum) `as` "avg") :*
-                  (min.min `as` "min") :*
-                  (max.max `as` "max")
-              )
+        .schema { case t =>
+          t.customer.groupBy
+            .reduceTotal(
+              (t.customer.first `as` "customer") :*
+                ((t.sum.sum / t.count.sum) `as` "avg") :*
+                (t.min.min `as` "min") :*
+                (t.max.max `as` "max")
+            )
         }
     }
 
     val path = fixture()
     withTempTaskSystem { implicit tsc =>
       val prg = for {
-        table <- parseTransactions(path)
+        t <- parseTransactions(path)
         queryPrg <- IO.pure {
           for {
-            byCustomerIn <- table.schema {
-              (customerIn, customerOut, _, _, value, _) => _ =>
-                groupBy(customerIn, value)
-            }
-            byCustomerOut <- table.schema {
-              (_, customerOut, _, _, value, _) => _ =>
-                groupBy(customerOut, value)
-            }
-            result <- byCustomerOut.schema {
-              (customerOut, avgOutValue, _, _) => _ =>
-                byCustomerIn.schema { (customerIn, avgInValue, _, _) => _ =>
-                  customerIn
-                    .outer(customerOut)
-                    .select(
-                      (customerIn as "cIn")
-                        :* (customerOut as "cOut")
-                        :* (
-                          customerIn.isMissing
-                            .ifelse(
-                              customerOut,
-                              customerIn
-                            ) as "customer"
-                        )
-                        :* (avgInValue as "inAvg")
-                        :* (avgOutValue as "outAvg")
+            t <- t
+            byCustomerIn <-
+              groupBy(t.customerIn, t.value)
+            byCustomerOut <-
+              groupBy(t.customerOut, t.value)
+            result <-
+              byCustomerIn.customer
+                .outer(byCustomerOut.customer)
+                .select(
+                  (byCustomerIn.customer as "cIn")
+                    :* (byCustomerOut.customer as "cOut")
+                    :* (
+                      byCustomerIn.customer.isMissing
+                        .ifelse(
+                          byCustomerOut.customer,
+                          byCustomerIn.customer
+                        ) as "customer"
                     )
-                }
-            }
+                    :* (byCustomerIn.avg as "inAvg")
+                    :* (byCustomerOut.avg as "outAvg")
+                )
+
           } yield result
         }
 
@@ -82,7 +75,7 @@ class QuerySuite2 extends munit.FunSuite with WithTempTaskSystem {
       val set = stream.compile.toList
         .unsafeRunSync()
         .toSet
-        .map(v => (v._3.toString, f"${v._4}%.2f", f"${v._5}%.2f"))
+        .map(v => (v.customer.toString, f"${v.inAvg}%.2f", f"${v.outAvg}%.2f"))
 
       val f = org.saddle.csv.CsvParser
         .parseFile[String](path, recordSeparator = "\n", fieldSeparator = '\t')
@@ -139,12 +132,12 @@ class QuerySuite2 extends munit.FunSuite with WithTempTaskSystem {
         file = fileHandle,
         name = fileHandle.name,
         columns = (
-          ra3.CSVColumnDefinition.StrColumn(0),
-          ra3.CSVColumnDefinition.StrColumn(1),
-          ra3.CSVColumnDefinition.StrColumn(2),
-          ra3.CSVColumnDefinition.I32Column(3),
-          ra3.CSVColumnDefinition.F64Column(4),
-          ra3.CSVColumnDefinition.InstantColumn(5)
+          customerIn = ra3.CSVColumnDefinition.StrColumn(0),
+          customerOut = ra3.CSVColumnDefinition.StrColumn(1),
+          category = ra3.CSVColumnDefinition.StrColumn(2),
+          categoryId = ra3.CSVColumnDefinition.I32Column(3),
+          value = ra3.CSVColumnDefinition.F64Column(4),
+          time = ra3.CSVColumnDefinition.InstantColumn(5)
         ),
         maxSegmentLength = 1_000_000,
         recordSeparator = "\n",

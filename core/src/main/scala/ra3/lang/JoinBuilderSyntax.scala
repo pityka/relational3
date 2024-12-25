@@ -13,9 +13,9 @@ case class JoinBuilder[J](
   def withMaxSegmentsBufferingAtOnce(num: Int) =
     copy(maxItemsToBufferAtOnce = Some(num))
 
-  def inner[A <: Tuple](
+  def inner[N <: Tuple, A <: Tuple](
       ref: Expr.DelayedIdent[J],
-      other: TableExpr.Ident[ReturnValueTuple[A]]
+      other: TableExpr.Ident[ReturnValueTuple[N, A]]
   ) = {
     copy(
       others = others.appended(
@@ -30,9 +30,9 @@ case class JoinBuilder[J](
       )
     )
   }
-  def outer[A <: Tuple](
+  def outer[N <: Tuple, A <: Tuple](
       ref: Expr.DelayedIdent[J],
-      other: TableExpr.Ident[ReturnValueTuple[A]]
+      other: TableExpr.Ident[ReturnValueTuple[N, A]]
   ) = {
     copy(
       others = others.appended(
@@ -47,9 +47,9 @@ case class JoinBuilder[J](
       )
     )
   }
-  def left[A <: Tuple](
+  def left[N <: Tuple, A <: Tuple](
       ref: Expr.DelayedIdent[J],
-      other: TableExpr.Ident[ReturnValueTuple[A]]
+      other: TableExpr.Ident[ReturnValueTuple[N, A]]
   ) = {
     copy(
       others = others.appended(
@@ -64,9 +64,9 @@ case class JoinBuilder[J](
       )
     )
   }
-  def right[A <: Tuple](
+  def right[N <: Tuple, A <: Tuple](
       ref: Expr.DelayedIdent[J],
-      other: TableExpr.Ident[ReturnValueTuple[A]]
+      other: TableExpr.Ident[ReturnValueTuple[N, A]]
   ) = {
     copy(
       others = others.appended(
@@ -83,8 +83,8 @@ case class JoinBuilder[J](
   }
   def withPartitionBase(num: Int) = copy(partitionBase = Some(num))
   def withPartitionLimit(num: Int) = copy(partitionLimit = Some(num))
-  def select[K <: Tuple](
-      prg: ra3.lang.Expr[ReturnValueTuple[K]]
+  def select[N <: Tuple, K <: Tuple](
+      prg: ra3.lang.Expr[ReturnValueTuple[N, K]]
   ) = ra3.tablelang.TableExpr.Join(
     first,
     others,

@@ -1,6 +1,6 @@
 package ra3
 // import ra3.*
-import org.saddle.*
+import org.saddle.{ST, mat, Frame, Series, Vec, SeqToVec, Index}
 import java.nio.channels.Channels
 import java.io.ByteArrayInputStream
 import tasks.TaskSystemComponents
@@ -305,9 +305,9 @@ class RelationlAlgebraSuite
       val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
 
       val result = ra3Table
-        .as[(DI32, DI32, DI32)]
-        .schema { _ => schema =>
-          ra3.query(schema.all)
+        .as[("c0", "c1", "c2"), (I32Var, I32Var, I32Var)]
+        .schema { t =>
+          ra3.query(ra3.all(t))
         }
         .evaluate
         .unsafeRunSync()
@@ -321,6 +321,7 @@ class RelationlAlgebraSuite
         .filterIx(_.nonEmpty)
       val expect =
         tableFrame.resetRowIndex
+        .setColIndex(Index("c0","c1","c2"))
 
       assertEquals(takenF, expect)
     }
@@ -332,16 +333,17 @@ class RelationlAlgebraSuite
       val numRows = 10
       val (tableFrame, tableCsv) = generateTable(numRows, numCols)
       val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
+        .as[("c0", "c1"), (I32Var, I32Var)]
 
       val less = ra3Table
-        .as[(I32Var, I32Var)]
-        .schema { case (col0, col1) =>
-          schema =>
-            count(
-              (((col1 as "b") :* col1)
-                .extend(schema))
-                .where(col0.tap("col0") <= 0)
+        .schema { table =>
+          ra3
+            .count(
+              ((ra3.S :* (table.c0.as("b")) :* table.c1.as("b1"))
+              // .extend(t)
+              )
             )
+            .where(table.c0.tap("col0") <= 0)
 
         }
         .evaluate
@@ -369,18 +371,16 @@ class RelationlAlgebraSuite
       val numCols = 3
       val numRows = 10
       val (tableFrame, tableCsv) = generateTable(numRows, numCols)
-      println(tableFrame)
       val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
 
       val less = ra3Table
-        .as[(I32Var, I32Var, I32Var)]
-        .schema { case (col0, col1, col2) =>
-          schema =>
-            query(
-              (((col1 as "b") :* col1)
-                .extend(schema))
-                .where(col0.tap("col0") <= 0)
-            )
+        .as[("c0", "c1", "c2"), (I32Var, I32Var, I32Var)]
+        .schema { case table =>
+          query(
+            (((table.c0 as "b") :* table.c1.as("b1"))
+              .concat(ra3.all(table)))
+              .where(table.c0.tap("col0") <= 0)
+          )
 
         }
         .evaluate
@@ -394,8 +394,8 @@ class RelationlAlgebraSuite
         tableFrame
           .rowAt(tableFrame.colAt(0).toVec.find(_ <= 0).toArray)
           .resetRowIndex
-          .colAt(Array(1, 1, 0, 1, 2))
-          .setColIndex(Index("b", "V1", "V2", "V3", "V4"))
+          .colAt(Array(0, 1, 0, 1, 2))
+          .setColIndex(Index("b", "b1", "c0", "c1", "c2"))
 
       assertEquals(takenF, expect)
     }
@@ -411,14 +411,13 @@ class RelationlAlgebraSuite
 
       import cats.effect.unsafe.implicits.global
       val less2 = ra3Table
-        .as[(I32Var, I32Var, I32Var)]
-        .schema { case (col0, col1, col2) =>
-          schema =>
-            query(
-              (((col1 as "b") :* col1)
-                .extend(schema))
-                .where(col0.tap("col0") <= 0)
-            )
+        .as[("c0", "c1", "c2"), (I32Var, I32Var, I32Var)]
+        .schema { t =>
+          query(
+            (((t.c1 as "b") :* t.c1.as("b1"))
+              .concat(ra3.all(t)))
+              .where(t.c0.tap("col0") <= 0)
+          )
 
         }
         .evaluate
@@ -436,7 +435,7 @@ class RelationlAlgebraSuite
           .rowAt(tableFrame.colAt(0).toVec.find(_ <= 0).toArray)
           .resetRowIndex
           .colAt(Array(1, 1, 0, 1, 2))
-          .setColIndex(Index("b", "V1", "V2", "V3", "V4"))
+          .setColIndex(Index("b", "b1", "c0", "c1", "c2"))
 
       println(takenF2)
       println(expect)
@@ -453,14 +452,13 @@ class RelationlAlgebraSuite
       val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
 
       val partitions = ra3Table
-        .as[(DI32, DI32, DI32)]
-        .schema { case (col0, _, _) =>
-          _ =>
-            col0.partitionBy
-              .withPartitionBase(3)
-              .withPartitionLimit(0)
-              .withMaxSegmentsBufferingAtOnce(2)
-              .done
+        .as[("c0", "c1", "c2"), (I32Var, I32Var, I32Var)]
+        .schema { t =>
+          t.c0.partitionBy
+            .withPartitionBase(3)
+            .withPartitionLimit(0)
+            .withMaxSegmentsBufferingAtOnce(2)
+            .done
         }
         .evaluate
         .unsafeRunSync()
@@ -626,14 +624,14 @@ class RelationlAlgebraSuite
         .resetRowIndex
         .setColIndex(
           Index(
-            "V0",
-            "V1",
-            "V2",
-            "V3",
-            "V4",
-            "V5",
-            "V6",
-            "V7"
+            "c0",
+            "c1",
+            "c2",
+            "c3",
+            "b_c0",
+            "b_c1",
+            "b_c2",
+            "b_c3"
           )
         )
 
@@ -654,18 +652,19 @@ class RelationlAlgebraSuite
       //     maxItemsToBufferAtOnce: Int
 
       val result = tableA
-        .as[(DI32, DI32, DI32, DI32)]
-        .schema { (_, _, _, aCol3) => tableA =>
-          tableB.as[(DI32, DI32, DI32, DI32)].schema {
-            (_, _, _, bCol3) => tableB =>
-              aCol3
-                .outer(bCol3)
+        .as[("c0", "c1", "c2", "c3"), (I32Var, I32Var, I32Var, I32Var)]
+        .schema { tableA =>
+          tableB
+            .as[("c0", "c1", "c2", "c3"), (I32Var, I32Var, I32Var, I32Var)]
+            .schema { tableB =>
+              tableA.c3
+                .outer(tableB.c3)
                 .withPartitionBase(3)
                 .withPartitionLimit(0)
                 .withMaxSegmentsBufferingAtOnce(2)
-                .select(tableA.all.extend(tableB))
+                .select(ra3.all(tableA).concat(ra3.allWithPrefix(tableB,"b_")))
 
-          }
+            }
 
         }
         .evaluate
@@ -729,14 +728,14 @@ class RelationlAlgebraSuite
         .resetRowIndex
         .setColIndex(
           Index(
-            "V0",
-            "V1",
-            "V2",
-            "V3",
-            "V4",
-            "V5",
-            "V6",
-            "V7"
+            "c0",
+            "c1",
+            "c2",
+            "c3",
+            "b_c0",
+            "b_c1",
+            "b_c2",
+            "b_c3"
           )
         )
 
@@ -770,18 +769,19 @@ class RelationlAlgebraSuite
 
       //     }
       val result = tableA
-        .as[(DI32, DI32, DI32, DI32)]
-        .schema { (aCol0, _, _, aCol3) => tableA =>
-          tableB.as[(DI32, DI32, DI32, DI32)].schema {
-            (_, _, _, bCol3) => tableB =>
-              aCol3
-                .inner(bCol3)
+        .as[("c0", "c1", "c2", "c3"), (I32Var, I32Var, I32Var, I32Var)]
+        .schema { tableA =>
+          tableB
+            .as[("c0", "c1", "c2", "c3"), (I32Var, I32Var, I32Var, I32Var)]
+            .schema { tableB =>
+              tableA.c3
+                .inner(tableB.c3)
                 .withPartitionBase(3)
                 .withPartitionLimit(0)
                 .withMaxSegmentsBufferingAtOnce(2)
-                .select(ra3.S.extend(tableA).extend(tableB))
+                .select(ra3.all(tableA).concat(ra3.allWithPrefix(tableB,"b_")))
 
-          }
+            }
 
         }
         .evaluate
@@ -836,14 +836,14 @@ class RelationlAlgebraSuite
         .resetRowIndex
         .setColIndex(
           Index(
-            "V0",
-            "V1",
-            "V2",
-            "V3",
-            "V4",
-            "V5",
-            "V6",
-            "V7"
+            "c0",
+            "c1",
+            "c2",
+            "c3",
+            "b_c0",
+            "b_c1",
+            "b_c2",
+            "b_c3"
           )
         )
 
@@ -860,18 +860,19 @@ class RelationlAlgebraSuite
       assertEquals(toFrame(tableB), tF2.resetRowIndex)
 
       val result = tableA
-        .as[(DI32, DI32, DI32, DI32)]
-        .schema { (aCol0, _, _, aCol3) => tableA =>
-          tableB.as[(DI32, DI32, DI32, DI32)].schema {
-            (_, _, _, bCol3) => tableB =>
-              aCol3
-                .inner(bCol3)
+        .as[("c0", "c1", "c2", "c3"), (I32Var, I32Var, I32Var, I32Var)]
+        .schema { tableA =>
+          tableB
+            .as[("c0", "c1", "c2", "c3"), (I32Var, I32Var, I32Var, I32Var)]
+            .schema { tableB =>
+              tableA.c3
+                .inner(tableB.c3)
                 .withPartitionBase(3)
                 .withPartitionLimit(0)
                 .withMaxSegmentsBufferingAtOnce(2)
-                .select(ra3.S.extend(tableA).extend(tableB))
+                .select(ra3.all(tableA).concat(ra3.allWithPrefix(tableB,"b_")))
 
-          }
+            }
 
         }
         .evaluate
@@ -926,14 +927,14 @@ class RelationlAlgebraSuite
         .resetRowIndex
         .setColIndex(
           Index(
-            "V0",
-            "V1",
-            "V2",
-            "V3",
-            "V4",
-            "V5",
-            "V6",
-            "V7"
+            "c0",
+            "c1",
+            "c2",
+            "c3",
+            "b_c0",
+            "b_c1",
+            "b_c2",
+            "b_c3"
           )
         )
 
@@ -950,18 +951,19 @@ class RelationlAlgebraSuite
       assertEquals(toFrame(tableB), tF2.resetRowIndex)
 
       val result = tableA
-        .as[(DI32, DI32, DI32, DI32)]
-        .schema { (aCol0, _, _, aCol3) => tableA =>
-          tableB.as[(DI32, DI32, DI32, DI32)].schema {
-            (_, _, _, bCol3) => tableB =>
-              aCol3
-                .inner(bCol3)
+        .as[("c0", "c1", "c2", "c3"), (I32Var, I32Var, I32Var, I32Var)]
+        .schema { tableA =>
+          tableB
+            .as[("c0", "c1", "c2", "c3"), (I32Var, I32Var, I32Var, I32Var)]
+            .schema { tableB =>
+              tableA.c3
+                .inner(tableB.c3)
                 .withPartitionBase(3)
                 .withPartitionLimit(0)
                 .withMaxSegmentsBufferingAtOnce(2)
-                .select(ra3.S.extend(tableA).extend(tableB))
+                .select(ra3.all(tableA).concat(ra3.allWithPrefix(tableB,"b_")))
 
-          }
+            }
 
         }
         .evaluate
@@ -1016,14 +1018,14 @@ class RelationlAlgebraSuite
         .resetRowIndex
         .setColIndex(
           Index(
-            "V0",
-            "V1",
-            "V2",
-            "V3",
-            "V4",
-            "V5",
-            "V6",
-            "V7"
+            "c0",
+            "c1",
+            "c2",
+            "c3",
+            "b_c0",
+            "b_c1",
+            "b_c2",
+            "b_c3"
           )
         )
 
@@ -1056,18 +1058,19 @@ class RelationlAlgebraSuite
 
       //   }
       val result = tableA
-        .as[(DI32, DI32, DI32, DI32)]
-        .schema { (aCol0, _, _, aCol3) => tableA =>
-          tableB.as[(DI32, DI32, DI32, DI32)].schema {
-            (_, _, _, bCol3) => tableB =>
-              aCol3
-                .inner(bCol3)
+        .as[("c0", "c1", "c2", "c3"), (I32Var, I32Var, I32Var, I32Var)]
+        .schema { tableA =>
+          tableB
+            .as[("c0", "c1", "c2", "c3"), (I32Var, I32Var, I32Var, I32Var)]
+            .schema { tableB =>
+              tableA.c3
+                .inner(tableB.c3)
                 .withPartitionBase(3)
                 .withPartitionLimit(0)
                 .withMaxSegmentsBufferingAtOnce(2)
-                .select(ra3.S.extend(tableA).extend(tableB))
+                .select(ra3.all(tableA).concat(ra3.allWithPrefix(tableB,"b_")))
 
-          }
+            }
 
         }
         .evaluate
@@ -1128,18 +1131,18 @@ class RelationlAlgebraSuite
         .resetRowIndex
         .setColIndex(
           Index(
-            "V0",
-            "V1",
-            "V2",
-            "V3",
-            "V4",
-            "V5",
-            "V6",
-            "V7",
-            "V8",
-            "V9",
-            "V10",
-            "V11"
+            "c0",
+            "c1",
+            "c2",
+            "c3",
+            "b_c0",
+            "b_c1",
+            "b_c2",
+            "b_c3",
+            "c_c0",
+            "c_c1",
+            "c_c2",
+            "c_c3"
           )
         )
 
@@ -1182,22 +1185,29 @@ class RelationlAlgebraSuite
 
       //     }
       val result = tableA
-        .as[(DI32, DI32, DI32, DI32)]
-        .schema { (aCol0, _, _, aCol3) => tableA =>
-          tableB.as[(DI32, DI32, DI32, DI32)].schema {
-            (_, _, _, bCol3) => tableB =>
-              tableC.as[(DI32, DI32, DI32, DI32)].schema {
-                (_, _, _, cCol3) => tableC =>
-                  aCol3
-                    .inner(bCol3)
-                    .inner(cCol3)
+        .as[("c0", "c1", "c2", "c3"), (I32Var, I32Var, I32Var, I32Var)]
+        .schema { tableA =>
+          tableB
+            .as[("c0", "c1", "c2", "c3"), (I32Var, I32Var, I32Var, I32Var)]
+            .schema { tableB =>
+              tableC
+                .as[("c0", "c1", "c2", "c3"), (I32Var, I32Var, I32Var, I32Var)]
+                .schema { tableC =>
+                  tableA.c3
+                    .inner(tableB.c3)
+                    .inner(tableC.c3)
                     .withPartitionBase(3)
                     .withPartitionLimit(10)
                     .withMaxSegmentsBufferingAtOnce(2)
-                    .select(ra3.S.extend(tableA).extend(tableB).extend(tableC))
+                    .select(
+                      ra3
+                        .all(tableA)
+                        .concat(ra3.allWithPrefix(tableB,"b_"))
+                        .concat(ra3.allWithPrefix(tableC,"c_"))
+                    )
 
-              }
-          }
+                }
+            }
         }
         .evaluate
         .unsafeRunSync()
@@ -1252,14 +1262,14 @@ class RelationlAlgebraSuite
         .rfilter(_.first("V0").get <= 0)
         .setColIndex(
           Index(
-            "V0",
-            "V1",
-            "V2",
-            "V3",
-            "V4",
-            "V5",
-            "V6",
-            "V7"
+            "c0",
+            "c1",
+            "c2",
+            "c3",
+            "b_c0",
+            "b_c1",
+            "b_c2",
+            "b_c3"
           )
         )
 
@@ -1292,19 +1302,20 @@ class RelationlAlgebraSuite
 
       //   }
       val result = tableA
-        .as[(DI32, DI32, DI32, DI32)]
-        .schema { (aCol0, _, _, aCol3) => tableA =>
-          tableB.as[(DI32, DI32, DI32, DI32)].schema {
-            (_, _, _, bCol3) => tableB =>
-              aCol3
-                .inner(bCol3)
+        .as[("c0", "c1", "c2", "c3"), (I32Var, I32Var, I32Var, I32Var)]
+        .schema { tableA =>
+          tableB
+            .as[("c0", "c1", "c2", "c3"), (I32Var, I32Var, I32Var, I32Var)]
+            .schema { tableB =>
+              tableA.c3
+                .inner(tableB.c3)
                 .withPartitionBase(3)
                 .withPartitionLimit(0)
                 .withMaxSegmentsBufferingAtOnce(2)
-                .select(ra3.S.extend(tableA).extend(tableB))
-                .where(aCol0 <= 0)
+                .select(ra3.all(tableA).concat(ra3.allWithPrefix(tableB,"b_")))
+                .where(tableA.c0 <= 0)
 
-          }
+            }
 
         }
         .evaluate
@@ -1359,14 +1370,14 @@ class RelationlAlgebraSuite
         .resetRowIndex
         .setColIndex(
           Index(
-            "V0",
-            "V1",
-            "V2",
-            "V3",
-            "V4",
-            "V5",
-            "V6",
-            "V7"
+            "c0",
+            "c1",
+            "c2",
+            "c3",
+            "b_c0",
+            "b_c1",
+            "b_c2",
+            "b_c3"
           )
         )
 
@@ -1383,18 +1394,19 @@ class RelationlAlgebraSuite
       assertEquals(toFrame(tableB), tF2.resetRowIndex)
 
       val result = tableA
-        .as[(DI32, DI32, DI32, DI32)]
-        .schema { (aCol0, _, _, aCol3) => tableA =>
-          tableB.as[(DI32, DI32, DI32, DI32)].schema {
-            (_, _, _, bCol3) => tableB =>
-              aCol3
-                .left(bCol3)
+        .as[("c0", "c1", "c2", "c3"), (I32Var, I32Var, I32Var, I32Var)]
+        .schema { tableA =>
+          tableB
+            .as[("c0", "c1", "c2", "c3"), (I32Var, I32Var, I32Var, I32Var)]
+            .schema { tableB =>
+              tableA.c3
+                .left(tableB.c3)
                 .withPartitionBase(3)
                 .withPartitionLimit(0)
                 .withMaxSegmentsBufferingAtOnce(2)
-                .select(ra3.S.extend(tableA).extend(tableB))
+                .select(ra3.all(tableA).concat(ra3.allWithPrefix(tableB,"b_")))
 
-          }
+            }
 
         }
         .evaluate
@@ -1449,14 +1461,14 @@ class RelationlAlgebraSuite
         .resetRowIndex
         .setColIndex(
           Index(
-            "V0",
-            "V1",
-            "V2",
-            "V3",
-            "V4",
-            "V5",
-            "V6",
-            "V7"
+            "c0",
+            "c1",
+            "c2",
+            "c3",
+            "b_c0",
+            "b_c1",
+            "b_c2",
+            "b_c3"
           )
         )
 
@@ -1473,18 +1485,19 @@ class RelationlAlgebraSuite
       assertEquals(toFrame(tableB), tF2.resetRowIndex)
 
       val result = tableA
-        .as[(DI32, DI32, DI32, DI32)]
-        .schema { (aCol0, _, _, aCol3) => tableA =>
-          tableB.as[(DI32, DI32, DI32, DI32)].schema {
-            (_, _, _, bCol3) => tableB =>
-              aCol3
-                .right(bCol3)
+        .as[("c0", "c1", "c2", "c3"), (I32Var, I32Var, I32Var, I32Var)]
+        .schema { tableA =>
+          tableB
+            .as[("c0", "c1", "c2", "c3"), (I32Var, I32Var, I32Var, I32Var)]
+            .schema { tableB =>
+              tableA.c3
+                .right(tableB.c3)
                 .withPartitionBase(3)
                 .withPartitionLimit(0)
                 .withMaxSegmentsBufferingAtOnce(2)
-                .select(ra3.S.extend(tableA).extend(tableB))
+                .select(ra3.all(tableA).concat(ra3.allWithPrefix(tableB,"b_")))
 
-          }
+            }
 
         }
         .evaluate
@@ -1564,7 +1577,10 @@ class RelationlAlgebraSuite
         tmp.setRowIndex(Index(tmp.firstCol("V4").toVec.toArray))
       }
 
-      val saddleResult = tF.groupBy.combine(_.sum).resetRowIndex
+      val saddleResult = {
+        import org.saddle.*
+        tF.groupBy.combine(_.sum).resetRowIndex
+      }
 
       val tableA = csvStringToTable("table", tableCsv, numCols, 3)
         .addColumnFromSeq(I32, "V4")(colA.flatten)
@@ -1574,14 +1590,17 @@ class RelationlAlgebraSuite
 
       val result = toFrame(
         tableA
-          .as[(I32Var, I32Var, I32Var, I32Var)]
-          .schema { case (c1, c2, c3, c4) =>
-            _ =>
-              c4.groupBy
-                .withPartitionBase(3)
-                .withPartitionLimit(0)
-                .withMaxSegmentsBufferingAtOnce(2)
-                .reduceTotal(((c1.sum :* c2.sum :* c3.sum :* (c4.sum as "V4"))))
+          .as[("c1", "c2", "c3", "c4"), (I32Var, I32Var, I32Var, I32Var)]
+          .schema { tableA =>
+            tableA.c4.groupBy
+              .withPartitionBase(3)
+              .withPartitionLimit(0)
+              .withMaxSegmentsBufferingAtOnce(2)
+              .reduceTotal(
+                ((tableA.c1.sum.as("V0") :* tableA.c2.sum.as(
+                  "V1"
+                ) :* tableA.c3.sum.as("V2") :* (tableA.c4.sum as "V4")))
+              )
           }
           .evaluate
           .unsafeRunSync()
@@ -1612,8 +1631,10 @@ class RelationlAlgebraSuite
         tmp.setRowIndex(Index(tmp.firstCol("V4").toVec.toArray))
       }
 
-      val saddleResult =
+      val saddleResult = {
+        import org.saddle.*
         tF.groupBy.combine(_.sum).resetRowIndex.colAt(0).toVec.countif(_ <= 0)
+      }
 
       val tableA = csvStringToTable("table", tableCsv, numCols, 3)
         .addColumnFromSeq(I32, "V4")(colA.flatten)
@@ -1623,15 +1644,17 @@ class RelationlAlgebraSuite
 
       val result = toLongFrame(
         tableA
-          .as[(I32Var, I32Var, I32Var, I32Var)]
-          .schema { case (c1, c2, c3, c4) =>
-            _ =>
-              c4.groupBy
-                .withPartitionBase(3)
-                .withPartitionLimit(0)
-                .withMaxSegmentsBufferingAtOnce(2)
-                .count(((c1.sum :* c2.sum :* c3.sum :* (c4.sum as "V4"))))
-                .where(c1.sum <= 0)
+          .as[("c1", "c2", "c3", "c4"), (I32Var, I32Var, I32Var, I32Var)]
+          .schema { t =>
+            t.c4.groupBy
+              .withPartitionBase(3)
+              .withPartitionLimit(0)
+              .withMaxSegmentsBufferingAtOnce(2)
+              .count(
+                ((t.c1.sum.as("V0") :* t.c2.sum.as("V1") :* t.c3.sum
+                  .as("V2") :* (t.c4.sum as "V3")))
+              )
+              .where(t.c1.sum <= 0)
           }
           .evaluate
           .unsafeRunSync()
@@ -1662,7 +1685,10 @@ class RelationlAlgebraSuite
         tmp.setRowIndex(Index(tmp.firstCol("V4").toVec.toArray))
       }
 
-      val saddleResult = Frame(tF.reduce(_.sum)).T
+      val saddleResult = {
+        import org.saddle.*
+        Frame(tF.reduce(_.sum)).T
+      }
 
       val tableA = csvStringToTable("table", tableCsv, numCols, 3)
         .addColumnFromSeq(I32, "V4")(colA.flatten)
@@ -1674,16 +1700,17 @@ class RelationlAlgebraSuite
 
       val result = toFrame(
         tableA
-          .as[(I32Var, I32Var, I32Var, I32Var)]
-          .schema { (c1, c2, c3, c4) => _ =>
-            reduce((c1.sum :* c2.sum :* c3.sum :* (c4.sum as "V4")))
+          .as[("c1", "c2", "c3", "c4"), (I32Var, I32Var, I32Var, I32Var)]
+          .schema { t =>
+            reduce(
+              (t.c1.sum.as("V0") :* t.c2.sum.as("V1") :* t.c3.sum
+                .as("V2") :* (t.c4.sum as "V4"))
+            )
           }
           .evaluate
           .unsafeRunSync()
       )
 
-      println(saddleResult)
-      println(result)
 
       assertEquals(
         saddleResult.toRowSeq.map(_._2).toSet,
@@ -1776,15 +1803,15 @@ class RelationlAlgebraSuite
 
       val result = toFrame(
         tableA
-          .as[(DI32, DI32, DI32)]
-          .schema { case (c, _, _) => _ => c.topK(true, 3, 1d, 5) }
+          .as[("c0", "c1", "c2"), (I32Var, I32Var, I32Var)]
+          .schema { case t => t.c0.topK(true, 3, 1d, 5) }
           .evaluate
           .unsafeRunSync()
       )
       val resultDesc = toFrame(
         tableA
-          .as[(DI32, DI32, DI32)]
-          .schema { case (c, _, _) => _ => c.topK(false, 3, 1d, 5) }
+          .as[("c0", "c1", "c2"), (I32Var, I32Var, I32Var)]
+          .schema { case t => t.c0.topK(false, 3, 1d, 5) }
           .evaluate
           .unsafeRunSync()
       )
@@ -1932,14 +1959,14 @@ class RelationlAlgebraSuite
         .resetRowIndex
         .setColIndex(
           Index(
-            "V0",
-            "V1",
-            "V2",
-            "V3",
-            "V4",
-            "V5",
-            "V6",
-            "V7"
+            "c0",
+            "c1",
+            "c2",
+            "c3",
+            "b_c0",
+            "b_c1",
+            "b_c2",
+            "b_c3"
           )
         )
 
@@ -1973,18 +2000,19 @@ class RelationlAlgebraSuite
 
       //   }
       val joined = tableA
-        .as[(DI32, DI32, DI32, DI32)]
-        .schema { (aCol0, _, _, aCol3) => tableA =>
-          tableB.as[(DI32, DI32, DI32, DI32)].schema {
-            (_, _, _, bCol3) => tableB =>
-              aCol3
-                .inner(bCol3)
+        .as[("c0", "c1", "c2", "c3"), (I32Var, I32Var, I32Var, I32Var)]
+        .schema { tableA =>
+          tableB
+            .as[("c0", "c1", "c2", "c3"), (I32Var, I32Var, I32Var, I32Var)]
+            .schema { tableB =>
+              tableA.c3
+                .inner(tableB.c3)
                 .withPartitionBase(3)
                 .withPartitionLimit(0)
                 .withMaxSegmentsBufferingAtOnce(2)
-                .select(ra3.S.extend(tableA).extend(tableB))
+                .select(ra3.all(tableA).concat(ra3.allWithPrefix(tableB,"b_")))
 
-          }
+            }
 
         }
         .evaluate
@@ -2040,14 +2068,14 @@ class RelationlAlgebraSuite
         .resetRowIndex
         .setColIndex(
           Index(
-            "V0",
-            "V1",
-            "V2",
-            "V3",
-            "V4",
-            "V5",
-            "V6",
-            "V7"
+            "c0",
+            "c1",
+            "c2",
+            "c3",
+            "b_c0",
+            "b_c1",
+            "b_c2",
+            "b_c3"
           )
         )
       val tableA = csvStringToTable("table", tableCsv, numCols, 3)
@@ -2080,18 +2108,19 @@ class RelationlAlgebraSuite
 
       //   }
       val joined = tableA
-        .as[(DI32, DI32, DI32, DI32)]
-        .schema { (aCol0, _, _, aCol3) => tableA =>
-          tableB.as[(DI32, DI32, DI32, DI32)].schema {
-            (_, _, _, bCol3) => tableB =>
-              aCol3
-                .inner(bCol3)
+        .as[("c0", "c1", "c2", "c3"), (I32Var, I32Var, I32Var, I32Var)]
+        .schema { tableA =>
+          tableB
+            .as[("c0", "c1", "c2", "c3"), (I32Var, I32Var, I32Var, I32Var)]
+            .schema { tableB =>
+              tableA.c3
+                .inner(tableB.c3)
                 .withPartitionBase(3)
                 .withPartitionLimit(6)
                 .withMaxSegmentsBufferingAtOnce(2)
-                .select(ra3.S.extend(tableA).extend(tableB))
+                .select(ra3.all(tableA).concat(ra3.allWithPrefix(tableB,"b_")))
 
-          }
+            }
 
         }
         .evaluate
@@ -2120,18 +2149,19 @@ class RelationlAlgebraSuite
 
       //   }
       val joined2 = tableA
-        .as[(DI32, DI32, DI32, DI32)]
-        .schema { (aCol0, _, _, aCol3) => tableA =>
-          tableB.as[(DI32, DI32, DI32, DI32)].schema {
-            (_, _, _, bCol3) => tableB =>
-              aCol3
-                .inner(bCol3)
+        .as[("c0", "c1", "c2", "c3"), (I32Var, I32Var, I32Var, I32Var)]
+        .schema { tableA =>
+          tableB
+            .as[("c0", "c1", "c2", "c3"), (I32Var, I32Var, I32Var, I32Var)]
+            .schema { tableB =>
+              tableA.c3
+                .inner(tableB.c3)
                 .withPartitionBase(3)
                 .withPartitionLimit(6)
                 .withMaxSegmentsBufferingAtOnce(2)
-                .select(ra3.S.extend(tableA).extend(tableB))
+                .select(ra3.all(tableA).concat(ra3.allWithPrefix(tableB,"b_")))
 
-          }
+            }
 
         }
         .evaluate
@@ -2189,14 +2219,14 @@ class RelationlAlgebraSuite
         .resetRowIndex
         .setColIndex(
           Index(
-            "V0",
-            "V1",
-            "V2",
-            "V3",
-            "V4",
-            "V5",
-            "V6",
-            "V7"
+            "c0",
+            "c1",
+            "c2",
+            "c3",
+            "b_c0",
+            "b_c1",
+            "b_c2",
+            "b_c3"
           )
         )
 
@@ -2216,18 +2246,19 @@ class RelationlAlgebraSuite
       println(pre)
 
       val joined = tableA
-        .as[(DI32, DI32, DI32, DI32)]
-        .schema { (aCol0, _, _, aCol3) => tableA =>
-          pre.as[(DI32, DI32, DI32, DI32)].schema {
-            (_, _, _, bCol3) => tableB =>
-              aCol3
-                .inner(bCol3)
+        .as[("c0", "c1", "c2", "c3"), (I32Var, I32Var, I32Var, I32Var)]
+        .schema { tableA =>
+          pre
+            .as[("c0", "c1", "c2", "c3"), (I32Var, I32Var, I32Var, I32Var)]
+            .schema { tableB =>
+              tableA.c3
+                .inner(tableB.c3)
                 .withPartitionBase(3)
                 .withPartitionLimit(6)
                 .withMaxSegmentsBufferingAtOnce(2)
-                .select(ra3.S.extend(tableA).extend(tableB))
+                .select(ra3.all(tableA).concat(ra3.allWithPrefix(tableB,"b_")))
 
-          }
+            }
 
         }
         .evaluate
@@ -2244,18 +2275,19 @@ class RelationlAlgebraSuite
       )
 
       val joined2 = tableA
-        .as[(DI32, DI32, DI32, DI32)]
-        .schema { (aCol0, _, _, aCol3) => tableA =>
-          tableB.as[(DI32, DI32, DI32, DI32)].schema {
-            (_, _, _, bCol3) => tableB =>
-              aCol3
-                .inner(bCol3)
+        .as[("c0", "c1", "c2", "c3"), (I32Var, I32Var, I32Var, I32Var)]
+        .schema { tableA =>
+          tableB
+            .as[("c0", "c1", "c2", "c3"), (I32Var, I32Var, I32Var, I32Var)]
+            .schema { tableB =>
+              tableA.c3
+                .inner(tableB.c3)
                 .withPartitionBase(3)
                 .withPartitionLimit(6)
                 .withMaxSegmentsBufferingAtOnce(2)
-                .select(ra3.S.extend(tableA).extend(tableB))
+                .select(ra3.all(tableA).concat(ra3.allWithPrefix(tableB,"b_")))
 
-          }
+            }
 
         }
         .evaluate

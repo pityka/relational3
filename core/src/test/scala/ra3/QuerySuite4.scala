@@ -18,21 +18,20 @@ class QuerySuite4 extends munit.FunSuite with WithTempTaskSystem {
     ) = {
       customer.groupBy
         .reducePartial(
-          customer.first.unnamed :*
-            value.sum.unnamed :*
-            value.count.unnamed :*
-            value.min.unnamed :*
-            value.max.unnamed
+          customer.first.as("customer") :*
+            value.sum.as("sum") :*
+            value.count.as("count") :*
+            value.min.as("min") :*
+            value.max.as("max")
         )
-        .schema { case (customer, sum, count, min, max) =>
-          _ =>
-            customer.groupBy
-              .reduceTotal(
-                (customer.first `as` "customer") :*
-                  ((sum.sum / count.sum) `as` "avg") :*
-                  (min.min `as` "min") :*
-                  (max.max `as` "max")
-              )
+        .schema { case t =>
+          t.customer.groupBy
+            .reduceTotal(
+              (t.customer.first `as` "customer") :*
+                ((t.sum.sum / t.count.sum) `as` "avg") :*
+                (t.min.min `as` "min") :*
+                (t.max.max `as` "max")
+            )
         }
     }
 
@@ -42,34 +41,29 @@ class QuerySuite4 extends munit.FunSuite with WithTempTaskSystem {
         table <- parseTransactions(data)
         queryPrg <- IO.pure {
           for {
-            byCustomerIn <- table.schema {
-              (customerIn, customerOut, _, _, value, _) => _ =>
-                groupBy(customerIn, value)
+            byCustomerIn <- table.schema { t =>
+              groupBy(t.customerIn, t.value)
             }
-            byCustomerOut <- table.schema {
-              (_, customerOut, _, _, value, _) => _ =>
-                groupBy(customerOut, value)
+            byCustomerOut <- table.schema { t =>
+              groupBy(t.customerOut, t.value)
             }
-            result <- byCustomerOut.schema {
-              (customerOut, avgOutValue, _, _) => _ =>
-                byCustomerIn.schema { (customerIn, avgInValue, _, _) => _ =>
-                  customerIn
-                    .outer(customerOut)
-                    .select(
-                      (customerIn as "cIn")
-                        :* (customerOut as "cOut")
-                        :* (
-                          customerIn.isMissing
-                            .ifelse(
-                              customerOut,
-                              customerIn
-                            ) as "customer"
-                        )
-                        :* (avgInValue as "inAvg")
-                        :* (avgOutValue as "outAvg")
+            result <-
+              byCustomerIn.customer
+                .outer(byCustomerOut.customer)
+                .select(
+                  (byCustomerIn.customer as "cIn")
+                    :* (byCustomerOut.customer as "cOut")
+                    :* (
+                      byCustomerIn.customer.isMissing
+                        .ifelse(
+                          byCustomerOut.customer,
+                          byCustomerIn.customer
+                        ) `as` "customer"
                     )
-                }
-            }
+                    :* (byCustomerIn.avg `as` "inAvg")
+                    :* (byCustomerOut.avg `as` "outAvg")
+                )
+
           } yield result
         }
 
@@ -83,7 +77,7 @@ class QuerySuite4 extends munit.FunSuite with WithTempTaskSystem {
       val set = stream.compile.toList
         .unsafeRunSync()
         .toSet
-        .map(v => (v._3.toString, f"${v._4}%.2f", f"${v._5}%.2f"))
+        .map(v => (v.customer.toString, f"${v.inAvg}%.2f", f"${v.outAvg}%.2f"))
 
       val expected = {
         val avgIn = data
@@ -131,6 +125,7 @@ class QuerySuite4 extends munit.FunSuite with WithTempTaskSystem {
         println(sample)
       }
     } yield table
+      .rename[("customerIn", "customerOut", "cat", "catid", "value", "time")]
 
   /** Generate bogus data Each row is a transaction of some value between two
     * customers Each row consists of:

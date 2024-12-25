@@ -6,13 +6,13 @@ import ra3.lang.util.bufferIfNeededWithPrecondition
 import ra3.Utils.*
 import ra3.lang.ReturnValueTuple
 
-private[ra3] sealed trait Op0 {
+sealed trait Op0 {
   type T
 
   def op(): T
 }
 
-private[ra3] object Op0 {
+object Op0 {
   // not with type parameter because we have to serialize these
 
   case class ConstantI64(s: Long) extends Op0 {
@@ -75,7 +75,7 @@ private[ra3] object Op0 {
   }
 
   case object ConstantEmptyReturnValue extends Op0 {
-    type T = ReturnValueTuple[EmptyTuple]
+    type T = ReturnValueTuple[EmptyTuple, EmptyTuple]
     def op() = ReturnValueTuple.empty
   }
 

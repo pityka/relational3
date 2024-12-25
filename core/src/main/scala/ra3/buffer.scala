@@ -28,6 +28,7 @@ private[ra3] sealed trait TaggedBuffer { self =>
     type BufferType = self.BufferType
   }
   def buffer: tag.BufferType
+  def wrap: Box[?]
 }
 
 private[ra3] case class TaggedBuffersI32(buffers: Seq[BufferInt])
@@ -121,6 +122,8 @@ private[ra3] final case class BufferDouble(values: Array[Double])
     with BufferDoubleImpl
     with TaggedBuffer { self =>
 
+    def wrap = F64Var(Left(this))
+
   def toArray = values
 
   type Elem = Double
@@ -180,6 +183,8 @@ private[ra3] final case class BufferIntConstant(value: Int, length: Int)
     with BufferIntConstantImpl {
   def buffer = this
 
+  def wrap = I32Var(Left(this))
+
   def toArray = Array.fill[Int](length)(value)
   private[ra3] def values = Array.fill[Int](length)(value)
   def raw(i: Int): Int =
@@ -194,6 +199,8 @@ private[ra3] final case class BufferIntInArray(private val values0: Array[Int])
   def toArray = values0
   private[ra3] def values = values0
   def raw(i: Int): Int = values0(i)
+
+  def wrap = I32Var(Left(this))
 
 }
 private[ra3] object BufferLong {
@@ -213,6 +220,8 @@ private[ra3] final case class BufferLong(private[ra3] val values: Array[Long])
   type BufferType = BufferLong
   val tag: ColumnTag.I64.type = ColumnTag.I64
 
+  def wrap = I64Var(Left(this))
+
 }
 private[ra3] object BufferInstant {
   val MissingValue = Long.MinValue
@@ -231,6 +240,8 @@ private[ra3] final case class BufferInstant(
   def toArray = values
   type Elem = Long
   type BufferType = BufferInstant
+
+  def wrap = InstVar(Left(this))
 
   val tag: ColumnTag.Instant.type = ColumnTag.Instant
 
@@ -252,6 +263,8 @@ private[ra3] final case class BufferString(
   def toArray = values
   type Elem = CharSequence
   type BufferType = BufferString
+
+  def wrap = StrVar(Left(this))
   val tag: ColumnTag.StringTag.type = ColumnTag.StringTag
 }
 

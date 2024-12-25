@@ -329,7 +329,7 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
             )
           )
       }
-
+      .logElapsed
   }
 
   def elementwise_+(other: BufferType): BufferType = {

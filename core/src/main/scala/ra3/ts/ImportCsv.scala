@@ -159,7 +159,7 @@ private[ra3] object ImportCsv {
             IO.pure(value)
         }
       }
-    }
+    }.logElapsed
 
   }
   // $COVERAGE-OFF$

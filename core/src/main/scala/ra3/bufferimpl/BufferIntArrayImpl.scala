@@ -231,7 +231,7 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
           .apply(stream, name.toString)
           .map(sf => SegmentInt(Some(sf), values.length, self.makeStatistic()))
       }
-
+      .logElapsed
   }
 
   def elementwise_*(other: BufferDouble): BufferDouble = {

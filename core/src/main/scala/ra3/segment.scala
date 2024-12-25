@@ -69,6 +69,8 @@ private[ra3] sealed trait Segment { self =>
 
   // def buffer(implicit tsc: TaskSystemComponents): IO[BufferType]
 
+  def wrap : Box[?]
+
   def numElems: Int
   def numBytes: Long
 
@@ -99,6 +101,8 @@ private[ra3] final case class SegmentDouble(
     statistic: StatisticDouble
 ) extends Segment
     with TaggedSegment {
+
+    def wrap: Box[?] = F64Var(Right(Seq(this)))
   def numBytes = numElems * 8
   type Elem = Double
   type SegmentType = SegmentDouble
@@ -126,7 +130,8 @@ private[ra3] final case class SegmentDouble(
           val ar = Array.ofDim[Double](bb.remaining)
           bb.get(ar)
           BufferDouble(ar)
-        }
+        }.logElapsed
+        .countInF64(numElems,sf.byteSize)
     }
 
 }
@@ -137,6 +142,8 @@ private[ra3] final case class SegmentInt(
     statistic: StatisticInt
 ) extends Segment
     with TaggedSegment {
+
+      def wrap: Box[?] = I32Var(Right(Seq(this)))
   def numBytes = numElems * 4
   type Elem = Int
   type SegmentType = SegmentInt
@@ -168,6 +175,8 @@ private[ra3] final case class SegmentInt(
           bb.get(ar)
           BufferInt(ar)
         }
+        .logElapsed
+        .countInI32(numElems,value.byteSize)
     }
 
   }
@@ -182,6 +191,8 @@ private[ra3] final case class SegmentLong(
     statistic: StatisticLong
 ) extends Segment
     with TaggedSegment {
+
+      def wrap: Box[?] = I64Var(Right(Seq(this)))
   def numBytes = numElems * 8
 
   def nonMissingMinMax = statistic.nonMissingMinMax
@@ -212,6 +223,8 @@ private[ra3] final case class SegmentLong(
           bb.get(ar)
           BufferLong(ar)
         }
+        .logElapsed
+        .countInI64(numElems,value.byteSize)
     }
 
   }
@@ -223,6 +236,8 @@ private[ra3] final case class SegmentInstant(
     statistic: StatisticLong
 ) extends Segment
     with TaggedSegment {
+
+      def wrap: Box[?] = InstVar(Right(Seq(this)))
   def numBytes = numElems * 8
   def nonMissingMinMax = statistic.nonMissingMinMax
 
@@ -251,6 +266,8 @@ private[ra3] final case class SegmentInstant(
           bb.get(ar)
           BufferInstant(ar)
         }
+        .logElapsed
+        .countInInst(numElems,value.byteSize)
     }
 
   }
@@ -264,6 +281,8 @@ private[ra3] final case class SegmentString(
 ) extends Segment
     with TaggedSegment {
   def nonMissingMinMax = statistic.nonMissingMinMax
+
+  def wrap: Box[?] = StrVar(Right(Seq(this)))
 
   type Elem = CharSequence
   type SegmentType = SegmentString
@@ -304,6 +323,8 @@ private[ra3] final case class SegmentString(
 
           BufferString(ar)
         }
+        .logElapsed
+        .countInStr(numElems,value.byteSize)
     }
 
   }

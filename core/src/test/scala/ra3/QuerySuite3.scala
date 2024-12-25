@@ -17,21 +17,20 @@ class QuerySuite3 extends munit.FunSuite with WithTempTaskSystem {
     ) = {
       customer.groupBy
         .reducePartial(
-          customer.first.unnamed :*
-            value.sum.unnamed :*
-            value.count.unnamed :*
-            value.min.unnamed :*
-            value.max.unnamed
+          customer.first.as("customer") :*
+            value.sum.as("sum") :*
+            value.count.as("count") :*
+            value.min.as("min") :*
+            value.max.as("max")
         )
-        .schema { case (customer, sum, count, min, max) =>
-          _ =>
-            customer.groupBy
-              .reduceTotal(
-                (customer.first `as` "customer") :*
-                  ((sum.sum / count.sum) `as` "avg") :*
-                  (min.min `as` "min") :*
-                  (max.max `as` "max")
-              )
+        .schema { case t =>
+          t.customer.groupBy
+            .reduceTotal(
+              (t.customer.first `as` "customer") :*
+                ((t.sum.sum / t.count.sum) `as` "avg") :*
+                (t.min.min `as` "min") :*
+                (t.max.max `as` "max")
+            )
         }
     }
 
@@ -41,31 +40,26 @@ class QuerySuite3 extends munit.FunSuite with WithTempTaskSystem {
         table <- parseTransactions(path)
         queryPrg <- IO.pure {
           for {
-            byCustomerIn <- table.schema {
-              (customerIn, customerOut, _, _, value, _) => _ =>
-                groupBy(customerIn, value)
+            byCustomerIn <- table.schema { t =>
+              groupBy(t.customerIn, t.value)
             }
-            byCustomerOut <- table.schema {
-              (_, customerOut, _, _, value, _) => _ =>
-                groupBy(customerOut, value)
+            byCustomerOut <- table.schema { t =>
+              groupBy(t.customerOut, t.value)
             }
-            result <- byCustomerOut.schema {
-              (customerOut, avgOutValue, _, _) => _ =>
-                byCustomerIn.schema { (customerIn, avgInValue, _, _) => _ =>
-                  customerIn
-                    .outer(customerOut)
-                    .select(
-                      ra3.S
-                        :* (
-                          customerIn.isMissing
-                            .ifelse(
-                              customerOut,
-                              customerIn
-                            ) as "customer"
-                        )
+            result <-
+              byCustomerIn.customer
+                .outer(byCustomerOut.customer)
+                .select(
+                  ra3.S
+                    :* (
+                      byCustomerIn.customer.isMissing
+                        .ifelse(
+                          byCustomerOut.customer,
+                          byCustomerIn.customer
+                        ) `as` "customer"
                     )
-                }
-            }
+                )
+
           } yield result
         }
 
@@ -139,12 +133,12 @@ class QuerySuite3 extends munit.FunSuite with WithTempTaskSystem {
         file = fileHandle,
         name = fileHandle.name,
         columns = (
-          ra3.CSVColumnDefinition.StrColumn(0),
-          ra3.CSVColumnDefinition.StrColumn(1),
-          ra3.CSVColumnDefinition.StrColumn(2),
-          ra3.CSVColumnDefinition.I32Column(3),
-          ra3.CSVColumnDefinition.F64Column(4),
-          ra3.CSVColumnDefinition.InstantColumn(5)
+          customerIn = ra3.CSVColumnDefinition.StrColumn(0),
+          customerOut = ra3.CSVColumnDefinition.StrColumn(1),
+          cat = ra3.CSVColumnDefinition.StrColumn(2),
+          catId = ra3.CSVColumnDefinition.I32Column(3),
+          value = ra3.CSVColumnDefinition.F64Column(4),
+          time = ra3.CSVColumnDefinition.InstantColumn(5)
         ),
         maxSegmentLength = 1_000_000,
         recordSeparator = "\n",

@@ -222,6 +222,6 @@ private[ra3] object PartitionedTable {
             )
           }
       }
-    }
+    }.logElapsed
   }
 }

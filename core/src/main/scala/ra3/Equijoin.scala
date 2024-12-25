@@ -231,7 +231,7 @@ private[ra3] object Equijoin {
           name,
           None
         )
-      }
+      }.logElapsed
   }
 
   def equijoinMultiple(
@@ -400,6 +400,6 @@ private[ra3] object Equijoin {
           name,
           None
         )
-      }
+      }.logElapsed
   }
 }

@@ -63,7 +63,6 @@ private[ra3] object LongTable {
       }
       i += 1
     }
-    println("Misses: " + misses + " keys: " + keys.length)
     (LongTable(table, keys, payload), buffer.toArray)
   }
   def build(keys: Array[Long], payload: Array[Int]) = {

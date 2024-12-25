@@ -9,26 +9,26 @@ import cats.effect.IO
 import ra3.lang.ReturnValueTuple
 
 private[ra3] case class SimpleQueryCount(
-    input: Seq[SegmentWithName],
+    input: Seq[(ColumnTag,SegmentWithName)],
     predicate: ra3.lang.runtime.Expr,
     groupMap: Option[(SegmentInt, Int)]
 )
 private[ra3] object SimpleQueryCount {
 
   private def doit(
-      input: Seq[SegmentWithName],
+      input: Seq[(ColumnTag,SegmentWithName)],
       predicate: ra3.lang.runtime.Expr,
       groupMap: Option[(SegmentInt, Int)]
   )(implicit tsc: TaskSystemComponents): IO[Int] = {
     scribe.debug(
       s"SimpleQueryCount task on ${input
-          .groupBy(_.tableUniqueId)
+          .groupBy(_._2.tableUniqueId)
           .toSeq
-          .map(s => (s._1, s._2.map(v => (v.columnName, v.segment.size))))} with $predicate . Grouping: $groupMap"
+          .map(s => (s._1, s._2.map(v => (v._2.columnName, v._2.segment.size))))} with $predicate . Grouping: $groupMap"
     )
     val neededColumns = predicate.columnKeys
     val numElems = {
-      val d = input.map(_.segment.map(_.numElems).sum).distinct
+      val d = input.map(_._2.segment.map(_.numElems).sum).distinct
       assert(d.size == 1, "uneven column lengths")
       d.head
     }
@@ -40,12 +40,12 @@ private[ra3] object SimpleQueryCount {
     groupMapBuffer.flatMap { case groupMapBuffer =>
       val env1: Map[ra3.lang.Key, ra3.lang.runtime.Value] =
         input
-          .map { case segmentWithName =>
+          .map { case (tag,segmentWithName) =>
             val columnKey = ra3.lang.ColumnKey(
               segmentWithName.tableUniqueId,
               segmentWithName.columnIdx
             )
-            (columnKey, ra3.lang.runtime.Value(Right(segmentWithName.segment)))
+            (columnKey, ra3.lang.runtime.Value(tag.wrap(segmentWithName.segment.asInstanceOf[Seq[tag.SegmentType]])))
           }
           .filter(v => neededColumns.contains(v._1))
           .toMap
@@ -58,7 +58,7 @@ private[ra3] object SimpleQueryCount {
 
       ra3.lang.runtime.Expr
         .evaluate(predicate, env)
-        .map(_.v.asInstanceOf[ReturnValueTuple[?]])
+        .map(_.v.asInstanceOf[ReturnValueTuple[?, ?]])
         .flatMap { returnValue =>
           val mask = returnValue.filter
 
@@ -102,11 +102,11 @@ private[ra3] object SimpleQueryCount {
             }
         }
 
-    }
+    }.logElapsed
   }
   def queue(
       // (segment, table unique id)
-      input: Seq[SegmentWithName],
+      input: Seq[(ColumnTag,SegmentWithName)],
       predicate: ra3.lang.runtime.Expr,
       groupMap: Option[(SegmentInt, Int)]
   )(implicit
@@ -122,7 +122,7 @@ private[ra3] object SimpleQueryCount {
       ResourceRequest(
         cpu = (1, 1),
         memory =
-          input.flatMap(_.segment).map(ra3.Utils.guessMemoryUsageInMB).sum,
+          input.flatMap(_._2.segment).map(ra3.Utils.guessMemoryUsageInMB).sum,
         scratch = 0,
         gpu = 0
       )

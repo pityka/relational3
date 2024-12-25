@@ -52,7 +52,7 @@ private[ra3] object MakeGroupMap {
           b
         )
       }
-    }
+    }.logElapsed
 
   }
 

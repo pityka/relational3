@@ -8,18 +8,20 @@ import bufferimpl.ArrayUtil
 sealed trait ColumnTag { self =>
   type Elem
 
+  def wrap(s:Seq[SegmentType]) : Box[?]
+
   def makeNamedColumnSpecFromBuffer(
       buffer: BufferType,
       name: String
-  ): ra3.lang.NamedColumnSpecWithColumnChunkValue[
+  ): ra3.lang.NamedColumnSpecWithColumnChunkValue["", Box[
     Either[BufferType, Seq[SegmentType]]
-  ]
+  ]]
   def makeNamedColumnSpecFromSegments(
       segments: Seq[SegmentType],
       name: String
-  ): ra3.lang.NamedColumnSpecWithColumnChunkValue[
+  ): ra3.lang.NamedColumnSpecWithColumnChunkValue["", Box[
     Either[BufferType, Seq[SegmentType]]
-  ]
+  ]]
 
   type SegmentType <: Segment {
     type Elem = self.Elem
@@ -172,16 +174,17 @@ sealed trait ColumnTag { self =>
 object ColumnTag {
   object I32 extends ColumnTag {
     override def toString = "I32"
+    def wrap(s: Seq[SegmentType]): Box[?] = I32Var(Right(s))
 
     def makeNamedColumnSpecFromBuffer(
         buffer: BufferType,
         name: String
-    ) = ra3.lang.NamedColumnChunkI32(Left(buffer), name)
+    ) = ra3.lang.NamedColumnChunkI32(I32Var(Left(buffer)), name)
 
     def makeNamedColumnSpecFromSegments(
         segments: Seq[SegmentType],
         name: String
-    ) = ra3.lang.NamedColumnChunkI32(Right(segments), name)
+    ) = ra3.lang.NamedColumnChunkI32(I32Var(Right(segments)), name)
 
     def broadcast(
         buffer: ra3.ColumnTag.I32.BufferType,
@@ -359,15 +362,18 @@ object ColumnTag {
   object I64 extends ColumnTag {
     override def toString = "I64"
 
+        def wrap(s: Seq[SegmentType]): Box[?] = I64Var(Right(s))
+
+
     def makeNamedColumnSpecFromBuffer(
         buffer: BufferType,
         name: String
-    ) = ra3.lang.NamedColumnChunkI64(Left(buffer), name)
+    ) = ra3.lang.NamedColumnChunkI64(I64Var(Left(buffer)), name)
 
     def makeNamedColumnSpecFromSegments(
         segments: Seq[SegmentType],
         name: String
-    ) = ra3.lang.NamedColumnChunkI64(Right(segments), name)
+    ) = ra3.lang.NamedColumnChunkI64(I64Var(Right(segments)), name)
 
     def ++(
         first: ra3.ColumnTag.I64.ColumnType,
@@ -511,15 +517,18 @@ object ColumnTag {
   object Instant extends ColumnTag {
     override def toString = "Instant"
 
+        def wrap(s: Seq[SegmentType]): Box[?] = InstVar(Right(s))
+
+
     def makeNamedColumnSpecFromBuffer(
         buffer: BufferType,
         name: String
-    ) = ra3.lang.NamedColumnChunkInst(Left(buffer), name)
+    ) = ra3.lang.NamedColumnChunkInst(InstVar(Left(buffer)), name)
 
     def makeNamedColumnSpecFromSegments(
         segments: Seq[SegmentType],
         name: String
-    ) = ra3.lang.NamedColumnChunkInst(Right(segments), name)
+    ) = ra3.lang.NamedColumnChunkInst(InstVar(Right(segments)), name)
 
     def ++(
         first: ra3.ColumnTag.Instant.ColumnType,
@@ -672,15 +681,18 @@ object ColumnTag {
   }
   object StringTag extends ColumnTag {
 
+        def wrap(s: Seq[SegmentType]): Box[?] = StrVar(Right(s))
+
+
     def makeNamedColumnSpecFromBuffer(
         buffer: BufferType,
         name: String
-    ) = ra3.lang.NamedColumnChunkStr(Left(buffer), name)
+    ) = ra3.lang.NamedColumnChunkStr(StrVar(Left(buffer)), name)
 
     def makeNamedColumnSpecFromSegments(
         segments: Seq[SegmentType],
         name: String
-    ) = ra3.lang.NamedColumnChunkStr(Right(segments), name)
+    ) = ra3.lang.NamedColumnChunkStr(StrVar(Right(segments)), name)
 
     def ++(
         first: ra3.ColumnTag.StringTag.ColumnType,
@@ -822,15 +834,18 @@ object ColumnTag {
   object F64 extends ColumnTag {
     override def toString = "F64"
 
+        def wrap(s: Seq[SegmentType]): Box[?] = F64Var(Right(s))
+
+
     def makeNamedColumnSpecFromBuffer(
         buffer: BufferType,
         name: String
-    ) = ra3.lang.NamedColumnChunkF64(Left(buffer), name)
+    ) = ra3.lang.NamedColumnChunkF64(F64Var(Left(buffer)), name)
 
     def makeNamedColumnSpecFromSegments(
         segments: Seq[SegmentType],
         name: String
-    ) = ra3.lang.NamedColumnChunkF64(Right(segments), name)
+    ) = ra3.lang.NamedColumnChunkF64(F64Var(Right(segments)), name)
 
     def ++(
         first: ra3.ColumnTag.F64.ColumnType,

@@ -30,7 +30,7 @@ private[ra3] class TypedCDF(
           s.zipWithIndex.reverse.find(_._1 <= (1d - queryPercentile)).map(_._2)
         }
       indexInLocs.map(idx => tag.take(locsBuffer, BufferInt(Array(idx))))
-    }
+    }.logElapsed
 
   }
 }

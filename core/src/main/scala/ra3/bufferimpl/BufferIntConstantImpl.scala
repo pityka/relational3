@@ -184,7 +184,7 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
 
         SegmentInt(None, values.length, self.makeStatistic())
       }
-
+      .logElapsed
   }
 
   // Elementwise operations

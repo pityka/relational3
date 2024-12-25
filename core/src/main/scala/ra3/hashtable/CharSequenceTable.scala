@@ -63,7 +63,6 @@ private[ra3] object CharSequenceTable {
       }
       i += 1
     }
-    println("Misses: " + misses + " keys: " + keys.length)
     (CharSequenceTable(table, keys, payload), buffer.toArray)
   }
   def build(keys: Array[CharSequence], payload: Array[Int]) = {

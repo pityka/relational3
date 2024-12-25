@@ -26,11 +26,11 @@ class QuerySuite
         val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
 
         val result = ra3Table
-          .as[(I32Var, I32Var, I32Var)]
-          .schema { case (col0, col1, col2) =>
-            schema => query(schema.all.where(col0 === 0))
+          .as[("c0", "c1", "c2"), (ra3.I32Var, ra3.I32Var, ra3.I32Var)]
+          .schema({ table =>
+            query(ra3.all(table).where(table.c0 === 0))
 
-          }
+          })
           .evaluate
           .unsafeRunSync()
 
@@ -44,6 +44,7 @@ class QuerySuite
 
         val expect =
           tableFrame.resetRowIndex.rfilter(_.values(0) == 0)
+          .setColIndex(org.saddle.Index("c0","c1","c2"))
         assertEquals(takenF, expect)
       }
     }
@@ -58,12 +59,11 @@ class QuerySuite
         val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
 
         val result = ra3Table
-          .as[(I32Var, I32Var, I32Var)]
-          .schema { case (col0, col1, col2) =>
-            schema =>
-              query(
-                schema.all.where(col0.containedIn(Set(0, 1)))
-              )
+          .as[("c0", "c1", "c2"), (ra3.I32Var, ra3.I32Var, ra3.I32Var)]
+          .schema { case table =>
+            query(
+              ra3.all(table).where(table.c0.containedIn(Set(0, 1)))
+            )
 
           }
           .evaluate
@@ -79,6 +79,7 @@ class QuerySuite
 
         val expect =
           tableFrame.rfilter(v => Set(0, 1).contains(v.values(0))).resetRowIndex
+          .setColIndex(org.saddle.Index("c0","c1","c2"))
 
         assertEquals(takenF, expect)
       }
@@ -93,9 +94,9 @@ class QuerySuite
       val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
 
       val result = ra3Table
-        .as[(I32Var, I32Var, I32Var)]
-        .schema { case (col0, col1, col2) =>
-          schema => query(schema.all.where(col0 >= 0))
+        .as[("c0", "c1", "c2"), (ra3.I32Var, ra3.I32Var, ra3.I32Var)]
+        .schema { case table =>
+          query(ra3.all(table).where(table.c0 >= 0))
         }
         .evaluate
         .unsafeRunSync()
@@ -110,6 +111,7 @@ class QuerySuite
 
       val expect =
         tableFrame.rfilter(_.values(0) >= 0).resetRowIndex
+        .setColIndex(org.saddle.Index("c0","c1","c2"))
 
       assertEquals(takenF, expect)
     }
@@ -123,11 +125,8 @@ class QuerySuite
       val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
 
       val result = ra3Table
-        .as[(I32Var, I32Var, I32Var)]
-        .schema { case (col0, col1, col2) =>
-          schema => query(schema.all.where(col0 <= 0))
-
-        }
+        .as[("c0", "c1", "c2"), (ra3.I32Var, ra3.I32Var, ra3.I32Var)]
+        .schema { case table => query(ra3.all(table).where(table.c0 <= 0)) }
         .evaluate
         .unsafeRunSync()
 
@@ -141,6 +140,7 @@ class QuerySuite
 
       val expect =
         tableFrame.rfilter(_.values(0) <= 0).resetRowIndex
+        .setColIndex(org.saddle.Index("c0","c1","c2"))
 
       assertEquals(takenF, expect)
     }
@@ -154,8 +154,8 @@ class QuerySuite
       val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
 
       val prg = ra3Table
-        .as[(I32Var, I32Var, I32Var)]
-        .schema { case (col0, col1, col2) => schema => query(schema.all) }
+        .as[("c0", "c1", "c2"), (ra3.I32Var, ra3.I32Var, ra3.I32Var)]
+        .schema { case table => query(ra3.all(table)) }
         .in(t => t.concat(t))
 
       println(prg.render)
@@ -172,6 +172,7 @@ class QuerySuite
 
       val expect =
         (tableFrame.concat(tableFrame)).resetRowIndex
+        .setColIndex(org.saddle.Index("c0","c1","c2"))
 
       assertEquals(takenF, expect)
     }

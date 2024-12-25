@@ -35,7 +35,7 @@ private[ra3] object ReduceTable {
         self.colNames,
         name
       )
-    }
+    }.logElapsed
   }
   def formSingleGroup(self: Table)(implicit tsc: TaskSystemComponents) = {
     require(
@@ -74,7 +74,7 @@ private[ra3] object ReduceTable {
         name
       )
       singleGroup
-    }
+    }.logElapsed
   }
 
 }

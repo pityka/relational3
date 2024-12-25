@@ -7,8 +7,8 @@ import scala.reflect.ClassTag
 /** ra3 provides an embedded query language and its corresponding query engine.
   *
   * ra3 is built on a distributed task execution library named tasks.
-  * Consequently almost all interactions with ra3 need a handle for a
-  * configured runtime environment represented by a value of the type
+  * Consequently almost all interactions with ra3 need a handle for a configured
+  * runtime environment represented by a value of the type
   * tasks.TaskSystemComponents. You can configure and start the tasks
   * environment with tasks.withTaskSystem method.
   *
@@ -22,15 +22,15 @@ import scala.reflect.ClassTag
   * Each query in ra3 is persisted to secondary storage and checkpointed.
   *
   * The entry points to the query language are the various methods in the
-  * [[ra3]] package or in the [[ra3.tablelang.TableExpr]] class which provide typed references
-  * to columns or references to tables, e.g.:
-  *   - [[ra3.tablelang.TableExpr.scheam]] 
+  * [[ra3]] package or in the [[ra3.tablelang.TableExpr]] class which provide
+  * typed references to columns or references to tables, e.g.:
+  *   - [[ra3.tablelang.TableExpr.scheam]]
   *
   * The query language builds an expression tree of type
   * [[ra3.tablelang.TableExpr]], which is evaluated with the
   * [[ra3.tablelang.TableExpr.evaluate]] into an IO[Table].
-  * [[ra3.tablelang.TableExpr]] is a description the query. The
-  * expression tree of the query may be printed in human readable form with
+  * [[ra3.tablelang.TableExpr]] is a description the query. The expression tree
+  * of the query may be printed in human readable form with
   * [[ra3.tablelang.TableExpr.render]].
   *
   * The following table level operators are available in ra3:
@@ -53,32 +53,48 @@ import scala.reflect.ClassTag
   *   - sub-query in filter (WHERE in (select id FROM ..))
   *
   * Partitioning. ra3 does not maintain random access indexes, but it is
-  * repartitioning (sharding / bucketizing / shuffling) the needed columns for a given group
-  * by or join operator such that all the keys needed to complete the operation
-  * are in the same partition.
+  * repartitioning (sharding / bucketizing / shuffling) the needed columns for a
+  * given group by or join operator such that all the keys needed to complete
+  * the operation are in the same partition.
   *
   * Language imports. You may choose to import everything from the ra3 package.
   * It does not contain any implicits.
   */
 package object ra3 {
 
+  // type Elem[T] = T match {
+  //   case ra3.BufferInt     => Int
+  //   case ra3.BufferLong    => Long
+  //   case ra3.BufferDouble  => Double
+  //   case ra3.BufferString  => CharSequence
+  //   case ra3.BufferInstant => Long
+  // }
+  type M2[T <: Tuple] <: Tuple = T match {
+    case EmptyTuple   => EmptyTuple
+    case StrVar *: t  => CharSequence *: M2[t]
+    case I32Var *: t  => Int *: M2[t]
+    case I64Var *: t  => Long *: M2[t]
+    case F64Var *: t  => Double *: M2[t]
+    case InstVar *: t => Long *: M2[t]
+
+  }
+
   /** The value which encodes a missing string. It is the string of length 1,
     * with content of the \u0001 character.
     */
   val MissingString = BufferString.MissingValue.toString
-  type StrVar = DStr
-  type I32Var = DI32
-  type I64Var = DI64
-  type F64Var = DF64
-  type InstVar = DInst
+  sealed trait Box[+T]
+  case class StrVar(v: DStr) extends Box[DStr]
+  case class I32Var(v: DI32) extends Box[DI32]
+  case class I64Var(v: DI64) extends Box[DI64]
+  case class F64Var(v: DF64) extends Box[DF64]
+  case class InstVar(v: DInst) extends Box[DInst]
 
   /** Table query with value type R
-    * 
     */
   type TQ[R] = ra3.tablelang.TableExpr[R]
 
   /** Row query with valeu type A
-    * 
     */
   type RQ[A] = ra3.lang.Expr[A]
 
@@ -100,26 +116,7 @@ package object ra3 {
   private[ra3] type Primitives =
     DI32 | DStr | DInst | DF64 | DI64 | String | Int | Long | Double | String |
       java.time.Instant
-  type ColumnSpecExpr[T <: Primitives] = Expr[ColumnSpec[T]]
-
-  import scala.language.implicitConversions
-  implicit def conversionDI32(
-      a: Expr[DI32]
-  ): ColumnSpecExpr[DI32] = a.unnamed
-
-  implicit def conversionDF64(
-      a: Expr[DF64]
-  ): ColumnSpecExpr[DF64] = a.unnamed
-  implicit def conversionDI64(
-      a: Expr[DI64]
-  ): ColumnSpecExpr[DI64] = a.unnamed
-  implicit def conversionDInst(
-      a: Expr[DInst]
-  ): ColumnSpecExpr[DInst] = a.unnamed
-
-  implicit def conversionStr(
-      a: Expr[DStr]
-  ): ColumnSpecExpr[DStr] = a.unnamed
+  type ColumnSpecExpr[N <: String, T <: Primitives] = Expr[ColumnSpec[N, T]]
 
   /** Import CSV data into ra3
     *
@@ -191,6 +188,9 @@ package object ra3 {
     }
   }
 
+  type CSVType[N <: Tuple, T <: Tuple] =
+    scala.NamedTuple.NamedTuple[N, Tuple.Map[T, CsvColumnDefToColumnType]]
+
   type CsvColumnDefToColumnType[T] = T match {
     case CSVColumnDefinition.I32Column     => ra3.I32Var
     case CSVColumnDefinition.I64Column     => ra3.I64Var
@@ -231,10 +231,10 @@ package object ra3 {
     * @param characterDecoder
     * @return
     */
-  inline def importCsv[T <: Tuple](
+  inline def importCsv[N <: Tuple, T <: Tuple](
       file: SharedFile,
       name: String,
-      columns: T,
+      columns: NamedTuple.NamedTuple[N, T],
       maxSegmentLength: Int,
       files: Seq[SharedFile] = Nil,
       compression: Option[CompressionFormat] = None,
@@ -244,9 +244,9 @@ package object ra3 {
       maxLines: Long = Long.MaxValue,
       bufferSize: Int = 8292,
       characterDecoder: CharacterDecoder = CharacterDecoder.ASCII(silent = true)
-  ) : TableExpr[Tuple.Map[T, ra3.CsvColumnDefToColumnType]] = {
+  ): TableExpr[CSVType[N, T]] = {
     val list = untuple(columns)
-    
+
     ra3.tablelang.TableExpr.ImportCsv(
       file,
       name,
@@ -263,13 +263,13 @@ package object ra3 {
     )
   }
 
-  inline def importFromStream[T <: Tuple: ClassTag](
-      stream: fs2.Stream[IO, T],
+  inline def importFromStream[N <: Tuple, T <: Tuple: ClassTag](
+      stream: fs2.Stream[IO, scala.NamedTuple.NamedTuple[N, T]],
       uniqueId: String,
       minimumSegmentSize: Int,
       maximumSegmentSize: Int
   )(implicit tsc: TaskSystemComponents) =
-    ImportFromStream.importFromStream[T](
+    ImportFromStream.importFromStream[N, T](
       stream,
       uniqueId,
       minimumSegmentSize,
@@ -298,15 +298,25 @@ package object ra3 {
     ra3.lang.Expr.makeOp0(ops.Op0.ConstantInstantS(s))
 
   /** Elementwise or group wise projection */
-  def select0: Expr[ra3.lang.ReturnValueTuple[EmptyTuple]] = ra3.lang.Expr
-    .makeOp0(ops.Op0.ConstantEmptyReturnValue)
-  def S: Expr[ra3.lang.ReturnValueTuple[EmptyTuple]] = ra3.lang.Expr
-    .makeOp0(ops.Op0.ConstantEmptyReturnValue)
+  def select0: Expr[ra3.lang.ReturnValueTuple[EmptyTuple, EmptyTuple]] =
+    ra3.lang.Expr
+      .makeOp0(ops.Op0.ConstantEmptyReturnValue)
+  def S: Expr[ra3.lang.ReturnValueTuple[EmptyTuple, EmptyTuple]] = select0
 
-  def select[T1 <: Tuple](
-      arg1: ra3.tablelang.Schema[T1]
-  ): Expr[ReturnValueTuple[T1]] =
-    select0.extend(arg1)
+  inline def all[
+      N <: Tuple,
+      V <: Tuple
+  ](
+      tuple: scala.NamedTuple.NamedTuple[N, V]
+  ) = ra3.tablelang.Schema.extendAll[N,V,""](tuple)
+  inline def allWithPrefix[
+      N <: Tuple,
+      V <: Tuple,
+      P <: String & Singleton
+  ](
+      tuple: scala.NamedTuple.NamedTuple[N, V],
+      prefix: String
+  ) = ra3.tablelang.Schema.extendAll[N,V,prefix.type](tuple)
 
   def where(arg0: ra3.lang.util.I32ColumnExpr) =
     select0.where(arg0)
@@ -314,11 +324,15 @@ package object ra3 {
     where(arg0)
 
   /** Simple query consisting of elementwise (row-wise) projection and filter */
-  def select[T <: Tuple](prg: ra3.lang.Expr[ra3.lang.ReturnValueTuple[T]]) =
+  def select[N <: Tuple, T <: Tuple](
+      prg: ra3.lang.Expr[ra3.lang.ReturnValueTuple[N, T]]
+  ) =
     query(prg)
 
   /** Simple query consisting of elementwise (row-wise) projection and filter */
-  def query[T <: Tuple](prg: ra3.lang.Expr[ra3.lang.ReturnValueTuple[T]]) = {
+  def query[N <: Tuple, T <: Tuple](
+      prg: ra3.lang.Expr[ra3.lang.ReturnValueTuple[N, T]]
+  ) = {
     val tables = prg.referredTables
     require(
       tables.size == 1,
@@ -331,7 +345,9 @@ package object ra3 {
     * rows which pass the filter
     */
 
-  def count[T <: Tuple](prg: ra3.lang.Expr[ra3.lang.ReturnValueTuple[T]]) = {
+  def count[N <: Tuple, T <: Tuple](
+      prg: ra3.lang.Expr[ra3.lang.ReturnValueTuple[N, T]]
+  ) = {
     val tables = prg.referredTables
     require(
       tables.size == 1,
@@ -348,8 +364,8 @@ package object ra3 {
     * This will read all rows of the needed columns into memory. You may want to
     * consult with partialReduce if the reduction is distributable.
     */
-  def reduce[T <: Tuple](
-      prg: ra3.lang.Expr[ra3.lang.ReturnValueTuple[T]]
+  def reduce[N <: Tuple, T <: Tuple](
+      prg: ra3.lang.Expr[ra3.lang.ReturnValueTuple[N, T]]
   ) = {
     val tables = prg.referredTables
 
@@ -367,8 +383,8 @@ package object ra3 {
     *
     * Reduces each segment independently. Returns a single row per segment.
     */
-  def partialReduce[T <: Tuple](
-      prg: ra3.lang.Expr[ra3.lang.ReturnValueTuple[T]]
+  def partialReduce[N <: Tuple, T <: Tuple](
+      prg: ra3.lang.Expr[ra3.lang.ReturnValueTuple[N, T]]
   ) = {
     val tables = prg.referredTables
 

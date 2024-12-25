@@ -123,8 +123,8 @@ private object ImportFromStream {
     case String  => ra3.StrVar
     case Instant => ra3.InstVar
   }
-  inline def importFromStream[T <: Tuple: ClassTag](
-      stream: fs2.Stream[IO, T],
+  inline def importFromStream[N <: Tuple, T <: Tuple: ClassTag](
+      stream: fs2.Stream[IO, scala.NamedTuple.NamedTuple[N, T]],
       uniqueId: String,
       minimumSegmentSize: Int,
       maximumSegmentSize: Int
@@ -160,7 +160,7 @@ private object ImportFromStream {
           tag.makeTaggedColumn(tag.makeColumn(segments))
         }
       val names = columns.zipWithIndex.map(v => s"${v._2}")
-      Table(columns, names, uniqueId, None).as[Tuple.Map[T, DefToColumnType]]
+      Table(columns, names, uniqueId, None).as[N, Tuple.Map[T, DefToColumnType]]
       }
 
   }

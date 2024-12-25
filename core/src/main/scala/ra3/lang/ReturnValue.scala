@@ -1,32 +1,37 @@
 package ra3.lang
 
 import ra3.*
+import scala.NamedTuple.NamedTuple
 
-case class ReturnValueTuple[A <: Tuple](
-    private val list: List[ColumnSpec[Any]],
+case class ReturnValueTuple[N <: Tuple, V <: Tuple](
+    private val list: List[ColumnSpec[?, Any]],
     filter: Option[DI32]
 ) {
-  type MM = Tuple.Map[A, ra3.lang.Expr.DelayedIdent]
-  def replacePredicate(i: Option[DI32]) = ReturnValueTuple[A](list, i)
+  // type A = NamedTuple[N,V]
+  // type MM = scala.NamedTuple.Map[A, ra3.lang.Expr.DelayedIdent]
+  def replacePredicate(i: Option[DI32]) = ReturnValueTuple[N, V](list, i)
 
-  infix def :*[T](v: ColumnSpec[T]) = extend(v)
+  infix inline def :*[N0, T](v: ColumnSpec[N0, T]) = extend[N0, T](v)
 
-  def extend[T](v: ColumnSpec[T]) =
-    ReturnValueTuple[Tuple.Append[A, T]](list ++ List(v), filter)
-  inline def drop[N <: Int] = {
-    val i = scala.compiletime.constValue[N]
-    ReturnValueTuple[Tuple.Drop[A, N]](list.drop(i), filter)
+  inline def extend[N0, T](v: ColumnSpec[N0, T]) =
+    ReturnValueTuple[Tuple.Append[N, N0], Tuple.Append[V, T]](
+      list ++ List(v),
+      filter
+    )
+  inline def drop[n <: Int] = {
+    val i = scala.compiletime.constValue[n]
+    ReturnValueTuple[Tuple.Drop[N, n], Tuple.Drop[V, n]](list.drop(i), filter)
   }
 
-  def concat[B <: Tuple](b: ReturnValueTuple[B]) = {
-    ReturnValueTuple[Tuple.Concat[A, B]](
+  def concat[BN <: Tuple, B <: Tuple](b: ReturnValueTuple[BN, B]) = {
+    ReturnValueTuple[Tuple.Concat[N, BN], Tuple.Concat[V, B]](
       list ++ b.list,
       b.filter.orElse(filter)
     )
   }
 }
 object ReturnValueTuple {
-  val empty = ReturnValueTuple[EmptyTuple](Nil, None)
+  val empty = ReturnValueTuple[EmptyTuple, EmptyTuple](Nil, None)
 
-  def list(r: ReturnValueTuple[?]): List[ColumnSpec[?]] = r.list
+  def list(r: ReturnValueTuple[?, ?]): List[ColumnSpec[?, ?]] = r.list
 }

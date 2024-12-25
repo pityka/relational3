@@ -82,7 +82,7 @@ private[ra3] object MultipleTableQuery {
               IO.pure(
                 (
                   key,
-                  Left(tag.makeTaggedBuffer(tag.makeBufferFromSeq())),
+                  (tag.makeTaggedBuffer(tag.makeBufferFromSeq())),
                   segment._2.columnName
                 )
               )
@@ -94,7 +94,7 @@ private[ra3] object MultipleTableQuery {
                 .map(b =>
                   (
                     key,
-                    Left(tag.makeTaggedBuffer(tag.take(b, takeBuffer))),
+                    (tag.makeTaggedBuffer(tag.take(b, takeBuffer))),
                     segment.columnName
                   )
                 )
@@ -104,7 +104,7 @@ private[ra3] object MultipleTableQuery {
                   segment.segment.map(_.asInstanceOf[tag.SegmentType])
                 )
                 .map(b =>
-                  (key, Left(tag.makeTaggedBuffer(b)), segment.columnName)
+                  (key, (tag.makeTaggedBuffer(b)), segment.columnName)
                 )
           }
       )
@@ -112,13 +112,13 @@ private[ra3] object MultipleTableQuery {
       takenBuffers.flatMap { takenBuffers =>
         val env1: Map[ra3.lang.Key, ra3.lang.runtime.Value] =
           takenBuffers.map { case (key, bufAsLeft, _) =>
-            (key, ra3.lang.runtime.Value(bufAsLeft))
+            (key, ra3.lang.runtime.Value(bufAsLeft.wrap))
           }.toMap
         val env = env1
 
         ra3.lang.runtime.Expr
           .evaluate(predicate, env)
-          .map(_.v.asInstanceOf[ReturnValueTuple[?]])
+          .map(_.v.asInstanceOf[ReturnValueTuple[?, ?]])
           .flatMap { returnValue =>
             val mask = returnValue.filter
 
@@ -130,13 +130,11 @@ private[ra3] object MultipleTableQuery {
               case _                                     => false
             })
 
-            val selected: IO[List[NamedColumnSpec[?]]] = IO
+            val selected: IO[List[ColumnSpec[?, ?]]] = IO
               .parSequenceN(32)(
                 ReturnValueTuple.list(returnValue).zipWithIndex.map {
-                  case (v: NamedColumnSpec[?], _) =>
+                  case (v: ColumnSpec[?, ?], _) =>
                     IO.pure((v))
-                  case (v: UnnamedColumnSpec[?], idx) =>
-                    IO.pure((v.withName(s"V$idx")))
                   // case x =>
                   //   throw new RuntimeException("Unexpected unmatched case "+x)
                 }
@@ -227,7 +225,7 @@ private[ra3] object MultipleTableQuery {
             }
           }
       }
-    }
+    }.logElapsed
   }
   def queue(
       input: Seq[TypedSegmentWithName],

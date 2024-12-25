@@ -55,7 +55,7 @@ private[ra3] object MergeCDFs {
       IO.both(xS, yS)
         .map(v => UntypedCDF(v._1, v._2))
 
-    }
+    }.logElapsed
   }
 
   def queue(tag: ColumnTag)(

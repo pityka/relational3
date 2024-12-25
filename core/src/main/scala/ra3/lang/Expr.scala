@@ -46,19 +46,11 @@ sealed trait Expr[+T] { self =>
 }
 object Expr {
 
-  extension [T](arg0: Expr[ColumnSpec[T]]) {
+  extension [N <: String, T](arg0: Expr[ColumnSpec[N, T]]) {
     @scala.annotation.targetName(":*ColumnSpec")
-    infix def :*[T1](v: Expr[ColumnSpec[T1]]) = ra3.S.extend(arg0).extend(v)
-    @scala.annotation.targetName(":*DF64")
-    infix def :*(v: Expr[ra3.DF64]) = ra3.S.extend(arg0).extend(v.unnamed)
-    @scala.annotation.targetName(":*DStr")
-    infix def :*(v: Expr[ra3.DStr]) = ra3.S.extend(arg0).extend(v.unnamed)
-    @scala.annotation.targetName(":*DI32")
-    infix def :*(v: Expr[ra3.DI32]) = ra3.S.extend(arg0).extend(v.unnamed)
-    @scala.annotation.targetName(":*DI64")
-    infix def :*(v: Expr[ra3.DI64]) = ra3.S.extend(arg0).extend(v.unnamed)
-    @scala.annotation.targetName(":*DInst")
-    infix def :*(v: Expr[ra3.DInst]) = ra3.S.extend(arg0).extend(v.unnamed)
+    infix def :*[N1 <: String, T1](v: Expr[ColumnSpec[N1, T1]]) =
+      ra3.S.extend(arg0).extend(v)
+
   }
   def toRuntime[T](e: Expr[T], dt: DelayedTableSchema) = {
     e.replaceDelayed(
@@ -67,8 +59,14 @@ object Expr {
       .toRuntime
   }
 
-  implicit class SyntaxReturnExpr[T0 <: Tuple](a: Expr[ReturnValueTuple[T0]])
-      extends ra3.lang.syntax.SyntaxReturnExprImpl[T0] {
+  // implicit class SyntaxReturnExpr[T0 <: Tuple](a: Expr[ReturnValueTuple[T0]])
+  //     extends ra3.lang.syntax.SyntaxReturnExprImpl[T0] {
+  //   protected val arg0 = a
+
+  // }
+  implicit class SyntaxReturnExprNamed[N <: Tuple, T0 <: Tuple](
+      a: Expr[ReturnValueTuple[N, T0]]
+  ) extends ra3.lang.syntax.SyntaxReturnExprImplNamed[N, T0] {
     protected val arg0 = a
 
   }
@@ -76,6 +74,14 @@ object Expr {
       extends ra3.lang.syntax.SyntaxExprImpl[T0] {
     // type T00 = T0
     protected val arg0 = a
+
+  }
+  implicit class SyntaxExprStringColumnSpecString[T0](
+      a: Expr[ColumnSpec[String, T0]]
+  ) {
+    // this cast is needed because I can't thread type variable across serialization
+    def castToName[N <: String] = a.asInstanceOf[Expr[ColumnSpec[N, T0]]]
+    def castToName2[N] = a.asInstanceOf[Expr[ColumnSpec[N, T0]]]
 
   }
 

@@ -70,7 +70,7 @@ private[ra3] object TakePartition {
       .map { partitions =>
         assert(partitions.size == numPartition)
         partitions
-      }
+      }.logElapsed
 
   }
   def queue(

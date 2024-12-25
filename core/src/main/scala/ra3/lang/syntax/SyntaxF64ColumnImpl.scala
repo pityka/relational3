@@ -78,28 +78,9 @@ private[ra3] trait SyntaxF64ColumnImpl {
     ra3.lang.Expr.Ident[Int](ra3.lang.Numgroups)
   )
 
-  def unnamed = ra3.lang.Expr
-    .BuiltInOp1(ops.Op1.MkUnnamedColumnSpecChunkF64)(arg0)
-
-  infix def as(arg1: Expr[String]) =
+  infix def as[N <: String](arg1: N): Expr[ColumnSpec[arg1.type, ra3.F64Var]] =
     ra3.lang.Expr
-      .BuiltInOp2(ops.Op2.MkNamedColumnSpecChunkF64)(arg0, arg1)
-
-  infix def as(arg1: String): ColumnSpecExpr[DF64] = as(ra3.const(arg1))
-
-  @scala.annotation.targetName(":*ColumnSpec")
-  infix def :*[T1](v: Expr[ColumnSpec[T1]]) =
-    ra3.S.extend(arg0.unnamed).extend(v)
-  @scala.annotation.targetName(":*DF64")
-  infix def :*(v: Expr[ra3.DF64]) = ra3.S.extend(arg0.unnamed).extend(v.unnamed)
-  @scala.annotation.targetName(":*DStr")
-  infix def :*(v: Expr[ra3.DStr]) = ra3.S.extend(arg0.unnamed).extend(v.unnamed)
-  @scala.annotation.targetName(":*DI32")
-  infix def :*(v: Expr[ra3.DI32]) = ra3.S.extend(arg0.unnamed).extend(v.unnamed)
-  @scala.annotation.targetName(":*DI64")
-  infix def :*(v: Expr[ra3.DI64]) = ra3.S.extend(arg0.unnamed).extend(v.unnamed)
-  @scala.annotation.targetName(":*DInst")
-  infix def :*(v: Expr[ra3.DInst]) =
-    ra3.S.extend(arg0.unnamed).extend(v.unnamed)
+      .BuiltInOp1(ops.Op1.MkNamedColumnSpecChunkF64(arg1))(arg0)
+      .castToName[arg1.type]
 
 }

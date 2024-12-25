@@ -19,31 +19,32 @@ private[ra3] object ComputeJoinIndex {
       first: Column,
       rest: Seq[(Column, String, Int)], // col, how , index of against which one
       outputPath: LogicalPath
-  )(implicit tsc: TaskSystemComponents): IO[Seq[Option[SegmentInt]]] = {
-    scribe.debug(
-      f"Compute join index between ${tag}(n=${tag.numElems(first.asInstanceOf[tag.ColumnType])}%,d) and ${rest
-          .map { case (col, how, i) =>
-            f"${tag}(n=${tag.numElems(col.asInstanceOf[tag.ColumnType])}%,d) $how $i"
-          }
-          .mkString(" x ")} to $outputPath"
-    )
-    if (rest.size == 1) {
-      val (c, h, _) = rest.head
-      doit2(tag)(
-        first.asInstanceOf[tag.ColumnType],
-        c.asInstanceOf[tag.ColumnType],
-        h,
-        outputPath
-      ).map { case (a, b) => List(a, b) }
-    } else
-      doitMultiple(tag)(
-        first.asInstanceOf[tag.ColumnType],
-        rest.map { case (a, b, c) =>
-          (a.asInstanceOf[tag.ColumnType], b, c)
-        },
-        outputPath
+  )(implicit tsc: TaskSystemComponents): IO[Seq[Option[SegmentInt]]] =
+    Elapsed.logElapsed {
+      scribe.debug(
+        f"Compute join index between ${tag}(n=${tag.numElems(first.asInstanceOf[tag.ColumnType])}%,d) and ${rest
+            .map { case (col, how, i) =>
+              f"${tag}(n=${tag.numElems(col.asInstanceOf[tag.ColumnType])}%,d) $how $i"
+            }
+            .mkString(" x ")} to $outputPath"
       )
-  }
+      if (rest.size == 1) {
+        val (c, h, _) = rest.head
+        doit2(tag)(
+          first.asInstanceOf[tag.ColumnType],
+          c.asInstanceOf[tag.ColumnType],
+          h,
+          outputPath
+        ).map { case (a, b) => List(a, b) }
+      } else
+        doitMultiple(tag)(
+          first.asInstanceOf[tag.ColumnType],
+          rest.map { case (a, b, c) =>
+            (a.asInstanceOf[tag.ColumnType], b, c)
+          },
+          outputPath
+        )
+    }
   private def doit2(tag: ColumnTag)(
       left: tag.ColumnType,
       right: tag.ColumnType,
@@ -74,8 +75,8 @@ private[ra3] object ComputeJoinIndex {
         .parSequenceN(32)(tag.segments(right).map(tag.buffer))
         .map(b => tag.cat(b*))
 
-      IO.both(bufferedLeft, bufferedRight).flatMap {
-        case (bufferedLeft, bufferedRight) =>
+      IO.both(bufferedLeft, bufferedRight)
+        .flatMap { case (bufferedLeft, bufferedRight) =>
           val (takeLeft, takeRight) =
             tag.computeJoinIndexes(bufferedLeft, bufferedRight, how)
 
@@ -106,7 +107,8 @@ private[ra3] object ComputeJoinIndex {
             )
             .getOrElse(IO.pure(None))
           IO.both(takeLeftS, takeRightS)
-      }
+        }
+        .logElapsed
     }
   }
   private def doitMultiple(tag: ColumnTag)(
@@ -136,9 +138,10 @@ private[ra3] object ComputeJoinIndex {
       lazy val bufferedRight = IO
         .parSequenceN(32)(tag.segments(nextColumn).map(tag.buffer))
         .map(b => tag.cat(b*))
+        .logElapsed
 
-      bufferedRight.map { case bufferedRight =>
-        if (how == "inner" && emptyOverlap(bufferedLeft, nextColumn)) {
+      def join(bufferedRight: tag.BufferType) =
+        IO.delay(if (how == "inner" && emptyOverlap(bufferedLeft, nextColumn)) {
           previousTakes.map { case (b, _) =>
             (tag.take(b, BufferInt.empty), Some(BufferInt.empty))
           } :+ ((tag.makeBufferFromSeq(), Some(BufferInt.empty)))
@@ -162,15 +165,35 @@ private[ra3] object ComputeJoinIndex {
             takeRight.map(tag.take(bufferedRight, _)).getOrElse(bufferedRight)
 
           updatedPreviousTakes :+ ((nextRight, takeRight))
-        }
+        }).logElapsed
+
+      bufferedRight.flatMap { case bufferedRight =>
+        join(bufferedRight)
 
       }
-    }
+    }.logElapsed
 
     val start: IO[Seq[(tag.BufferType, Option[BufferInt])]] = IO
       .parSequenceN(32)(tag.segments(first).map(tag.buffer))
       .map(b => tag.cat(b*))
       .map { b => List((b, Option.empty[BufferInt])) }
+      .logElapsed
+
+    def finish(list: Seq[(tag.BufferType, Option[ra3.BufferInt])]) = IO
+      .parSequenceN(32)(list.zipWithIndex.map { case ((_, take), idx) =>
+        take
+          .map(
+            ColumnTag.I32
+              .toSegment(
+                _,
+                outputPath
+                  .copy(table = outputPath.table + s".joinindex.$idx")
+              )
+              .map(Some(_))
+          )
+          .getOrElse(IO.pure(Option.empty[SegmentInt]))
+      })
+      .logElapsed
 
     rest
       .foldLeft(start) { case (acc, (next, how, against)) =>
@@ -184,20 +207,9 @@ private[ra3] object ComputeJoinIndex {
         }
       }
       .flatMap { list =>
-        IO.parSequenceN(32)(list.zipWithIndex.map { case ((_, take), idx) =>
-          take
-            .map(
-              ColumnTag.I32
-                .toSegment(
-                  _,
-                  outputPath
-                    .copy(table = outputPath.table + s".joinindex.$idx")
-                )
-                .map(Some(_))
-            )
-            .getOrElse(IO.pure(Option.empty[SegmentInt]))
-        })
+        finish(list)
       }
+      .logElapsed
 
   }
   def queue(tag: ColumnTag)(

@@ -106,7 +106,7 @@ private[ra3] object Render {
     case ColumnGtEqOpStrcStr           => ">="
     case ColumnGtOpStrcStr             => ">"
     case ColumnMatchesOpStrcStr        => "~"
-    case _: MkReturnWhere[?]           => "WHERE"
+    case _: MkReturnWhere[?, ?]        => "WHERE"
     case ColumnEqOpLcL                 => "=="
     case ColumnNEqOpII                 => "!="
     case ColumnEqOpII                  => "=="
@@ -174,35 +174,26 @@ private[ra3] object Render {
     op match {
       case ColumnToInstantEpochMilliOpL =>
         render(arg, keyTags) + ".toEpochMilli"
-      case MkUnnamedConstantI32         => render(arg, keyTags)
-      case MkUnnamedColumnSpecChunkI32  => render(arg, keyTags)
-      case MkUnnamedColumnSpecChunkI64  => render(arg, keyTags)
-      case MkUnnamedColumnSpecChunkF64  => render(arg, keyTags)
-      case MkUnnamedColumnSpecChunkStr  => render(arg, keyTags)
-      case MkUnnamedColumnSpecChunkInst => render(arg, keyTags)
-      case MkUnnamedConstantI64         => render(arg, keyTags)
-      case ColumnIsMissingOpL           => render(arg, keyTags) + ".isnull"
-      case ColumnIsMissingOpD           => render(arg, keyTags) + ".isnull"
-      case ColumnRoundToIntOpD          => render(arg, keyTags) + ".toInt"
-      case MkUnnamedConstantF64         => render(arg, keyTags)
-      case ColumnToDoubleOpL            => render(arg, keyTags) + ".toDouble"
-      case ColumnIsMissingOpInst        => render(arg, keyTags) + ".isnull"
-      case ColumnNanosecondsOpInst      => render(arg, keyTags) + ".nanoseconds"
-      case ColumnMinutesOpInst          => render(arg, keyTags) + ".minutes"
-      case ColumnSecondsOpInst          => render(arg, keyTags) + ".seconds"
-      case ColumnYearsOpInst            => render(arg, keyTags) + ".years"
-      case ColumnHoursOpInst            => render(arg, keyTags) + ".hours"
-      case ColumnMonthsOpInst           => render(arg, keyTags) + ".months"
-      case ColumnDaysOpInst             => render(arg, keyTags) + ".days"
-      case ToString                     => render(arg, keyTags) + ".toString"
-      case MkUnnamedConstantStr         => render(arg, keyTags)
-      case ColumnToISOOpInst            => render(arg, keyTags) + ".toInstISO"
-      case ColumnToLongOpInst           => render(arg, keyTags) + ".toLong"
-      case ColumnParseI64OpStr          => render(arg, keyTags) + ".toLong"
-      case ColumnParseInstOpStr         => render(arg, keyTags) + ".toInst"
-      case ColumnAbsOpI                 => render(arg, keyTags) + ".abs"
-      case ColumnIsMissingOpI           => render(arg, keyTags) + ".isnull"
-      case ColumnNotOpI                 => "not(" + render(arg, keyTags) + ")"
+      case ColumnIsMissingOpL      => render(arg, keyTags) + ".isnull"
+      case ColumnIsMissingOpD      => render(arg, keyTags) + ".isnull"
+      case ColumnRoundToIntOpD     => render(arg, keyTags) + ".toInt"
+      case ColumnToDoubleOpL       => render(arg, keyTags) + ".toDouble"
+      case ColumnIsMissingOpInst   => render(arg, keyTags) + ".isnull"
+      case ColumnNanosecondsOpInst => render(arg, keyTags) + ".nanoseconds"
+      case ColumnMinutesOpInst     => render(arg, keyTags) + ".minutes"
+      case ColumnSecondsOpInst     => render(arg, keyTags) + ".seconds"
+      case ColumnYearsOpInst       => render(arg, keyTags) + ".years"
+      case ColumnHoursOpInst       => render(arg, keyTags) + ".hours"
+      case ColumnMonthsOpInst      => render(arg, keyTags) + ".months"
+      case ColumnDaysOpInst        => render(arg, keyTags) + ".days"
+      case ToString                => render(arg, keyTags) + ".toString"
+      case ColumnToISOOpInst       => render(arg, keyTags) + ".toInstISO"
+      case ColumnToLongOpInst      => render(arg, keyTags) + ".toLong"
+      case ColumnParseI64OpStr     => render(arg, keyTags) + ".toLong"
+      case ColumnParseInstOpStr    => render(arg, keyTags) + ".toInst"
+      case ColumnAbsOpI            => render(arg, keyTags) + ".abs"
+      case ColumnIsMissingOpI      => render(arg, keyTags) + ".isnull"
+      case ColumnNotOpI            => "not(" + render(arg, keyTags) + ")"
       // case MkRawWhere                 => "WHERE " + render(arg)
       case ColumnParseF64OpStr      => render(arg, keyTags) + ".toDouble"
       case ColumnToDoubleOpInst     => render(arg, keyTags) + ".toDouble"
@@ -306,7 +297,22 @@ private[ra3] object Render {
     import TableExpr.*
     val padInt = (0 until indent).map(_ => "  ").mkString
     expr match {
-      case ImportCsv(arg0, name, columns, maxSegmentLength, files, compression, recordSeparator, fieldSeparator, header, maxLines, bufferSize, characterDecoder, parallelism) => s"IMPORT CSV FROM ${(List(arg0) ++ files).mkString(", ")} as $columns"
+      case ImportCsv(
+            arg0,
+            name,
+            columns,
+            maxSegmentLength,
+            files,
+            compression,
+            recordSeparator,
+            fieldSeparator,
+            header,
+            maxLines,
+            bufferSize,
+            characterDecoder,
+            parallelism
+          ) =>
+        s"IMPORT CSV FROM ${(List(arg0) ++ files).mkString(", ")} as $columns"
       case Const(table) =>
         f"<${table.uniqueId}|${table.numRows}%,2d x${table.numCols}%,2d|${table.colNames.zip(table.columns.map(_.tag)).map { case (name, tag) => name + " " + tag }.mkString("| ")}>"
       case Ident(key) =>

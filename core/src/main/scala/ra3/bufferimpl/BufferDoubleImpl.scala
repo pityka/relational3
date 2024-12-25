@@ -318,7 +318,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
     if (values.length == 0)
       IO.pure(SegmentDouble(None, 0, StatisticDouble.empty))
     else
-      IO {
+      (IO {
 
         val bb =
           ByteBuffer.allocate(8 * values.length).order(ByteOrder.LITTLE_ENDIAN)
@@ -330,7 +330,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
           .map(sf =>
             SegmentDouble(Some(sf), values.length, self.makeStatistic())
           )
-      }
+      }).logElapsed
 
   def elementwise_eq(other: BufferType): BufferInt = {
     assert(other.length == self.length)

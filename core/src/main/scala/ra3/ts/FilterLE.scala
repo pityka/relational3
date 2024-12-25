@@ -83,7 +83,7 @@ private[ra3] object FilterInequality {
           )
         }
       else IO.pure(inputTag.emptySegment)
-    }
+    }.logElapsed
   }
   // $COVERAGE-OFF$
   implicit val codec: JsonValueCodec[FilterInequality] = JsonCodecMaker.make

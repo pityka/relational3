@@ -65,7 +65,6 @@ private[ra3] object GenericTable {
       }
       i += 1
     }
-    println("Misses: " + misses + " keys: " + keys.length)
     (GenericTable(table, keys, payload), buffer.toArray)
   }
   def build[T: ClassTag](keys: Array[T], payload: Array[Int]) = {

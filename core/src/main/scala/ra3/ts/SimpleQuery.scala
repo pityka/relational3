@@ -75,7 +75,8 @@ private[ra3] object SimpleQuery {
               segmentWithName.tableUniqueId,
               segmentWithName.columnIdx
             )
-            (columnKey, ra3.lang.runtime.Value(Right(segmentWithName.segment)))
+            
+            (columnKey, ra3.lang.runtime.Value(tag.wrap(segmentWithName.segment.asInstanceOf[Seq[tag.SegmentType]])))
           }
           .filter(v => neededColumns.contains(v._1))
           .toMap
@@ -88,7 +89,7 @@ private[ra3] object SimpleQuery {
 
       ra3.lang.runtime.Expr
         .evaluate(predicate, env)
-        .map(_.v.asInstanceOf[ReturnValueTuple[?]])
+        .map(_.v.asInstanceOf[ReturnValueTuple[?, ?]])
         .flatMap { returnValue =>
           val mask = returnValue.filter
 
@@ -112,19 +113,17 @@ private[ra3] object SimpleQuery {
                 .list(returnValue)} filter: ${returnValue.filter} maskIsEmpty=$maskIsEmpty maskIsComplete=$maskIsComplete"
           )
 
-          val selected: IO[List[NamedColumnSpec[?]]] = IO
+          val selected: IO[List[ColumnSpec[?, ?]]] = IO
             .parSequenceN(32)(
               ReturnValueTuple.list(returnValue).zipWithIndex.map {
-                case (v: NamedColumnSpec[?], _) =>
+                case (v: ColumnSpec[?, ?], _) =>
                   IO.pure((v))
-                case (v: UnnamedColumnSpec[?], idx) =>
-                  IO.pure((v.withName(s"V$idx")))
                 // case x =>
                 //   throw new RuntimeException("Unexpected unmatched case "+x)
               }
             )
 
-          val fusedSegments: IO[List[NamedColumnSpec[?]]] = selected.flatMap {
+          val fusedSegments: IO[List[ColumnSpec[?, ?]]] = selected.flatMap {
             list =>
               IO.parSequenceN(32)(list.map { case value =>
                 value match {
@@ -270,7 +269,7 @@ private[ra3] object SimpleQuery {
           }
         }
 
-    }
+    }.logElapsed
   }
   def queue(
       // (segment, table unique id)

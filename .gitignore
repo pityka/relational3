@@ -6,4 +6,6 @@ target/
 metals.sbt
 todo
 demo/
+storage/
 .scala-build/
+example_cli/*gz

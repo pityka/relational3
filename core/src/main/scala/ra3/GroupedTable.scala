@@ -164,7 +164,7 @@ private[ra3] object GroupedTable {
           ts.SimpleQueryCount
             .queue(
               input = (0 until columns).toVector.map { columnIdx =>
-                ra3.ts.SegmentWithName(
+                partition.columns(columnIdx).tag -> ra3.ts.SegmentWithName(
                   segment = partition
                     .columns(columnIdx)
                     .segments, // to be removed
@@ -191,7 +191,7 @@ private[ra3] object GroupedTable {
               )
             }
         }
-    }
+    }.logElapsed
 
   }
 }

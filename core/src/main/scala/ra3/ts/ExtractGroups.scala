@@ -65,7 +65,7 @@ private[ra3] object ExtractGroups {
           outputPath.copy(table = outputPath.table + "-g" + gIdx)
         )
       })
-    }
+    }.logElapsed
   }
   // $COVERAGE-OFF$
   implicit val codec: JsonValueCodec[ExtractGroups] = JsonCodecMaker.make

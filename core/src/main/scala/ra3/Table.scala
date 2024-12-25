@@ -150,11 +150,12 @@ case class Table(
     bufferStream.flatMap(_.toTuples[T])
   }
   private[ra3] transparent inline def streamOfTuplesFromColumnChunks[
+      N <: Tuple,
       T <: Tuple
   ](implicit
       tsc: TaskSystemComponents
   ) = {
-    bufferStream.flatMap(_.toTuplesFromColumnChunks[T])
+    bufferStream.flatMap(_.toTuplesFromColumnChunks[N, T])
   }
   private[ra3] transparent inline def streamOfSingleColumnChunk[
       T
@@ -170,8 +171,8 @@ case class Table(
     *
     * Entry point of TableExpr DSL
     */
-  def as[T1 <: Tuple] =
-    TableExpr.const[T1](this)
+  def as[N <: Tuple, T1 <: Tuple] =
+    TableExpr.const[N, T1](this)
 
 }
 

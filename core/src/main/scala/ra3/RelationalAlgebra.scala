@@ -51,7 +51,7 @@ private[ra3] trait RelationalAlgebra { self: Table =>
             self.partitions
           )
         )
-      }
+      }.logElapsed
   }
 
   private[ra3] def prePartition(
@@ -89,7 +89,7 @@ private[ra3] trait RelationalAlgebra { self: Table =>
           )
       )
 
-    }
+    }.logElapsed
 
   }
 
@@ -100,7 +100,7 @@ private[ra3] trait RelationalAlgebra { self: Table =>
       partitionLimit: Int,
       maxItemsToBufferAtOnce: Int
   )(implicit tsc: TaskSystemComponents): IO[Vector[PartitionedTable]] =
-    if (self.numRows <= partitionLimit.toLong)
+   ( if (self.numRows <= partitionLimit.toLong)
       IO.pure(Vector(PartitionedTable(self.columns, PartitionMeta(Nil, 1))))
     else if (
       self.partitions.isDefined && self.partitions.get.columns == columnIdx && (self.partitions.get.partitionBase == partitionBase || !numPartitionsIsImportant)
@@ -157,7 +157,7 @@ private[ra3] trait RelationalAlgebra { self: Table =>
           "-"
         ) + "-" + partitionBase + "-" + partitionLimit
       )
-    }
+    }).logElapsed
 
   /** Group by which return group locations
     *
@@ -219,7 +219,7 @@ private[ra3] trait RelationalAlgebra { self: Table =>
           groupedPartitions
         }
         .map(GroupedTable(_, this.colNames, name))
-    }
+    }.logElapsed
 
   }
 
@@ -262,7 +262,7 @@ private[ra3] trait RelationalAlgebra { self: Table =>
           }
 
       }).map(GroupedTable(_, this.colNames, name))
-    }
+    }.logElapsed
 
   }
 
@@ -289,7 +289,7 @@ private[ra3] trait RelationalAlgebra { self: Table =>
       } toVector
 
       Table(cols, all.head.colNames, name, None)
-    }
+    }.logElapsed
   }
 
   /** \= Top K selection
@@ -351,7 +351,7 @@ private[ra3] trait RelationalAlgebra { self: Table =>
       case Some(cutoff) =>
         if (ascending) self.rfilterInEquality(sortColumn, cutoff, true)
         else self.rfilterInEquality(sortColumn, cutoff, false)
-    }
+    }.logElapsed
 
   }
 
@@ -377,7 +377,7 @@ private[ra3] trait RelationalAlgebra { self: Table =>
           outputSegmentIndex = segmentIdx,
           compression = compression
         )
-    })
+    }).logElapsed
 
   }
 

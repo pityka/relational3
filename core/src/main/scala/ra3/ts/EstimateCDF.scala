@@ -32,7 +32,7 @@ private[ra3] object EstimateCDF {
         tag.toSegment(t._1, outputPath.appendToTable(".cdfX")),
         doubleTag.toSegment(t._2, outputPath.appendToTable(".cdfY"))
       )
-    }
+    }.logElapsed
   }
   def queue(tag: ColumnTag)(
       input: tag.SegmentType,

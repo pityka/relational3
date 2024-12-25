@@ -1,5 +1,5 @@
 package ra3
-import org.saddle.*
+import org.saddle.{ST, mat, Frame, Series, Vec, SeqToVec, Index}
 
 import cats.effect.unsafe.implicits.global
 import ColumnTag.I32
@@ -24,14 +24,15 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
       val ra3Table = csvStringToDoubleTable("table", tableCsv, 2, 3)
 
       def predicateTest(tag: String)(
-          p: (DelayedIdent[DF64], DelayedIdent[DF64]) => I32ColumnExpr
+          p: (DelayedIdent[F64Var], DelayedIdent[F64Var]) => I32ColumnExpr
       )(p2: (Vec[Double], Vec[Double]) => Array[Int]) = {
         val less = ra3Table
-          .as[(F64Var, F64Var)]
-          .schema { (col0, col1) => schema =>
+          .as[("c0", "c1"), (F64Var, F64Var)]
+          .schema { t =>
             query(
-              schema.all
-                .where(p(col0, col1))
+              ra3
+                .all(t)
+                .where(p(t.c0, t.c1))
             )
 
           }
@@ -43,7 +44,7 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
           tableFrame
             .rowAt(p2(tableFrame.colAt(0).toVec, tableFrame.colAt(1).toVec))
             .resetRowIndex
-            .setColIndex(Index("V0", "V1"))
+            .setColIndex(Index("c0", "c1"))
 
         assertEquals(takenF, expect, tag)
       }
@@ -130,27 +131,24 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
         (frame.mapValues(_.toString), csv)
       }
       val ra3Table = csvStringToStringTable("table", tableCsv, 2, 3)
-        .as[(StrVar, StrVar)]
-        .schema((col0, col1) =>
-          _ =>
-            query(
-              ra3.select0
-                .extend(col0.matchAndReplace("NA", MissingString) as "V0")
-                .extend(
-                  col1.matchAndReplace("NA", MissingString) as "V1"
-                )
-            )
+        .as[("c0", "c1"), (StrVar, StrVar)]
+        .schema(t =>
+          query(
+            ra3.select0
+              .extend(t.c0.matchAndReplace("NA", MissingString) as "c0")
+              .extend(
+                t.c1.matchAndReplace("NA", MissingString) as "c1"
+              )
+          )
         )
         .evaluate
         .unsafeRunSync()
       def predicateTest(tag: String)(
-          p: (DelayedIdent[DStr], DelayedIdent[DStr]) => I32ColumnExpr
+          p: (DelayedIdent[StrVar], DelayedIdent[StrVar]) => I32ColumnExpr
       )(p2: (Vec[String], Vec[String]) => Array[Int]) = {
         val less = ra3Table
-          .as[(StrVar, StrVar)]
-          .schema((col0, col1) =>
-            schema => query(schema.all.where(p(col0, col1)))
-          )
+          .as[("c0", "c1"), (StrVar, StrVar)]
+          .schema(t => query(ra3.all(t).where(p(t.c0, t.c1))))
           .evaluate
           .unsafeRunSync()
         val takenF = toFrame2(less, ColumnTag.StringTag)
@@ -162,7 +160,7 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
           tableFrame
             .rowAt(p2(tableFrame.colAt(0).toVec, tableFrame.colAt(1).toVec))
             .resetRowIndex
-            .setColIndex(Index("V0", "V1"))
+            .setColIndex(Index("c0", "c1"))
             .mapRowIndex(_ => "_")
 
         assertEquals(takenF, expect, tag)
@@ -248,16 +246,16 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
       val ra3Table = csvStringToLongTable("table", tableCsv, 2, 3)
 
       def predicateTest(tag: String)(
-          p: (DelayedIdent[DI64], DelayedIdent[DI64]) => I32ColumnExpr
+          p: (DelayedIdent[I64Var], DelayedIdent[I64Var]) => I32ColumnExpr
       )(p2: (Vec[Long], Vec[Long]) => Array[Int]) = {
         val less = ra3Table
-          .as[(I64Var, I64Var)]
-          .schema((col0, col1) =>
-            schema =>
-              query(
-                schema.all
-                  .where(p(col0, col1))
-              )
+          .as[("c0", "c1"), (I64Var, I64Var)]
+          .schema(t =>
+            query(
+              ra3
+                .all(t)
+                .where(p(t.c0, t.c1))
+            )
           )
           .evaluate
           .unsafeRunSync()
@@ -267,7 +265,7 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
           tableFrame
             .rowAt(p2(tableFrame.colAt(0).toVec, tableFrame.colAt(1).toVec))
             .resetRowIndex
-            .setColIndex(Index("V0", "V1"))
+            .setColIndex(Index("c0", "c1"))
 
         assertEquals(takenF, expect, tag)
       }
@@ -355,18 +353,17 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
       val ra3Table = csvStringToLongTable("table", tableCsv, 2, 3)
 
       def predicateTest(tag: String)(
-          p: (Expr[DInst], Expr[DInst]) => I32ColumnExpr
+          p: (Expr[InstVar], Expr[InstVar]) => I32ColumnExpr
       )(p2: (Vec[Long], Vec[Long]) => Array[Int]) = {
         val less = ra3Table
-          .as[(I64Var, I64Var)]
-          .schema((col0, col1) =>
-            schema =>
-              query(
-                schema.none
-                  .extend(col0.toInstantEpochMilli)
-                  .extend(col1.toInstantEpochMilli)
-                  .where(p(col0.toInstantEpochMilli, col1.toInstantEpochMilli))
-              )
+          .as[("c0", "c1"), (I64Var, I64Var)]
+          .schema(t =>
+            query(
+              ra3.S
+                .extend(t.c0.toInstantEpochMilli.as("a0"))
+                .extend(t.c1.toInstantEpochMilli.as("a1"))
+                .where(p(t.c0.toInstantEpochMilli, t.c1.toInstantEpochMilli))
+            )
           )
           .evaluate
           .unsafeRunSync()
@@ -376,7 +373,7 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
           tableFrame
             .rowAt(p2(tableFrame.colAt(0).toVec, tableFrame.colAt(1).toVec))
             .resetRowIndex
-            .setColIndex(Index("V0", "V1"))
+            .setColIndex(Index("a0", "a1"))
 
         assertEquals(takenF, expect, tag)
       }
@@ -454,16 +451,16 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
       val ra3Table = csvStringToTable("table", tableCsv, 2, 3)
 
       def predicateTest(tag: String)(
-          p: (DelayedIdent[DI32], DelayedIdent[DI32]) => I32ColumnExpr
+          p: (DelayedIdent[I32Var], DelayedIdent[I32Var]) => I32ColumnExpr
       )(p2: (Vec[Int], Vec[Int]) => Array[Int]) = {
         val less = ra3Table
-          .as[(I32Var, I32Var)]
-          .schema((col0, col1) =>
-            schema =>
-              query(
-                schema.all
-                  .where(p(col0, col1))
-              )
+          .as[("c0", "c1"), (I32Var, I32Var)]
+          .schema(t =>
+            query(
+              ra3
+                .all(t)
+                .where(p(t.c0, t.c1))
+            )
           )
           .evaluate
           .unsafeRunSync()
@@ -473,7 +470,7 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
           tableFrame
             .rowAt(p2(tableFrame.colAt(0).toVec, tableFrame.colAt(1).toVec))
             .resetRowIndex
-            .setColIndex(Index("V0", "V1"))
+            .setColIndex(Index("c0", "c1"))
 
         assertEquals(takenF, expect, tag)
       }
@@ -561,13 +558,13 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
       val ra3Table = csvStringToStringTable("table", tableCsv, 2, 3)
       val less =
         ra3Table
-          .as[(StrVar, StrVar)]
-          .schema((col0, col1) =>
-            schema =>
-              query(
-                schema.all
-                  .where(col0.tap("col0").containedIn(Set("1", "2")))
-              )
+          .as[("c0", "c1"), (StrVar, StrVar)]
+          .schema(t =>
+            query(
+              ra3
+                .all(t)
+                .where(t.c0.tap("col0").containedIn(Set("1", "2")))
+            )
           )
           .evaluate
           .unsafeRunSync()
@@ -584,7 +581,7 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
             tableFrame.colAt(0).toVec.find(i => Set(1, 2).contains(i)).toArray
           )
           .resetRowIndex
-          .setColIndex(Index("V0", "V1"))
+          .setColIndex(Index("c0", "c1"))
           .mapValues(_.toString)
 
       assertEquals(takenF, expect)
@@ -606,12 +603,11 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
       val ra3Table = csvStringToTable("table", tableCsv, 2, 3)
       val less =
         ra3Table
-          .as[(I32Var, I32Var)]
-          .schema((col0, col1) =>
-            schema =>
-              query(
-                schema.none.extend(col0.ifelse(col0, col1))
-              )
+          .as[("c0", "c1"), (I32Var, I32Var)]
+          .schema(t =>
+            query(
+              ra3.S.extend(t.c0.ifelse(t.c0, t.c1).as("c0"))
+            )
           )
           .evaluate
           .unsafeRunSync()
@@ -622,7 +618,7 @@ class SimpleQuerySuite extends munit.FunSuite with WithTempTaskSystem {
         .filterIx(_.nonEmpty)
 
       val expect =
-        Frame("V0" -> Vec(10, 1, 2, 3, 4, 5, 6, 7, 8, 9).map(_.toString))
+        Frame("c0" -> Vec(10, 1, 2, 3, 4, 5, 6, 7, 8, 9).map(_.toString))
 
       assertEquals(takenF, expect)
     }

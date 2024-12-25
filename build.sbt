@@ -16,7 +16,7 @@ inThisBuild(
 )
 
 lazy val scalaVersion213 = "2.13.14"
-lazy val scalaVersion3 = "3.5.1"
+lazy val scalaVersion3 = "3.6.2"
 lazy val scalaVersionInBuild = scalaVersion3
 
 ThisBuild / versionScheme := Some("early-semver")
@@ -41,45 +41,13 @@ lazy val commonSettings = Seq(
         "-no-indent",
         "-explain",
         "-experimental", // needed for some macros
+        "-language:experimental.namedTuples",
         "-unchecked", // Enable additional warnings where generated code depends on assumptions.
+        // "-Ycheck:all",
+        // "-Ydebug-trace",
+        // "-Yexplain-lowlevel",
+        // "-Yprint-debug",
         "-Xfatal-warnings" // Fail the compilation if there are any warnings.
-      )
-    case Some((2, _)) =>
-      Seq(
-        "-opt:l:method",
-        "-opt:l:inline",
-        "-opt-inline-from:org.saddle.**",
-        "-opt-warnings",
-        "-Wopt",
-        "-deprecation", // Emit warning and location for usages of deprecated APIs.
-        "-encoding",
-        "utf-8", // Specify character encoding used by source files.
-        "-feature", // Emit warning and location for usages of features that should be imported explicitly.
-        "-language:postfixOps",
-        "-language:existentials",
-        "-unchecked", // Enable additional warnings where generated code depends on assumptions.
-        // "-Xfatal-warnings", // Fail the compilation if there are any warnings.
-        "-Xlint:adapted-args", // Warn if an argument list is modified to match the receiver.
-        "-Xlint:constant", // Evaluation of a constant arithmetic expression results in an error.
-        "-Xlint:delayedinit-select", // Selecting member of DelayedInit.
-        "-Xlint:doc-detached", // A Scaladoc comment appears to be detached from its element.
-        "-Xlint:inaccessible", // Warn about inaccessible types in method signatures.
-        "-Xlint:infer-any", // Warn when a type argument is inferred to be `Any`.
-        "-Xlint:missing-interpolator", // A string literal appears to be missing an interpolator id.
-        "-Xlint:nullary-unit", // Warn when nullary methods return Unit.
-        "-Xlint:option-implicit", // Option.apply used implicit view.
-        "-Xlint:poly-implicit-overload", // Parameterized overloaded implicit methods are not visible as view bounds.
-        "-Xlint:private-shadow", // A private field (or class parameter) shadows a superclass field.
-        "-Xlint:stars-align", // Pattern sequence wildcard must align with sequence component.
-        "-Xlint:type-parameter-shadow", // A local type parameter shadows a type already in scope.
-        "-Ywarn-dead-code", // Warn when dead code is identified.
-        // "-Ywarn-numeric-widen", // Warn when numerics are widened.
-        "-Ywarn-unused:implicits", // Warn if an implicit parameter is unused.
-        "-Ywarn-unused:imports", // Warn if an import selector is not referenced.
-        "-Ywarn-unused:locals", // Warn if a local definition is unused.
-        "-Ywarn-unused:params", // Warn if a value parameter is unused.
-        "-Ywarn-unused:patvars", // Warn if a variable bound in a pattern is unused.
-        "-Ywarn-unused:privates" // Warn if a private member is unused.
       )
     case _ => ???
   }),
@@ -124,25 +92,8 @@ lazy val core = project
       "org.scalameta" %% "munit" % "1.0.0-M10" % Test,
       "com.typesafe.akka" %% "akka-testkit" % akkaVersion % Test,
       "io.github.pityka" %% "saddle-core" % "4.0.0-M11",
-      "io.github.pityka" %% "tasks-core" % "3.0.0-M14",
+      "io.github.pityka" %% "tasks-core" % "3.0.0-M15",
       "de.lhns" %% "fs2-compress-gzip" % "1.0.0",
       "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % "2.30.13" % "compile-internal"
     ) ++ akkaProvided ++ specs
   )
-
-lazy val example = project
-  .in(file("example"))
-  .settings(commonSettings: _*)
-  .settings(
-    name := "ra3-example",
-    publish / skip := true,
-    publishArtifact := false,
-    libraryDependencies ++= List(
-      "com.lihaoyi" %% "mainargs" % "0.7.5",
-      "com.typesafe.akka" %% "akka-actor" % akkaVersion,
-      "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
-      "com.typesafe.akka" %% "akka-remote" % akkaVersion
-    )
-  )
-  .dependsOn(core)
-  .enablePlugins(JavaAppPackaging)

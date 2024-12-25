@@ -1,4 +1,6 @@
 package ra3.lang
+
+import ra3.tablelang.TableExpr.GroupPartialThenReduce
 private[ra3] object GroupBy {
   def apply(
       a: Expr.DelayedIdent[?]
@@ -9,7 +11,7 @@ private[ra3] object GroupBy {
 /** Builder pattern for group by clause. Exit the builder with the partial or
   * the all method.
   */
-case class GroupBuilderSyntax(
+case class GroupBuilderSyntax[T](
     private val first: Expr.DelayedIdent[?],
     private val others: Vector[
       (Expr.DelayedIdent[?])
@@ -35,7 +37,9 @@ case class GroupBuilderSyntax(
     *   group wise program
     * @return
     */
-  def reduceTotal[T <: Tuple](prg: ra3.lang.Expr[ReturnValueTuple[T]]) =
+  def reduceTotal[N <: Tuple, T <: Tuple](
+      prg: ra3.lang.Expr[ReturnValueTuple[N, T]]
+  ) =
     ra3.tablelang.TableExpr.GroupThenReduce(
       first,
       others,
@@ -57,13 +61,17 @@ case class GroupBuilderSyntax(
     *   group wise program
     * @return
     */
-  def reducePartial[T <: Tuple](prg: ra3.lang.Expr[ReturnValueTuple[T]]) =
+  def reducePartial[N <: Tuple, T <: Tuple](
+      prg: ra3.lang.Expr[ReturnValueTuple[N, T]]
+  ): GroupPartialThenReduce[N, T, ReturnValueTuple[N, T]] =
     ra3.tablelang.TableExpr.GroupPartialThenReduce(
       first,
       others,
       prg
     )
-  def count[T <: Tuple](prg: ra3.lang.Expr[ReturnValueTuple[T]]) =
+  def count[N <: Tuple, T <: Tuple](
+      prg: ra3.lang.Expr[ReturnValueTuple[N, T]]
+  ) =
     ra3.tablelang.TableExpr.GroupThenCount(
       first,
       others,

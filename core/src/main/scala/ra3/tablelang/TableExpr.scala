@@ -13,6 +13,7 @@ import tasks.fileservice.SharedFile
 import ra3.CSVColumnDefinition
 import ra3.CompressionFormat
 import ra3.CharacterDecoder
+import scala.NamedTuple.NamedTuple
 
 sealed trait TableExpr[+T] { self =>
 
@@ -36,64 +37,37 @@ sealed trait TableExpr[+T] { self =>
     val b = body(TableExpr.Ident(n))
     TableExpr.Local(n, self, b)
   }
+
   def in[R](
       body: TableExpr[T] => TableExpr[R]
   ): TableExpr[R] = assignIdent(body)
-  def flatMap[R](
-      body: TableExpr[T] => TableExpr[R]
-  ): TableExpr[R] = in(body)
-  def map[R](
-      body: TableExpr[T] => TableExpr[R]
-  ): TableExpr[R] = in(body)
 
 }
 object TableExpr {
 
-  case class curryColumnsTuple[T0 <: Tuple](
-      private val a: TableExpr[T0]
-  ) {
-    inline def apply[R](
-        inline body: Tuple.Map[T0, ra3.lang.Expr.DelayedIdent] => Schema[
-          T0
-        ] => TableExpr[R]
-    ): TableExpr[R] =
-      a match {
-        case b: Ident[T0] =>
-          val sch = Schema.fromIdent(b)
-          sch.columns.apply[R]((tup) => body(tup)(sch))
-        case _ =>
-          a.assignIdent { (t: Ident[T0]) =>
-            val sch = Schema.fromIdent(t)
+  inline def fromSchema[N <: Tuple, V <: Tuple](
+      tup: scala.NamedTuple.Map[NamedTuple[
+        N,
+        V
+      ], ra3.lang.Expr.DelayedIdent]
+  ): TableExpr[NamedTuple[N, V]] = {
+    inline tup.toTuple match {
+      case _: EmptyTuple => ???
+      case tt: (ra3.lang.Expr.DelayedIdent[?] *: _) =>
+        val (h *: t) = tt
 
-            sch.columns.apply[R]((tup) => body(tup)(sch))
-          }
-      }
+        // TODO fail compile if false
+        assert(
+          tt.toList
+            .map(_.asInstanceOf[ra3.lang.Expr.DelayedIdent[?]].name.table)
+            .distinct
+            .size == 1
+        )
+        TableExpr.Ident[NamedTuple[N, V]](h.name.table)
 
+    }
   }
-  case class curryColumnsByName[T0 <: Tuple, A](
-      columnName: String,
-      a: TableExpr[T0]
-  ) {
-    inline def apply[R](
-        inline body: (Schema[A *: EmptyTuple]) => TableExpr[R]
-    ): TableExpr[R] =
-      a match {
-        case b: Ident[T0] =>
-          body(
-            Schema.fromDelayedIdent[A](
-              Expr.DelayedIdent[A](ra3.lang.Delayed(b.key, Left(columnName)))
-            )
-          )
-        case _ =>
-          a.assignIdent { (t: Ident[T0]) =>
-            body(
-              Schema.fromDelayedIdent[A](
-                Expr.DelayedIdent[A](ra3.lang.Delayed(t.key, Left(columnName)))
-              )
-            )
-          }
-      }
-  }
+
   extension [T0](a: TableExpr[T0]) {
 
     def tap(tag: String, size: Int = 50): TableExpr[T0] = Tap(a, size, tag)
@@ -108,46 +82,81 @@ object TableExpr {
     case Either[ra3.BufferString, ?] *: t  => CharSequence *: Elements[t]
     case Either[ra3.BufferInstant, ?] *: t => Long *: Elements[t]
   }
-  extension [T0](
-      inline a: TableExpr[T0 *: EmptyTuple]
-  ) {
 
-    transparent inline def evaluateToStreamOfSingleColumn(implicit
+  extension [N <: Tuple, V <: Tuple](a: TableExpr[NamedTuple[N, V]]) {
+
+    def rename[N2 <: Tuple](implicit ev: Tuple.Size[N2] =:= Tuple.Size[V]) =
+      a.asInstanceOf[TableExpr[NamedTuple[N2, V]]]
+
+    inline def evaluateToStreamOfSingleColumn(implicit
         tsc: TaskSystemComponents
     ) = {
       import cats.effect.unsafe.implicits.global
 
-      a.evaluate.map(_.streamOfSingleColumnChunk[T0])
+      a.evaluate.map(_.streamOfSingleColumnChunk[V])
     }
-  }
-  extension [T0 <: Tuple](a: TableExpr[T0]) {
 
-    def concat(b: TableExpr[T0]*): TableExpr[T0] =
-      Concat(a, b, 32)
+    def concat(b: TableExpr[NamedTuple[N, V]]*): TableExpr[NamedTuple[N, V]] =
+      Concat[NamedTuple[N, V]](a, b, 32)
   }
-  extension [T0 <: Tuple](inline a: TableExpr[T0]) {
+
+  type SchemaT[N <: Tuple, V <: Tuple] = scala.NamedTuple.Map[NamedTuple[
+    N,
+    V
+  ], ra3.lang.Expr.DelayedIdent]
+
+  extension [N <: Tuple, V <: Tuple](inline a: TableExpr[NamedTuple[N, V]]) {
 
     transparent inline def evaluateToStream(implicit
         tsc: TaskSystemComponents
     ) = {
       import cats.effect.unsafe.implicits.global
 
-      a.evaluate.map(_.streamOfTuplesFromColumnChunks[T0])
+      a.evaluate.map(_.streamOfTuplesFromColumnChunks[N, V])
     }
 
-    inline def schema = curryColumnsTuple[T0](a)
+    inline def flatMap[R](
+        inline body: SchemaT[N, V] => TableExpr[R]
+    ): TableExpr[R] = schema(body)
 
-    inline def byName[A: NotNothing](
-        n1: String
-    ) =
-      curryColumnsByName[T0, A](n1, a)
+    inline def map[NR <: Tuple, VR <: Tuple](
+        // practically this is the identity
+        inline body: SchemaT[N, V] => SchemaT[NR, VR]
+    ): TableExpr[NamedTuple[NR, VR]] = schema2[NR, VR](body)
+
+    private inline def schema2[NR <: Tuple, VR <: Tuple](
+        inline body: SchemaT[N, V] => SchemaT[NR, VR]
+    ): TableExpr[NamedTuple[NR, VR]] = inline a match {
+      case b: Ident[NamedTuple[N, V]] =>
+        val sch = Schema.fromIdent(b)
+        sch.columns((tup) => TableExpr.fromSchema[NR, VR](body(tup)))
+      case _ =>
+        a.assignIdent { (t: Ident[NamedTuple[N, V]]) =>
+          val sch = Schema.fromIdent(t)
+
+          sch.columns((tup) => TableExpr.fromSchema[NR, VR](body(tup)))
+        }
+    }
+    inline def schema[R](
+        inline body: SchemaT[N, V] => TableExpr[R]
+    ): TableExpr[R] = inline a match {
+      case b: Ident[NamedTuple[N, V]] =>
+        val sch = Schema.fromIdent(b)
+        sch.columns((tup) => body(tup))
+      case _ =>
+        a.assignIdent { (t: Ident[NamedTuple[N, V]]) =>
+          val sch = Schema.fromIdent(t)
+
+          sch.columns((tup) => body(tup))
+        }
+    }
 
   }
 
-  def const[T1 <: Tuple](
+  def const[N <: Tuple, V <: Tuple](
       table: ra3.Table
-  ): TableExpr.Const[T1] =
-    TableExpr.Const[T1](table)
+  ): TableExpr.Const[NamedTuple[N, V]] =
+    TableExpr.Const[NamedTuple[N, V]](table)
 
   case class Const[T](table: ra3.Table) extends TableExpr[T] {
 
@@ -173,7 +182,7 @@ object TableExpr {
 
   }
 
-  case class Local[A, B](
+  case class Local[+A, B](
       name: TagKey,
       assigned: TableExpr[A],
       body: TableExpr[B]
@@ -193,12 +202,17 @@ object TableExpr {
 
   }
 
-  case class SimpleQuery[I, K <: Tuple, A <: ReturnValueTuple[K]](
+  case class SimpleQuery[
+      I,
+      N <: Tuple,
+      V <: Tuple,
+      A <: ReturnValueTuple[N, V]
+  ](
       arg0: TableExpr.Ident[I],
       elementwise: ra3.lang.Expr[A]
-  ) extends TableExpr[K] {
+  ) extends TableExpr[NamedTuple[N, V]] {
 
-    def where(i: Expr[ra3.DI32]) = copy(elementwise = elementwise.where(i))
+    def where(i: Expr[ra3.I32Var]) = copy(elementwise = elementwise.where(i))
 
     protected val tags: Set[KeyTag] = arg0.tags
 
@@ -228,7 +242,7 @@ object TableExpr {
     }
   }
 
-  case class ImportCsv[K <: Tuple](
+  case class ImportCsv[N <: Tuple, K <: Tuple](
       arg0: SharedFile,
       name: String,
       columns: Seq[CSVColumnDefinition],
@@ -244,7 +258,7 @@ object TableExpr {
         CharacterDecoder.ASCII(silent = true),
       parallelism: Int = 32
   ) extends TableExpr[
-        Tuple.Map[K, ra3.CsvColumnDefToColumnType]
+        ra3.CSVType[N, K]
       ] {
 
     protected val tags: Set[KeyTag] =
@@ -273,7 +287,7 @@ object TableExpr {
     }
   }
 
-  case class TopK[K <: Tuple](
+  case class TopK[K](
       arg0: ra3.lang.Expr.DelayedIdent[?],
       ascending: Boolean,
       k: Int,
@@ -307,7 +321,7 @@ object TableExpr {
         }
     }
   }
-  case class Prepartition[K <: Tuple](
+  case class Prepartition[K](
       arg0: ra3.lang.Expr.DelayedIdent[?],
       arg1: Seq[ra3.lang.Expr.DelayedIdent[?]],
       partitionBase: Int,
@@ -343,7 +357,7 @@ object TableExpr {
         }
     }
   }
-  case class Concat[K <: Tuple](
+  case class Concat[K](
       arg0: TableExpr[K],
       args: Seq[TableExpr[K]],
       parallelism: Int
@@ -364,12 +378,17 @@ object TableExpr {
       }
     }
   }
-  case class SimpleQueryCount[I, K <: Tuple, A <: ReturnValueTuple[K]](
+  case class SimpleQueryCount[I, N <: Tuple, K <: Tuple, A <: ReturnValueTuple[
+    N,
+    K
+  ]](
       arg0: TableExpr.Ident[I],
       elementwise: ra3.lang.Expr[A]
-  ) extends TableExpr[K] {
+  ) extends TableExpr[
+        NamedTuple[("count" *: EmptyTuple), ra3.DI64 *: EmptyTuple]
+      ] {
 
-    def where(i: Expr[ra3.DI32]) = copy(elementwise = elementwise.where(i))
+    def where(i: Expr[ra3.I32Var]) = copy(elementwise = elementwise.where(i))
 
     protected val tags: Set[KeyTag] = arg0.tags
 
@@ -423,16 +442,19 @@ object TableExpr {
 
     }
   }
-  case class GroupThenReduce[K <: Tuple, A <: ReturnValueTuple[K]](
+  case class GroupThenReduce[N <: Tuple, K <: Tuple, A <: ReturnValueTuple[
+    N,
+    K
+  ]](
       arg0: ra3.lang.Expr.DelayedIdent[?],
       arg1: Seq[(ra3.lang.Expr.DelayedIdent[?])],
       groupwise: ra3.lang.Expr[A],
       partitionBase: Int,
       partitionLimit: Int,
       maxItemsToBufferAtOnce: Int
-  ) extends TableExpr[K] {
+  ) extends TableExpr[NamedTuple[N, K]] {
 
-    def where(i: Expr[ra3.DI32]) = copy(groupwise = groupwise.where(i))
+    def where(i: Expr[ra3.I32Var]) = copy(groupwise = groupwise.where(i))
 
     assert(arg1.forall(_.name.table == arg0.name.table))
 
@@ -483,16 +505,22 @@ object TableExpr {
 
     }
   }
-  case class GroupThenCount[K <: Tuple, A <: ReturnValueTuple[K]](
+  case class GroupThenCount[
+      N <: Tuple,
+      K <: Tuple,
+      A <: ReturnValueTuple[N, K]
+  ](
       arg0: ra3.lang.Expr.DelayedIdent[?],
       arg1: Seq[(ra3.lang.Expr.DelayedIdent[?])],
       groupwise: ra3.lang.Expr[A],
       partitionBase: Int,
       partitionLimit: Int,
       maxItemsToBufferAtOnce: Int
-  ) extends TableExpr[ra3.DI64*:EmptyTuple] {
+  ) extends TableExpr[
+        NamedTuple["count" *: EmptyTuple, ra3.DI64 *: EmptyTuple]
+      ] {
 
-    def where(i: Expr[ra3.DI32]) = copy(groupwise = groupwise.where(i))
+    def where(i: Expr[ra3.I32Var]) = copy(groupwise = groupwise.where(i))
 
     assert(arg1.forall(_.name.table == arg0.name.table))
 
@@ -544,13 +572,17 @@ object TableExpr {
 
     }
   }
-  case class GroupPartialThenReduce[K <: Tuple, A <: ReturnValueTuple[K]](
+  case class GroupPartialThenReduce[
+      N <: Tuple,
+      K <: Tuple,
+      A <: ReturnValueTuple[N, K]
+  ](
       arg0: ra3.lang.Expr.DelayedIdent[?],
       arg1: Seq[(ra3.lang.Expr.DelayedIdent[?])],
       groupwise: ra3.lang.Expr[A]
-  ) extends TableExpr[K] {
+  ) extends TableExpr[NamedTuple[N, K]] {
 
-    def where(i: Expr[ra3.DI32]) = copy(groupwise = groupwise.where(i))
+    def where(i: Expr[ra3.I32Var]) = copy(groupwise = groupwise.where(i))
 
     assert(arg1.forall(_.name.table == arg0.name.table))
 
@@ -598,12 +630,17 @@ object TableExpr {
 
     }
   }
-  case class FullTablePartialReduce[I, K <: Tuple, A <: ReturnValueTuple[K]](
+  case class FullTablePartialReduce[
+      I,
+      N <: Tuple,
+      K <: Tuple,
+      A <: ReturnValueTuple[N, K]
+  ](
       arg0: TableExpr.Ident[I],
       groupwise: ra3.lang.Expr[A]
-  ) extends TableExpr[K] {
+  ) extends TableExpr[NamedTuple[N, K]] {
 
-    def where(i: Expr[ra3.DI32]) = copy(groupwise = groupwise.where(i))
+    def where(i: Expr[ra3.I32Var]) = copy(groupwise = groupwise.where(i))
 
     val tags: Set[KeyTag] = arg0.tags
 
@@ -636,12 +673,17 @@ object TableExpr {
 
     }
   }
-  case class ReduceTable[I, K <: Tuple, A <: ReturnValueTuple[K]](
+  case class ReduceTable[
+      I,
+      N <: Tuple,
+      K <: Tuple,
+      A <: ReturnValueTuple[N, K]
+  ](
       arg0: TableExpr.Ident[I],
       groupwise: ra3.lang.Expr[A]
-  ) extends TableExpr[K] {
+  ) extends TableExpr[NamedTuple[N, K]] {
 
-    def where(i: Expr[ra3.DI32]) = copy(groupwise = groupwise.where(i))
+    def where(i: Expr[ra3.I32Var]) = copy(groupwise = groupwise.where(i))
 
     val tags: Set[KeyTag] = arg0.tags
 
@@ -674,16 +716,16 @@ object TableExpr {
 
     }
   }
-  case class Join[J, K <: Tuple, R <: ReturnValueTuple[K]](
+  case class Join[J, N <: Tuple, K <: Tuple, R <: ReturnValueTuple[N, K]](
       arg0: ra3.lang.Expr.DelayedIdent[J],
       arg1: Seq[(ra3.lang.Expr.DelayedIdent[J], String, ra3.tablelang.Key)],
       partitionBase: Int,
       partitionLimit: Int,
       maxItemsToBufferAtOnce: Int,
       elementwise: ra3.lang.Expr[R]
-  ) extends TableExpr[K] {
+  ) extends TableExpr[NamedTuple[N, K]] {
 
-    def where(i: Expr[ra3.DI32]) = copy(elementwise = elementwise.where(i))
+    def where(i: Expr[ra3.I32Var]) = copy(elementwise = elementwise.where(i))
     val tags: Set[KeyTag] =
       arg0.tableIdent.tags ++ arg1.flatMap(_._1.tableIdent.tags)
 
