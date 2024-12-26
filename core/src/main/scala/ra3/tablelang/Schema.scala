@@ -18,65 +18,63 @@ object Schema {
 
   import scala.compiletime.ops.int.S
   import scala.compiletime.ops.string.+
-  type Loop[NN, VV <: Tuple, NR <: Tuple, VR <: Tuple, I <: Int,  P <: String] =
-    
-    
+  type Loop[NN, VV <: Tuple, NR <: Tuple, VR <: Tuple, I <: Int, P <: String] =
     VV match {
       case EmptyTuple => Expr[ReturnValueTuple[NR, VR]]
       case (vh *: vt) =>
         Tuple.Elem[NN, I] match {
-      case String => 
-        vh match {
-          case Expr.DelayedIdent[ra3.F64Var] =>
-            Loop[
-              NN,
-              vt,
-              Tuple.Append[NR,  P+(Tuple.Elem[NN, I]&String)],
-              Tuple.Append[VR, ra3.F64Var],
-              S[I],
-              P
-            ]
-          case Expr.DelayedIdent[ra3.StrVar] =>
-            Loop[
-              NN,
-              vt,
-              Tuple.Append[NR, P+(Tuple.Elem[NN, I]&String)],
-              Tuple.Append[VR, ra3.StrVar],
-              S[I],
-              P
-            ]
-          case Expr.DelayedIdent[ra3.I32Var] =>
-            Loop[
-              NN,
-              vt,
-              Tuple.Append[NR, P+(Tuple.Elem[NN, I]&String)],
-              Tuple.Append[VR, ra3.I32Var],
-              S[I],
-              P
-            ]
-          case Expr.DelayedIdent[ra3.I64Var] =>
-            Loop[
-              NN,
-              vt,
-              Tuple.Append[NR, P+(Tuple.Elem[NN, I]&String)],
-              Tuple.Append[VR, ra3.I64Var],
-              S[I],
-              P
-            ]
+          case String =>
+            vh match {
+              case Expr.DelayedIdent[ra3.F64Var] =>
+                Loop[
+                  NN,
+                  vt,
+                  Tuple.Append[NR, P + (Tuple.Elem[NN, I] & String)],
+                  Tuple.Append[VR, ra3.F64Var],
+                  S[I],
+                  P
+                ]
+              case Expr.DelayedIdent[ra3.StrVar] =>
+                Loop[
+                  NN,
+                  vt,
+                  Tuple.Append[NR, P + (Tuple.Elem[NN, I] & String)],
+                  Tuple.Append[VR, ra3.StrVar],
+                  S[I],
+                  P
+                ]
+              case Expr.DelayedIdent[ra3.I32Var] =>
+                Loop[
+                  NN,
+                  vt,
+                  Tuple.Append[NR, P + (Tuple.Elem[NN, I] & String)],
+                  Tuple.Append[VR, ra3.I32Var],
+                  S[I],
+                  P
+                ]
+              case Expr.DelayedIdent[ra3.I64Var] =>
+                Loop[
+                  NN,
+                  vt,
+                  Tuple.Append[NR, P + (Tuple.Elem[NN, I] & String)],
+                  Tuple.Append[VR, ra3.I64Var],
+                  S[I],
+                  P
+                ]
 
-          case Expr.DelayedIdent[ra3.InstVar] =>
-            Loop[
-              NN,
-              vt,
-              Tuple.Append[NR, P+(Tuple.Elem[NN, I]&String)],
-              Tuple.Append[VR, ra3.InstVar],
-              S[I],
-              P
-            ]
+              case Expr.DelayedIdent[ra3.InstVar] =>
+                Loop[
+                  NN,
+                  vt,
+                  Tuple.Append[NR, P + (Tuple.Elem[NN, I] & String)],
+                  Tuple.Append[VR, ra3.InstVar],
+                  S[I],
+                  P
+                ]
+            }
         }
     }
-  }
-  type IsString[X<:String] = X
+  type IsString[X <: String] = X
   inline def loop[
       NN <: Tuple,
       VV <: Tuple,
@@ -87,137 +85,136 @@ object Schema {
   ](
       t: VV,
       acc: Expr[ReturnValueTuple[NR, VR]]
-  ): Loop[NN, VV, NR, VR, I,P] = {
-    
-    
+  ): Loop[NN, VV, NR, VR, I, P] = {
+
     inline t match {
       case tt: EmptyTuple => acc
       case tt: (vh *: vt) =>
         inline scala.compiletime.erasedValue[Tuple.Elem[NN, I]] match {
-        case a : String =>
-        val head *: tail = tt
-        inline head match {
-          case head: Expr.DelayedIdent[ra3.F64Var] =>
-            loop[
-              NN,
-              vt,
-              Tuple.Append[NR, P+(Tuple.Elem[NN, I]&String)],
-              Tuple.Append[VR, ra3.F64Var],
-              S[I],
-              P
-            ](
-              tail,
-              acc.extend(
-                ra3.lang.Expr
-                  .BuiltInOp1(
-                    ra3.lang.ops.Op1.MkNamedColumnSpecChunkF64(
-                      scala.compiletime.constValue[P]+scala.compiletime
-                        .constValue[a.type]
-                        
-                    )
-                  )(head)
-                  .castToName2[P+(Tuple.Elem[NN, I]&String)]
-              )
-            )
-          case head: Expr.DelayedIdent[ra3.StrVar] =>
-            loop[
-              NN,
-              vt,
-              Tuple.Append[NR, P+(Tuple.Elem[NN, I]&String)],
-              Tuple.Append[VR, ra3.StrVar],
-              S[I],
-              P
-            ](
-              tail,
-              acc.extend(
-                ra3.lang.Expr
-                  .BuiltInOp1(
-                    ra3.lang.ops.Op1.MkNamedColumnSpecChunkString(
-                    scala.compiletime.constValue[P]+  scala.compiletime
-                        .constValue[a.type]
-                    )
-                  )(head)
-                  .castToName2[P+(Tuple.Elem[NN, I]&String)]
-              )
-            )
-          case head: Expr.DelayedIdent[ra3.I32Var] =>
-            loop[
-              NN,
-              vt,
-              Tuple.Append[NR, P+(Tuple.Elem[NN, I]&String)],
-              Tuple.Append[VR, ra3.I32Var],
-              S[I],
-              P
-            ](
-              tail,
-              acc.extend(
-                ra3.lang.Expr
-                  .BuiltInOp1(
-                    ra3.lang.ops.Op1.MkNamedColumnSpecChunkI32(
-                      scala.compiletime.constValue[P]+scala.compiletime
-                        .constValue[a.type]
-                    )
-                  )(head)
-                  .castToName2[P+(Tuple.Elem[NN, I]&String)]
-              )
-            )
-          case head: Expr.DelayedIdent[ra3.I64Var] =>
-            loop[
-              NN,
-              vt,
-              Tuple.Append[NR, P+(Tuple.Elem[NN, I]&String)],
-              Tuple.Append[VR, ra3.I64Var],
-              S[I],
-              P
-            ](
-              tail,
-              acc.extend(
-                ra3.lang.Expr
-                  .BuiltInOp1(
-                    ra3.lang.ops.Op1.MkNamedColumnSpecChunkI64(
-                    scala.compiletime.constValue[P]+  scala.compiletime
-                        .constValue[a.type]
-                    )
-                  )(head)
-                  .castToName2[P+(Tuple.Elem[NN, I]&String)]
-              )
-            )
+          case a: String =>
+            val head *: tail = tt
+            inline head match {
+              case head: Expr.DelayedIdent[ra3.F64Var] =>
+                loop[
+                  NN,
+                  vt,
+                  Tuple.Append[NR, P + (Tuple.Elem[NN, I] & String)],
+                  Tuple.Append[VR, ra3.F64Var],
+                  S[I],
+                  P
+                ](
+                  tail,
+                  acc.extend(
+                    ra3.lang.Expr
+                      .BuiltInOp1(
+                        ra3.lang.ops.Op1.MkNamedColumnSpecChunkF64(
+                          scala.compiletime.constValue[P] + scala.compiletime
+                            .constValue[a.type]
+                        )
+                      )(head)
+                      .castToName2[P + (Tuple.Elem[NN, I] & String)]
+                  )
+                )
+              case head: Expr.DelayedIdent[ra3.StrVar] =>
+                loop[
+                  NN,
+                  vt,
+                  Tuple.Append[NR, P + (Tuple.Elem[NN, I] & String)],
+                  Tuple.Append[VR, ra3.StrVar],
+                  S[I],
+                  P
+                ](
+                  tail,
+                  acc.extend(
+                    ra3.lang.Expr
+                      .BuiltInOp1(
+                        ra3.lang.ops.Op1.MkNamedColumnSpecChunkString(
+                          scala.compiletime.constValue[P] + scala.compiletime
+                            .constValue[a.type]
+                        )
+                      )(head)
+                      .castToName2[P + (Tuple.Elem[NN, I] & String)]
+                  )
+                )
+              case head: Expr.DelayedIdent[ra3.I32Var] =>
+                loop[
+                  NN,
+                  vt,
+                  Tuple.Append[NR, P + (Tuple.Elem[NN, I] & String)],
+                  Tuple.Append[VR, ra3.I32Var],
+                  S[I],
+                  P
+                ](
+                  tail,
+                  acc.extend(
+                    ra3.lang.Expr
+                      .BuiltInOp1(
+                        ra3.lang.ops.Op1.MkNamedColumnSpecChunkI32(
+                          scala.compiletime.constValue[P] + scala.compiletime
+                            .constValue[a.type]
+                        )
+                      )(head)
+                      .castToName2[P + (Tuple.Elem[NN, I] & String)]
+                  )
+                )
+              case head: Expr.DelayedIdent[ra3.I64Var] =>
+                loop[
+                  NN,
+                  vt,
+                  Tuple.Append[NR, P + (Tuple.Elem[NN, I] & String)],
+                  Tuple.Append[VR, ra3.I64Var],
+                  S[I],
+                  P
+                ](
+                  tail,
+                  acc.extend(
+                    ra3.lang.Expr
+                      .BuiltInOp1(
+                        ra3.lang.ops.Op1.MkNamedColumnSpecChunkI64(
+                          scala.compiletime.constValue[P] + scala.compiletime
+                            .constValue[a.type]
+                        )
+                      )(head)
+                      .castToName2[P + (Tuple.Elem[NN, I] & String)]
+                  )
+                )
 
-          case head: Expr.DelayedIdent[ra3.InstVar] =>
-            loop[
-              NN,
-              vt,
-              Tuple.Append[NR, P+(Tuple.Elem[NN, I]&String)],
-              Tuple.Append[VR, ra3.InstVar],
-              S[I],
-              P
-            ](
-              tail,
-              acc.extend(
-                ra3.lang.Expr
-                  .BuiltInOp1(
-                    ra3.lang.ops.Op1.MkNamedColumnSpecChunkInst(
-                    scala.compiletime.constValue[P]+  scala.compiletime
-                        .constValue[a.type]
-                    )
-                  )(head)
-                  .castToName2[P+(Tuple.Elem[NN, I]&String)]
-              )
-            )
+              case head: Expr.DelayedIdent[ra3.InstVar] =>
+                loop[
+                  NN,
+                  vt,
+                  Tuple.Append[NR, P + (Tuple.Elem[NN, I] & String)],
+                  Tuple.Append[VR, ra3.InstVar],
+                  S[I],
+                  P
+                ](
+                  tail,
+                  acc.extend(
+                    ra3.lang.Expr
+                      .BuiltInOp1(
+                        ra3.lang.ops.Op1.MkNamedColumnSpecChunkInst(
+                          scala.compiletime.constValue[P] + scala.compiletime
+                            .constValue[a.type]
+                        )
+                      )(head)
+                      .castToName2[P + (Tuple.Elem[NN, I] & String)]
+                  )
+                )
 
+            }
         }
-    }}
+    }
   }
 
   inline def extendAll[
       N <: Tuple,
       V <: Tuple,
-      Prefix<:String
+      Prefix <: String
   ](
       tuple: NamedTuple[N, V]
-  ): Loop[N, V, EmptyTuple.type, EmptyTuple.type, 0,Prefix] = {
+  ): Loop[N, V, EmptyTuple.type, EmptyTuple.type, 0, Prefix] = {
 
-    loop[N, V, EmptyTuple, EmptyTuple, 0,Prefix](tuple, ra3.select0)
+    loop[N, V, EmptyTuple, EmptyTuple, 0, Prefix](tuple, ra3.select0)
 
   }
 

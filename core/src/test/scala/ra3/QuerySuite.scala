@@ -43,8 +43,9 @@ class QuerySuite
           .filterIx(_.nonEmpty)
 
         val expect =
-          tableFrame.resetRowIndex.rfilter(_.values(0) == 0)
-          .setColIndex(org.saddle.Index("c0","c1","c2"))
+          tableFrame.resetRowIndex
+            .rfilter(_.values(0) == 0)
+            .setColIndex(org.saddle.Index("c0", "c1", "c2"))
         assertEquals(takenF, expect)
       }
     }
@@ -78,8 +79,10 @@ class QuerySuite
           .filterIx(_.nonEmpty)
 
         val expect =
-          tableFrame.rfilter(v => Set(0, 1).contains(v.values(0))).resetRowIndex
-          .setColIndex(org.saddle.Index("c0","c1","c2"))
+          tableFrame
+            .rfilter(v => Set(0, 1).contains(v.values(0)))
+            .resetRowIndex
+            .setColIndex(org.saddle.Index("c0", "c1", "c2"))
 
         assertEquals(takenF, expect)
       }
@@ -110,8 +113,10 @@ class QuerySuite
         .filterIx(_.nonEmpty)
 
       val expect =
-        tableFrame.rfilter(_.values(0) >= 0).resetRowIndex
-        .setColIndex(org.saddle.Index("c0","c1","c2"))
+        tableFrame
+          .rfilter(_.values(0) >= 0)
+          .resetRowIndex
+          .setColIndex(org.saddle.Index("c0", "c1", "c2"))
 
       assertEquals(takenF, expect)
     }
@@ -139,8 +144,10 @@ class QuerySuite
         .filterIx(_.nonEmpty)
 
       val expect =
-        tableFrame.rfilter(_.values(0) <= 0).resetRowIndex
-        .setColIndex(org.saddle.Index("c0","c1","c2"))
+        tableFrame
+          .rfilter(_.values(0) <= 0)
+          .resetRowIndex
+          .setColIndex(org.saddle.Index("c0", "c1", "c2"))
 
       assertEquals(takenF, expect)
     }
@@ -171,8 +178,10 @@ class QuerySuite
         .filterIx(_.nonEmpty)
 
       val expect =
-        (tableFrame.concat(tableFrame)).resetRowIndex
-        .setColIndex(org.saddle.Index("c0","c1","c2"))
+        (tableFrame
+          .concat(tableFrame))
+          .resetRowIndex
+          .setColIndex(org.saddle.Index("c0", "c1", "c2"))
 
       assertEquals(takenF, expect)
     }

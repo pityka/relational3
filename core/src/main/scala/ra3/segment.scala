@@ -69,7 +69,7 @@ private[ra3] sealed trait Segment { self =>
 
   // def buffer(implicit tsc: TaskSystemComponents): IO[BufferType]
 
-  def wrap : Box[?]
+  def wrap: Box[?]
 
   def numElems: Int
   def numBytes: Long
@@ -102,7 +102,7 @@ private[ra3] final case class SegmentDouble(
 ) extends Segment
     with TaggedSegment {
 
-    def wrap: Box[?] = F64Var(Right(Seq(this)))
+  def wrap: Box[?] = F64Var(Right(Seq(this)))
   def numBytes = numElems * 8
   type Elem = Double
   type SegmentType = SegmentDouble
@@ -121,17 +121,19 @@ private[ra3] final case class SegmentDouble(
         )
       case None => IO.pure(BufferDouble(Array.empty[Double]))
       case Some(sf) =>
-        sf.bytes.map { byteVector =>
-          val bb =
-            Utils
-              .decompress(byteVector)
-              .order(ByteOrder.LITTLE_ENDIAN)
-              .asDoubleBuffer()
-          val ar = Array.ofDim[Double](bb.remaining)
-          bb.get(ar)
-          BufferDouble(ar)
-        }.logElapsed
-        .countInF64(numElems,sf.byteSize)
+        sf.bytes
+          .map { byteVector =>
+            val bb =
+              Utils
+                .decompress(byteVector)
+                .order(ByteOrder.LITTLE_ENDIAN)
+                .asDoubleBuffer()
+            val ar = Array.ofDim[Double](bb.remaining)
+            bb.get(ar)
+            BufferDouble(ar)
+          }
+          .logElapsed
+          .countInF64(numElems, sf.byteSize)
     }
 
 }
@@ -143,7 +145,7 @@ private[ra3] final case class SegmentInt(
 ) extends Segment
     with TaggedSegment {
 
-      def wrap: Box[?] = I32Var(Right(Seq(this)))
+  def wrap: Box[?] = I32Var(Right(Seq(this)))
   def numBytes = numElems * 4
   type Elem = Int
   type SegmentType = SegmentInt
@@ -165,18 +167,19 @@ private[ra3] final case class SegmentInt(
         assert(numElems == 0)
         IO.pure(BufferInt.empty)
       case Some(value) =>
-        value.bytes.map { byteVector =>
-          val bb =
-            Utils
-              .decompress(byteVector)
-              .order(ByteOrder.LITTLE_ENDIAN)
-              .asIntBuffer()
-          val ar = Array.ofDim[Int](bb.remaining)
-          bb.get(ar)
-          BufferInt(ar)
-        }
-        .logElapsed
-        .countInI32(numElems,value.byteSize)
+        value.bytes
+          .map { byteVector =>
+            val bb =
+              Utils
+                .decompress(byteVector)
+                .order(ByteOrder.LITTLE_ENDIAN)
+                .asIntBuffer()
+            val ar = Array.ofDim[Int](bb.remaining)
+            bb.get(ar)
+            BufferInt(ar)
+          }
+          .logElapsed
+          .countInI32(numElems, value.byteSize)
     }
 
   }
@@ -192,7 +195,7 @@ private[ra3] final case class SegmentLong(
 ) extends Segment
     with TaggedSegment {
 
-      def wrap: Box[?] = I64Var(Right(Seq(this)))
+  def wrap: Box[?] = I64Var(Right(Seq(this)))
   def numBytes = numElems * 8
 
   def nonMissingMinMax = statistic.nonMissingMinMax
@@ -213,18 +216,19 @@ private[ra3] final case class SegmentLong(
         )
       case None => IO.pure(BufferLong(Array.emptyLongArray))
       case Some(value) =>
-        value.bytes.map { byteVector =>
-          val bb =
-            Utils
-              .decompress(byteVector)
-              .order(ByteOrder.LITTLE_ENDIAN)
-              .asLongBuffer()
-          val ar = Array.ofDim[Long](bb.remaining)
-          bb.get(ar)
-          BufferLong(ar)
-        }
-        .logElapsed
-        .countInI64(numElems,value.byteSize)
+        value.bytes
+          .map { byteVector =>
+            val bb =
+              Utils
+                .decompress(byteVector)
+                .order(ByteOrder.LITTLE_ENDIAN)
+                .asLongBuffer()
+            val ar = Array.ofDim[Long](bb.remaining)
+            bb.get(ar)
+            BufferLong(ar)
+          }
+          .logElapsed
+          .countInI64(numElems, value.byteSize)
     }
 
   }
@@ -237,7 +241,7 @@ private[ra3] final case class SegmentInstant(
 ) extends Segment
     with TaggedSegment {
 
-      def wrap: Box[?] = InstVar(Right(Seq(this)))
+  def wrap: Box[?] = InstVar(Right(Seq(this)))
   def numBytes = numElems * 8
   def nonMissingMinMax = statistic.nonMissingMinMax
 
@@ -257,17 +261,18 @@ private[ra3] final case class SegmentInstant(
         )
       case None => IO.pure(BufferInstant(Array.emptyLongArray))
       case Some(value) =>
-        value.bytes.map { byteVector =>
-          val bb = Utils
-            .decompress(byteVector)
-            .order(ByteOrder.LITTLE_ENDIAN)
-            .asLongBuffer()
-          val ar = Array.ofDim[Long](bb.remaining)
-          bb.get(ar)
-          BufferInstant(ar)
-        }
-        .logElapsed
-        .countInInst(numElems,value.byteSize)
+        value.bytes
+          .map { byteVector =>
+            val bb = Utils
+              .decompress(byteVector)
+              .order(ByteOrder.LITTLE_ENDIAN)
+              .asLongBuffer()
+            val ar = Array.ofDim[Long](bb.remaining)
+            bb.get(ar)
+            BufferInstant(ar)
+          }
+          .logElapsed
+          .countInInst(numElems, value.byteSize)
     }
 
   }
@@ -299,32 +304,33 @@ private[ra3] final case class SegmentString(
         )
       case None => IO.pure(BufferString(Array.empty[CharSequence]))
       case Some(value) =>
-        value.bytes.map { byteVector =>
-          val t1 = System.nanoTime()
-          val decompressed = Utils.decompress(byteVector)
+        value.bytes
+          .map { byteVector =>
+            val t1 = System.nanoTime()
+            val decompressed = Utils.decompress(byteVector)
 
-          val bb =
-            decompressed
-              .order(ByteOrder.BIG_ENDIAN) // char data is laid out big endian
-          val ar = Array.ofDim[CharSequence](numElems)
-          var i = 0
-          while (i < numElems) {
-            val len = bb.getInt()
-            val wrap2 =
-              ByteBufferAsCharSequence(bb.slice(bb.position(), len * 2))
-            // val char = bb.slice(bb.position(), len * 2).asCharBuffer()
-            // assert(wrap2 == char,"X "+char.toString+" "+wrap2.toCharArray.toVector)
-            // assert(CharSequence.compare(wrap2,char) == 0,"Y"+char.toString+" "+wrap2.toCharArray.toVector)
-            ar(i) = wrap2
-            bb.position(bb.position() + len * 2)
-            i += 1
+            val bb =
+              decompressed
+                .order(ByteOrder.BIG_ENDIAN) // char data is laid out big endian
+            val ar = Array.ofDim[CharSequence](numElems)
+            var i = 0
+            while (i < numElems) {
+              val len = bb.getInt()
+              val wrap2 =
+                ByteBufferAsCharSequence(bb.slice(bb.position(), len * 2))
+              // val char = bb.slice(bb.position(), len * 2).asCharBuffer()
+              // assert(wrap2 == char,"X "+char.toString+" "+wrap2.toCharArray.toVector)
+              // assert(CharSequence.compare(wrap2,char) == 0,"Y"+char.toString+" "+wrap2.toCharArray.toVector)
+              ar(i) = wrap2
+              bb.position(bb.position() + len * 2)
+              i += 1
+            }
+            val t2 = System.nanoTime
+
+            BufferString(ar)
           }
-          val t2 = System.nanoTime
-
-          BufferString(ar)
-        }
-        .logElapsed
-        .countInStr(numElems,value.byteSize)
+          .logElapsed
+          .countInStr(numElems, value.byteSize)
     }
 
   }

@@ -17,10 +17,12 @@ object App extends IOApp {
     scribe.Logger.root
       .clearHandlers()
       .clearModifiers()
-      .withModifier(scribe.filter.exclude(scribe.filter.PackageNameFilter("tasks")))
-      .withHandler(minimumLevel = Some(scribe.Level.Info))      
+      .withModifier(
+        scribe.filter.exclude(scribe.filter.PackageNameFilter("tasks"))
+      )
+      .withHandler(minimumLevel = Some(scribe.Level.Info))
       .replace()
-    
+
   }
 
   // main entry point of application
@@ -59,7 +61,7 @@ object App extends IOApp {
         _ <- IO { print(query.render) }
         // evaluates into an untyped Table
         result <- query.evaluate
-        // logs time measurement 
+        // logs time measurement
         _ <- Elapsed.logResult
         _ <- IOMetricState.logResult
         // shows a sample
@@ -119,7 +121,7 @@ object Transactions {
           .reduceTotal(
             // projection of groups
             // :* is building a tuple of selected columns
-            // selected columns are always named with `as`            
+            // selected columns are always named with `as`
             transactionsTable.customerOut.first.as("customer") :*
               (transactionsTable.value.sum / transactionsTable.value.count)
                 .as("avg")

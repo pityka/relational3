@@ -308,7 +308,7 @@ package object ra3 {
       V <: Tuple
   ](
       tuple: scala.NamedTuple.NamedTuple[N, V]
-  ) = ra3.tablelang.Schema.extendAll[N,V,""](tuple)
+  ) = ra3.tablelang.Schema.extendAll[N, V, ""](tuple)
   inline def allWithPrefix[
       N <: Tuple,
       V <: Tuple,
@@ -316,7 +316,7 @@ package object ra3 {
   ](
       tuple: scala.NamedTuple.NamedTuple[N, V],
       prefix: String
-  ) = ra3.tablelang.Schema.extendAll[N,V,prefix.type](tuple)
+  ) = ra3.tablelang.Schema.extendAll[N, V, prefix.type](tuple)
 
   def where(arg0: ra3.lang.util.I32ColumnExpr) =
     select0.where(arg0)

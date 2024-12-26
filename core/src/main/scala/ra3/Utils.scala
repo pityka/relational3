@@ -233,7 +233,7 @@ private[ra3] case class TableHelper(
 }
 
 private[ra3] object Utils {
- 
+
   def guessMemoryUsageInMB(s: Int) =
     math.max(5, s.toLong * 64 / 1024 / 1024).toInt
   def guessMemoryUsageInMB(s: Segment) =
@@ -269,6 +269,7 @@ private[ra3] object Utils {
     IO
       .parSequenceN(32)(s.map(tag.buffer))
       .map(b => tag.cat(b*))
+      .logElapsed
   }
 
   val skipCompress = true

@@ -490,7 +490,7 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
           }*
       ).T
         .col("station", "value", "max", "min", "minmax")
-        // .setColIndex(Index("V0", "V1", "V2", "V3", "V4"))
+      // .setColIndex(Index("V0", "V1", "V2", "V3", "V4"))
 
       assert(f.toRowSeq.toSet.map(_._2) == joined.toRowSeq.toSet.map(_._2))
 

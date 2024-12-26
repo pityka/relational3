@@ -128,7 +128,8 @@ private[ra3] object ExportCsv {
             s"${outputName}/csv/$outputSegmentIndex.csv$suf"
           )
         }.flatten
-      }.logElapsed
+      }
+      .logElapsed
 
   }
   // $COVERAGE-OFF$

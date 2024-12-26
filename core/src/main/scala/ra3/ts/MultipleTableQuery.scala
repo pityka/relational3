@@ -103,9 +103,7 @@ private[ra3] object MultipleTableQuery {
                 .bufferMultiple(tag)(
                   segment.segment.map(_.asInstanceOf[tag.SegmentType])
                 )
-                .map(b =>
-                  (key, (tag.makeTaggedBuffer(b)), segment.columnName)
-                )
+                .map(b => (key, (tag.makeTaggedBuffer(b)), segment.columnName))
           }
       )
 

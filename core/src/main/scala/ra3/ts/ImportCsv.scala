@@ -114,52 +114,55 @@ private[ra3] object ImportCsv {
 
     }
 
-    fs2.io.toInputStreamResource(rawStream).use { is =>
-      IO.blocking {
-        val is2 = compression match {
-          case None => is
-          case Some(CompressionFormat.Gzip) =>
-            Utils.gzip(is)
-        }
-        val channel = java.nio.channels.Channels.newChannel(is2)
-        val result = ra3.csv
-          .readHeterogeneousFromCSVChannel(
-            name = name,
-            columnTypes = columns.map(v =>
-              (
-                v._1,
-                v._2,
-                v._3 match {
-                  case Some(InstantFormat.ISO) => Some(ra3.InstantParser.ISO)
-                  case Some(InstantFormat.LocalDateTimeAtUTC(s)) =>
-                    Some(ra3.InstantParser.LocalDateTimeAtUTC(s))
-                  case None => None
-                },
-                v._4
-              )
-            ),
-            channel = channel,
-            header = header,
-            maxLines = maxLines,
-            maxSegmentLength = maxSegmentLength,
-            fieldSeparator = fieldSeparator,
-            recordSeparator = recordSeparator,
-            bufferSize = bufferSize,
-            charset = charset
-          )
-        result
-      }.flatMap { result =>
-        result match {
-          case Left(value) =>
-            scribe.error(s"Error from csv parser: $value")
-            IO.raiseError(
-              new RuntimeException(s"Error from csv parser: $value")
+    fs2.io
+      .toInputStreamResource(rawStream)
+      .use { is =>
+        IO.blocking {
+          val is2 = compression match {
+            case None => is
+            case Some(CompressionFormat.Gzip) =>
+              Utils.gzip(is)
+          }
+          val channel = java.nio.channels.Channels.newChannel(is2)
+          val result = ra3.csv
+            .readHeterogeneousFromCSVChannel(
+              name = name,
+              columnTypes = columns.map(v =>
+                (
+                  v._1,
+                  v._2,
+                  v._3 match {
+                    case Some(InstantFormat.ISO) => Some(ra3.InstantParser.ISO)
+                    case Some(InstantFormat.LocalDateTimeAtUTC(s)) =>
+                      Some(ra3.InstantParser.LocalDateTimeAtUTC(s))
+                    case None => None
+                  },
+                  v._4
+                )
+              ),
+              channel = channel,
+              header = header,
+              maxLines = maxLines,
+              maxSegmentLength = maxSegmentLength,
+              fieldSeparator = fieldSeparator,
+              recordSeparator = recordSeparator,
+              bufferSize = bufferSize,
+              charset = charset
             )
-          case Right(value) =>
-            IO.pure(value)
+          result
+        }.flatMap { result =>
+          result match {
+            case Left(value) =>
+              scribe.error(s"Error from csv parser: $value")
+              IO.raiseError(
+                new RuntimeException(s"Error from csv parser: $value")
+              )
+            case Right(value) =>
+              IO.pure(value)
+          }
         }
       }
-    }.logElapsed
+      .logElapsed
 
   }
   // $COVERAGE-OFF$

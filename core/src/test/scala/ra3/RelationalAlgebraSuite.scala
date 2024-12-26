@@ -321,7 +321,7 @@ class RelationlAlgebraSuite
         .filterIx(_.nonEmpty)
       val expect =
         tableFrame.resetRowIndex
-        .setColIndex(Index("c0","c1","c2"))
+          .setColIndex(Index("c0", "c1", "c2"))
 
       assertEquals(takenF, expect)
     }
@@ -662,7 +662,7 @@ class RelationlAlgebraSuite
                 .withPartitionBase(3)
                 .withPartitionLimit(0)
                 .withMaxSegmentsBufferingAtOnce(2)
-                .select(ra3.all(tableA).concat(ra3.allWithPrefix(tableB,"b_")))
+                .select(ra3.all(tableA).concat(ra3.allWithPrefix(tableB, "b_")))
 
             }
 
@@ -779,7 +779,7 @@ class RelationlAlgebraSuite
                 .withPartitionBase(3)
                 .withPartitionLimit(0)
                 .withMaxSegmentsBufferingAtOnce(2)
-                .select(ra3.all(tableA).concat(ra3.allWithPrefix(tableB,"b_")))
+                .select(ra3.all(tableA).concat(ra3.allWithPrefix(tableB, "b_")))
 
             }
 
@@ -870,7 +870,7 @@ class RelationlAlgebraSuite
                 .withPartitionBase(3)
                 .withPartitionLimit(0)
                 .withMaxSegmentsBufferingAtOnce(2)
-                .select(ra3.all(tableA).concat(ra3.allWithPrefix(tableB,"b_")))
+                .select(ra3.all(tableA).concat(ra3.allWithPrefix(tableB, "b_")))
 
             }
 
@@ -961,7 +961,7 @@ class RelationlAlgebraSuite
                 .withPartitionBase(3)
                 .withPartitionLimit(0)
                 .withMaxSegmentsBufferingAtOnce(2)
-                .select(ra3.all(tableA).concat(ra3.allWithPrefix(tableB,"b_")))
+                .select(ra3.all(tableA).concat(ra3.allWithPrefix(tableB, "b_")))
 
             }
 
@@ -1068,7 +1068,7 @@ class RelationlAlgebraSuite
                 .withPartitionBase(3)
                 .withPartitionLimit(0)
                 .withMaxSegmentsBufferingAtOnce(2)
-                .select(ra3.all(tableA).concat(ra3.allWithPrefix(tableB,"b_")))
+                .select(ra3.all(tableA).concat(ra3.allWithPrefix(tableB, "b_")))
 
             }
 
@@ -1202,8 +1202,8 @@ class RelationlAlgebraSuite
                     .select(
                       ra3
                         .all(tableA)
-                        .concat(ra3.allWithPrefix(tableB,"b_"))
-                        .concat(ra3.allWithPrefix(tableC,"c_"))
+                        .concat(ra3.allWithPrefix(tableB, "b_"))
+                        .concat(ra3.allWithPrefix(tableC, "c_"))
                     )
 
                 }
@@ -1312,7 +1312,7 @@ class RelationlAlgebraSuite
                 .withPartitionBase(3)
                 .withPartitionLimit(0)
                 .withMaxSegmentsBufferingAtOnce(2)
-                .select(ra3.all(tableA).concat(ra3.allWithPrefix(tableB,"b_")))
+                .select(ra3.all(tableA).concat(ra3.allWithPrefix(tableB, "b_")))
                 .where(tableA.c0 <= 0)
 
             }
@@ -1404,7 +1404,7 @@ class RelationlAlgebraSuite
                 .withPartitionBase(3)
                 .withPartitionLimit(0)
                 .withMaxSegmentsBufferingAtOnce(2)
-                .select(ra3.all(tableA).concat(ra3.allWithPrefix(tableB,"b_")))
+                .select(ra3.all(tableA).concat(ra3.allWithPrefix(tableB, "b_")))
 
             }
 
@@ -1495,7 +1495,7 @@ class RelationlAlgebraSuite
                 .withPartitionBase(3)
                 .withPartitionLimit(0)
                 .withMaxSegmentsBufferingAtOnce(2)
-                .select(ra3.all(tableA).concat(ra3.allWithPrefix(tableB,"b_")))
+                .select(ra3.all(tableA).concat(ra3.allWithPrefix(tableB, "b_")))
 
             }
 
@@ -1710,7 +1710,6 @@ class RelationlAlgebraSuite
           .evaluate
           .unsafeRunSync()
       )
-
 
       assertEquals(
         saddleResult.toRowSeq.map(_._2).toSet,
@@ -2010,7 +2009,7 @@ class RelationlAlgebraSuite
                 .withPartitionBase(3)
                 .withPartitionLimit(0)
                 .withMaxSegmentsBufferingAtOnce(2)
-                .select(ra3.all(tableA).concat(ra3.allWithPrefix(tableB,"b_")))
+                .select(ra3.all(tableA).concat(ra3.allWithPrefix(tableB, "b_")))
 
             }
 
@@ -2118,7 +2117,7 @@ class RelationlAlgebraSuite
                 .withPartitionBase(3)
                 .withPartitionLimit(6)
                 .withMaxSegmentsBufferingAtOnce(2)
-                .select(ra3.all(tableA).concat(ra3.allWithPrefix(tableB,"b_")))
+                .select(ra3.all(tableA).concat(ra3.allWithPrefix(tableB, "b_")))
 
             }
 
@@ -2159,7 +2158,7 @@ class RelationlAlgebraSuite
                 .withPartitionBase(3)
                 .withPartitionLimit(6)
                 .withMaxSegmentsBufferingAtOnce(2)
-                .select(ra3.all(tableA).concat(ra3.allWithPrefix(tableB,"b_")))
+                .select(ra3.all(tableA).concat(ra3.allWithPrefix(tableB, "b_")))
 
             }
 
@@ -2256,7 +2255,7 @@ class RelationlAlgebraSuite
                 .withPartitionBase(3)
                 .withPartitionLimit(6)
                 .withMaxSegmentsBufferingAtOnce(2)
-                .select(ra3.all(tableA).concat(ra3.allWithPrefix(tableB,"b_")))
+                .select(ra3.all(tableA).concat(ra3.allWithPrefix(tableB, "b_")))
 
             }
 
@@ -2285,7 +2284,7 @@ class RelationlAlgebraSuite
                 .withPartitionBase(3)
                 .withPartitionLimit(6)
                 .withMaxSegmentsBufferingAtOnce(2)
-                .select(ra3.all(tableA).concat(ra3.allWithPrefix(tableB,"b_")))
+                .select(ra3.all(tableA).concat(ra3.allWithPrefix(tableB, "b_")))
 
             }
 

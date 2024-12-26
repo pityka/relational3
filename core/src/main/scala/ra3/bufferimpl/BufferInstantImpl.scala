@@ -214,8 +214,7 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
           .map(sf =>
             SegmentInstant(Some(sf), values.length, self.makeStatistic())
           )
-      }
-      .logElapsed
+      }.logElapsed
 
   }
 

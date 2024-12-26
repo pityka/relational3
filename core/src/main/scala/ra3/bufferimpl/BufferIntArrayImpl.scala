@@ -230,8 +230,7 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
         SharedFile
           .apply(stream, name.toString)
           .map(sf => SegmentInt(Some(sf), values.length, self.makeStatistic()))
-      }
-      .logElapsed
+      }.logElapsed
   }
 
   def elementwise_*(other: BufferDouble): BufferDouble = {

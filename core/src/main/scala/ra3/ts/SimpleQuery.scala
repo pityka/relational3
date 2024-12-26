@@ -75,8 +75,15 @@ private[ra3] object SimpleQuery {
               segmentWithName.tableUniqueId,
               segmentWithName.columnIdx
             )
-            
-            (columnKey, ra3.lang.runtime.Value(tag.wrap(segmentWithName.segment.asInstanceOf[Seq[tag.SegmentType]])))
+
+            (
+              columnKey,
+              ra3.lang.runtime.Value(
+                tag.wrap(
+                  segmentWithName.segment.asInstanceOf[Seq[tag.SegmentType]]
+                )
+              )
+            )
           }
           .filter(v => neededColumns.contains(v._1))
           .toMap

@@ -11,7 +11,6 @@ private object TupleUtils {
 
   }
 
-
   inline def buildTupleFromElements[T <: Tuple](
       inline i: Int,
       inline get: Int => Any

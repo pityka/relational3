@@ -57,15 +57,17 @@ private[ra3] object ExtractGroups {
     val bIn = IO
       .parSequenceN(32)(input.map(s => tag.buffer(s)))
       .map(b => tag.cat(b*))
-    IO.both(parts, bIn).flatMap { case (partitionMap, in) =>
-      IO.parSequenceN(32)((0 until numGroups).toList.map { gIdx =>
-        tag.toSegment(
-          tag
-            .take(in, partitionMap.where(gIdx)),
-          outputPath.copy(table = outputPath.table + "-g" + gIdx)
-        )
-      })
-    }.logElapsed
+    IO.both(parts, bIn)
+      .flatMap { case (partitionMap, in) =>
+        IO.parSequenceN(32)((0 until numGroups).toList.map { gIdx =>
+          tag.toSegment(
+            tag
+              .take(in, partitionMap.where(gIdx)),
+            outputPath.copy(table = outputPath.table + "-g" + gIdx)
+          )
+        })
+      }
+      .logElapsed
   }
   // $COVERAGE-OFF$
   implicit val codec: JsonValueCodec[ExtractGroups] = JsonCodecMaker.make

@@ -328,8 +328,7 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
               self.makeStatistic()
             )
           )
-      }
-      .logElapsed
+      }.logElapsed
   }
 
   def elementwise_+(other: BufferType): BufferType = {

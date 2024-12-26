@@ -51,7 +51,8 @@ private[ra3] trait RelationalAlgebra { self: Table =>
             self.partitions
           )
         )
-      }.logElapsed
+      }
+      .logElapsed
   }
 
   private[ra3] def prePartition(
@@ -100,64 +101,64 @@ private[ra3] trait RelationalAlgebra { self: Table =>
       partitionLimit: Int,
       maxItemsToBufferAtOnce: Int
   )(implicit tsc: TaskSystemComponents): IO[Vector[PartitionedTable]] =
-   ( if (self.numRows <= partitionLimit.toLong)
-      IO.pure(Vector(PartitionedTable(self.columns, PartitionMeta(Nil, 1))))
-    else if (
-      self.partitions.isDefined && self.partitions.get.columns == columnIdx && (self.partitions.get.partitionBase == partitionBase || !numPartitionsIsImportant)
-    )
-      IO {
-        (0 until self.partitions.get.numPartitions).toVector.map { pIdx =>
-          val segmentIdx =
-            self.partitions.get.partitionMapOverSegments.zipWithIndex
-              .filter(_._1 == pIdx)
-              .map(_._2)
-          val columns = self.columns.map { col =>
-            col.tag.makeTaggedColumn(
-              col.tag.makeColumn(segmentIdx.map(col.segments))
-            )
-          }
-          PartitionedTable(columns, PartitionMeta(columnIdx, partitionBase))
-        }
-      }
-    else if (
-      self.partitions.isDefined && self.partitions.get.columns.startsWith(
-        columnIdx
-      ) && (self.partitions.get.partitionBase == partitionBase)
-    ) IO {
-      val pmeta = PartitionMeta(self.partitions.get.columns, partitionBase)
-      val pmetaPrefix = pmeta.prefix(columnIdx)
-      val num = pmetaPrefix.numPartitions
-      val partitionMap = pmeta.partitionIdxOfPrefix(
-        columnIdx,
-        self.partitions.get.partitionMapOverSegments
-      )
-      (0 until num).toVector.map { pIdx =>
-        val segmentIdx =
-          partitionMap.zipWithIndex
-            .filter(_._1 == pIdx)
-            .map(_._2)
-        val columns = self.columns.map { col =>
-          col.tag.makeTaggedColumn(
-            col.tag.makeColumn(segmentIdx.map(col.segments))
-          )
-        }
-        PartitionedTable(columns, pmetaPrefix)
-      }
-    }
-    else {
-      scribe.info(
-        f"Will partition ${self.columns.size} columns of ${self.uniqueId} by partition key of column $columnIdx, each ${self.segmentation.size}%,d segments, total elements: ${self.numRows}%,d. "
-      )
-      PartitionedTable.partitionColumns(
-        columnIdx = columnIdx,
-        inputColumns = self.columns,
-        partitionBase = partitionBase,
-        maxItemsToBufferAtOnce = maxItemsToBufferAtOnce,
-        uniqueId = self.uniqueId + "partitioned-" + columnIdx.mkString(
-          "-"
-        ) + "-" + partitionBase + "-" + partitionLimit
-      )
-    }).logElapsed
+    (if (self.numRows <= partitionLimit.toLong)
+       IO.pure(Vector(PartitionedTable(self.columns, PartitionMeta(Nil, 1))))
+     else if (
+       self.partitions.isDefined && self.partitions.get.columns == columnIdx && (self.partitions.get.partitionBase == partitionBase || !numPartitionsIsImportant)
+     )
+       IO {
+         (0 until self.partitions.get.numPartitions).toVector.map { pIdx =>
+           val segmentIdx =
+             self.partitions.get.partitionMapOverSegments.zipWithIndex
+               .filter(_._1 == pIdx)
+               .map(_._2)
+           val columns = self.columns.map { col =>
+             col.tag.makeTaggedColumn(
+               col.tag.makeColumn(segmentIdx.map(col.segments))
+             )
+           }
+           PartitionedTable(columns, PartitionMeta(columnIdx, partitionBase))
+         }
+       }
+     else if (
+       self.partitions.isDefined && self.partitions.get.columns.startsWith(
+         columnIdx
+       ) && (self.partitions.get.partitionBase == partitionBase)
+     ) IO {
+       val pmeta = PartitionMeta(self.partitions.get.columns, partitionBase)
+       val pmetaPrefix = pmeta.prefix(columnIdx)
+       val num = pmetaPrefix.numPartitions
+       val partitionMap = pmeta.partitionIdxOfPrefix(
+         columnIdx,
+         self.partitions.get.partitionMapOverSegments
+       )
+       (0 until num).toVector.map { pIdx =>
+         val segmentIdx =
+           partitionMap.zipWithIndex
+             .filter(_._1 == pIdx)
+             .map(_._2)
+         val columns = self.columns.map { col =>
+           col.tag.makeTaggedColumn(
+             col.tag.makeColumn(segmentIdx.map(col.segments))
+           )
+         }
+         PartitionedTable(columns, pmetaPrefix)
+       }
+     }
+     else {
+       scribe.info(
+         f"Will partition ${self.columns.size} columns of ${self.uniqueId} by partition key of column $columnIdx, each ${self.segmentation.size}%,d segments, total elements: ${self.numRows}%,d. "
+       )
+       PartitionedTable.partitionColumns(
+         columnIdx = columnIdx,
+         inputColumns = self.columns,
+         partitionBase = partitionBase,
+         maxItemsToBufferAtOnce = maxItemsToBufferAtOnce,
+         uniqueId = self.uniqueId + "partitioned-" + columnIdx.mkString(
+           "-"
+         ) + "-" + partitionBase + "-" + partitionLimit
+       )
+     }).logElapsed
 
   /** Group by which return group locations
     *

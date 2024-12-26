@@ -122,7 +122,7 @@ private[ra3] final case class BufferDouble(values: Array[Double])
     with BufferDoubleImpl
     with TaggedBuffer { self =>
 
-    def wrap = F64Var(Left(this))
+  def wrap = F64Var(Left(this))
 
   def toArray = values
 

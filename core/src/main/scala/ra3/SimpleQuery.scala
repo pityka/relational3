@@ -54,7 +54,8 @@ private[ra3] object SimpleQuery {
             self.partitions
           )
         )
-      }.logElapsed
+      }
+      .logElapsed
   }
   def simpleQueryCount(self: Table, program: ra3.lang.runtime.Expr)(implicit
       tsc: TaskSystemComponents
@@ -67,15 +68,17 @@ private[ra3] object SimpleQuery {
           (0 until nSegments).toList
         ) { segmentIdx =>
           ts.SimpleQueryCount.queue(
-            input = self.columns.map(v => v.tag -> v.segments(segmentIdx)).zipWithIndex.map {
-              case ((tag,s), columnIdx) =>
+            input = self.columns
+              .map(v => v.tag -> v.segments(segmentIdx))
+              .zipWithIndex
+              .map { case ((tag, s), columnIdx) =>
                 tag -> ra3.ts.SegmentWithName(
                   segment = List(s),
                   tableUniqueId = self.uniqueId,
                   columnName = self.colNames(columnIdx),
                   columnIdx = columnIdx
                 )
-            },
+              },
             predicate = program,
             groupMap = None
           )
@@ -92,6 +95,7 @@ private[ra3] object SimpleQuery {
                 )
               }
           }
-      }.logElapsed
+      }
+      .logElapsed
   }
 }

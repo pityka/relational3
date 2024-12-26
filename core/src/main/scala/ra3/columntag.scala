@@ -8,7 +8,7 @@ import bufferimpl.ArrayUtil
 sealed trait ColumnTag { self =>
   type Elem
 
-  def wrap(s:Seq[SegmentType]) : Box[?]
+  def wrap(s: Seq[SegmentType]): Box[?]
 
   def makeNamedColumnSpecFromBuffer(
       buffer: BufferType,
@@ -362,8 +362,7 @@ object ColumnTag {
   object I64 extends ColumnTag {
     override def toString = "I64"
 
-        def wrap(s: Seq[SegmentType]): Box[?] = I64Var(Right(s))
-
+    def wrap(s: Seq[SegmentType]): Box[?] = I64Var(Right(s))
 
     def makeNamedColumnSpecFromBuffer(
         buffer: BufferType,
@@ -517,8 +516,7 @@ object ColumnTag {
   object Instant extends ColumnTag {
     override def toString = "Instant"
 
-        def wrap(s: Seq[SegmentType]): Box[?] = InstVar(Right(s))
-
+    def wrap(s: Seq[SegmentType]): Box[?] = InstVar(Right(s))
 
     def makeNamedColumnSpecFromBuffer(
         buffer: BufferType,
@@ -681,8 +679,7 @@ object ColumnTag {
   }
   object StringTag extends ColumnTag {
 
-        def wrap(s: Seq[SegmentType]): Box[?] = StrVar(Right(s))
-
+    def wrap(s: Seq[SegmentType]): Box[?] = StrVar(Right(s))
 
     def makeNamedColumnSpecFromBuffer(
         buffer: BufferType,
@@ -834,8 +831,7 @@ object ColumnTag {
   object F64 extends ColumnTag {
     override def toString = "F64"
 
-        def wrap(s: Seq[SegmentType]): Box[?] = F64Var(Right(s))
-
+    def wrap(s: Seq[SegmentType]): Box[?] = F64Var(Right(s))
 
     def makeNamedColumnSpecFromBuffer(
         buffer: BufferType,

@@ -20,17 +20,21 @@ private[ra3] class TypedCDF(
     // locations.buffer.map(Some(_))
     val locs: IO[tag.BufferType] = tag.buffer(locationsSegment)
     val vals: IO[BufferDouble] = values.buffer
-    IO.both(locs, vals).map { case (locsBuffer, vals) =>
-      val indexInLocs =
-        if (ascending)
-          vals.toSeq.zipWithIndex.find(_._1 >= queryPercentile).map(_._2)
-        else {
+    IO.both(locs, vals)
+      .map { case (locsBuffer, vals) =>
+        val indexInLocs =
+          if (ascending)
+            vals.toSeq.zipWithIndex.find(_._1 >= queryPercentile).map(_._2)
+          else {
 
-          val s = vals.toSeq
-          s.zipWithIndex.reverse.find(_._1 <= (1d - queryPercentile)).map(_._2)
-        }
-      indexInLocs.map(idx => tag.take(locsBuffer, BufferInt(Array(idx))))
-    }.logElapsed
+            val s = vals.toSeq
+            s.zipWithIndex.reverse
+              .find(_._1 <= (1d - queryPercentile))
+              .map(_._2)
+          }
+        indexInLocs.map(idx => tag.take(locsBuffer, BufferInt(Array(idx))))
+      }
+      .logElapsed
 
   }
 }

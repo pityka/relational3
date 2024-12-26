@@ -106,7 +106,7 @@ object Op2 {
             f <- bufferIfNeededI32(f)
             b <- bufferIfNeededI32(b.v)
           } yield Some(I32Var(Left(b.elementwise_&&(f))))
-      }).map(f => a.replacePredicate(f.map(_.v)))
+      }).map(f => a.replacePredicate(f.map(_.v))).logElapsed
 
   }
   case object MkReturnWhereUntyped extends Op2 {
@@ -122,7 +122,7 @@ object Op2 {
             f <- bufferIfNeededI32(f)
             b <- bufferIfNeededI32(b.v)
           } yield Some(I32Var(Left(b.elementwise_&&(f))))
-      }).map(f => a.replacePredicate(f.map(_.v)))
+      }).map(f => a.replacePredicate(f.map(_.v))).logElapsed
 
   }
 
@@ -243,10 +243,10 @@ object Op2 {
     def op(a: I32Var, b: I32Var)(implicit
         tsc: TaskSystemComponents
     ): IO[I32Var] = {
-      for {
+      (for {
         a <- bufferIfNeededI32(a.v)
         b <- bufferIfNeededI32(b.v)
-      } yield I32Var(Left(a.elementwise_eq(b)))
+      } yield I32Var(Left(a.elementwise_eq(b)))).logElapsed
 
     }
   }
@@ -254,7 +254,7 @@ object Op2 {
     def op(a: I32Var, b: Int)(implicit
         tsc: TaskSystemComponents
     ): IO[I32Var] = {
-      for {
+      (for {
         a <- bufferIfNeededWithPreconditionI32(a.v)((segment: SegmentInt) =>
           segment.statistic.mightEq(b)
         )
@@ -262,17 +262,17 @@ object Op2 {
         case Right(a) => Left(a.elementwise_eq(b))
         case Left(numEl) =>
           Left(BufferInt.constant(0, numEl))
-      })
+      })).logElapsed
     }
   }
   case object ColumnLtEqOpII extends ColumnOp2III {
     def op(a: I32Var, b: I32Var)(implicit
         tsc: TaskSystemComponents
     ): IO[I32Var] = {
-      for {
+      (for {
         a <- bufferIfNeededI32(a.v)
         b <- bufferIfNeededI32(b.v)
-      } yield I32Var(Left(a.elementwise_lteq(b)))
+      } yield I32Var(Left(a.elementwise_lteq(b)))).logElapsed
 
     }
   }
@@ -280,10 +280,10 @@ object Op2 {
     def op(a: I32Var, b: I32Var)(implicit
         tsc: TaskSystemComponents
     ): IO[I32Var] = {
-      for {
+      (for {
         a <- bufferIfNeededI32(a.v)
         b <- bufferIfNeededI32(b.v)
-      } yield I32Var(Left(a.elementwise_lt(b)))
+      } yield I32Var(Left(a.elementwise_lt(b)))).logElapsed
 
     }
   }
@@ -291,7 +291,7 @@ object Op2 {
     def op(a: I32Var, b: Int)(implicit
         tsc: TaskSystemComponents
     ): IO[I32Var] = {
-      for {
+      (for {
         a <- bufferIfNeededWithPreconditionI32(a.v)((segment: SegmentInt) =>
           segment.statistic.mightLtEq(b)
         )
@@ -299,14 +299,14 @@ object Op2 {
         case Right(a) => Left(a.elementwise_lteq(b))
         case Left(numEl) =>
           Left(BufferInt.constant(0, numEl))
-      })
+      })).logElapsed
     }
   }
   case object ColumnLtOpIcI extends ColumnOp2ICII {
     def op(a: I32Var, b: Int)(implicit
         tsc: TaskSystemComponents
     ): IO[I32Var] = {
-      for {
+      (for {
         a <- bufferIfNeededWithPreconditionI32(a.v)((segment: SegmentInt) =>
           segment.statistic.mightLt(b)
         )
@@ -314,7 +314,7 @@ object Op2 {
         case Right(a) => Left(a.elementwise_lt(b))
         case Left(numEl) =>
           Left(BufferInt.constant(0, numEl))
-      })
+      })).logElapsed
     }
   }
   case object ColumnGtEqOpII extends ColumnOp2III {
@@ -326,7 +326,7 @@ object Op2 {
         b <- bufferIfNeededI32(b.v)
       } yield I32Var(Left(a.elementwise_gteq(b)))
 
-    }
+    }.logElapsed
   }
   case object ColumnGtOpII extends ColumnOp2III {
     def op(a: I32Var, b: I32Var)(implicit
@@ -337,7 +337,7 @@ object Op2 {
         b <- bufferIfNeededI32(b.v)
       } yield I32Var(Left(a.elementwise_gt(b)))
 
-    }
+    }.logElapsed
   }
   case object ColumnGtEqOpIcI extends ColumnOp2ICII {
     def op(a: I32Var, b: Int)(implicit
@@ -352,7 +352,7 @@ object Op2 {
         case Left(numEl) =>
           Left(BufferInt.constant(0, numEl))
       })
-    }
+    }.logElapsed
   }
   case object ColumnGtOpIcI extends ColumnOp2ICII {
     def op(a: I32Var, b: Int)(implicit
@@ -367,7 +367,7 @@ object Op2 {
         case Left(numEl) =>
           Left(BufferInt.constant(0, numEl))
       })
-    }
+    }.logElapsed
   }
   case object ColumnEqOpStrcStr extends ColumnOp2StrCStrI {
     def op(a: StrVar, b: String)(implicit
@@ -382,7 +382,7 @@ object Op2 {
         case Left(numEl) =>
           Left(BufferInt.constant(0, numEl))
       })
-    }
+    }.logElapsed
   }
   case object ColumnMatchesOpStrcStr extends ColumnOp2StrCStrI {
     def op(a: StrVar, b: String)(implicit
@@ -391,7 +391,7 @@ object Op2 {
       for {
         a <- bufferIfNeededString(a.v)
       } yield I32Var(Left(a.elementwise_matches(b)))
-    }
+    }.logElapsed
   }
   case object ColumnContainedInOpStrcStrSet extends ColumnOp2StrCStrSetI {
     def op(a: StrVar, b: Set[String])(implicit
@@ -407,7 +407,7 @@ object Op2 {
         case Left(numEl) =>
           Left(BufferInt.constant(0, numEl))
       })
-    }
+    }.logElapsed
   }
   case object ColumnContainedInOpIcISet extends ColumnOp2ICISetI {
     def op(a: I32Var, b: Set[Int])(implicit
@@ -422,7 +422,7 @@ object Op2 {
         case Left(numEl) =>
           Left(BufferInt.constant(0, numEl))
       })
-    }
+    }.logElapsed
   }
   case object ColumnContainedInOpDcDSet extends ColumnOp2DCDSetI {
     def op(a: F64Var, b: Set[Double])(implicit
@@ -437,7 +437,7 @@ object Op2 {
         case Left(numEl) =>
           Left(BufferInt.constant(0, numEl))
       })
-    }
+    }.logElapsed
   }
 
   sealed trait Op2III extends Op2 {
@@ -462,7 +462,7 @@ object Op2 {
         b <- bufferIfNeededF64(b.v)
       } yield F64Var(Left(a.elementwise_div(b)))
 
-    }
+    }.logElapsed
   }
   case object ColumnMulOpDD extends ColumnOp2DDD {
     def op(a: F64Var, b: F64Var)(implicit
@@ -473,7 +473,7 @@ object Op2 {
         b <- bufferIfNeededF64(b.v)
       } yield F64Var(Left(a.elementwise_mul(b)))
 
-    }
+    }.logElapsed
   }
   case object ColumnAddOpDD extends ColumnOp2DDD {
     def op(a: F64Var, b: F64Var)(implicit
@@ -484,7 +484,7 @@ object Op2 {
         b <- bufferIfNeededF64(b.v)
       } yield F64Var(Left(a.elementwise_add(b)))
 
-    }
+    }.logElapsed
   }
   case object ColumnSubtractOpDD extends ColumnOp2DDD {
     def op(a: F64Var, b: F64Var)(implicit
@@ -495,7 +495,7 @@ object Op2 {
         b <- bufferIfNeededF64(b.v)
       } yield F64Var(Left(a.elementwise_subtract(b)))
 
-    }
+    }.logElapsed
   }
 
   case object ColumnLtEqOpDD extends ColumnOp2DDI {
@@ -507,7 +507,7 @@ object Op2 {
         b <- bufferIfNeededF64(b.v)
       } yield I32Var(Left(a.elementwise_lteq(b)))
 
-    }
+    }.logElapsed
   }
   case object ColumnLtEqOpDcD extends ColumnOp2DcDI {
     def op(a: F64Var, b: Double)(implicit
@@ -522,7 +522,7 @@ object Op2 {
         case Left(numEl) =>
           Left(BufferInt.constant(0, numEl))
       })
-    }
+    }.logElapsed
 
   }
 
@@ -535,7 +535,7 @@ object Op2 {
         b <- bufferIfNeededF64(b.v)
       } yield I32Var(Left(a.elementwise_lt(b)))
 
-    }
+    }.logElapsed
   }
   case object ColumnLtOpDcD extends ColumnOp2DcDI {
     def op(a: F64Var, b: Double)(implicit
@@ -550,7 +550,7 @@ object Op2 {
         case Left(numEl) =>
           Left(BufferInt.constant(0, numEl))
       })
-    }
+    }.logElapsed
   }
   case object ColumnGtEqOpDD extends ColumnOp2DDI {
     def op(a: F64Var, b: F64Var)(implicit
@@ -561,7 +561,7 @@ object Op2 {
         b <- bufferIfNeededF64(b.v)
       } yield I32Var(Left(a.elementwise_gteq(b)))
 
-    }
+    }.logElapsed
   }
   case object ColumnGtEqOpDcD extends ColumnOp2DcDI {
     def op(a: F64Var, b: Double)(implicit
@@ -576,7 +576,7 @@ object Op2 {
         case Left(numEl) =>
           Left(BufferInt.constant(0, numEl))
       })
-    }
+    }.logElapsed
   }
   case object ColumnGtOpDD extends ColumnOp2DDI {
     def op(a: F64Var, b: F64Var)(implicit
@@ -587,7 +587,7 @@ object Op2 {
         b <- bufferIfNeededF64(b.v)
       } yield I32Var(Left(a.elementwise_gt(b)))
 
-    }
+    }.logElapsed
   }
   case object ColumnGtOpDcD extends ColumnOp2DcDI {
     def op(a: F64Var, b: Double)(implicit
@@ -602,7 +602,7 @@ object Op2 {
         case Left(numEl) =>
           Left(BufferInt.constant(0, numEl))
       })
-    }
+    }.logElapsed
   }
   case object ColumnEqOpDD extends ColumnOp2DDI {
     def op(a: F64Var, b: F64Var)(implicit
@@ -613,7 +613,7 @@ object Op2 {
         b <- bufferIfNeededF64(b.v)
       } yield I32Var(Left(a.elementwise_eq(b)))
 
-    }
+    }.logElapsed
   }
   case object ColumnEqOpDcD extends ColumnOp2DcDI {
     def op(a: F64Var, b: Double)(implicit
@@ -628,7 +628,7 @@ object Op2 {
         case Left(numEl) =>
           Left(BufferInt.constant(0, numEl))
       })
-    }
+    }.logElapsed
   }
   case object ColumnNEqOpDD extends ColumnOp2DDI {
     def op(a: F64Var, b: F64Var)(implicit
@@ -639,7 +639,7 @@ object Op2 {
         b <- bufferIfNeededF64(b.v)
       } yield I32Var(Left(a.elementwise_neq(b)))
 
-    }
+    }.logElapsed
   }
   case object ColumnNEqOpDcD extends ColumnOp2DcDI {
     def op(a: F64Var, b: Double)(implicit
@@ -649,7 +649,7 @@ object Op2 {
         a <- bufferIfNeededF64(a.v)
       } yield I32Var(Left(a.elementwise_neq(b)))
 
-    }
+    }.logElapsed
   }
 
   case object ColumnPrintfOpDcStr extends ColumnOp2DcStrStr {
@@ -660,7 +660,7 @@ object Op2 {
         a <- bufferIfNeededF64(a.v)
       } yield StrVar(Left(a.elementwise_printf(b)))
 
-    }
+    }.logElapsed
   }
   case object ColumnPrintfOpIcStr extends ColumnOp2IcStrStr {
     def op(a: I32Var, b: String)(implicit
@@ -670,7 +670,7 @@ object Op2 {
         a <- bufferIfNeededI32(a.v)
       } yield StrVar(Left(a.elementwise_printf(b)))
 
-    }
+    }.logElapsed
   }
 
   case object ColumnNEqOpII extends ColumnOp2III {
@@ -682,7 +682,7 @@ object Op2 {
         b <- bufferIfNeededI32(b.v)
       } yield I32Var(Left(a.elementwise_neq(b)))
 
-    }
+    }.logElapsed
   }
   case object ColumnNEqOpIcI extends ColumnOp2ICII {
     def op(a: I32Var, b: Int)(implicit
@@ -692,17 +692,8 @@ object Op2 {
         a <- bufferIfNeededI32(a.v)
       } yield I32Var(Left(a.elementwise_neq(b)))
 
-    }
+    }.logElapsed
   }
-  // case object ColumnNEqOpIcStr extends ColumnOp2IcStrI {
-  //   def op(a: I32Var, b: String)(implicit tsc: TaskSystemComponents): IO[I32Var] = {
-  //     for {
-  //       a <- bufferIfNeeded(a)
-  //       b <- bufferIfNeeded(b)
-  //     } yield Left(a.elementwise_neq(b))
-
-  //   }
-  // }
 
   case object ColumnPlusOpInstcL extends ColumnOp2InstcLInst {
     def op(a: InstVar, b: Long)(implicit
@@ -712,7 +703,7 @@ object Op2 {
         a <- bufferIfNeededInst(a.v)
       } yield InstVar(Left(a.elementwise_plus(b)))
 
-    }
+    }.logElapsed
   }
   case object ColumnMinusOpInstcL extends ColumnOp2InstcLInst {
     def op(a: InstVar, b: Long)(implicit
@@ -722,7 +713,7 @@ object Op2 {
         a <- bufferIfNeededInst(a.v)
       } yield InstVar(Left(a.elementwise_minus(b)))
 
-    }
+    }.logElapsed
   }
 
   case object ColumnLtEqOpInstInst extends ColumnOp2InstInstI {
@@ -734,7 +725,7 @@ object Op2 {
         b <- bufferIfNeededInst(b.v)
       } yield I32Var(Left(a.elementwise_lteq(b)))
 
-    }
+    }.logElapsed
   }
 
   case object ColumnLtEqOpInstcStr extends ColumnOp2InstcStrI {
@@ -749,7 +740,7 @@ object Op2 {
         )
       )
 
-    }
+    }.logElapsed
   }
 
   case object ColumnLtOpInstInst extends ColumnOp2InstInstI {
@@ -761,7 +752,7 @@ object Op2 {
         b <- bufferIfNeededInst(b.v)
       } yield I32Var(Left(a.elementwise_lt(b)))
 
-    }
+    }.logElapsed
   }
 
   case object ColumnLtOpInstcStr extends ColumnOp2InstcStrI {
@@ -776,7 +767,7 @@ object Op2 {
         )
       )
 
-    }
+    }.logElapsed
   }
   case object ColumnGtEqOpInstInst extends ColumnOp2InstInstI {
     def op(a: InstVar, b: InstVar)(implicit
@@ -787,7 +778,7 @@ object Op2 {
         b <- bufferIfNeededInst(b.v)
       } yield I32Var(Left(a.elementwise_gteq(b)))
 
-    }
+    }.logElapsed
   }
 
   case object ColumnGtEqOpInstcStr extends ColumnOp2InstcStrI {
@@ -802,7 +793,7 @@ object Op2 {
         )
       )
 
-    }
+    }.logElapsed
   }
   case object ColumnGtOpInstInst extends ColumnOp2InstInstI {
     def op(a: InstVar, b: InstVar)(implicit
@@ -813,7 +804,7 @@ object Op2 {
         b <- bufferIfNeededInst(b.v)
       } yield I32Var(Left(a.elementwise_gt(b)))
 
-    }
+    }.logElapsed
   }
 
   case object ColumnGtOpInstcStr extends ColumnOp2InstcStrI {
@@ -828,7 +819,7 @@ object Op2 {
         )
       )
 
-    }
+    }.logElapsed
   }
   case object ColumnEqOpInstInst extends ColumnOp2InstInstI {
     def op(a: InstVar, b: InstVar)(implicit
@@ -839,7 +830,7 @@ object Op2 {
         b <- bufferIfNeededInst(b.v)
       } yield I32Var(Left(a.elementwise_eq(b)))
 
-    }
+    }.logElapsed
   }
 
   case object ColumnEqOpInstcStr extends ColumnOp2InstcStrI {
@@ -852,7 +843,7 @@ object Op2 {
         Left(a.elementwise_eq(java.time.Instant.parse(b).toEpochMilli()))
       )
 
-    }
+    }.logElapsed
   }
   case object ColumnNEqOpInstInst extends ColumnOp2InstInstI {
     def op(a: InstVar, b: InstVar)(implicit
@@ -863,7 +854,7 @@ object Op2 {
         b <- bufferIfNeededInst(b.v)
       } yield I32Var(Left(a.elementwise_neq(b)))
 
-    }
+    }.logElapsed
   }
 
   case object ColumnNEqOpInstcStr extends ColumnOp2InstcStrI {
@@ -876,7 +867,7 @@ object Op2 {
         Left(a.elementwise_neq(java.time.Instant.parse(b).toEpochMilli()))
       )
 
-    }
+    }.logElapsed
   }
 
   case object ColumnPlusSecondsOpInstcInt extends ColumnOp2InstcIInst {
@@ -887,7 +878,7 @@ object Op2 {
         a <- bufferIfNeededInst(a.v)
       } yield InstVar(Left(a.elementwise_plus(b * 1000L)))
 
-    }
+    }.logElapsed
   }
   case object ColumnMinusSecondsOpInstcInt extends ColumnOp2InstcIInst {
     def op(a: InstVar, b: Int)(implicit
@@ -897,7 +888,7 @@ object Op2 {
         a <- bufferIfNeededInst(a.v)
       } yield InstVar(Left(a.elementwise_minus(b * 1000L)))
 
-    }
+    }.logElapsed
   }
   case object ColumnPlusDaysOpInstcInt extends ColumnOp2InstcIInst {
     def op(a: InstVar, b: Int)(implicit
@@ -907,7 +898,7 @@ object Op2 {
         a <- bufferIfNeededInst(a.v)
       } yield InstVar(Left(a.elementwise_plus(b * 1000L * 60L * 60L * 24L)))
 
-    }
+    }.logElapsed
   }
   case object ColumnMinusDaysOpInstcInt extends ColumnOp2InstcIInst {
     def op(a: InstVar, b: Int)(implicit
@@ -917,7 +908,7 @@ object Op2 {
         a <- bufferIfNeededInst(a.v)
       } yield InstVar(Left(a.elementwise_minus(b * 1000L * 60L * 60L * 24L)))
 
-    }
+    }.logElapsed
   }
 
   case object ColumnLtEqOpInstcL extends ColumnOp2InstcLI {
@@ -932,7 +923,7 @@ object Op2 {
         )
       )
 
-    }
+    }.logElapsed
   }
   case object ColumnLtOpInstcL extends ColumnOp2InstcLI {
     def op(a: InstVar, b: Long)(implicit
@@ -946,7 +937,7 @@ object Op2 {
         )
       )
 
-    }
+    }.logElapsed
   }
   case object ColumnGtEqOpInstcL extends ColumnOp2InstcLI {
     def op(a: InstVar, b: Long)(implicit
@@ -960,7 +951,7 @@ object Op2 {
         )
       )
 
-    }
+    }.logElapsed
   }
   case object ColumnGtOpInstcL extends ColumnOp2InstcLI {
     def op(a: InstVar, b: Long)(implicit
@@ -974,7 +965,7 @@ object Op2 {
         )
       )
 
-    }
+    }.logElapsed
   }
   case object ColumnEqOpInstcL extends ColumnOp2InstcLI {
     def op(a: InstVar, b: Long)(implicit
@@ -988,7 +979,7 @@ object Op2 {
         )
       )
 
-    }
+    }.logElapsed
   }
   case object ColumnNEqOpInstcL extends ColumnOp2InstcLI {
     def op(a: InstVar, b: Long)(implicit
@@ -1002,7 +993,7 @@ object Op2 {
         )
       )
 
-    }
+    }.logElapsed
   }
 
   case object ColumnNEqOpStrcStr extends ColumnOp2StrCStrI {
@@ -1013,7 +1004,7 @@ object Op2 {
         a <- bufferIfNeededString(a.v)
       } yield I32Var(Left(a.elementwise_neq(b)))
 
-    }
+    }.logElapsed
   }
   case object ColumnConcatOpStrcStr extends ColumnOp2StrCStrStr {
     def op(a: StrVar, b: String)(implicit
@@ -1023,7 +1014,7 @@ object Op2 {
         a <- bufferIfNeededString(a.v)
       } yield StrVar(Left(a.elementwise_concatenate(b)))
 
-    }
+    }.logElapsed
   }
   case object ColumnConcatOpStrStr extends ColumnOp2StrStrStr {
     def op(a: StrVar, b: StrVar)(implicit
@@ -1034,7 +1025,7 @@ object Op2 {
         b <- bufferIfNeededString(b.v)
       } yield StrVar(Left(a.elementwise_concatenate(b)))
 
-    }
+    }.logElapsed
   }
 
   case object ColumnAndOpII extends ColumnOp2III {
@@ -1046,7 +1037,7 @@ object Op2 {
         b <- bufferIfNeededI32(b.v)
       } yield I32Var(Left(a.elementwise_&&(b)))
 
-    }
+    }.logElapsed
   }
   case object ColumnOrOpII extends ColumnOp2III {
     def op(a: I32Var, b: I32Var)(implicit
@@ -1057,7 +1048,7 @@ object Op2 {
         b <- bufferIfNeededI32(b.v)
       } yield I32Var(Left(a.`elementwise_||`(b)))
 
-    }
+    }.logElapsed
   }
 
   case object ColumnPrintfOpLcStr extends ColumnOp2LCStrStr {
@@ -1068,7 +1059,7 @@ object Op2 {
         a <- bufferIfNeededI64(a.v)
       } yield StrVar(Left(a.elementwise_printf(b)))
 
-    }
+    }.logElapsed
   }
 
   case object ColumnEqOpLL extends ColumnOp2LLI {
@@ -1080,7 +1071,7 @@ object Op2 {
         b <- bufferIfNeededI64(b.v)
       } yield I32Var(Left(a.elementwise_eq(b)))
 
-    }
+    }.logElapsed
   }
   case object ColumnEqOpLcL extends ColumnOp2LcLI {
     def op(a: I64Var, b: Long)(implicit
@@ -1095,7 +1086,7 @@ object Op2 {
         case Left(numEl) =>
           Left(BufferInt.constant(0, numEl))
       })
-    }
+    }.logElapsed
   }
 
 //
@@ -1109,7 +1100,7 @@ object Op2 {
         b <- bufferIfNeededString(b.v)
       } yield I32Var(Left(a.elementwise_lteq(b)))
 
-    }
+    }.logElapsed
   }
   case object ColumnLtEqOpStrcStr extends ColumnOp2StrCStrI {
     def op(a: StrVar, b: String)(implicit
@@ -1124,7 +1115,7 @@ object Op2 {
         case Left(numEl) =>
           Left(BufferInt.constant(0, numEl))
       })
-    }
+    }.logElapsed
 
   }
   case object ColumnGtEqOpStrStr extends ColumnOp2StrStrI {
@@ -1136,7 +1127,7 @@ object Op2 {
         b <- bufferIfNeededString(b.v)
       } yield I32Var(Left(a.elementwise_gteq(b)))
 
-    }
+    }.logElapsed
   }
   case object ColumnGtEqOpStrcStr extends ColumnOp2StrCStrI {
     def op(a: StrVar, b: String)(implicit
@@ -1151,7 +1142,7 @@ object Op2 {
         case Left(numEl) =>
           Left(BufferInt.constant(0, numEl))
       })
-    }
+    }.logElapsed
 
   }
   case object ColumnLtOpStrStr extends ColumnOp2StrStrI {
@@ -1163,7 +1154,7 @@ object Op2 {
         b <- bufferIfNeededString(b.v)
       } yield I32Var(Left(a.elementwise_lt(b)))
 
-    }
+    }.logElapsed
   }
   case object ColumnLtOpStrcStr extends ColumnOp2StrCStrI {
     def op(a: StrVar, b: String)(implicit
@@ -1178,7 +1169,7 @@ object Op2 {
         case Left(numEl) =>
           Left(BufferInt.constant(0, numEl))
       })
-    }
+    }.logElapsed
 
   }
   case object ColumnGtOpStrStr extends ColumnOp2StrStrI {
@@ -1190,7 +1181,7 @@ object Op2 {
         b <- bufferIfNeededString(b.v)
       } yield I32Var(Left(a.elementwise_gt(b)))
 
-    }
+    }.logElapsed
   }
   case object ColumnGtOpStrcStr extends ColumnOp2StrCStrI {
     def op(a: StrVar, b: String)(implicit
@@ -1205,7 +1196,7 @@ object Op2 {
         case Left(numEl) =>
           Left(BufferInt.constant(0, numEl))
       })
-    }
+    }.logElapsed
 
   }
 
@@ -1218,7 +1209,7 @@ object Op2 {
         b <- bufferIfNeededString(b.v)
       } yield I32Var(Left(a.elementwise_eq(b)))
 
-    }
+    }.logElapsed
   }
   case object ColumnNEqOpStrStr extends ColumnOp2StrStrI {
     def op(a: StrVar, b: StrVar)(implicit
@@ -1229,7 +1220,7 @@ object Op2 {
         b <- bufferIfNeededString(b.v)
       } yield I32Var(Left(a.elementwise_neq(b)))
 
-    }
+    }.logElapsed
   }
 
 }
