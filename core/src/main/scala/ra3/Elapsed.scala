@@ -16,13 +16,13 @@ object Elapsed {
   def logResult = globalElapsed.s.get.flatMap { map =>
     val txt =
       f"${"Method"}%-60s${"Count"}%10s${"total(s)"}%10s${"avg(s)"}%10s\n" + map.toSeq
-        .sortBy(v => v._2._1 / v._2._2)
+        .sortBy(v => v._2._1)
         .reverse
         .map { case (fullName, (sum, count)) =>
-          f"${fullName.value}%-60s${count}%10d${sum.toDouble * 1e-9}%10.1g${sum.toDouble / count * 1e-9}%10.1g"
+          f"${fullName.value}%-60s${count}%10d${sum.toDouble * 1e-9}%10.2g${sum.toDouble / count * 1e-9}%10.2g"
         }
         .mkString("\n")
-  IO.delay(scribe.info(txt))
+    IO.delay(scribe.info(txt))
   }
   inline def logElapsed[A](inline a: IO[A])(using f: sourcecode.FullName) =
     for {

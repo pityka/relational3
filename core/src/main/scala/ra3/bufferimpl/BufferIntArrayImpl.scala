@@ -221,16 +221,16 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
   )(implicit tsc: TaskSystemComponents): IO[SegmentInt] = {
     if (values.length == 0) IO.pure(SegmentInt(None, 0, StatisticInt.empty))
     else
-      IO {
+      IO.cede >> (IO {
         val bb =
           ByteBuffer.allocate(4 * values.length).order(ByteOrder.LITTLE_ENDIAN)
         bb.asIntBuffer().put(values)
-        fs2.Stream.chunk(fs2.Chunk.byteBuffer(Utils.compress(bb)))
+        fs2.Stream.chunk(fs2.Chunk.byteBuffer(Utils.compress(bb, skipCompress = true)))
       }.flatMap { stream =>
         SharedFile
           .apply(stream, name.toString)
           .map(sf => SegmentInt(Some(sf), values.length, self.makeStatistic()))
-      }.logElapsed
+      }.logElapsed).guarantee(IO.cede)
   }
 
   def elementwise_*(other: BufferDouble): BufferDouble = {

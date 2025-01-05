@@ -203,7 +203,7 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
     if (values.length == 0)
       IO.pure(SegmentInstant(None, 0, StatisticLong.empty))
     else
-      IO {
+      IO.cede >> (IO {
         val bb =
           ByteBuffer.allocate(8 * values.length).order(ByteOrder.LITTLE_ENDIAN)
         bb.asLongBuffer().put(values)
@@ -214,7 +214,7 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
           .map(sf =>
             SegmentInstant(Some(sf), values.length, self.makeStatistic())
           )
-      }.logElapsed
+      }.logElapsed).guarantee(IO.cede)
 
   }
 

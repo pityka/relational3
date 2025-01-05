@@ -65,6 +65,28 @@ private[ra3] object CharSequenceTable {
     }
     (CharSequenceTable(table, keys, payload), buffer.toArray)
   }
+  def buildWithUniquesMaxItems(
+      keys: Array[CharSequence],
+      payload: Array[Int],
+      max: Int
+  ) = {
+    val l = findLength(keys.length)
+    val table = Array.fill(l)(-1)
+    var i = 0
+    val buffer = ra3.join.MutableBuffer.emptyI
+    var misses = 0
+    while (i < keys.length && buffer.length < max) {
+      val k = keys(i)
+      if (lookupPayloadIndex(k, table, keys) == -1) {
+        buffer.+=(i)
+        misses += (insert(k, i, table))
+      }
+      i += 1
+    }
+    if (i == keys.length)
+      Some((CharSequenceTable(table, keys, payload), buffer.toArray))
+    else None
+  }
   def build(keys: Array[CharSequence], payload: Array[Int]) = {
     val table = Array.fill(findLength(keys.length))(-1)
     var i = 0

@@ -1,6 +1,6 @@
 //> using scala 3.6.2
 //> using option -experimental -language:experimental.namedTuples
-//> using dep io.github.pityka::ra3-core:0.3.0+11-cd81f76d-SNAPSHOT
+//> using dep io.github.pityka::ra3-core:0.3.0+3-e40f2c0e+20241227-1029-SNAPSHOT
 //> using dep com.typesafe.akka::akka-actor:2.6.19
 //> using dep com.typesafe.akka::akka-slf4j:2.6.19
 //> using dep com.typesafe.akka::akka-remote:2.6.19

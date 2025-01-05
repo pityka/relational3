@@ -318,19 +318,19 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
     if (values.length == 0)
       IO.pure(SegmentDouble(None, 0, StatisticDouble.empty))
     else
-      (IO {
+      IO.cede >> (IO {
 
         val bb =
           ByteBuffer.allocate(8 * values.length).order(ByteOrder.LITTLE_ENDIAN)
         bb.asDoubleBuffer().put(values)
-        fs2.Stream.chunk(fs2.Chunk.byteBuffer(Utils.compress(bb)))
+        fs2.Stream.chunk(fs2.Chunk.byteBuffer(Utils.compress(bb,skipCompress=true)))
       }.flatMap { stream =>
         SharedFile
           .apply(stream, name.toString)
           .map(sf =>
             SegmentDouble(Some(sf), values.length, self.makeStatistic())
           )
-      }).logElapsed
+      }).logElapsed.guarantee(IO.cede)
 
   def elementwise_eq(other: BufferType): BufferInt = {
     assert(other.length == self.length)

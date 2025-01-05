@@ -221,7 +221,7 @@ private[ra3] trait BufferLongImpl { self: BufferLong =>
   )(implicit tsc: TaskSystemComponents): IO[SegmentLong] = {
     if (values.length == 0) IO.pure(SegmentLong(None, 0, StatisticLong.empty))
     else
-      IO {
+     IO.cede >> ( IO {
         val bb =
           ByteBuffer.allocate(8 * values.length).order(ByteOrder.LITTLE_ENDIAN)
         bb.asLongBuffer().put(values)
@@ -230,7 +230,7 @@ private[ra3] trait BufferLongImpl { self: BufferLong =>
         SharedFile
           .apply(stream, name.toString)
           .map(sf => SegmentLong(Some(sf), values.length, self.makeStatistic()))
-      }.logElapsed
+      }.logElapsed ).guarantee(IO.cede)
   }
 
   def elementwise_printf(s: String): BufferString = {

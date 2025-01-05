@@ -283,52 +283,32 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
     if (values.length == 0)
       IO.pure(SegmentString(None, 0, 0L, StatisticCharSequence.empty))
     else
-      IO {
-        val byteSize = values.map(v => (v.length * 2L) + 4).sum
-        if (byteSize > Int.MaxValue - 100)
-          (
-            fs2.Stream.raiseError[IO](
-              new RuntimeException(
-                "String buffers longer than what fits into an array not implemented"
-              )
-            ),
-            -1L
-          )
-        else {
-          val t1 = System.nanoTime()
-          val bb =
-            ByteBuffer.allocate(byteSize.toInt).order(ByteOrder.BIG_ENDIAN)
-          var numBytes = 0L
-          values.foreach { str =>
-
-            numBytes += str.length() * 2 + 40
-            bb.putInt(str.length)
-            var i = 0
-            while (i < str.length) {
-              bb.putChar(str.charAt(i))
-              i += 1
-            }
-
-          }
-          bb.flip()
-
-          val bbCompressed = Utils.compress(bb)
-          val t2 = System.nanoTime()
-
-          (fs2.Stream.chunk(fs2.Chunk.byteBuffer(bbCompressed)), numBytes)
-        }
-      }.flatMap { case (stream, numBytes) =>
-        SharedFile
-          .apply(stream, name.toString)
-          .map(sf =>
-            SegmentString(
-              Some(sf),
-              values.length,
-              numBytes,
-              self.makeStatistic()
+      IO.cede >> (IO {
+        val maybe =
+          ra3.hashtable.CharSequenceTable.buildWithUniquesMaxItems(values, null, 32768*2)
+        maybe match {
+          case None => 
+            ra3.segmentstring.PrefixLength(values, name.toString)
+          case Some((map, uniques)) =>
+            ra3.segmentstring.Dictionary(
+              values,
+              name.toString,
+              uniques.map(values)
             )
+        }
+        
+      }.flatten
+        .map { case encoding =>
+          SegmentString(
+            Some(encoding),
+            values.length,
+            encoding.numBytes,
+            self.makeStatistic()
           )
-      }.logElapsed
+
+        }
+        .logElapsed)
+        .guarantee(IO.cede)
   }
 
   def elementwise_+(other: BufferType): BufferType = {

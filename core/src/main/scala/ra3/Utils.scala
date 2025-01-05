@@ -266,19 +266,18 @@ private[ra3] object Utils {
       s: Seq[tag.SegmentType]
   )(implicit tsc: tasks.TaskSystemComponents): IO[tag.BufferType] = {
 
-    IO
+    IO.cede >> IO
       .parSequenceN(32)(s.map(tag.buffer))
       .map(b => tag.cat(b*))
-      .logElapsed
+      .logElapsed.guarantee(IO.cede)
   }
 
-  val skipCompress = true
+  val skipCompressAll = false
 
-  def compress(bb: ByteBuffer) = {
-    if (skipCompress) bb
+  def compress(bb: ByteBuffer, skipCompress: Boolean = false) = {
+    if (skipCompress || skipCompressAll) bb
     else {
       // bb
-      val t1 = System.nanoTime()
       val compressor = new _root_.io.airlift.compress.zstd.ZstdCompressor
       val ar = bb.array()
       val offs = bb.arrayOffset()
@@ -286,18 +285,14 @@ private[ra3] object Utils {
       val maxL = compressor.maxCompressedLength(len)
       val compressed = Array.ofDim[Byte](maxL)
       val actualLength =
-        compressor.compress(ar, offs, len, compressed, 0, maxL)
-      val t2 = System.nanoTime()
-      scribe.debug(
-        f"zstd compression ratio: ${actualLength.toDouble / len} in ${(t2 - t1) * 1e-6}ms (${actualLength.toDouble / 1024 / 1024}%.2f megabytes)"
-      )
+        compressor.compress(ar, offs, len, compressed, 0, maxL)      
       ByteBuffer.wrap(compressed, 0, actualLength)
     }
 
   }
 
-  def decompress(byteVector: ByteVector) = {
-    if (skipCompress) java.nio.ByteBuffer.wrap(byteVector.toArrayUnsafe)
+  def decompress(byteVector: ByteVector, skipCompress: Boolean = false) = {
+    if (skipCompress || skipCompressAll) java.nio.ByteBuffer.wrap(byteVector.toArrayUnsafe)
     else {
       val compressed = byteVector.toArrayUnsafe
       val decompressor =

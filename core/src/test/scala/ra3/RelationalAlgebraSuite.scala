@@ -186,6 +186,31 @@ class RelationlAlgebraSuite
       .resetRowIndex
   }
 
+  test("dictionary segment") {
+    withTempTaskSystem { implicit ts =>
+      val strings = 1 to 10000 map (_ => scala.util.Random.alphanumeric.take(20).mkString) toArray
+    val b = BufferString(strings*)
+    val readBack = b
+      .toSegment(LogicalPath("test", None, 0, 0))
+      .flatMap(segment => segment.buffer)
+      .unsafeRunSync()
+    assert(readBack.values.toVector.map(_.toString) == strings.toVector)
+
+    }
+  }
+  test("length prefix segment") {
+    withTempTaskSystem { implicit ts =>
+      val strings = 1 to 300000 map (_ => scala.util.Random.alphanumeric.take(20).mkString) toArray
+    val b = BufferString(strings*)
+    val readBack = b
+      .toSegment(LogicalPath("test", None, 0, 0))
+      .flatMap(segment =>  {assert(segment.sf.get.isInstanceOf[ra3.segmentstring.PrefixLength]);segment.buffer})
+      .unsafeRunSync()
+    assert(readBack.values.toVector.map(_.toString) == strings.toVector)
+
+    }
+  }
+
   test("to and from csv 1 segment") {
     withTempTaskSystem { implicit ts =>
       val numCols = 3

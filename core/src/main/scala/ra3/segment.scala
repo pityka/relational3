@@ -4,6 +4,7 @@ import cats.effect.IO
 import java.nio.ByteOrder
 import com.github.plokhotnyuk.jsoniter_scala.macros.*
 import com.github.plokhotnyuk.jsoniter_scala.core.*
+import java.nio.ByteBuffer
 private[ra3] sealed trait TaggedSegment { self =>
   type SegmentType <: Segment
   val tag: ColumnTag {
@@ -121,11 +122,11 @@ private[ra3] final case class SegmentDouble(
         )
       case None => IO.pure(BufferDouble(Array.empty[Double]))
       case Some(sf) =>
-        sf.bytes
+        IO.cede >> sf.bytes
           .map { byteVector =>
             val bb =
               Utils
-                .decompress(byteVector)
+                .decompress(byteVector, skipCompress = true)
                 .order(ByteOrder.LITTLE_ENDIAN)
                 .asDoubleBuffer()
             val ar = Array.ofDim[Double](bb.remaining)
@@ -134,6 +135,8 @@ private[ra3] final case class SegmentDouble(
           }
           .logElapsed
           .countInF64(numElems, sf.byteSize)
+          .guarantee(IO.cede)
+
     }
 
 }
@@ -167,11 +170,11 @@ private[ra3] final case class SegmentInt(
         assert(numElems == 0)
         IO.pure(BufferInt.empty)
       case Some(value) =>
-        value.bytes
+        IO.cede >> value.bytes
           .map { byteVector =>
             val bb =
               Utils
-                .decompress(byteVector)
+                .decompress(byteVector, skipCompress=true)
                 .order(ByteOrder.LITTLE_ENDIAN)
                 .asIntBuffer()
             val ar = Array.ofDim[Int](bb.remaining)
@@ -180,6 +183,7 @@ private[ra3] final case class SegmentInt(
           }
           .logElapsed
           .countInI32(numElems, value.byteSize)
+          .guarantee(IO.cede)
     }
 
   }
@@ -216,7 +220,7 @@ private[ra3] final case class SegmentLong(
         )
       case None => IO.pure(BufferLong(Array.emptyLongArray))
       case Some(value) =>
-        value.bytes
+        IO.cede >> value.bytes
           .map { byteVector =>
             val bb =
               Utils
@@ -229,6 +233,7 @@ private[ra3] final case class SegmentLong(
           }
           .logElapsed
           .countInI64(numElems, value.byteSize)
+          .guarantee(IO.cede)
     }
 
   }
@@ -261,7 +266,7 @@ private[ra3] final case class SegmentInstant(
         )
       case None => IO.pure(BufferInstant(Array.emptyLongArray))
       case Some(value) =>
-        value.bytes
+        IO.cede >> value.bytes
           .map { byteVector =>
             val bb = Utils
               .decompress(byteVector)
@@ -273,13 +278,15 @@ private[ra3] final case class SegmentInstant(
           }
           .logElapsed
           .countInInst(numElems, value.byteSize)
+          .guarantee(IO.cede)
     }
 
   }
 
 }
+
 private[ra3] final case class SegmentString(
-    sf: Option[SharedFile],
+    sf: Option[ra3.segmentstring.SerializationType],
     numElems: Int,
     numBytes: Long,
     statistic: StatisticCharSequence
@@ -304,33 +311,7 @@ private[ra3] final case class SegmentString(
         )
       case None => IO.pure(BufferString(Array.empty[CharSequence]))
       case Some(value) =>
-        value.bytes
-          .map { byteVector =>
-            val t1 = System.nanoTime()
-            val decompressed = Utils.decompress(byteVector)
-
-            val bb =
-              decompressed
-                .order(ByteOrder.BIG_ENDIAN) // char data is laid out big endian
-            val ar = Array.ofDim[CharSequence](numElems)
-            var i = 0
-            while (i < numElems) {
-              val len = bb.getInt()
-              val wrap2 =
-                ByteBufferAsCharSequence(bb.slice(bb.position(), len * 2))
-              // val char = bb.slice(bb.position(), len * 2).asCharBuffer()
-              // assert(wrap2 == char,"X "+char.toString+" "+wrap2.toCharArray.toVector)
-              // assert(CharSequence.compare(wrap2,char) == 0,"Y"+char.toString+" "+wrap2.toCharArray.toVector)
-              ar(i) = wrap2
-              bb.position(bb.position() + len * 2)
-              i += 1
-            }
-            val t2 = System.nanoTime
-
-            BufferString(ar)
-          }
-          .logElapsed
-          .countInStr(numElems, value.byteSize)
+        value.buffer
     }
 
   }
