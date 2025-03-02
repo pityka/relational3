@@ -60,13 +60,6 @@ lazy val commonSettings = Seq(
   javaOptions += "-Xmx4G"
 )
 
-lazy val akkaVersion = "2.6.19"
-
-lazy val akkaProvided = List(
-  "com.typesafe.akka" %% "akka-actor" % akkaVersion % Provided,
-  "com.typesafe.akka" %% "akka-slf4j" % akkaVersion % Provided,
-  "com.typesafe.akka" %% "akka-remote" % akkaVersion % Provided
-)
 
 lazy val specs = List(
   ("org.specs2" %% "specs2-core" % "4.14.1-cross" % "test"),
@@ -90,10 +83,9 @@ lazy val core = project
     libraryDependencies ++= List(
       "io.airlift" % "aircompressor" % "0.25",
       "org.scalameta" %% "munit" % "1.0.0-M10" % Test,
-      "com.typesafe.akka" %% "akka-testkit" % akkaVersion % Test,
       "io.github.pityka" %% "saddle-core" % "4.0.0-M11",
-      "io.github.pityka" %% "tasks-core" % "3.0.0-M15",
+      "io.github.pityka" %% "tasks-core" % "4.0.0-M1",
       "de.lhns" %% "fs2-compress-gzip" % "1.0.0",
       "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % "2.30.13" % "compile-internal"
-    ) ++ akkaProvided ++ specs
+    ) ++ specs
   )

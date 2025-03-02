@@ -20,7 +20,7 @@ trait WithTempTaskSystem extends TableExtensions {
       tasks.disableRemoting = true
       """
     )
-    val r = withTaskSystem(config)(f)
+    val r = withTaskSystem(config)(tsc => cats.effect.IO(f)).unsafeRunSync()
     tmp.delete()
     r
   }
