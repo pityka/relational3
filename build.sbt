@@ -16,7 +16,7 @@ inThisBuild(
 )
 
 lazy val scalaVersion213 = "2.13.14"
-lazy val scalaVersion3 = "3.6.2"
+lazy val scalaVersion3 = "3.6.4"
 lazy val scalaVersionInBuild = scalaVersion3
 
 ThisBuild / versionScheme := Some("early-semver")
@@ -84,7 +84,8 @@ lazy val core = project
       "io.airlift" % "aircompressor" % "0.25",
       "org.scalameta" %% "munit" % "1.0.0-M10" % Test,
       "io.github.pityka" %% "saddle-core" % "4.0.0-M11",
-      "io.github.pityka" %% "tasks-core" % "4.0.0-M1",
+      "io.github.pityka" %% "tasks-core" % "4.0.0-M7",
+      "com.google.guava" % "guava" % "33.0.0-jre", // scala-steward:off
       "de.lhns" %% "fs2-compress-gzip" % "1.0.0",
       "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % "2.30.13" % "compile-internal"
     ) ++ specs

@@ -7,7 +7,6 @@ import scodec.bits.ByteVector
 import java.nio.CharBuffer
 import java.io.InputStream
 import tasks.TaskSystemComponents
-import io.netty.util.internal.shaded.org.jctools.util.UnsafeAccess
 
 object Fnv1 {
   inline def hashByteBuffer(buff: ByteBuffer) = {

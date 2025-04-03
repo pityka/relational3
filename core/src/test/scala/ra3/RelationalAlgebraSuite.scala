@@ -4,7 +4,7 @@ import org.saddle.{ST, mat, Frame, Series, Vec, SeqToVec, Index}
 import java.nio.channels.Channels
 import java.io.ByteArrayInputStream
 import tasks.TaskSystemComponents
-import com.typesafe.config.ConfigFactory
+import org.ekrich.config.ConfigFactory
 import tasks.*
 import cats.effect.unsafe.implicits.global
 import ColumnTag.I32
