@@ -424,7 +424,7 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
         if (isMissing(i) || other.isMissing(i)) BufferInt.MissingValue
         else if (
           self
-            .values(i) == other.values(i).toInt
+            .values(i).toDouble == other.values(i)
         ) 1
         else 0
       i += 1
@@ -442,7 +442,7 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
         if (isMissing(i) || other.isMissing(i)) BufferInt.MissingValue
         else if (
           self
-            .values(i) > other.values(i).toInt
+            .values(i).toDouble > other.values(i)
         ) 1
         else 0
       i += 1
@@ -460,7 +460,7 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
         if (isMissing(i) || other.isMissing(i)) BufferInt.MissingValue
         else if (
           self
-            .values(i) >= other.values(i).toInt
+            .values(i).toDouble >= other.values(i)
         ) 1
         else 0
       i += 1
@@ -478,7 +478,7 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
         if (isMissing(i) || other.isMissing(i)) BufferInt.MissingValue
         else if (
           self
-            .values(i) < other.values(i).toInt
+            .values(i).toDouble < other.values(i)
         ) 1
         else 0
       i += 1
@@ -496,7 +496,7 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
         if (isMissing(i) || other.isMissing(i)) BufferInt.MissingValue
         else if (
           self
-            .values(i) <= other.values(i).toInt
+            .values(i).toDouble <= other.values(i)
         ) 1
         else 0
       i += 1
@@ -514,7 +514,7 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
         if (isMissing(i) || other.isMissing(i)) BufferInt.MissingValue
         else if (
           self
-            .values(i) != other.values(i).toInt
+            .values(i).toDouble != other.values(i)
         ) 1
         else 0
       i += 1
@@ -692,7 +692,9 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
     var i = 0
     val n = partitionMap.length
     while (i < n) {
-      ar(partitionMap.raw(i)).add(values(i))
+      if (!isMissing(i)) {
+        ar(partitionMap.raw(i)).add(values(i))
+      }
 
       i += 1
     }

@@ -298,7 +298,9 @@ private[ra3] trait BufferLongImpl { self: BufferLong =>
     var i = 0
     val n = partitionMap.length
     while (i < n) {
-      ar(partitionMap.raw(i)).add(values(i))
+      if (!isMissing(i)) {
+        ar(partitionMap.raw(i)).add(values(i))
+      }
 
       i += 1
     }

@@ -602,7 +602,7 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
       }
     }
     while (i < n) {
-      r(i) = if (isMissing(i)) BufferInt.MissingValue else parse(self.values(i))
+      r(i) = if (isMissing(i)) BufferDouble.MissingValue else parse(self.values(i))
       i += 1
     }
     BufferDouble(r)
@@ -627,7 +627,7 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
 
     }
     while (i < n) {
-      r(i) = if (isMissing(i)) BufferInt.MissingValue else parse(self.values(i))
+      r(i) = if (isMissing(i)) BufferLong.MissingValue else parse(self.values(i))
       i += 1
     }
     BufferLong(r)
@@ -703,7 +703,9 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
     var i = 0
     val n = partitionMap.length
     while (i < n) {
-      ar(partitionMap.raw(i)).add(values(i).toString)
+      if (!isMissing(i)) {
+        ar(partitionMap.raw(i)).add(values(i).toString)
+      }
 
       i += 1
     }

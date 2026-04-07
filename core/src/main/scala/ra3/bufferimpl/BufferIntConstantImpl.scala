@@ -253,10 +253,10 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
     val r = Array.ofDim[Int](n)
     while (i < n) {
       r(i) =
-        if (isMissing(i) || other.isMissing(i))
-          BufferInt.MissingValue
-        else if (self.value > 0 && other.raw(i) > 0) 1
-        else 0
+        if (self.value > 0 && other.raw(i) > 0) 1
+        else if (!isMissing(i) && self.value <= 0) 0
+        else if (!other.isMissing(i) && other.raw(i) <= 0) 0
+        else BufferInt.MissingValue
       i += 1
     }
     BufferInt(r)
@@ -268,10 +268,12 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
     val r = Array.ofDim[Int](n)
     while (i < n) {
       r(i) =
-        if (isMissing(i) || other.isMissing(i))
-          BufferInt.MissingValue
-        else if (self.value > 0 || other.raw(i) > 0) 1
-        else 0
+        if (self.value > 0 || other.raw(i) > 0) 1
+        else if (
+          !isMissing(i) && !other.isMissing(i) && self.value <= 0 && other
+            .raw(i) <= 0
+        ) 0
+        else BufferInt.MissingValue
       i += 1
     }
     BufferInt(r)
@@ -594,7 +596,7 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
       partitionMap: ra3.BufferInt,
       numGroups: Int
   ): ra3.BufferInt =
-    BufferIntConstant(1, numGroups)
+    BufferIntConstant(if (isMissing(0)) 0 else 1, numGroups)
 
   def countInGroups(
       partitionMap: ra3.BufferInt,

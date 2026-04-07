@@ -352,7 +352,7 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
       r(i) =
         if (isMissing(i)) BufferInstant.MissingValue
         else
-          java.time.Instant.now
+          java.time.Instant.ofEpochMilli(values(i))
             .atZone(Z)
             .truncatedTo(java.time.temporal.ChronoUnit.YEARS)
             .toInstant()
@@ -370,7 +370,7 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
       r(i) =
         if (isMissing(i)) BufferInstant.MissingValue
         else
-          java.time.Instant.now
+          java.time.Instant.ofEpochMilli(values(i))
             .atZone(Z)
             .truncatedTo(java.time.temporal.ChronoUnit.MONTHS)
             .toInstant()
@@ -388,7 +388,7 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
       r(i) =
         if (isMissing(i)) BufferInstant.MissingValue
         else
-          java.time.Instant.now
+          java.time.Instant.ofEpochMilli(values(i))
             .atZone(Z)
             .truncatedTo(java.time.temporal.ChronoUnit.DAYS)
             .toInstant()
@@ -406,7 +406,7 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
       r(i) =
         if (isMissing(i)) BufferInstant.MissingValue
         else
-          java.time.Instant.now
+          java.time.Instant.ofEpochMilli(values(i))
             .atZone(Z)
             .truncatedTo(java.time.temporal.ChronoUnit.HOURS)
             .toInstant()
@@ -424,7 +424,7 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
       r(i) =
         if (isMissing(i)) BufferInstant.MissingValue
         else
-          java.time.Instant.now
+          java.time.Instant.ofEpochMilli(values(i))
             .atZone(Z)
             .truncatedTo(java.time.temporal.ChronoUnit.MINUTES)
             .toInstant()
@@ -442,7 +442,7 @@ private[ra3] trait BufferInstantImpl { self: BufferInstant =>
       r(i) =
         if (isMissing(i)) BufferInstant.MissingValue
         else
-          java.time.Instant.now
+          java.time.Instant.ofEpochMilli(values(i))
             .atZone(Z)
             .truncatedTo(java.time.temporal.ChronoUnit.SECONDS)
             .toInstant()
