@@ -195,6 +195,38 @@ package object ra3 {
   )(implicit tsc: ExtendedTaskSystemComponents): IO[Table] =
     ra3.ts.ImportParquet.queue(file, name, maxSegmentLength)
 
+  def scanParquet(
+      file: SharedFile,
+      name: String
+  )(implicit tsc: ExtendedTaskSystemComponents): IO[Table] = {
+    val size = file.byteSize
+    def tail(n: Long): IO[Array[Byte]] =
+      file.stream(size - n).compile.toVector.map(_.toArray)
+    tail(8L).flatMap { last8 =>
+      val footerLen = (last8(0) & 0xff) | ((last8(1) & 0xff) << 8) |
+        ((last8(2) & 0xff) << 16) | ((last8(3) & 0xff) << 24)
+      tail(8L + footerLen.toLong).map { region =>
+        val footer = ra3.parquet.Parquet.readFooter(region)
+        require(footer.rowGroups.nonEmpty, "empty parquet file")
+        val headRg = footer.rowGroups.head
+        val columns = headRg.map { headCm =>
+          val tag = ra3.parquet.ScanSupport.tagFor(headCm)
+          val segments = footer.rowGroups.zipWithIndex.map { case (rg, rgIdx) =>
+            val cm = rg.find(_.name == headCm.name).get
+            ra3.parquet.ScanSupport
+              .buildSegment(file, cm, footer.rowGroupRows(rgIdx))
+          }
+          tag.makeTaggedColumn(
+            tag.makeColumn(
+              segments.map(_.asInstanceOf[tag.SegmentType]).toVector
+            )
+          )
+        }
+        Table(columns.toVector, headRg.map(_.name).toVector, name, None)
+      }
+    }
+  }
+
   type CSVType[N <: Tuple, T <: Tuple] =
     scala.NamedTuple.NamedTuple[N, Tuple.Map[T, CsvColumnDefToColumnType]]
 

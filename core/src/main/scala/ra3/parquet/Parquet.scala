@@ -4,6 +4,40 @@ import java.io.ByteArrayOutputStream
 import java.nio.{ByteBuffer, ByteOrder}
 import io.airlift.compress.snappy.{SnappyCompressor, SnappyDecompressor}
 import io.airlift.compress.zstd.ZstdDecompressor
+import tasks.{SharedFile, TaskSystemComponents}
+import cats.effect.IO
+
+private[ra3] final case class ParquetSegmentRef(
+    file: SharedFile,
+    ptype: Int,
+    codec: Int,
+    numValues: Long,
+    dataPageOffset: Long,
+    dictPageOffset: Long,
+    totalCompressed: Long,
+    optional: Boolean
+) {
+  def decode(implicit tsc: TaskSystemComponents): IO[Vector[Option[Any]]] = {
+    val start = if (dictPageOffset >= 0) dictPageOffset else dataPageOffset
+    file
+      .stream(start)
+      .take(totalCompressed)
+      .compile
+      .toVector
+      .map { v =>
+        val chunk = v.toArray
+        Parquet.decodeChunkAt(
+          chunk,
+          0,
+          chunk.length,
+          codec,
+          ptype,
+          optional,
+          numValues
+        )
+      }
+  }
+}
 
 private[ra3] final class Compact {
   private val buf = new ByteArrayOutputStream()
@@ -125,7 +159,9 @@ private[ra3] final case class Column(
     numRows: Int,
     nonNull: Int,
     defLevels: Array[Int],
-    plainValues: Array[Byte]
+    plainValues: Array[Byte],
+    minBytes: Option[Array[Byte]],
+    maxBytes: Option[Array[Byte]]
 )
 
 private[ra3] final case class ReadColumn(
@@ -287,9 +323,13 @@ private[ra3] object Parquet {
             md.i64(6, uncompTotals(i).toLong)
             md.i64(7, chunkLens(i).toLong)
             md.i64(9, offsets(i).toLong)
-            if (col.optional)
+            val nc =
+              if (col.optional) Some((numRows - col.nonNull).toLong) else None
+            if (nc.isDefined || col.minBytes.isDefined || col.maxBytes.isDefined)
               md.structField(12) { st =>
-                st.i64(3, (numRows - col.nonNull).toLong)
+                nc.foreach(c => st.i64(3, c))
+                col.maxBytes.foreach(b => st.binary(5, b))
+                col.minBytes.foreach(b => st.binary(6, b))
               }
           }
         }
@@ -402,7 +442,12 @@ private[ra3] object Parquet {
     out
   }
 
-  def readFile(bytes: Array[Byte]): Vector[ReadColumn] = {
+  final case class Footer(
+      rowGroups: Vector[Vector[PColMeta]],
+      rowGroupRows: Vector[Int]
+  )
+
+  def readFooter(bytes: Array[Byte]): Footer = {
     val footerLen = (bytes(bytes.length - 8) & 0xff) |
       ((bytes(bytes.length - 7) & 0xff) << 8) |
       ((bytes(bytes.length - 6) & 0xff) << 16) |
@@ -413,6 +458,7 @@ private[ra3] object Parquet {
     var schema = Vector.empty[(Int, Int, Int, String)]
     val rowGroups =
       scala.collection.mutable.ArrayBuffer.empty[Vector[PColMeta]]
+    val rowGroupRows = scala.collection.mutable.ArrayBuffer.empty[Int]
     var last = 0; var done = false
     while (!done) {
       val (t, id) = fr.fieldHeader(last)
@@ -448,6 +494,7 @@ private[ra3] object Parquet {
             var i = 0
             while (i < sz) {
               val cols = scala.collection.mutable.ArrayBuffer.empty[PColMeta]
+              var rgRows = 0
               var l2 = 0; var d2 = false
               while (!d2) {
                 val (ft, fid) = fr.fieldHeader(l2)
@@ -455,12 +502,18 @@ private[ra3] object Parquet {
                 else {
                   l2 = fid
                   fid match {
+                    case 3 => rgRows = fr.readI64().toInt
                     case 1 =>
                       val (csz, _) = fr.listHeader()
                       var j = 0
                       while (j < csz) {
                         var nm = ""; var tp = -1; var codec = 0; var nv = 0L
                         var dpo = 0L; var dicto = -1L; var tc = 0L
+                        var nullCount = -1L
+                        var minV: Option[Array[Byte]] = None
+                        var maxV: Option[Array[Byte]] = None
+                        var minD: Option[Array[Byte]] = None
+                        var maxD: Option[Array[Byte]] = None
                         var l3 = 0; var d3 = false
                         while (!d3) {
                           val (ct, cid) = fr.fieldHeader(l3)
@@ -489,6 +542,23 @@ private[ra3] object Parquet {
                                       case 9  => dpo = fr.readI64()
                                       case 11 => dicto = fr.readI64()
                                       case 7  => tc = fr.readI64()
+                                      case 12 =>
+                                        var l5 = 0; var d5 = false
+                                        while (!d5) {
+                                          val (st, sid) = fr.fieldHeader(l5)
+                                          if (st == 0) d5 = true
+                                          else {
+                                            l5 = sid
+                                            sid match {
+                                              case 1 => maxD = Some(fr.readBinary())
+                                              case 2 => minD = Some(fr.readBinary())
+                                              case 3 => nullCount = fr.readI64()
+                                              case 5 => maxV = Some(fr.readBinary())
+                                              case 6 => minV = Some(fr.readBinary())
+                                              case _ => fr.skip(st)
+                                            }
+                                          }
+                                        }
                                       case _  => fr.skip(mt)
                                     }
                                   }
@@ -504,7 +574,8 @@ private[ra3] object Parquet {
                           throw new RuntimeException(
                             s"Column $nm uses REPEATED (nested/list) schema, which is not supported."
                           )
-                        cols += PColMeta(nm, tp, convFor, codec, nv, dpo, dicto, tc, repFor == REP_OPTIONAL)
+                        cols += PColMeta(nm, tp, convFor, codec, nv, dpo, dicto, tc,
+                          repFor == REP_OPTIONAL, nullCount, minV.orElse(minD), maxV.orElse(maxD))
                         j += 1
                       }
                     case _ => fr.skip(ft)
@@ -512,6 +583,7 @@ private[ra3] object Parquet {
                 }
               }
               rowGroups += cols.toVector
+              rowGroupRows += rgRows
               i += 1
             }
           case _ => fr.skip(t)
@@ -519,25 +591,30 @@ private[ra3] object Parquet {
       }
     }
 
-    val colNames = rowGroups.head.map(_.name)
-    val perColumn = scala.collection.mutable.LinkedHashMap
-      .empty[String, scala.collection.mutable.ArrayBuffer[Option[Any]]]
-    val meta = scala.collection.mutable.LinkedHashMap.empty[String, PColMeta]
-    colNames.foreach { n =>
-      perColumn(n) = scala.collection.mutable.ArrayBuffer.empty[Option[Any]]
-    }
-    rowGroups.head.foreach(cm => meta(cm.name) = cm)
+    Footer(rowGroups.toVector, rowGroupRows.toVector)
+  }
 
-    rowGroups.foreach { rg =>
-      rg.foreach { cm =>
-        val start =
-          (if (cm.dictPageOffset >= 0) cm.dictPageOffset else cm.dataPageOffset).toInt
-        val r = new CReader(bytes); r.pos = start
-        val endOfChunk = start + cm.totalCompressed.toInt
-        var dict: Array[Any] = null
-        val collected = perColumn(cm.name)
-        var remaining = cm.numValues
-        while (r.pos < endOfChunk && (remaining > 0 || dict == null)) {
+  def decodeChunk(bytes: Array[Byte], cm: PColMeta): Vector[Option[Any]] = {
+    val start =
+      (if (cm.dictPageOffset >= 0) cm.dictPageOffset else cm.dataPageOffset).toInt
+    decodeChunkAt(bytes, start, start + cm.totalCompressed.toInt, cm.codec,
+      cm.ptype, cm.optional, cm.numValues)
+  }
+
+  def decodeChunkAt(
+      bytes: Array[Byte],
+      start: Int,
+      endOfChunk: Int,
+      codec: Int,
+      ptype: Int,
+      optional: Boolean,
+      numValues: Long
+  ): Vector[Option[Any]] = {
+    val r = new CReader(bytes); r.pos = start
+    var dict: Array[Any] = null
+    val collected = scala.collection.mutable.ArrayBuffer.empty[Option[Any]]
+    var remaining = numValues
+    while (r.pos < endOfChunk && (remaining > 0 || dict == null)) {
           var pType = -1; var ups = 0; var cps = 0; var dpNum = 0; var dpEnc = 0
           var dictNum = 0
           var l = 0; var d = false
@@ -583,13 +660,13 @@ private[ra3] object Parquet {
           }
           val pageData = java.util.Arrays.copyOfRange(bytes, r.pos, r.pos + cps)
           r.pos += cps
-          val body = decompress(pageData, cm.codec, ups)
+          val body = decompress(pageData, codec, ups)
           if (pType == PAGE_DICTIONARY) {
             val dr = new CReader(body)
-            dict = plainValues(dr, cm.ptype, dictNum)
+            dict = plainValues(dr, ptype, dictNum)
           } else if (pType == PAGE_DATA) {
             val dr = new CReader(body)
-            val maxDef = if (cm.optional) 1 else 0
+            val maxDef = if (optional) 1 else 0
             val defLevels =
               if (maxDef > 0) {
                 val len = dr.le32At(dr.pos); dr.pos += 4
@@ -600,7 +677,7 @@ private[ra3] object Parquet {
               } else Array.fill(dpNum)(1)
             val present = defLevels.count(_ == 1)
             val vals: Array[Any] =
-              if (dpEnc == ENC_PLAIN) plainValues(dr, cm.ptype, present)
+              if (dpEnc == ENC_PLAIN) plainValues(dr, ptype, present)
               else if (dpEnc == ENC_PLAIN_DICTIONARY || dpEnc == ENC_RLE_DICTIONARY) {
                 if (dict == null)
                   throw new RuntimeException(
@@ -624,12 +701,35 @@ private[ra3] object Parquet {
             throw new RuntimeException(
               s"Unsupported Parquet page type $pType. DATA_PAGE_V2 and index pages are not supported."
             )
-        }
-      }
     }
-    colNames
-      .map(n => ReadColumn(n, meta(n).ptype, meta(n).convertedType, perColumn(n).toVector))
-      .toVector
+    collected.toVector
+  }
+
+  def readFile(bytes: Array[Byte]): Vector[ReadColumn] = {
+    val footer = readFooter(bytes)
+    footer.rowGroups.head.map { headCm =>
+      val values = footer.rowGroups.flatMap(rg =>
+        decodeChunk(bytes, rg.find(_.name == headCm.name).get)
+      )
+      ReadColumn(headCm.name, headCm.ptype, headCm.convertedType, values)
+    }.toVector
+  }
+
+  def statValue(ptype: Int, bytes: Array[Byte]): Any = ptype match {
+    case TYPE_INT32 =>
+      (bytes(0) & 0xff) | ((bytes(1) & 0xff) << 8) |
+        ((bytes(2) & 0xff) << 16) | ((bytes(3) & 0xff) << 24)
+    case TYPE_INT64 =>
+      var v = 0L; var k = 0
+      while (k < 8) { v |= (bytes(k) & 0xffL) << (8 * k); k += 1 }
+      v
+    case TYPE_DOUBLE =>
+      var b = 0L; var k = 0
+      while (k < 8) { b |= (bytes(k) & 0xffL) << (8 * k); k += 1 }
+      java.lang.Double.longBitsToDouble(b)
+    case TYPE_BYTE_ARRAY => new String(bytes, "UTF-8")
+    case other =>
+      throw new RuntimeException(s"unsupported statistic type $other")
   }
 }
 
@@ -642,5 +742,8 @@ private[ra3] final case class PColMeta(
     dataPageOffset: Long,
     dictPageOffset: Long,
     totalCompressed: Long,
-    optional: Boolean
+    optional: Boolean,
+    nullCount: Long,
+    minBytes: Option[Array[Byte]],
+    maxBytes: Option[Array[Byte]]
 )

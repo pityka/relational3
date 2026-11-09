@@ -53,32 +53,47 @@ private[ra3] object ExportParquet {
       case b: BufferInt =>
         val present =
           (0 until n).filterNot(b.isMissing).map(i => b.values(i)).toArray
+        val mm = b.nonMissingMinMax
         Column(name, Parquet.TYPE_INT32, None, opt, n, present.length,
-          if (opt) defLevels else emptyLevels, Parquet.plainI32(present))
+          if (opt) defLevels else emptyLevels, Parquet.plainI32(present),
+          mm.map(x => Parquet.plainI32(Array(x._1))),
+          mm.map(x => Parquet.plainI32(Array(x._2))))
       case b: BufferLong =>
         val present =
           (0 until n).filterNot(b.isMissing).map(i => b.values(i)).toArray
+        val mm = b.nonMissingMinMax
         Column(name, Parquet.TYPE_INT64, None, opt, n, present.length,
-          if (opt) defLevels else emptyLevels, Parquet.plainI64(present))
+          if (opt) defLevels else emptyLevels, Parquet.plainI64(present),
+          mm.map(x => Parquet.plainI64(Array(x._1))),
+          mm.map(x => Parquet.plainI64(Array(x._2))))
       case b: BufferInstant =>
         val present =
           (0 until n).filterNot(b.isMissing).map(i => b.values(i)).toArray
+        val mm = b.nonMissingMinMax
         Column(name, Parquet.TYPE_INT64, Some(Parquet.CONV_TIMESTAMP_MILLIS),
           opt, n, present.length,
-          if (opt) defLevels else emptyLevels, Parquet.plainI64(present))
+          if (opt) defLevels else emptyLevels, Parquet.plainI64(present),
+          mm.map(x => Parquet.plainI64(Array(x._1))),
+          mm.map(x => Parquet.plainI64(Array(x._2))))
       case b: BufferDouble =>
         val present =
           (0 until n).filterNot(b.isMissing).map(i => b.values(i)).toArray
+        val mm = b.nonMissingMinMax
         Column(name, Parquet.TYPE_DOUBLE, None, opt, n, present.length,
-          if (opt) defLevels else emptyLevels, Parquet.plainF64(present))
+          if (opt) defLevels else emptyLevels, Parquet.plainF64(present),
+          mm.map(x => Parquet.plainF64(Array(x._1))),
+          mm.map(x => Parquet.plainF64(Array(x._2))))
       case b: BufferString =>
         val present = (0 until n)
           .filterNot(b.isMissing)
           .map(i => b.elementAsCharSequence(i).toString.getBytes("UTF-8"))
           .toArray
+        val mm = b.nonMissingMinMax
         Column(name, Parquet.TYPE_BYTE_ARRAY, Some(Parquet.CONV_UTF8),
           opt, n, present.length,
-          if (opt) defLevels else emptyLevels, Parquet.plainBytes(present))
+          if (opt) defLevels else emptyLevels, Parquet.plainBytes(present),
+          mm.map(x => x._1.toString.getBytes("UTF-8")),
+          mm.map(x => x._2.toString.getBytes("UTF-8")))
     }
   }
 

@@ -96,10 +96,18 @@ private[ra3] object Segment {
 
 }
 
+private[ra3] object SegmentDouble {
+  def apply(
+      sf: Option[SharedFile],
+      numElems: Int,
+      statistic: StatisticDouble
+  ): SegmentDouble = SegmentDouble(sf, numElems, statistic, None)
+}
 private[ra3] final case class SegmentDouble(
     sf: Option[SharedFile],
     numElems: Int,
-    statistic: StatisticDouble
+    statistic: StatisticDouble,
+    parquet: Option[ra3.parquet.ParquetSegmentRef]
 ) extends Segment
     with TaggedSegment {
 
@@ -111,7 +119,13 @@ private[ra3] final case class SegmentDouble(
   def segment = this
   def nonMissingMinMax: Option[(Double, Double)] = statistic.nonMissingMinMax
 
-  def buffer(implicit tsc: TaskSystemComponents) =
+  def buffer(implicit tsc: TaskSystemComponents): IO[BufferDouble] =
+    parquet match {
+      case Some(ref) =>
+        ref.decode.map(vs =>
+          BufferDouble(vs.map(_.fold(Double.NaN)(_.asInstanceOf[Double])).toArray)
+        )
+      case None =>
     sf match {
       case None if statistic.constantValue.isDefined =>
         IO.pure(
@@ -138,13 +152,22 @@ private[ra3] final case class SegmentDouble(
           .guarantee(IO.cede)
 
     }
+    }
 
 }
 
+private[ra3] object SegmentInt {
+  def apply(
+      sf: Option[SharedFile],
+      numElems: Int,
+      statistic: StatisticInt
+  ): SegmentInt = SegmentInt(sf, numElems, statistic, None)
+}
 private[ra3] final case class SegmentInt(
     sf: Option[SharedFile],
     numElems: Int,
-    statistic: StatisticInt
+    statistic: StatisticInt,
+    parquet: Option[ra3.parquet.ParquetSegmentRef]
 ) extends Segment
     with TaggedSegment {
 
@@ -157,6 +180,12 @@ private[ra3] final case class SegmentInt(
   def nonMissingMinMax = statistic.nonMissingMinMax
 
   def buffer(implicit tsc: TaskSystemComponents): IO[BufferInt] = {
+    parquet match {
+      case Some(ref) =>
+        ref.decode.map(vs =>
+          BufferInt(vs.map(_.fold(Int.MinValue)(_.asInstanceOf[Int])).toArray)
+        )
+      case None =>
     sf match {
       case None if statistic.constantValue.isDefined =>
         IO.pure(
@@ -185,6 +214,7 @@ private[ra3] final case class SegmentInt(
           .countInI32(numElems, value.byteSize)
           .guarantee(IO.cede)
     }
+    }
 
   }
 
@@ -192,10 +222,18 @@ private[ra3] final case class SegmentInt(
     sf.isEmpty && statistic.constantValue.exists(_ == i)
 
 }
+private[ra3] object SegmentLong {
+  def apply(
+      sf: Option[SharedFile],
+      numElems: Int,
+      statistic: StatisticLong
+  ): SegmentLong = SegmentLong(sf, numElems, statistic, None)
+}
 private[ra3] final case class SegmentLong(
     sf: Option[SharedFile],
     numElems: Int,
-    statistic: StatisticLong
+    statistic: StatisticLong,
+    parquet: Option[ra3.parquet.ParquetSegmentRef]
 ) extends Segment
     with TaggedSegment {
 
@@ -210,6 +248,12 @@ private[ra3] final case class SegmentLong(
   def segment = this
 
   def buffer(implicit tsc: TaskSystemComponents): IO[BufferLong] = {
+    parquet match {
+      case Some(ref) =>
+        ref.decode.map(vs =>
+          BufferLong(vs.map(_.fold(Long.MinValue)(_.asInstanceOf[Long])).toArray)
+        )
+      case None =>
     sf match {
       case None if statistic.constantValue.isDefined =>
         IO.pure(
@@ -235,14 +279,23 @@ private[ra3] final case class SegmentLong(
           .countInI64(numElems, value.byteSize)
           .guarantee(IO.cede)
     }
+    }
 
   }
 
 }
+private[ra3] object SegmentInstant {
+  def apply(
+      sf: Option[SharedFile],
+      numElems: Int,
+      statistic: StatisticLong
+  ): SegmentInstant = SegmentInstant(sf, numElems, statistic, None)
+}
 private[ra3] final case class SegmentInstant(
     sf: Option[SharedFile],
     numElems: Int,
-    statistic: StatisticLong
+    statistic: StatisticLong,
+    parquet: Option[ra3.parquet.ParquetSegmentRef]
 ) extends Segment
     with TaggedSegment {
 
@@ -256,6 +309,12 @@ private[ra3] final case class SegmentInstant(
   def segment = this
 
   def buffer(implicit tsc: TaskSystemComponents): IO[BufferInstant] = {
+    parquet match {
+      case Some(ref) =>
+        ref.decode.map(vs =>
+          BufferInstant(vs.map(_.fold(Long.MinValue)(_.asInstanceOf[Long])).toArray)
+        )
+      case None =>
     sf match {
       case None if statistic.constantValue.isDefined =>
         IO.pure(
@@ -280,16 +339,26 @@ private[ra3] final case class SegmentInstant(
           .countInInst(numElems, value.byteSize)
           .guarantee(IO.cede)
     }
+    }
 
   }
 
 }
 
+private[ra3] object SegmentString {
+  def apply(
+      sf: Option[ra3.segmentstring.SerializationType],
+      numElems: Int,
+      numBytes: Long,
+      statistic: StatisticCharSequence
+  ): SegmentString = SegmentString(sf, numElems, numBytes, statistic, None)
+}
 private[ra3] final case class SegmentString(
     sf: Option[ra3.segmentstring.SerializationType],
     numElems: Int,
     numBytes: Long,
-    statistic: StatisticCharSequence
+    statistic: StatisticCharSequence,
+    parquet: Option[ra3.parquet.ParquetSegmentRef]
 ) extends Segment
     with TaggedSegment {
   def nonMissingMinMax = statistic.nonMissingMinMax
@@ -301,6 +370,18 @@ private[ra3] final case class SegmentString(
   val tag: ColumnTag.StringTag.type = ColumnTag.StringTag
   def segment = this
   def buffer(implicit tsc: TaskSystemComponents): IO[BufferString] = {
+    parquet match {
+      case Some(ref) =>
+        ref.decode.map(vs =>
+          BufferString(
+            vs.map(
+              _.fold(BufferString.missing)(v =>
+                (v.asInstanceOf[String]: CharSequence)
+              )
+            ).toArray
+          )
+        )
+      case None =>
     sf match {
       case None if statistic.constantValue.isDefined =>
         IO.pure(
@@ -312,6 +393,7 @@ private[ra3] final case class SegmentString(
       case None => IO.pure(BufferString(Array.empty[CharSequence]))
       case Some(value) =>
         value.buffer
+    }
     }
 
   }
