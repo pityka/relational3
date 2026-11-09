@@ -382,6 +382,25 @@ private[ra3] trait RelationalAlgebra { self: Table =>
 
   }
 
+  def exportToParquet(
+      snappy: Boolean
+  )(implicit tsc: ExtendedTaskSystemComponents) = {
+    IO.parSequenceN(32)((0 until self.segmentation.size).toList map {
+      segmentIdx =>
+        val cols = self.columns.map(tc =>
+          tc.tag.makeTaggedSegment(tc.tag.segments(tc.column)(segmentIdx))
+        )
+        ts.ExportParquet.queue(
+          segments = cols,
+          colNames = self.colNames,
+          outputName = self.uniqueId,
+          outputSegmentIndex = segmentIdx,
+          snappy = snappy
+        )
+    }).logElapsed
+
+  }
+
   /** \== Sorting
     *
     * We sort by parallel distributed sort
