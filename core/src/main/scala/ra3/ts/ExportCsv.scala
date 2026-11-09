@@ -32,7 +32,7 @@ private[ra3] object ExportCsv {
       outputSegmentIndex: Int,
       compression: Option[ExportCsv.CompressionFormat]
   )(implicit
-      tsc: TaskSystemComponents
+      tsc: ExtendedTaskSystemComponents
   ): IO[SharedFile] = {
     IO {
       scribe.debug(
@@ -70,7 +70,7 @@ private[ra3] object ExportCsv {
       outputName: String,
       outputSegmentIndex: Int,
       compression: Option[ExportCsv.CompressionFormat]
-  )(implicit tsc: TaskSystemComponents): IO[SharedFile] = {
+  )(implicit tsc: ComputationEnvironment): IO[SharedFile] = {
     scribe.debug("ExportCSV start.")
     def contains(cs: CharSequence, c: Char) = {
       var i = 0
@@ -123,7 +123,7 @@ private[ra3] object ExportCsv {
             case Some(Gzip) => ".gz"
           }
 
-          SharedFile.apply(
+          SharedFile.scoped(
             stream,
             s"${outputName}/csv/$outputSegmentIndex.csv$suf"
           )

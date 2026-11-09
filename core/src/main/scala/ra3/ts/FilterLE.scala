@@ -21,7 +21,7 @@ private[ra3] object FilterInequality {
       outputPath: LogicalPath,
       lessThan: Boolean
   )(implicit
-      tsc: TaskSystemComponents
+      tsc: ExtendedTaskSystemComponents
   ): IO[tag.SegmentType] = {
     IO {
       scribe.debug(
@@ -51,7 +51,7 @@ private[ra3] object FilterInequality {
       input: inputTag.SegmentType,
       outputPath: LogicalPath,
       lessThan: Boolean
-  )(implicit tsc: TaskSystemComponents) = {
+  )(implicit tsc: ComputationEnvironment) = {
     scribe.debug("FilterLE start")
     val nonEmpty =
       cutoffTag.buffer(cutoff).map(_.toSeq.head).map { cutoffValue =>

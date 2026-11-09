@@ -1,6 +1,6 @@
 package ra3.segmentstring
 
-import tasks.TaskSystemComponents
+import tasks.{TaskSystemComponents, ComputationEnvironment}
 import ra3.BufferString
 import ra3.Utils
 import com.github.plokhotnyuk.jsoniter_scala.core.JsonValueCodec
@@ -22,7 +22,7 @@ object SerializationType {
 }
 object PrefixLength {
   def apply(values: Array[CharSequence], name: String)(implicit
-      tsc: TaskSystemComponents
+      tsc: ComputationEnvironment
   ): IO[PrefixLength] = {
     IO.cede >> (IO {
       val byteSize = values.map(v => (v.length * 2L)).sum
@@ -74,9 +74,9 @@ object PrefixLength {
     }.flatMap { case (streamData, streamLengths, numBytes) =>
       IO.both(
         SharedFile
-          .apply(streamData, name.toString + ".data"),
+          .scoped(streamData, name.toString + ".data"),
         SharedFile
-          .apply(streamLengths, name.toString + ".lengths")
+          .scoped(streamLengths, name.toString + ".lengths")
       ).map { case (sfData, sfLength) =>
         PrefixLength(
           lengths = sfLength,
@@ -135,7 +135,7 @@ object Dictionary {
       name: String,
       distincts: Array[CharSequence]
   )(implicit
-      tsc: TaskSystemComponents
+      tsc: ComputationEnvironment
   ): IO[Dictionary] = {
     IO.cede >> IO {
       val map = ra3.hashtable.CharSequenceTable.buildFirst(distincts, null)
@@ -151,7 +151,7 @@ object Dictionary {
       )
     }.flatMap { case (stream, numBytes) =>
       IO.both(SharedFile
-        .apply(stream, name.toString+".ids"), PrefixLength(distincts,name+".dictionary"))
+        .scoped(stream, name.toString+".ids"), PrefixLength(distincts,name+".dictionary"))
         .map { case (sf,dictionary) =>
           Dictionary(
             dictionary = dictionary,

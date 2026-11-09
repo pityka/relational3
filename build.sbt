@@ -16,7 +16,7 @@ inThisBuild(
 )
 
 lazy val scalaVersion213 = "2.13.14"
-lazy val scalaVersion3 = "3.6.4"
+lazy val scalaVersion3 = "3.9.0"
 lazy val scalaVersionInBuild = scalaVersion3
 
 ThisBuild / versionScheme := Some("early-semver")
@@ -40,14 +40,12 @@ lazy val commonSettings = Seq(
         "-language:postfixOps",
         "-no-indent",
         "-explain",
-        "-experimental", // needed for some macros
-        "-language:experimental.namedTuples",
         "-unchecked", // Enable additional warnings where generated code depends on assumptions.
         // "-Ycheck:all",
         // "-Ydebug-trace",
         // "-Yexplain-lowlevel",
         // "-Yprint-debug",
-        "-Xfatal-warnings" // Fail the compilation if there are any warnings.
+        "-Werror" // Fail the compilation if there are any warnings.
       )
     case _ => ???
   }),
@@ -82,9 +80,9 @@ lazy val core = project
     name := "ra3-core",
     libraryDependencies ++= List(
       "io.airlift" % "aircompressor" % "0.25",
-      "org.scalameta" %% "munit" % "1.0.0-M10" % Test,
+      "org.scalameta" %% "munit" % "1.3.6" % Test,
       "io.github.pityka" %% "saddle-core" % "4.0.0-M11",
-      "io.github.pityka" %% "tasks-core" % "4.0.0-M7",
+      "io.github.pityka" %% "tasks-core" % "4.0.0-M101",
       "com.google.guava" % "guava" % "33.0.0-jre", // scala-steward:off
       "de.lhns" %% "fs2-compress-gzip" % "1.0.0",
       "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % "2.30.13" % "compile-internal"

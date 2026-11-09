@@ -28,7 +28,7 @@ private[ra3] object MultipleTableQuery {
       predicate: ra3.lang.runtime.Expr,
       outputPath: LogicalPath,
       takes: Seq[(String, Option[SegmentInt])]
-  )(implicit tsc: TaskSystemComponents): IO[List[(TaggedSegment, String)]] = {
+  )(implicit tsc: ComputationEnvironment): IO[List[(TaggedSegment, String)]] = {
     scribe.debug(
       s"MultipleTableQuery task on ${input
           .groupBy(_._2.tableUniqueId)
@@ -231,7 +231,7 @@ private[ra3] object MultipleTableQuery {
       outputPath: LogicalPath,
       takes: Seq[(String, Option[SegmentInt])]
   )(implicit
-      tsc: TaskSystemComponents
+      tsc: ExtendedTaskSystemComponents
   ): IO[Seq[(TaggedSegment, String)]] =
     IO {
       scribe.debug(

@@ -1,6 +1,6 @@
 package ra3
 
-import tasks.TaskSystemComponents
+import tasks.{TaskSystemComponents, ComputationEnvironment, ExtendedTaskSystemComponents}
 import cats.effect.IO
 import bufferimpl.CharSequenceOrdering
 import bufferimpl.ArrayUtil
@@ -70,7 +70,7 @@ sealed trait ColumnTag { self =>
   ): IO[BufferType]
 
   def toSegment(buffer: BufferType, name: LogicalPath)(implicit
-      tsc: TaskSystemComponents
+      tsc: ComputationEnvironment
   ): IO[SegmentType]
 
   /** Returns locations at which this is <= or >= than the first element of
@@ -166,7 +166,7 @@ sealed trait ColumnTag { self =>
   def makeColumn(segments: Vector[SegmentType]): ColumnType
   def makeColumnFromSeq(name: String, colIdx: Int)(
       elems: Seq[Seq[Elem]]
-  )(implicit tsc: TaskSystemComponents): IO[ColumnType]
+  )(implicit tsc: ExtendedTaskSystemComponents): IO[ColumnType]
   def ordering: Ordering[Elem]
   def emptySegment: SegmentType
   def cat(buffs: BufferType*): BufferType
@@ -288,7 +288,7 @@ object ColumnTag {
     }
 
     def toSegment(buffer: ra3.ColumnTag.I32.BufferType, name: ra3.LogicalPath)(
-        implicit tsc: tasks.TaskSystemComponents
+        implicit tsc: tasks.ComputationEnvironment
     ): cats.effect.IO[ra3.ColumnTag.I32.SegmentType] = buffer match {
       case b1: BufferIntConstant => b1.toSegment(name)
       case b1: BufferIntInArray  => b1.toSegment(name)
@@ -345,13 +345,11 @@ object ColumnTag {
 
     def makeColumnFromSeq(name: String, colIdx: Int)(
         elems: Seq[Seq[Elem]]
-    )(implicit tsc: TaskSystemComponents): IO[ColumnType] =
+    )(implicit tsc: ExtendedTaskSystemComponents): IO[ColumnType] =
       IO.parSequenceN(32)(elems.zipWithIndex.map { case (s, idx) =>
-        this.toSegment(
-          this
-            .makeBufferFromSeq(s*),
-          LogicalPath(name, None, idx, colIdx)
-        )
+        ra3.ts.MakeSegmentFromBuffer
+          .queue(this.makeBufferFromSeq(s*), LogicalPath(name, None, idx, colIdx))
+          .map(_.asInstanceOf[SegmentType])
       }).map(_.toVector)
         .map(this.makeColumn)
 
@@ -456,7 +454,7 @@ object ColumnTag {
         locs: ra3.Location
     ): ra3.ColumnTag.I64.BufferType = buffer.take(locs)
     def toSegment(buffer: ra3.ColumnTag.I64.BufferType, name: ra3.LogicalPath)(
-        implicit tsc: tasks.TaskSystemComponents
+        implicit tsc: tasks.ComputationEnvironment
     ): cats.effect.IO[ra3.ColumnTag.I64.SegmentType] = buffer.toSegment(name)
     def cdf(buffer: BufferType, numPoints: Int): (BufferLong, BufferDouble) = {
       val percentiles =
@@ -501,11 +499,11 @@ object ColumnTag {
 
     def makeColumnFromSeq(name: String, colIdx: Int)(
         elems: Seq[Seq[Elem]]
-    )(implicit tsc: TaskSystemComponents): IO[ColumnType] =
+    )(implicit tsc: ExtendedTaskSystemComponents): IO[ColumnType] =
       IO.parSequenceN(32)(elems.zipWithIndex.map { case (s, idx) =>
-        this
-          .makeBufferFromSeq(s*)
-          .toSegment(LogicalPath(name, None, idx, colIdx))
+        ra3.ts.MakeSegmentFromBuffer
+          .queue(this.makeBufferFromSeq(s*), LogicalPath(name, None, idx, colIdx))
+          .map(_.asInstanceOf[SegmentType])
       }).map(_.toVector)
         .map(this.makeColumn)
 
@@ -613,7 +611,7 @@ object ColumnTag {
         buffer: ra3.ColumnTag.Instant.BufferType,
         name: ra3.LogicalPath
     )(implicit
-        tsc: tasks.TaskSystemComponents
+        tsc: tasks.ComputationEnvironment
     ): cats.effect.IO[ra3.ColumnTag.Instant.SegmentType] =
       buffer.toSegment(name)
 
@@ -665,11 +663,11 @@ object ColumnTag {
 
     def makeColumnFromSeq(name: String, colIdx: Int)(
         elems: Seq[Seq[Elem]]
-    )(implicit tsc: TaskSystemComponents): IO[ColumnType] =
+    )(implicit tsc: ExtendedTaskSystemComponents): IO[ColumnType] =
       IO.parSequenceN(32)(elems.zipWithIndex.map { case (s, idx) =>
-        this
-          .makeBufferFromSeq(s*)
-          .toSegment(LogicalPath(name, None, idx, colIdx))
+        ra3.ts.MakeSegmentFromBuffer
+          .queue(this.makeBufferFromSeq(s*), LogicalPath(name, None, idx, colIdx))
+          .map(_.asInstanceOf[SegmentType])
       }).map(_.toVector)
         .map(this.makeColumn)
 
@@ -781,7 +779,7 @@ object ColumnTag {
         buffer: ra3.ColumnTag.StringTag.BufferType,
         name: ra3.LogicalPath
     )(implicit
-        tsc: tasks.TaskSystemComponents
+        tsc: tasks.ComputationEnvironment
     ): cats.effect.IO[ra3.ColumnTag.StringTag.SegmentType] =
       buffer.toSegment(name)
 
@@ -815,11 +813,11 @@ object ColumnTag {
 
     def makeColumnFromSeq(name: String, colIdx: Int)(
         elems: Seq[Seq[Elem]]
-    )(implicit tsc: TaskSystemComponents): IO[ColumnType] =
+    )(implicit tsc: ExtendedTaskSystemComponents): IO[ColumnType] =
       IO.parSequenceN(32)(elems.zipWithIndex.map { case (s, idx) =>
-        this
-          .makeBufferFromSeq(s*)
-          .toSegment(LogicalPath(name, None, idx, colIdx))
+        ra3.ts.MakeSegmentFromBuffer
+          .queue(this.makeBufferFromSeq(s*), LogicalPath(name, None, idx, colIdx))
+          .map(_.asInstanceOf[SegmentType])
       }).map(_.toVector)
         .map(this.makeColumn)
 
@@ -923,7 +921,7 @@ object ColumnTag {
         locs: ra3.Location
     ): ra3.ColumnTag.F64.BufferType = buffer.take(locs)
     def toSegment(buffer: ra3.ColumnTag.F64.BufferType, name: ra3.LogicalPath)(
-        implicit tsc: tasks.TaskSystemComponents
+        implicit tsc: tasks.ComputationEnvironment
     ): cats.effect.IO[ra3.ColumnTag.F64.SegmentType] = buffer.toSegment(name)
     def broadcastBuffer(elem: Elem, size: Int): BufferType = BufferDouble(
       Array.fill[Double](size)(elem)
@@ -972,11 +970,11 @@ object ColumnTag {
     val ordering = implicitly[Ordering[Elem]]
     def makeColumnFromSeq(name: String, colIdx: Int)(
         elems: Seq[Seq[Elem]]
-    )(implicit tsc: TaskSystemComponents): IO[ColumnType] =
+    )(implicit tsc: ExtendedTaskSystemComponents): IO[ColumnType] =
       IO.parSequenceN(32)(elems.zipWithIndex.map { case (s, idx) =>
-        this
-          .makeBufferFromSeq(s*)
-          .toSegment(LogicalPath(name, None, idx, colIdx))
+        ra3.ts.MakeSegmentFromBuffer
+          .queue(this.makeBufferFromSeq(s*), LogicalPath(name, None, idx, colIdx))
+          .map(_.asInstanceOf[SegmentType])
       }).map(_.toVector)
         .map(this.makeColumn)
 

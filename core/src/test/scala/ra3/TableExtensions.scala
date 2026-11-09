@@ -1,5 +1,5 @@
 package ra3
-import tasks.TaskSystemComponents
+import tasks.{TaskSystemComponents, ExtendedTaskSystemComponents}
 import cats.effect.IO
 
 trait TableExtensions {
@@ -67,7 +67,7 @@ trait TableExtensions {
       */
     def selectColumns(
         columnIndexes: Int*
-    )(implicit tsc: TaskSystemComponents): IO[Table] = {
+    )(implicit tsc: ExtendedTaskSystemComponents): IO[Table] = {
       val name = ra3.ts.MakeUniqueId.queue(
         self,
         s"select-columns-${columnIndexes.mkString("_")}",
@@ -89,7 +89,7 @@ trait TableExtensions {
 
     // /** Concat list of columns */
     def addColOfSameSegmentation(c: TaggedColumn, colName: String)(implicit
-        tsc: TaskSystemComponents
+        tsc: ExtendedTaskSystemComponents
     ): IO[Table] = {
       assert(c.tag.segments(c.column).map(_.numElems) == self.segmentation)
       val name = ra3.ts.MakeUniqueId.queue(
@@ -107,7 +107,7 @@ trait TableExtensions {
     }
     def addColumnFromSeq(tag: ColumnTag, columnName: String)(
         elems: Seq[tag.Elem]
-    )(implicit tsc: TaskSystemComponents): IO[Table] = {
+    )(implicit tsc: ExtendedTaskSystemComponents): IO[Table] = {
       assert(self.numRows == elems.length.toLong)
       val idx = self.columns.size
       val segmented = self.segmentation
@@ -138,7 +138,7 @@ trait TableExtensions {
       */
     def take(
         indexes: Column.Int32Column
-    )(implicit tsc: TaskSystemComponents): IO[Table] = {
+    )(implicit tsc: ExtendedTaskSystemComponents): IO[Table] = {
       assert(self.columns.head.segments.size == indexes.segments.size)
       ts.MakeUniqueId.queue(self, "take", List(indexes)).flatMap { name =>
         IO.parTraverseN(math.min(32, self.columns.size))(

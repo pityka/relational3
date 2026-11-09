@@ -1,7 +1,7 @@
 package ra3
 
 import cats.effect.IO
-import tasks.{TaskSystemComponents}
+import tasks.{TaskSystemComponents, ExtendedTaskSystemComponents}
 import ra3.ts.ExportCsv
 private[ra3] trait RelationalAlgebra { self: Table =>
 
@@ -9,7 +9,7 @@ private[ra3] trait RelationalAlgebra { self: Table =>
       columnIdx: Int,
       cutoff: Segment,
       lessThan: Boolean
-  )(implicit tsc: TaskSystemComponents): IO[Table] = {
+  )(implicit tsc: ExtendedTaskSystemComponents): IO[Table] = {
     val comparisonColumn = self.columns(columnIdx)
 
     val castedCutoff = cutoff.asInstanceOf[comparisonColumn.tag.SegmentType]
@@ -60,7 +60,7 @@ private[ra3] trait RelationalAlgebra { self: Table =>
       partitionBase: Int,
       partitionLimit: Int,
       maxItemsToBufferAtOnce: Int
-  )(implicit tsc: TaskSystemComponents) = {
+  )(implicit tsc: ExtendedTaskSystemComponents) = {
     partition(
       columnIdx = columnIdx,
       partitionBase = partitionBase,
@@ -100,7 +100,7 @@ private[ra3] trait RelationalAlgebra { self: Table =>
       numPartitionsIsImportant: Boolean,
       partitionLimit: Int,
       maxItemsToBufferAtOnce: Int
-  )(implicit tsc: TaskSystemComponents): IO[Vector[PartitionedTable]] =
+  )(implicit tsc: ExtendedTaskSystemComponents): IO[Vector[PartitionedTable]] =
     (if (self.numRows <= partitionLimit.toLong)
        IO.pure(Vector(PartitionedTable(self.columns, PartitionMeta(Nil, 1))))
      else if (
@@ -171,7 +171,7 @@ private[ra3] trait RelationalAlgebra { self: Table =>
       partitionLimit: Int,
       maxItemsToBufferAtOnce: Int
   )(implicit
-      tsc: TaskSystemComponents
+      tsc: ExtendedTaskSystemComponents
   ): IO[GroupedTable] = {
     assert(
       cols.nonEmpty
@@ -231,7 +231,7 @@ private[ra3] trait RelationalAlgebra { self: Table =>
   private[ra3] def groupBySegments(
       cols: Seq[Int]
   )(implicit
-      tsc: TaskSystemComponents
+      tsc: ExtendedTaskSystemComponents
   ): IO[GroupedTable] = {
     assert(
       cols.nonEmpty
@@ -274,7 +274,7 @@ private[ra3] trait RelationalAlgebra { self: Table =>
     */
   private[ra3] def concatenate(
       others: Table*
-  )(implicit tsc: TaskSystemComponents): IO[Table] = {
+  )(implicit tsc: ExtendedTaskSystemComponents): IO[Table] = {
     val name = ts.MakeUniqueId.queue(
       self,
       s"concat",
@@ -308,7 +308,7 @@ private[ra3] trait RelationalAlgebra { self: Table =>
       k: Int,
       cdfCoverage: Double,
       cdfNumberOfSamplesPerSegment: Int
-  )(implicit tsc: TaskSystemComponents): IO[Table] = {
+  )(implicit tsc: ExtendedTaskSystemComponents): IO[Table] = {
     val cdf = {
       val col = self
         .columns(sortColumn)
@@ -331,8 +331,8 @@ private[ra3] trait RelationalAlgebra { self: Table =>
 
         cdf.topK(perc, ascending).flatMap {
           case Some(value) =>
-            cdf.tag
-              .toSegment(
+            ra3.ts.MakeSegmentFromBuffer
+              .queue(
                 value,
                 LogicalPath(
                   table = name,
@@ -363,7 +363,7 @@ private[ra3] trait RelationalAlgebra { self: Table =>
       compression: Option[ra3.ts.ExportCsv.CompressionFormat] = Some(
         ExportCsv.Gzip
       )
-  )(implicit tsc: TaskSystemComponents) = {
+  )(implicit tsc: ExtendedTaskSystemComponents) = {
     IO.parSequenceN(32)((0 until self.segmentation.size).toList map {
       segmentIdx =>
         val cols = self.columns.map(tc =>

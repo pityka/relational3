@@ -41,7 +41,7 @@ private[ra3] object ImportCsv {
       bufferSize: Int,
       characterDecoder: CharacterDecoder
   )(implicit
-      tsc: TaskSystemComponents
+      tsc: ExtendedTaskSystemComponents
   ): IO[Table] = {
     IO {
       scribe.debug(
@@ -87,7 +87,7 @@ private[ra3] object ImportCsv {
       compression: Option[CompressionFormat],
       bufferSize: Int,
       characterDecoder: CharacterDecoder
-  )(implicit tsc: TaskSystemComponents): IO[Table] = {
+  )(implicit tsc: ComputationEnvironment): IO[Table] = {
     scribe.info("Start import csv")
     val rawStream = file.stream
 

@@ -23,8 +23,9 @@ class LongBufferSuite extends munit.FunSuite with WithTempTaskSystem {
   test("toSegment") {
     withTempTaskSystem { implicit tsc =>
       val s = Seq(0L, 1L, 2L, 3L, Long.MinValue, -1L)
-      val segment = BufferLong(s.toArray)
-        .toSegment(LogicalPath("toSegmentTest", None, 0, 0))
+      val segment = ra3.ts.MakeSegmentFromBuffer
+        .queue(BufferLong(s.toArray), LogicalPath("toSegmentTest", None, 0, 0))
+        .map(_.asInstanceOf[SegmentLong])
         .unsafeRunSync()
       assertEquals(segment.buffer.unsafeRunSync().toSeq, s)
       assertEquals(segment.numElems, 6)

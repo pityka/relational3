@@ -25,8 +25,9 @@ class DoubleBufferSuite extends munit.FunSuite with WithTempTaskSystem {
   test("toSegment") {
     withTempTaskSystem { implicit tsc =>
       val s = Seq(0d, 1d, 2d, 3d, Double.NaN, -1d)
-      val segment = BufferDouble(s*)
-        .toSegment(LogicalPath("toSegmentTest", None, 0, 0))
+      val segment = ra3.ts.MakeSegmentFromBuffer
+        .queue(BufferDouble(s*), LogicalPath("toSegmentTest", None, 0, 0))
+        .map(_.asInstanceOf[SegmentDouble])
         .unsafeRunSync()
       assertEqualDoubleSeq(segment.buffer.unsafeRunSync().toSeq, s)
       assertEquals(segment.numElems, 6)

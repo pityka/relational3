@@ -4,34 +4,51 @@ import java.nio.channels.Channels
 import org.saddle.doubleOrd
 import org.saddle.index.InnerJoin
 import java.nio.charset.CharsetDecoder
+import tasks.*
 class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
+
+  private def importBrc(
+      utf8: Boolean
+  )(implicit tsc: ExtendedTaskSystemComponents): Table = {
+    val tmp = java.io.File.createTempFile("1brc", ".txt")
+    val is = getClass().getResourceAsStream("/1brc.1M.txt")
+    try
+      java.nio.file.Files.copy(
+        is,
+        tmp.toPath,
+        java.nio.file.StandardCopyOption.REPLACE_EXISTING
+      )
+    finally is.close()
+    ra3
+      .importCsvUntyped(
+        file = SharedFile(tasks.util.Uri("file://" + tmp.getAbsolutePath))
+          .unsafeRunSync(),
+        name = "1brc",
+        columns = List(
+          CSVColumnDefinition.StrColumn(0, None),
+          CSVColumnDefinition.F64Column(1)
+        ),
+        maxSegmentLength = 10000,
+        recordSeparator = "\n",
+        fieldSeparator = ';',
+        header = false,
+        characterDecoder =
+          if (utf8) CharacterDecoder.UTF8(silent = false)
+          else CharacterDecoder.ASCII(silent = true)
+      )
+      .unsafeRunSync()
+      .mapColIndex {
+        case "V0" => "station"
+        case "V1" => "value"
+      }
+  }
 
   test("1brc export") {
     withTempTaskSystem { implicit tsc =>
       val channel =
         Channels.newChannel(getClass().getResourceAsStream("/1brc.1M.txt"))
 
-      val table = ra3.csv
-        .readHeterogeneousFromCSVChannel(
-          "1brc",
-          List(
-            (0, ColumnTag.StringTag, None, None),
-            (1, ColumnTag.F64, None, None)
-            // 0 until (numCols) map (i => (i, ColumnTag.I32, None))*
-          ),
-          channel = channel,
-          charset = java.nio.charset.Charset.forName("UTF-8").newDecoder(),
-          header = false,
-          maxSegmentLength = 10000,
-          fieldSeparator = ';',
-          recordSeparator = "\n"
-        )
-        .toOption
-        .get
-        .mapColIndex {
-          case "V0" => "station"
-          case "V1" => "value"
-        }
+      val table = importBrc(true)
 
       val files = table
         .exportToCsv(
@@ -60,26 +77,7 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
       val channel2 =
         Channels.newChannel(getClass().getResourceAsStream("/1brc.1M.txt"))
 
-      val table = ra3.csv
-        .readHeterogeneousFromCSVChannel(
-          "1brc",
-          List(
-            (0, ColumnTag.StringTag, None, None),
-            (1, ColumnTag.F64, None, None)
-            // 0 until (numCols) map (i => (i, ColumnTag.I32, None))*
-          ),
-          channel = channel,
-          header = false,
-          maxSegmentLength = 10000,
-          fieldSeparator = ';',
-          recordSeparator = "\n"
-        )
-        .toOption
-        .get
-        .mapColIndex {
-          case "V0" => "station"
-          case "V1" => "value"
-        }
+      val table = importBrc(false)
 
       val tpe = table.as[("station", "value"), (StrVar, F64Var)]
 
@@ -137,26 +135,7 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
       val channel2 =
         Channels.newChannel(getClass().getResourceAsStream("/1brc.1M.txt"))
 
-      val table = ra3.csv
-        .readHeterogeneousFromCSVChannel(
-          "1brc",
-          List(
-            (0, ColumnTag.StringTag, None, None),
-            (1, ColumnTag.F64, None, None)
-            // 0 until (numCols) map (i => (i, ColumnTag.I32, None))*
-          ),
-          channel = channel,
-          header = false,
-          maxSegmentLength = 10000,
-          fieldSeparator = ';',
-          recordSeparator = "\n"
-        )
-        .toOption
-        .get
-        .mapColIndex {
-          case "V0" => "station"
-          case "V1" => "value"
-        }
+      val table = importBrc(false)
 
       val tpe = table.as[("station", "value"), (StrVar, F64Var)]
 
@@ -228,26 +207,7 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
       val channel2 =
         Channels.newChannel(getClass().getResourceAsStream("/1brc.1M.txt"))
 
-      val table = ra3.csv
-        .readHeterogeneousFromCSVChannel(
-          "1brc",
-          List(
-            (0, ColumnTag.StringTag, None, None),
-            (1, ColumnTag.F64, None, None)
-            // 0 until (numCols) map (i => (i, ColumnTag.I32, None))*
-          ),
-          channel = channel,
-          header = false,
-          maxSegmentLength = 10000,
-          fieldSeparator = ';',
-          recordSeparator = "\n"
-        )
-        .toOption
-        .get
-        .mapColIndex {
-          case "V0" => "station"
-          case "V1" => "value"
-        }
+      val table = importBrc(false)
 
       val tpe = table.as[("station", "value"), (StrVar, F64Var)]
 
@@ -303,26 +263,7 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
       val channel2 =
         Channels.newChannel(getClass().getResourceAsStream("/1brc.1M.txt"))
 
-      val table = ra3.csv
-        .readHeterogeneousFromCSVChannel(
-          "1brc",
-          List(
-            (0, ColumnTag.StringTag, None, None),
-            (1, ColumnTag.F64, None, None)
-            // 0 until (numCols) map (i => (i, ColumnTag.I32, None))*
-          ),
-          channel = channel,
-          header = false,
-          maxSegmentLength = 10000,
-          fieldSeparator = ';',
-          recordSeparator = "\n"
-        )
-        .toOption
-        .get
-        .mapColIndex {
-          case "V0" => "station"
-          case "V1" => "value"
-        }
+      val table = importBrc(false)
       val typedTable = table.as[("station", "value"), (StrVar, F64Var)]
 
       val result = typedTable
@@ -385,25 +326,7 @@ class OneBrcSuite extends munit.FunSuite with WithTempTaskSystem {
       val channel2 =
         Channels.newChannel(getClass().getResourceAsStream("/1brc.1M.txt"))
 
-      val table = ra3.csv
-        .readHeterogeneousFromCSVChannel(
-          "1brc",
-          List(
-            (0, ColumnTag.StringTag, None, None),
-            (1, ColumnTag.F64, None, None)
-          ),
-          channel = channel,
-          header = false,
-          maxSegmentLength = 10000,
-          fieldSeparator = ';',
-          recordSeparator = "\n"
-        )
-        .toOption
-        .get
-        .mapColIndex {
-          case "V0" => "station"
-          case "V1" => "value"
-        }
+      val table = importBrc(false)
         .as[("station", "value"), (StrVar, F64Var)]
 
       val program = for {

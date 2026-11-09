@@ -1,6 +1,6 @@
 package ra3
 
-import tasks.TaskSystemComponents
+import tasks.{TaskSystemComponents, ExtendedTaskSystemComponents}
 import cats.effect.IO
 import com.github.plokhotnyuk.jsoniter_scala.core.JsonValueCodec
 import com.github.plokhotnyuk.jsoniter_scala.macros.JsonCodecMaker
@@ -187,7 +187,7 @@ object Table {
     */
   def concatenate(
       others: Table*
-  )(implicit tsc: TaskSystemComponents): IO[Table] = {
+  )(implicit tsc: ExtendedTaskSystemComponents): IO[Table] = {
     ra3.concatenate(others*)
   }
 }

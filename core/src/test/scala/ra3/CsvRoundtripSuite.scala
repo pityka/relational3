@@ -106,10 +106,10 @@ class CsvRoundtripSuite extends munit.FunSuite with WithTempTaskSystem {
       val table = csvStringToDoubleTable("emptyD", csv, 1, 100)
       val buf = table.bufferSegment(0).unsafeRunSync()
       val col = buf.columns(0)
+      assertEquals(col.length, 3)
       assert(!col.isMissing(0))
       assert(col.isMissing(1))
       assert(!col.isMissing(2))
-      assert(col.isMissing(3))
     }
   }
 }

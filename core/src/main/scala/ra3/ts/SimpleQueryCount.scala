@@ -117,7 +117,7 @@ private[ra3] object SimpleQueryCount {
       predicate: ra3.lang.runtime.Expr,
       groupMap: Option[(SegmentInt, Int)]
   )(implicit
-      tsc: TaskSystemComponents
+      tsc: ExtendedTaskSystemComponents
   ): IO[Long] =
     IO {
       scribe.debug(

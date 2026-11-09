@@ -48,7 +48,7 @@ private[ra3] object SimpleQuery {
       predicate: ra3.lang.runtime.Expr,
       outputPath: LogicalPath,
       groupMap: Option[(SegmentInt, Int)]
-  )(implicit tsc: TaskSystemComponents): IO[List[(TaggedSegment, String)]] = {
+  )(implicit tsc: ComputationEnvironment): IO[List[(TaggedSegment, String)]] = {
     scribe.debug(
       s"SimpleQuery task on ${input
           .groupBy(_._2.tableUniqueId)
@@ -285,7 +285,7 @@ private[ra3] object SimpleQuery {
       outputPath: LogicalPath,
       groupMap: Option[(SegmentInt, Int)]
   )(implicit
-      tsc: TaskSystemComponents
+      tsc: ExtendedTaskSystemComponents
   ): IO[Seq[(TaggedSegment, String)]] =
     IO {
       scribe.debug(

@@ -17,7 +17,7 @@ private[ra3] object TakePartition {
       inputSegmentsWithPartitionMaps: Seq[(TaggedSegment, SegmentInt)],
       numPartition: Int,
       outputPath: LogicalPath
-  )(implicit tsc: TaskSystemComponents): IO[Vector[Segment]] = {
+  )(implicit tsc: ComputationEnvironment): IO[Vector[Segment]] = {
     scribe.debug(
       s"Take $numPartition partitions from ${inputSegmentsWithPartitionMaps.size} segments of ${outputPath.table}/${outputPath.column} to $outputPath"
     )
@@ -79,7 +79,7 @@ private[ra3] object TakePartition {
       numPartition: Int,
       outputPath: LogicalPath
   )(implicit
-      tsc: TaskSystemComponents
+      tsc: ExtendedTaskSystemComponents
   ): IO[Seq[Segment]] =
     IO {
       scribe.debug(

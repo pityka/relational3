@@ -153,7 +153,7 @@ package object ra3 {
         CharacterDecoder.ASCII(silent = true),
       parallelism: Int = 32
   )(implicit
-      tsc: TaskSystemComponents
+      tsc: ExtendedTaskSystemComponents
   ) = {
 
     def do1(f: SharedFile) = ra3.ts.ImportCsv.queue(
@@ -268,7 +268,7 @@ package object ra3 {
       uniqueId: String,
       minimumSegmentSize: Int,
       maximumSegmentSize: Int
-  )(implicit tsc: TaskSystemComponents) =
+  )(implicit tsc: ExtendedTaskSystemComponents) =
     ImportFromStream.importFromStream[N, T](
       stream,
       uniqueId,
@@ -401,7 +401,7 @@ package object ra3 {
   /** Concatenate the list of rows of multiple tables ('grows downwards') */
   def concatenate(
       others: Table*
-  )(implicit tsc: TaskSystemComponents): cats.effect.IO[Table] = {
+  )(implicit tsc: ExtendedTaskSystemComponents): cats.effect.IO[Table] = {
     val name = ra3.ts.MakeUniqueId.queue(
       others.head,
       s"concat",

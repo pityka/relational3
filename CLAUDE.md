@@ -20,7 +20,7 @@ Tests use MUnit and Specs2 with ScalaCheck for property-based tests. Test parall
 
 ## Scala Version & Compiler
 
-Scala 3.6.4 only. `-Xfatal-warnings` is enabled — all warnings are errors. Experimental features are enabled: named tuples (`-language:experimental.namedTuples`) and `-experimental` for macros.
+Scala 3.9.0 only. `-Werror` is enabled — all warnings are errors. Named tuples are stable in 3.9.0, so the build needs no language import for them and sets no `-experimental` flag.
 
 ## Architecture
 

@@ -3,7 +3,7 @@ import ra3.*
 import cats.effect.IO
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import tasks.{TaskSystemComponents, SharedFile}
+import tasks.{TaskSystemComponents, SharedFile, ComputationEnvironment}
 import ra3.join.*
 import ra3.join.locator.*
 private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
@@ -218,7 +218,7 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
 
   def toSegment(
       name: LogicalPath
-  )(implicit tsc: TaskSystemComponents): IO[SegmentInt] = {
+  )(implicit tsc: ComputationEnvironment): IO[SegmentInt] = {
     if (values.length == 0) IO.pure(SegmentInt(None, 0, StatisticInt.empty))
     else
       IO.cede >> (IO {
@@ -228,7 +228,7 @@ private[ra3] trait BufferIntArrayImpl { self: BufferIntInArray =>
         fs2.Stream.chunk(fs2.Chunk.byteBuffer(Utils.compress(bb, skipCompress = true)))
       }.flatMap { stream =>
         SharedFile
-          .apply(stream, name.toString)
+          .scoped(stream, name.toString)
           .map(sf => SegmentInt(Some(sf), values.length, self.makeStatistic()))
       }.logElapsed).guarantee(IO.cede)
   }

@@ -3,7 +3,7 @@ import ra3.*
 import cats.effect.IO
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import tasks.{TaskSystemComponents, SharedFile}
+import tasks.{TaskSystemComponents, SharedFile, ComputationEnvironment}
 import ra3.join.*
 import ra3.join.locator.*
 import org.saddle.scalar.{ScalarTagInt, ScalarTagDouble, ScalarTagLong}
@@ -159,7 +159,7 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
     val sorted =
       values
         .filterNot(_ == BufferString.MissingValue)
-        .sorted(CharSequenceOrdering)
+        .sorted(using CharSequenceOrdering)
     val cdf = percentiles.map { p =>
       val idx = (p * (sorted.length - 1)).toInt
       (sorted(idx), p)
@@ -279,7 +279,7 @@ private[ra3] trait BufferStringImpl { self: BufferString =>
 
   def toSegment(
       name: LogicalPath
-  )(implicit tsc: TaskSystemComponents): IO[SegmentString] = {
+  )(implicit tsc: ComputationEnvironment): IO[SegmentString] = {
     if (values.length == 0)
       IO.pure(SegmentString(None, 0, 0L, StatisticCharSequence.empty))
     else

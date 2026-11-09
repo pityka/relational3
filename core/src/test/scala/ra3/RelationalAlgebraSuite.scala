@@ -9,20 +9,40 @@ import tasks.*
 import cats.effect.unsafe.implicits.global
 import ColumnTag.I32
 trait WithTempTaskSystem extends TableExtensions {
-  def withTempTaskSystem[T](f: TaskSystemComponents => T) = {
+  def withTempTaskSystem[T](f: ExtendedTaskSystemComponents => T) = {
     val tmp = tasks.util.TempFile.createTempFile(".temp")
     tmp.delete
     val config = ConfigFactory.parseString(
       s"""tasks.fileservice.storageURI=${tmp.getAbsolutePath}
       hosts.numCPU=1
-      
+
       akka.loglevel=OFF
       tasks.disableRemoting = true
       """
     )
-    val r = withTaskSystem(config)(tsc => cats.effect.IO(f)).unsafeRunSync()
+    val r = withTaskSystem(config)(tsc => cats.effect.IO.blocking(f(tsc)))
+      .unsafeRunSync()
     tmp.delete()
     r
+  }
+
+  private def csvImport(
+      name: String,
+      csv: String,
+      columns: Seq[CSVColumnDefinition],
+      segmentLength: Int
+  )(implicit tsc: ExtendedTaskSystemComponents): Table = {
+    val tmp = java.io.File.createTempFile("ra3test", ".csv")
+    java.nio.file.Files.write(tmp.toPath, csv.replace("\r\n", "\n").getBytes())
+    ra3.importCsvUntyped(
+      file = SharedFile(tasks.util.Uri("file://" + tmp.getAbsolutePath))
+        .unsafeRunSync(),
+      name = name,
+      columns = columns,
+      maxSegmentLength = segmentLength,
+      recordSeparator = "\n",
+      header = true
+    ).unsafeRunSync()
   }
 
   def csvStringToHeterogeneousTable(
@@ -31,23 +51,33 @@ trait WithTempTaskSystem extends TableExtensions {
       cols: List[(Int, ColumnTag, Option[InstantParser], Option[String])],
       segmentLength: Int
   )(implicit
-      tsc: TaskSystemComponents
-  ) = {
-    val channel =
-      Channels.newChannel(new ByteArrayInputStream(csv.getBytes()))
-
-    val x = ra3.csv
-      .readHeterogeneousFromCSVChannel(
-        name,
-        cols,
-        channel = channel,
-        header = true,
-        maxSegmentLength = segmentLength,
-        recordSeparator = "\n"
-      )
-
-    x.toOption.get
-  }
+      tsc: ExtendedTaskSystemComponents
+  ) =
+    csvImport(
+      name,
+      csv,
+      cols.map { case (i, tag, parser, missing) =>
+        tag match {
+          case ColumnTag.I32 => CSVColumnDefinition.I32Column(i)
+          case ColumnTag.I64 => CSVColumnDefinition.I64Column(i)
+          case ColumnTag.F64 => CSVColumnDefinition.F64Column(i)
+          case ColumnTag.StringTag =>
+            CSVColumnDefinition.StrColumn(i, missing)
+          case ColumnTag.Instant =>
+            CSVColumnDefinition.InstantColumn(
+              i,
+              parser.map {
+                case InstantParser.ISO => InstantFormat.ISO
+                case InstantParser.LocalDateTimeAtUTC(s) =>
+                  InstantFormat.LocalDateTimeAtUTC(s)
+                case _ =>
+                  throw new RuntimeException("unsupported InstantParser")
+              }
+            )
+        }
+      },
+      segmentLength
+    )
 
   def toFrame2(t: Table, tag: ColumnTag)(implicit
       tsc: TaskSystemComponents,
@@ -73,96 +103,56 @@ trait WithTempTaskSystem extends TableExtensions {
       numCols: Int,
       segmentLength: Int
   )(implicit
-      tsc: TaskSystemComponents
-  ) = {
-    val channel =
-      Channels.newChannel(new ByteArrayInputStream(csv.getBytes()))
-
-    ra3.csv
-      .readHeterogeneousFromCSVChannel(
-        name,
-        List(
-          0 until (numCols) map (i => (i, ColumnTag.I32, None, None))*
-        ),
-        channel = channel,
-        header = true,
-        maxSegmentLength = segmentLength
-      )
-      .toOption
-      .get
-  }
+      tsc: ExtendedTaskSystemComponents
+  ) =
+    csvImport(
+      name,
+      csv,
+      (0 until numCols).map(i => CSVColumnDefinition.I32Column(i)),
+      segmentLength
+    )
   def csvStringToStringTable(
       name: String,
       csv: String,
       numCols: Int,
       segmentLength: Int
   )(implicit
-      tsc: TaskSystemComponents
-  ) = {
-    val channel =
-      Channels.newChannel(new ByteArrayInputStream(csv.getBytes()))
-
-    ra3.csv
-      .readHeterogeneousFromCSVChannel(
-        name,
-        List(
-          0 until (numCols) map (i => (i, ColumnTag.StringTag, None, None))*
-        ),
-        channel = channel,
-        header = true,
-        maxSegmentLength = segmentLength
-      )
-      .toOption
-      .get
-  }
+      tsc: ExtendedTaskSystemComponents
+  ) =
+    csvImport(
+      name,
+      csv,
+      (0 until numCols).map(i => CSVColumnDefinition.StrColumn(i)),
+      segmentLength
+    )
   def csvStringToDoubleTable(
       name: String,
       csv: String,
       numCols: Int,
       segmentLength: Int
   )(implicit
-      tsc: TaskSystemComponents
-  ) = {
-    val channel =
-      Channels.newChannel(new ByteArrayInputStream(csv.getBytes()))
-
-    ra3.csv
-      .readHeterogeneousFromCSVChannel(
-        name,
-        List(
-          0 until (numCols) map (i => (i, ColumnTag.F64, None, None))*
-        ),
-        channel = channel,
-        header = true,
-        maxSegmentLength = segmentLength
-      )
-      .toOption
-      .get
-  }
+      tsc: ExtendedTaskSystemComponents
+  ) =
+    csvImport(
+      name,
+      csv,
+      (0 until numCols).map(i => CSVColumnDefinition.F64Column(i)),
+      segmentLength
+    )
   def csvStringToLongTable(
       name: String,
       csv: String,
       numCols: Int,
       segmentLength: Int
   )(implicit
-      tsc: TaskSystemComponents
-  ) = {
-    val channel =
-      Channels.newChannel(new ByteArrayInputStream(csv.getBytes()))
-
-    ra3.csv
-      .readHeterogeneousFromCSVChannel(
-        name,
-        List(
-          0 until (numCols) map (i => (i, ColumnTag.I64, None, None))*
-        ),
-        channel = channel,
-        header = true,
-        maxSegmentLength = segmentLength
-      )
-      .toOption
-      .get
-  }
+      tsc: ExtendedTaskSystemComponents
+  ) =
+    csvImport(
+      name,
+      csv,
+      (0 until numCols).map(i => CSVColumnDefinition.I64Column(i)),
+      segmentLength
+    )
 
 }
 
@@ -190,8 +180,9 @@ class RelationlAlgebraSuite
     withTempTaskSystem { implicit ts =>
       val strings = 1 to 10000 map (_ => scala.util.Random.alphanumeric.take(20).mkString) toArray
     val b = BufferString(strings*)
-    val readBack = b
-      .toSegment(LogicalPath("test", None, 0, 0))
+    val readBack = ra3.ts.MakeSegmentFromBuffer
+      .queue(b, LogicalPath("test", None, 0, 0))
+      .map(_.asInstanceOf[SegmentString])
       .flatMap(segment => segment.buffer)
       .unsafeRunSync()
     assert(readBack.values.toVector.map(_.toString) == strings.toVector)
@@ -202,8 +193,9 @@ class RelationlAlgebraSuite
     withTempTaskSystem { implicit ts =>
       val strings = 1 to 300000 map (_ => scala.util.Random.alphanumeric.take(20).mkString) toArray
     val b = BufferString(strings*)
-    val readBack = b
-      .toSegment(LogicalPath("test", None, 0, 0))
+    val readBack = ra3.ts.MakeSegmentFromBuffer
+      .queue(b, LogicalPath("test", None, 0, 0))
+      .map(_.asInstanceOf[SegmentString])
       .flatMap(segment =>  {assert(segment.sf.get.isInstanceOf[ra3.segmentstring.PrefixLength]);segment.buffer})
       .unsafeRunSync()
     assert(readBack.values.toVector.map(_.toString) == strings.toVector)
@@ -267,8 +259,9 @@ class RelationlAlgebraSuite
         idxs.zipWithIndex
           .map(s => (s._2, ColumnTag.I32.makeBufferFromSeq(s._1*)))
           .map(v =>
-            ColumnTag.I32
-              .toSegment(v._2, LogicalPath("idx1", None, v._1, 0))
+            ra3.ts.MakeSegmentFromBuffer
+              .queue(v._2, LogicalPath("idx1", None, v._1, 0))
+              .map(_.asInstanceOf[SegmentInt])
               .unsafeRunSync()
           )
           .toVector
@@ -297,12 +290,13 @@ class RelationlAlgebraSuite
       val (tableFrame, tableCsv) = generateTable(numRows, numCols)
       println(tableFrame)
       val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
-      val literal = I32
-        .toSegment(
+      val literal = ra3.ts.MakeSegmentFromBuffer
+        .queue(
           I32
             .makeBufferFromSeq(0),
           LogicalPath("test0", None, 0, 0)
         )
+        .map(_.asInstanceOf[SegmentInt])
         .unsafeRunSync()
 
       val less = ra3Table.rfilterInEquality(0, literal, true).unsafeRunSync()
@@ -1918,12 +1912,13 @@ class RelationlAlgebraSuite
       val (tableFrame, tableCsv) = generateTable(numRows, numCols)
       println(tableFrame)
       val ra3Table = csvStringToTable("table", tableCsv, numCols, 3)
-      val literal = I32
-        .toSegment(
+      val literal = ra3.ts.MakeSegmentFromBuffer
+        .queue(
           I32
             .makeBufferFromSeq(Int.MaxValue),
           LogicalPath("test0", None, 0, 0)
         )
+        .map(_.asInstanceOf[SegmentInt])
         .unsafeRunSync()
 
       val less = ra3Table.rfilterInEquality(0, literal, false).unsafeRunSync()

@@ -1,6 +1,6 @@
 package ra3
 import cats.effect.IO
-import tasks.TaskSystemComponents
+import tasks.{TaskSystemComponents, ExtendedTaskSystemComponents}
 import ra3.lang.ReturnValueTuple
 private[ra3] object Equijoin {
 
@@ -12,7 +12,7 @@ private[ra3] object Equijoin {
       partitionLimit: Int,
       maxItemsToBufferAtOnce: Int,
       program: ra3.lang.runtime.Expr
-  )(implicit tsc: TaskSystemComponents): IO[Table] = {
+  )(implicit tsc: ExtendedTaskSystemComponents): IO[Table] = {
     if (others.size == 0) {
       scribe.info("Nothing to join")
       IO.pure(self)
@@ -77,7 +77,7 @@ private[ra3] object Equijoin {
       partitionLimit: Int,
       maxItemsToBufferAtOnce: Int,
       program: ra3.lang.runtime.Expr
-  )(implicit tsc: TaskSystemComponents) = {
+  )(implicit tsc: ExtendedTaskSystemComponents) = {
 
     assert(
       self.columns(joinColumnSelf).tag == other
@@ -242,7 +242,7 @@ private[ra3] object Equijoin {
       partitionBase: Int,
       partitionLimit: Int,
       program: ra3.lang.runtime.Expr
-  )(implicit tsc: TaskSystemComponents) = {
+  )(implicit tsc: ExtendedTaskSystemComponents) = {
     val name = ts.MakeUniqueId.queueM(
       self +: others.map(_._1),
       s"join-$partitionBase-$joinColumnSelf-${others

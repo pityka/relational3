@@ -4,7 +4,7 @@ import java.nio.channels.ReadableByteChannel
 import java.nio.charset.CharsetDecoder
 import java.io.File
 import org.saddle.io.csv.Callback
-import tasks.TaskSystemComponents
+import tasks.{TaskSystemComponents, ComputationEnvironment}
 import scala.collection.mutable.ArrayBuffer
 import cats.effect.IO
 import ra3.ColumnTag.I32
@@ -53,7 +53,7 @@ object csv {
       maxSegmentLength: Int = 100000,
       header: Boolean = false
   )(implicit
-      tsc: TaskSystemComponents
+      tsc: ComputationEnvironment
   ) = {
     val fis = new java.io.FileInputStream(file)
     val channel = fis.getChannel
@@ -89,7 +89,7 @@ object csv {
       header: Boolean = false,
       bufferSize: Int = 8192
   )(implicit
-      tsc: TaskSystemComponents
+      tsc: ComputationEnvironment
   ) = {
 
     val sortedColumnTypes = columnTypes
@@ -172,7 +172,7 @@ object csv {
         (Int, ColumnTag, Option[InstantParser], Option[CharSequence])
       ],
       maxSegmentLength: Int
-  )(implicit tsc: TaskSystemComponents)
+  )(implicit tsc: ComputationEnvironment)
       extends Callback {
 
     val locs = columnTypes.map(_._1)

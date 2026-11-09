@@ -16,21 +16,21 @@ private[ra3] object MergeCDFs {
 
   private def doitUntyped(
       input: MergeCDFs
-  )(implicit tsc: TaskSystemComponents) = {
+  )(implicit tsc: ComputationEnvironment) = {
     val tag = input.input1.tag
     val xs = input.input1.segments
     val ys = input.input2
     doit(tag)(
       xs zip ys,
       input.outputPath
-    )(tsc, tag.ordering)
+    )(using tsc, tag.ordering)
   }
 
   private def doit(tag: ColumnTag)(
       inputs: Seq[(tag.SegmentType, SegmentDouble)],
       outputPath: LogicalPath
   )(implicit
-      tsc: TaskSystemComponents,
+      tsc: ComputationEnvironment,
       ordering: Ordering[tag.Elem]
   ): IO[UntypedCDF] = {
     scribe.debug("Merge CDF start")
@@ -62,7 +62,7 @@ private[ra3] object MergeCDFs {
       inputs: Seq[(tag.SegmentType, SegmentDouble)],
       outputPath: LogicalPath
   )(implicit
-      tsc: TaskSystemComponents
+      tsc: ExtendedTaskSystemComponents
   ) =
     IO {
       scribe.debug(

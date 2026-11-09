@@ -2,7 +2,7 @@ package ra3
 
 import cats.effect.IO
 import scala.reflect.ClassTag
-import tasks.TaskSystemComponents
+import tasks.{TaskSystemComponents, ExtendedTaskSystemComponents}
 import java.time.Instant
 import ra3.join.*
 private object ImportFromStream {
@@ -69,38 +69,40 @@ private object ImportFromStream {
     }
   }
 
+  private[ra3] def queueSegmentFromBuffer(
+      buffer: Buffer,
+      path: LogicalPath,
+      tsc: ExtendedTaskSystemComponents
+  ): IO[Segment] =
+    ra3.ts.MakeSegmentFromBuffer.queue(buffer, path)(using tsc)
+
   transparent inline def columns[T](
       buffer: BufferOf[T],
-      tsc: TaskSystemComponents,
+      tsc: ExtendedTaskSystemComponents,
       path: LogicalPath
   ): IO[TaggedColumn] =
     inline (scala.compiletime.erasedValue[T], buffer) match {
       case (_: String, b: BufferOf[String]) =>
-        BufferString(b.toArray)
-          .toSegment(name = path)(using tsc)
-          .map(s => Column.StringColumn(Vector(s)))
+        queueSegmentFromBuffer(BufferString(b.toArray), path, tsc)
+          .map(s => Column.StringColumn(Vector(s.asInstanceOf[SegmentString])))
       case (_: java.time.Instant, b: BufferOf[java.time.Instant]) =>
-        BufferInstant(b.toArray)
-          .toSegment(name = path)(using tsc)
-          .map(s => Column.InstantColumn(Vector(s)))
+        queueSegmentFromBuffer(BufferInstant(b.toArray), path, tsc)
+          .map(s => Column.InstantColumn(Vector(s.asInstanceOf[SegmentInstant])))
 
       case (_: Long, b: BufferOf[Long]) =>
-        BufferLong(b.toArray)
-          .toSegment(name = path)(using tsc)
-          .map(s => Column.I64Column(Vector(s)))
+        queueSegmentFromBuffer(BufferLong(b.toArray), path, tsc)
+          .map(s => Column.I64Column(Vector(s.asInstanceOf[SegmentLong])))
       case (_: Double, b: BufferOf[Double]) =>
-        BufferDouble(b.toArray)
-          .toSegment(name = path)(using tsc)
-          .map(s => Column.F64Column(Vector(s)))
+        queueSegmentFromBuffer(BufferDouble(b.toArray), path, tsc)
+          .map(s => Column.F64Column(Vector(s.asInstanceOf[SegmentDouble])))
       case (_: Int, b: BufferOf[Int]) =>
-        BufferIntInArray(b.toArray)
-          .toSegment(name = path)(using tsc)
-          .map(s => Column.Int32Column(Vector(s)))
+        queueSegmentFromBuffer(BufferIntInArray(b.toArray), path, tsc)
+          .map(s => Column.Int32Column(Vector(s.asInstanceOf[SegmentInt])))
     }
 
   transparent inline def closeBuffers[T <: Tuple](
       buffers: M[T],
-      tsc: TaskSystemComponents,
+      tsc: ExtendedTaskSystemComponents,
       path: LogicalPath,
       i: Int
   ): List[IO[TaggedColumn]] = {
@@ -128,7 +130,7 @@ private object ImportFromStream {
       uniqueId: String,
       minimumSegmentSize: Int,
       maximumSegmentSize: Int
-  )(implicit tsc: TaskSystemComponents) = {
+  )(implicit tsc: ExtendedTaskSystemComponents) = {
     stream
       .chunkMin(minimumSegmentSize)
       .unchunks
@@ -150,18 +152,37 @@ private object ImportFromStream {
       }
       .compile
       .toVector
-      .map { v =>
-        val columns = v.transpose.map { column =>
-          val head = column.head
-          val tag = head.tag
-          val segments = column
-            .flatMap(_.segments)
-            .map((_: Segment).asInstanceOf[tag.SegmentType])
-          tag.makeTaggedColumn(tag.makeColumn(segments))
+      .flatMap { v =>
+        if (v.nonEmpty)
+          IO.pure {
+            val columns = v.transpose.map { column =>
+              val head = column.head
+              val tag = head.tag
+              val segments = column
+                .flatMap(_.segments)
+                .map((_: Segment).asInstanceOf[tag.SegmentType])
+              tag.makeTaggedColumn(tag.makeColumn(segments))
+            }
+            val names = columns.zipWithIndex.map(v => s"${v._2}")
+            Table(columns, names, uniqueId, None)
+          }
+        else {
+          val path = LogicalPath(
+            table = uniqueId,
+            partition = None,
+            segment = 0,
+            column = -1
+          )
+          val buffers = buildBuffers[T]
+          val ios = closeBuffers(buffers, tsc, path, 0)
+          IO.parSequenceN(math.max(1, ios.size))(ios).map { cols =>
+            val columns = cols.toVector
+            val names = columns.zipWithIndex.map(v => s"${v._2}")
+            Table(columns, names, uniqueId, None)
+          }
         }
-      val names = columns.zipWithIndex.map(v => s"${v._2}")
-      Table(columns, names, uniqueId, None).as[N, Tuple.Map[T, DefToColumnType]]
       }
+      .map(_.as[N, Tuple.Map[T, DefToColumnType]])
 
   }
 }

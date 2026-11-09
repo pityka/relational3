@@ -16,7 +16,7 @@ private[ra3] object Column {
   def estimateCDF(
       tag: ColumnTag
   )(column: tag.ColumnType, coverage: Double, numPointsPerSegment: Int)(implicit
-      tsc: TaskSystemComponents
+      tsc: ExtendedTaskSystemComponents
   ) = {
     assert(coverage > 0d)
     assert(coverage <= 1d)
@@ -126,8 +126,8 @@ private[ra3] object Column {
       else
         Some(
           (
-            s.map(_._1).min(CharSequenceOrdering).toString,
-            s.map(_._2).max(CharSequenceOrdering).toString
+            s.map(_._1).min(using CharSequenceOrdering).toString,
+            s.map(_._2).max(using CharSequenceOrdering).toString
           )
         )
     }

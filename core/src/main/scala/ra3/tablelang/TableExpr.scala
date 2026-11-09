@@ -2,7 +2,7 @@ package ra3.tablelang
 import com.github.plokhotnyuk.jsoniter_scala.macros.*
 import com.github.plokhotnyuk.jsoniter_scala.core.*
 import cats.effect.IO
-import tasks.TaskSystemComponents
+import tasks.{TaskSystemComponents, ExtendedTaskSystemComponents}
 import ra3.GroupedTable
 import ra3.lang.Expr
 import ra3.NotNothing
@@ -19,11 +19,11 @@ sealed trait TableExpr[+T] { self =>
   def render: String = Render.render(self, 0, Vector.empty)
 
   def evaluate(implicit
-      tsc: TaskSystemComponents
+      tsc: ExtendedTaskSystemComponents
   ): IO[ra3.Table] = evalWith(Map.empty).map(_.v)
 
   protected def evalWith(env: Map[Key, TableValue])(implicit
-      tsc: TaskSystemComponents
+      tsc: ExtendedTaskSystemComponents
   ): IO[TableValue]
 
   // utilities for analysis of the tree
@@ -88,7 +88,7 @@ object TableExpr {
       a.asInstanceOf[TableExpr[NamedTuple[N2, V]]]
 
     inline def evaluateToStreamOfSingleColumn(implicit
-        tsc: TaskSystemComponents
+        tsc: ExtendedTaskSystemComponents
     ) = {
       import cats.effect.unsafe.implicits.global
 
@@ -107,7 +107,7 @@ object TableExpr {
   extension [N <: Tuple, V <: Tuple](inline a: TableExpr[NamedTuple[N, V]]) {
 
     transparent inline def evaluateToStream(implicit
-        tsc: TaskSystemComponents
+        tsc: ExtendedTaskSystemComponents
     ) = {
       import cats.effect.unsafe.implicits.global
 
@@ -160,7 +160,7 @@ object TableExpr {
   case class Const[T](table: ra3.Table) extends TableExpr[T] {
 
     protected def evalWith(env: Map[Key, TableValue])(implicit
-        tsc: TaskSystemComponents
+        tsc: ExtendedTaskSystemComponents
     ) =
       IO.pure(TableValue(table))
 
@@ -170,7 +170,7 @@ object TableExpr {
   case class Ident[+T](key: Key) extends TableExpr[T] { self =>
 
     def evalWith(env: Map[Key, TableValue])(implicit
-        tsc: TaskSystemComponents
+        tsc: ExtendedTaskSystemComponents
     ) =
       IO.pure(env(key))
 
@@ -193,7 +193,7 @@ object TableExpr {
     }
     protected def evalWith(
         env: Map[Key, TableValue]
-    )(implicit tsc: TaskSystemComponents) = {
+    )(implicit tsc: ExtendedTaskSystemComponents) = {
       assigned.evalWith(env).flatMap { assignedValue =>
         body.evalWith(env + (name -> assignedValue))
       }
@@ -217,7 +217,7 @@ object TableExpr {
 
     protected def evalWith(
         env: Map[Key, TableValue]
-    )(implicit tsc: TaskSystemComponents) = {
+    )(implicit tsc: ExtendedTaskSystemComponents) = {
       arg0
         .evalWith(env)
         .flatMap { case TableValue(table) =>
@@ -265,7 +265,7 @@ object TableExpr {
 
     protected def evalWith(
         env: Map[Key, TableValue]
-    )(implicit tsc: TaskSystemComponents) = {
+    )(implicit tsc: ExtendedTaskSystemComponents) = {
       ra3
         .importCsvUntyped(
           file = arg0,
@@ -299,7 +299,7 @@ object TableExpr {
 
     protected def evalWith(
         env: Map[Key, TableValue]
-    )(implicit tsc: TaskSystemComponents) = {
+    )(implicit tsc: ExtendedTaskSystemComponents) = {
       arg0.tableIdent
         .evalWith(env)
         .flatMap { case TableValue(table) =>
@@ -335,7 +335,7 @@ object TableExpr {
 
     protected def evalWith(
         env: Map[Key, TableValue]
-    )(implicit tsc: TaskSystemComponents) = {
+    )(implicit tsc: ExtendedTaskSystemComponents) = {
       arg0.tableIdent
         .evalWith(env)
         .flatMap { case TableValue(table) =>
@@ -367,7 +367,7 @@ object TableExpr {
 
     protected def evalWith(
         env: Map[Key, TableValue]
-    )(implicit tsc: TaskSystemComponents) = {
+    )(implicit tsc: ExtendedTaskSystemComponents) = {
       IO.both(
         arg0.evalWith(env),
         IO.parSequenceN(parallelism)(args.map(_.evalWith(env)))
@@ -393,7 +393,7 @@ object TableExpr {
 
     protected def evalWith(
         env: Map[Key, TableValue]
-    )(implicit tsc: TaskSystemComponents) = {
+    )(implicit tsc: ExtendedTaskSystemComponents) = {
       arg0
         .evalWith(env)
         .flatMap { case TableValue(table) =>
@@ -426,7 +426,7 @@ object TableExpr {
 
     protected def evalWith(
         env: Map[Key, TableValue]
-    )(implicit tsc: TaskSystemComponents) = {
+    )(implicit tsc: ExtendedTaskSystemComponents) = {
       arg0
         .evalWith(env)
         .flatMap { case TableValue(table) =>
@@ -462,7 +462,7 @@ object TableExpr {
 
     protected def evalWith(
         env: Map[Key, TableValue]
-    )(implicit tsc: TaskSystemComponents) = {
+    )(implicit tsc: ExtendedTaskSystemComponents) = {
       arg0.tableIdent
         .evalWith(env)
         .flatMap { case TableValue(table) =>
@@ -528,7 +528,7 @@ object TableExpr {
 
     protected def evalWith(
         env: Map[Key, TableValue]
-    )(implicit tsc: TaskSystemComponents) = {
+    )(implicit tsc: ExtendedTaskSystemComponents) = {
       arg0.tableIdent
         .evalWith(env)
         .flatMap { case TableValue(table) =>
@@ -590,7 +590,7 @@ object TableExpr {
 
     protected def evalWith(
         env: Map[Key, TableValue]
-    )(implicit tsc: TaskSystemComponents) = {
+    )(implicit tsc: ExtendedTaskSystemComponents) = {
       arg0.tableIdent
         .evalWith(env)
         .flatMap { case TableValue(table) =>
@@ -645,7 +645,7 @@ object TableExpr {
 
     protected def evalWith(
         env: Map[Key, TableValue]
-    )(implicit tsc: TaskSystemComponents) = {
+    )(implicit tsc: ExtendedTaskSystemComponents) = {
       arg0
         .evalWith(env)
         .flatMap { case TableValue(table) =>
@@ -688,7 +688,7 @@ object TableExpr {
 
     protected def evalWith(
         env: Map[Key, TableValue]
-    )(implicit tsc: TaskSystemComponents) = {
+    )(implicit tsc: ExtendedTaskSystemComponents) = {
       arg0
         .evalWith(env)
         .flatMap { case TableValue(table) =>
@@ -730,33 +730,47 @@ object TableExpr {
 
     protected def evalWith(
         env: Map[Key, TableValue]
-    )(implicit tsc: TaskSystemComponents) = {
+    )(implicit tsc: ExtendedTaskSystemComponents) = {
       arg0.tableIdent
         .evalWith(env)
         .flatMap { case TableValue(table) =>
           IO.parSequenceN(32)(arg1.map { case (a, b, c) =>
             a.tableIdent.evalWith(env).map(x => (x.v, a, b, c))
           }).flatMap { arg1Tables =>
+            val physicalTables = table +: arg1Tables.map(_._1)
+            val effectiveIds = {
+              val seen = scala.collection.mutable.HashMap.empty[String, Int]
+              physicalTables.map { t =>
+                val c = seen.getOrElse(t.uniqueId, 0)
+                seen.update(t.uniqueId, c + 1)
+                if (c == 0) t.uniqueId else s"${t.uniqueId}-selfjoin$c"
+              }
+            }
+            val arg0Table = table.copy(uniqueId = effectiveIds.head)
+            val arg1TablesAliased = arg1Tables.zip(effectiveIds.tail).map {
+              case ((t, delayedCol, how, delayedAgainst), effId) =>
+                (t.copy(uniqueId = effId), delayedCol, how, delayedAgainst)
+            }
             val program = Expr.toRuntime(
               elementwise,
               DelayedTableSchema(
                 Map(
-                  arg0.name.table -> ((table.uniqueId, table.colNames))
-                ) ++ (arg1Tables.map(_._1) zip arg1.map(_._1)).map {
-                  case (table, argxDelayed) =>
-                    (argxDelayed.name.table, (table.uniqueId, table.colNames))
+                  arg0.name.table -> ((arg0Table.uniqueId, arg0Table.colNames))
+                ) ++ (arg1TablesAliased.map(_._1) zip arg1.map(_._1)).map {
+                  case (t, argxDelayed) =>
+                    (argxDelayed.name.table, (t.uniqueId, t.colNames))
                 }
               )
             )
 
             val firstColIdx = arg0.name.selection.left
-              .map(s => table.colNames.indexOf(s))
+              .map(s => arg0Table.colNames.indexOf(s))
               .fold(identity, identity)
 
-            def tableStrings = (List(table) ++ arg1Tables.map(_._1)).map {
-              table =>
-                f"${table.uniqueId} (${table.numRows}%,d x ${table.numCols} in ${table.segmentation.size}%,d segments)  "
-            }
+            def tableStrings =
+              (List(arg0Table) ++ arg1TablesAliased.map(_._1)).map { t =>
+                f"${t.uniqueId} (${t.numRows}%,d x ${t.numCols} in ${t.segmentation.size}%,d segments)  "
+              }
 
             scribe.info(
               f"Will join the following tables: ${tableStrings.mkString(" x ")} "
@@ -764,12 +778,12 @@ object TableExpr {
 
             ra3.Equijoin
               .equijoinPlanner(
-                table,
+                arg0Table,
                 firstColIdx,
-                arg1Tables.map {
-                  case (table, delayedCol, how, delayedAgainst) =>
+                arg1TablesAliased.map {
+                  case (t, delayedCol, how, delayedAgainst) =>
                     val colIdx: Int = delayedCol.name.selection.left
-                      .map(s => table.colNames.indexOf(s))
+                      .map(s => t.colNames.indexOf(s))
                       .fold(identity, identity)
                     val againstTable: Int =
                       if (arg0.name.table == delayedAgainst) 0
@@ -781,7 +795,7 @@ object TableExpr {
                         c + 1
                       }
 
-                    (table, colIdx, how, againstTable)
+                    (t, colIdx, how, againstTable)
                 },
                 partitionBase,
                 partitionLimit,

@@ -23,8 +23,9 @@ class IntBufferSuite extends munit.FunSuite with WithTempTaskSystem {
     withTempTaskSystem { implicit tsc =>
       val s = Seq(0, 1, 2, 3, Int.MinValue, -1)
       println(BufferInt(s*))
-      val segment = ColumnTag.I32
-        .toSegment(BufferInt(s*), LogicalPath("toSegmentTest", None, 0, 0))
+      val segment = ra3.ts.MakeSegmentFromBuffer
+        .queue(BufferInt(s*), LogicalPath("toSegmentTest", None, 0, 0))
+        .map(_.asInstanceOf[SegmentInt])
         .unsafeRunSync()
       assertEquals(segment.buffer.unsafeRunSync().toSeq, s)
       assertEquals(segment.numElems, 6)
@@ -35,8 +36,9 @@ class IntBufferSuite extends munit.FunSuite with WithTempTaskSystem {
   test("toSegment empty") {
     withTempTaskSystem { implicit tsc =>
       val s = Seq.empty[Int]
-      val segment = ColumnTag.I32
-        .toSegment(BufferInt(s*), LogicalPath("toSegmentTest2", None, 0, 0))
+      val segment = ra3.ts.MakeSegmentFromBuffer
+        .queue(BufferInt(s*), LogicalPath("toSegmentTest2", None, 0, 0))
+        .map(_.asInstanceOf[SegmentInt])
         .unsafeRunSync()
       assertEquals(BufferInt(s*), BufferIntConstant(Int.MinValue, 0))
       assertEquals(segment.buffer.unsafeRunSync().toSeq, s)
@@ -48,8 +50,9 @@ class IntBufferSuite extends munit.FunSuite with WithTempTaskSystem {
   test("toSegment constant") {
     withTempTaskSystem { implicit tsc =>
       val s = Seq(1, 1, 1, 1, 1, 1)
-      val segment = ColumnTag.I32
-        .toSegment(BufferInt(s*), LogicalPath("toSegmentTest3", None, 0, 0))
+      val segment = ra3.ts.MakeSegmentFromBuffer
+        .queue(BufferInt(s*), LogicalPath("toSegmentTest3", None, 0, 0))
+        .map(_.asInstanceOf[SegmentInt])
         .unsafeRunSync()
       assertEquals(BufferInt(s*), BufferIntConstant(1, 6))
       assertEquals(segment.buffer.unsafeRunSync().toSeq, s)

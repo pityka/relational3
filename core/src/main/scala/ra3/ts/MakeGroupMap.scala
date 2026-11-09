@@ -22,7 +22,7 @@ private[ra3] object MakeGroupMap {
   }
 
   private def doit(input: Seq[TaggedColumn], outputPath: LogicalPath)(implicit
-      tsc: TaskSystemComponents
+      tsc: ComputationEnvironment
   ) = {
     scribe.debug(s"Make group map on $input to $outputPath")
     assert(input.map(_.tag).distinct.size == 1)
@@ -62,7 +62,7 @@ private[ra3] object MakeGroupMap {
       input: Seq[TaggedColumn],
       outputPath: LogicalPath
   )(implicit
-      tsc: TaskSystemComponents
+      tsc: ExtendedTaskSystemComponents
   ) =
     IO {
       scribe.debug(

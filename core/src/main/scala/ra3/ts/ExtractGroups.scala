@@ -21,7 +21,7 @@ private[ra3] object ExtractGroups {
       numGroups: Int,
       outputPath: LogicalPath
   )(implicit
-      tsc: TaskSystemComponents
+      tsc: ExtendedTaskSystemComponents
   ): IO[Seq[tag.SegmentType]] =
     IO {
       scribe.debug(
@@ -49,7 +49,7 @@ private[ra3] object ExtractGroups {
       map: SegmentInt,
       numGroups: Int,
       outputPath: LogicalPath
-  )(implicit tsc: TaskSystemComponents) = {
+  )(implicit tsc: ComputationEnvironment) = {
     scribe.debug(
       s"ExtractGroups on $numGroups groups with map size ${map.numElems}"
     )

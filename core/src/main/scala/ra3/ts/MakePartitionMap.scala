@@ -21,7 +21,7 @@ private[ra3] object MakePartitionMap {
       partitionBase: Int,
       outputPath: LogicalPath
   )(implicit
-      tsc: TaskSystemComponents
+      tsc: ExtendedTaskSystemComponents
   ): IO[SegmentInt] =
     IO {
       scribe.debug(

@@ -26,8 +26,12 @@ class StringBufferSuite extends munit.FunSuite with WithTempTaskSystem {
     withTempTaskSystem { implicit tsc =>
       val s: Seq[CharSequence] =
         Seq("0", "1", "2", "3", s"${Char.MinValue}", ".", "")
-      val segment = BufferString(s.toArray)
-        .toSegment(LogicalPath("toSegmentTest", None, 0, 0))
+      val segment = ra3.ts.MakeSegmentFromBuffer
+        .queue(
+          BufferString(s.toArray),
+          LogicalPath("toSegmentTest", None, 0, 0)
+        )
+        .map(_.asInstanceOf[SegmentString])
         .unsafeRunSync()
       assertEquals(segment.buffer.unsafeRunSync().toSeq.map(_.toString), s)
       assertEquals(segment.numElems, 7)

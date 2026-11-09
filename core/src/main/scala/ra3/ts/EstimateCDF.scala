@@ -18,7 +18,7 @@ private[ra3] object EstimateCDF {
       n: Int,
       outputPath: LogicalPath
   )(implicit
-      tsc: TaskSystemComponents
+      tsc: ComputationEnvironment
   ) = {
     scribe.debug(
       f"estimate cdf input=${input.tag}(numEl=${input.segment.numElems}%,d) sampling points=$n%,d to $outputPath "
@@ -39,7 +39,7 @@ private[ra3] object EstimateCDF {
       numberOfPoints: Int,
       outputPath: LogicalPath
   )(implicit
-      tsc: TaskSystemComponents
+      tsc: ExtendedTaskSystemComponents
   ): IO[(tag.SegmentType, SegmentDouble)] =
     IO {
       scribe.debug(

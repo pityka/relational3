@@ -1,11 +1,11 @@
 package ra3
 
-import tasks.TaskSystemComponents
+import tasks.{TaskSystemComponents, ExtendedTaskSystemComponents}
 
 private[ra3] object ReduceTable {
   def formSingleGroupAsOnePartitionPerSegment(
       self: Table
-  )(implicit tsc: TaskSystemComponents) = {
+  )(implicit tsc: ExtendedTaskSystemComponents) = {
     val name = ts.MakeUniqueId.queue(
       self,
       s"reduceTable",
@@ -37,7 +37,7 @@ private[ra3] object ReduceTable {
       )
     }.logElapsed
   }
-  def formSingleGroup(self: Table)(implicit tsc: TaskSystemComponents) = {
+  def formSingleGroup(self: Table)(implicit tsc: ExtendedTaskSystemComponents) = {
     require(
       self.numRows < Int.MaxValue - 100,
       "Too long table, can't reduce it at once"

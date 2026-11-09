@@ -1,7 +1,7 @@
 package ra3
 
 import cats.effect.IO
-import tasks.{TaskSystemComponents}
+import tasks.{TaskSystemComponents, ExtendedTaskSystemComponents}
 import ra3.lang.ReturnValueTuple
 
 private[ra3] case class GroupedTable(
@@ -12,7 +12,7 @@ private[ra3] case class GroupedTable(
   assert(partitions.map(_._1.numCols).distinct.size == 1)
   assert(colNames.size == partitions.head._1.numCols)
 
-  def extractGroups(implicit tsc: TaskSystemComponents): IO[Seq[Table]] = {
+  def extractGroups(implicit tsc: ExtendedTaskSystemComponents): IO[Seq[Table]] = {
 
     val name = ts.MakeUniqueId.queue0(
       s"$uniqueId-extractgroups",
@@ -89,7 +89,7 @@ private[ra3] object GroupedTable {
       self: GroupedTable,
       program: ra3.lang.runtime.Expr
   )(implicit
-      tsc: TaskSystemComponents
+      tsc: ExtendedTaskSystemComponents
   ): IO[Table] = {
 
     val columns = self.colNames.size
@@ -150,7 +150,7 @@ private[ra3] object GroupedTable {
       self: GroupedTable,
       program: ra3.lang.runtime.Expr
   )(implicit
-      tsc: TaskSystemComponents
+      tsc: ExtendedTaskSystemComponents
   ): IO[Table] = {
 
     val columns = self.colNames.size

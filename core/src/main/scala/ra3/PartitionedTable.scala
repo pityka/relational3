@@ -1,7 +1,7 @@
 package ra3
 
 import cats.effect.IO
-import tasks.TaskSystemComponents
+import tasks.{TaskSystemComponents, ExtendedTaskSystemComponents}
 
 private[ra3] case class PartitionMeta(
     columns: Seq[Int],
@@ -104,7 +104,7 @@ private[ra3] object PartitionedTable {
       partitionBase: Int,
       uniqueId: String,
       maxItemsToBufferAtOnce: Int
-  )(implicit tsc: TaskSystemComponents): IO[Vector[PartitionedTable]] = {
+  )(implicit tsc: ExtendedTaskSystemComponents): IO[Vector[PartitionedTable]] = {
     assert(columnIdx.nonEmpty)
     val partitionColumns = columnIdx.map(inputColumns.apply)
 

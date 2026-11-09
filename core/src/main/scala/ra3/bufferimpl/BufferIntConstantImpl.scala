@@ -1,7 +1,7 @@
 package ra3.bufferimpl
 import cats.effect.IO
 import ra3.*
-import tasks.{TaskSystemComponents}
+import tasks.{TaskSystemComponents, ComputationEnvironment}
 import ra3.join.*
 import ra3.join.locator.*
 private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
@@ -177,7 +177,7 @@ private[ra3] trait BufferIntConstantImpl { self: BufferIntConstant =>
 
   def toSegment(
       name: LogicalPath
-  )(implicit tsc: TaskSystemComponents): IO[SegmentInt] = {
+  )(implicit tsc: ComputationEnvironment): IO[SegmentInt] = {
     if (values.length == 0) IO.pure(SegmentInt(None, 0, StatisticInt.empty))
     else
       IO.pure {

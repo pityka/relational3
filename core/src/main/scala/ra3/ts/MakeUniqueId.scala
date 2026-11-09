@@ -17,7 +17,7 @@ private[ra3] object MakeUniqueId {
       tag: String,
       aux: Seq[Column]
   )(implicit
-      tsc: TaskSystemComponents
+      tsc: ExtendedTaskSystemComponents
   ) =
     task(
       MakeUniqueId(
@@ -33,7 +33,7 @@ private[ra3] object MakeUniqueId {
       tag: String,
       aux: Seq[Column]
   )(implicit
-      tsc: TaskSystemComponents
+      tsc: ExtendedTaskSystemComponents
   ) =
     task(
       MakeUniqueId(
@@ -50,7 +50,7 @@ private[ra3] object MakeUniqueId {
       tag: String,
       aux: Seq[Column]
   )(implicit
-      tsc: TaskSystemComponents
+      tsc: ExtendedTaskSystemComponents
   ) =
     task(
       MakeUniqueId(
@@ -66,7 +66,7 @@ private[ra3] object MakeUniqueId {
       tag: String,
       aux: Seq[Column]
   )(implicit
-      tsc: TaskSystemComponents
+      tsc: ExtendedTaskSystemComponents
   ) =
     task(
       MakeUniqueId(

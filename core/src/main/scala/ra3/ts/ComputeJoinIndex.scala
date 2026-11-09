@@ -19,7 +19,7 @@ private[ra3] object ComputeJoinIndex {
       first: Column,
       rest: Seq[(Column, String, Int)], // col, how , index of against which one
       outputPath: LogicalPath
-  )(implicit tsc: TaskSystemComponents): IO[Seq[Option[SegmentInt]]] =
+  )(implicit tsc: ComputationEnvironment): IO[Seq[Option[SegmentInt]]] =
     Elapsed.logElapsed {
       scribe.debug(
         f"Compute join index between ${tag}(n=${tag.numElems(first.asInstanceOf[tag.ColumnType])}%,d) and ${rest
@@ -50,7 +50,7 @@ private[ra3] object ComputeJoinIndex {
       right: tag.ColumnType,
       how: String,
       outputPath: LogicalPath
-  )(implicit tsc: TaskSystemComponents) = {
+  )(implicit tsc: ComputationEnvironment) = {
     def emptyOverlap() = {
       val rMM = tag.nonMissingMinMax(right)
       val lMM = tag.nonMissingMinMax(left)
@@ -115,7 +115,7 @@ private[ra3] object ComputeJoinIndex {
       first: tag.ColumnType,
       rest: Seq[(tag.ColumnType, String, Int)],
       outputPath: LogicalPath
-  )(implicit tsc: TaskSystemComponents): IO[Seq[Option[SegmentInt]]] = {
+  )(implicit tsc: ComputationEnvironment): IO[Seq[Option[SegmentInt]]] = {
     def emptyOverlap(right: tag.BufferType, left: tag.ColumnType) = {
       val rMM = tag.nonMissingMinMax(right)
       val lMM = tag.nonMissingMinMax(left)
@@ -217,7 +217,7 @@ private[ra3] object ComputeJoinIndex {
       rest: Seq[(tag.ColumnType, String, Int)],
       outputPath: LogicalPath
   )(implicit
-      tsc: TaskSystemComponents
+      tsc: ExtendedTaskSystemComponents
   ): IO[Seq[Option[SegmentInt]]] =
     IO {
       scribe.debug(

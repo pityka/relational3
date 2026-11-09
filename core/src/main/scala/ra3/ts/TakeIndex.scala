@@ -18,7 +18,7 @@ private[ra3] object TakeIndex {
       idx: SegmentInt,
       outputPath: LogicalPath
   )(implicit
-      tsc: TaskSystemComponents
+      tsc: ExtendedTaskSystemComponents
   ): IO[tag.SegmentType] =
     IO {
       scribe.debug(

@@ -110,7 +110,7 @@ class QuerySuite4 extends munit.FunSuite with WithTempTaskSystem {
 
   def parseTransactions(
       s: Seq[(String, String, String, Int, Double, Instant)]
-  )(implicit tsc: TaskSystemComponents) =
+  )(implicit tsc: ExtendedTaskSystemComponents) =
     for {
 
       table <- ra3.importFromStream(

@@ -3,7 +3,7 @@ import ra3.*
 import cats.effect.IO
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import tasks.{TaskSystemComponents, SharedFile}
+import tasks.{TaskSystemComponents, SharedFile, ComputationEnvironment}
 import ra3.join.*
 import ra3.join.locator.LocatorDouble
 private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
@@ -137,14 +137,12 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
 
   }
   def countGroups(partitionMap: BufferInt, numGroups: Int): BufferType = {
-    val ar = Array.fill[Double](numGroups)(Double.NaN)
+    val ar = Array.fill[Double](numGroups)(0d)
     var i = 0
     val n = partitionMap.length
     while (i < n) {
       if (!isMissing(i)) {
-        if (ar(partitionMap.raw(i)).isNaN()) {
-          ar(partitionMap.raw(i)) = 1d
-        } else ar(partitionMap.raw(i)) += 1d
+        ar(partitionMap.raw(i)) += 1d
       }
       i += 1
     }
@@ -313,7 +311,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
   }
 
   def toSegment(name: LogicalPath)(implicit
-      tsc: TaskSystemComponents
+      tsc: ComputationEnvironment
   ): IO[SegmentDouble] =
     if (values.length == 0)
       IO.pure(SegmentDouble(None, 0, StatisticDouble.empty))
@@ -326,7 +324,7 @@ private[ra3] trait BufferDoubleImpl { self: BufferDouble =>
         fs2.Stream.chunk(fs2.Chunk.byteBuffer(Utils.compress(bb,skipCompress=true)))
       }.flatMap { stream =>
         SharedFile
-          .apply(stream, name.toString)
+          .scoped(stream, name.toString)
           .map(sf =>
             SegmentDouble(Some(sf), values.length, self.makeStatistic())
           )

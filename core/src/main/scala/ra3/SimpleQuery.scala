@@ -1,11 +1,11 @@
 package ra3
 
-import tasks.TaskSystemComponents
+import tasks.{TaskSystemComponents, ExtendedTaskSystemComponents}
 import cats.effect.IO
 
 private[ra3] object SimpleQuery {
   def simpleQuery(self: Table, program: ra3.lang.runtime.Expr)(implicit
-      tsc: TaskSystemComponents
+      tsc: ExtendedTaskSystemComponents
   ) = {
     val nSegments = self.columns.head.segments.size
     ts.MakeUniqueId
@@ -58,7 +58,7 @@ private[ra3] object SimpleQuery {
       .logElapsed
   }
   def simpleQueryCount(self: Table, program: ra3.lang.runtime.Expr)(implicit
-      tsc: TaskSystemComponents
+      tsc: ExtendedTaskSystemComponents
   ): IO[Table] = {
     val nSegments = self.columns.head.segments.size
     ts.MakeUniqueId
