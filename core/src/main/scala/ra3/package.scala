@@ -188,6 +188,13 @@ package object ra3 {
     }
   }
 
+  def importParquet(
+      file: SharedFile,
+      name: String,
+      maxSegmentLength: Int
+  )(implicit tsc: ExtendedTaskSystemComponents): IO[Table] =
+    ra3.ts.ImportParquet.queue(file, name, maxSegmentLength)
+
   type CSVType[N <: Tuple, T <: Tuple] =
     scala.NamedTuple.NamedTuple[N, Tuple.Map[T, CsvColumnDefToColumnType]]
 
