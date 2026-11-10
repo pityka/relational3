@@ -1,8 +1,12 @@
 package ra3
 
 import cats.effect.IO
-import tasks.{TaskSystemComponents, ExtendedTaskSystemComponents}
-import ra3.lang.ReturnValueTuple
+import tasks.ParentTask
+import tasks.ExtendedTaskSystemComponents
+import tasks.tsParent
+import tasks.jsonitersupport.*
+import com.github.plokhotnyuk.jsoniter_scala.macros.*
+import com.github.plokhotnyuk.jsoniter_scala.core.*
 
 private[ra3] case class GroupedTable(
     partitions: Seq[(PartitionedTable, Segment.GroupMap)],
@@ -12,19 +16,50 @@ private[ra3] case class GroupedTable(
   assert(partitions.map(_._1.numCols).distinct.size == 1)
   assert(colNames.size == partitions.head._1.numCols)
 
-  def extractGroups(implicit tsc: ExtendedTaskSystemComponents): IO[Seq[Table]] = {
+  def extractGroups(implicit
+      tsc: ExtendedTaskSystemComponents
+  ): IO[Seq[Table]] =
+    GroupedTable.extractGroupsTask(this)
 
+}
+
+private[ra3] object GroupedTable {
+
+  // $COVERAGE-OFF$
+  implicit val codec: JsonValueCodec[GroupedTable] = JsonCodecMaker.make
+  implicit val codecSeqTable: JsonValueCodec[Seq[Table]] = JsonCodecMaker.make
+  // $COVERAGE-ON$
+
+  private[ra3] case class ReduceInput(
+      self: GroupedTable,
+      program: ra3.lang.runtime.Expr
+  )
+  private[ra3] object ReduceInput {
+    implicit val codec: JsonValueCodec[ReduceInput] = JsonCodecMaker.make
+  }
+
+  private[ra3] case class CountInput(
+      self: GroupedTable,
+      program: ra3.lang.runtime.Expr
+  )
+  private[ra3] object CountInput {
+    implicit val codec: JsonValueCodec[CountInput] = JsonCodecMaker.make
+  }
+
+  private def extractGroupsImpl(self: GroupedTable)(implicit
+      tsc: ExtendedTaskSystemComponents
+  ): IO[Seq[Table]] = {
     val name = ts.MakeUniqueId.queue0(
-      s"$uniqueId-extractgroups",
+      s"${self.uniqueId}-extractgroups",
       List()
     )
 
-    assert(partitions.map(_._1.columns.map(_.tag)).distinct.size == 1)
-    val columns = partitions.head._1.columns.size
+    assert(self.partitions.map(_._1.columns.map(_.tag)).distinct.size == 1)
+    val columns = self.partitions.head._1.columns.size
 
     name.flatMap { name =>
-      IO.parSequenceN(math.min(32, partitions.size))(
-        partitions.map { case (partition, groupMap) =>
+      IO.parSequenceN(math.min(32, self.partitions.size))(
+        self.partitions.map { case (partition, groupMap) =>
           IO.parSequenceN(math.min(32, columns))(
             (0 until columns).toVector.map { columnIdx =>
               val column = partition.columns(columnIdx)
@@ -48,21 +83,18 @@ private[ra3] case class GroupedTable(
               )
 
               groupsFromSegments
-                .map {
-                  //   groups
-                  groups =>
-                    groups.map { segmentOfGroup =>
-                      tag.makeTaggedColumn(
-                        tag.makeColumn(Vector(segmentOfGroup))
-                      )
+                .map { groups =>
+                  groups.map { segmentOfGroup =>
+                    tag.makeTaggedColumn(
+                      tag.makeColumn(Vector(segmentOfGroup))
+                    )
 
-                    }
+                  }
                 }
             }
-          ).map {
+          ).map { columns =>
             // columns x groups
-            columns =>
-              columns.transpose.map(columns => TableHelper(columns))
+            columns.transpose.map(columns => TableHelper(columns))
           }
 
         }
@@ -72,26 +104,21 @@ private[ra3] case class GroupedTable(
           groups.zipWithIndex.map { case (partitionedTable, gIdx) =>
             Table(
               partitionedTable.columns,
-              this.colNames,
+              self.colNames,
               name + "-g" + gIdx,
               None
             )
           }
         }
     }
-
   }
 
-}
-
-private[ra3] object GroupedTable {
-  def reduceGroups(
+  private def reduceGroupsImpl(
       self: GroupedTable,
       program: ra3.lang.runtime.Expr
   )(implicit
       tsc: ExtendedTaskSystemComponents
   ): IO[Table] = {
-
     val columns = self.colNames.size
     val name = ts.MakeUniqueId.queue0(
       s"${self.uniqueId}-reduce-${program.hash}",
@@ -109,7 +136,7 @@ private[ra3] object GroupedTable {
                   val segments = col.tag.segments(col.column)
                   ra3.ts.TypedSegmentWithName(
                     tag = col.tag,
-                    segment = segments, // to be removed
+                    segment = segments,
                     tableUniqueId = self.uniqueId,
                     columnName = self.colNames(columnIdx),
                     columnIdx = columnIdx
@@ -131,7 +158,10 @@ private[ra3] object GroupedTable {
                 }
               )
               .map(columns =>
-                (TableHelper(columns.map(_._1).toVector), columns.map(_._2))
+                (
+                  TableHelper(columns.map(_._1).toVector),
+                  columns.map(_._2)
+                )
               )
 
         }
@@ -144,15 +174,14 @@ private[ra3] object GroupedTable {
         )
       }
     }
-
   }
-  def countGroups(
+
+  private def countGroupsImpl(
       self: GroupedTable,
       program: ra3.lang.runtime.Expr
   )(implicit
       tsc: ExtendedTaskSystemComponents
   ): IO[Table] = {
-
     val columns = self.colNames.size
     val name = ts.MakeUniqueId.queue0(
       s"${self.uniqueId}-count-groups-${program.hash}",
@@ -164,10 +193,12 @@ private[ra3] object GroupedTable {
           ts.SimpleQueryCount
             .queue(
               input = (0 until columns).toVector.map { columnIdx =>
-                partition.columns(columnIdx).tag -> ra3.ts.SegmentWithName(
+                partition
+                  .columns(columnIdx)
+                  .tag -> ra3.ts.SegmentWithName(
                   segment = partition
                     .columns(columnIdx)
-                    .segments, // to be removed
+                    .segments,
                   tableUniqueId = self.uniqueId,
                   columnName = self.colNames(columnIdx),
                   columnIdx = columnIdx
@@ -192,6 +223,36 @@ private[ra3] object GroupedTable {
             }
         }
     }.logElapsed
-
   }
+
+  val extractGroupsTask =
+    ParentTask[GroupedTable, Seq[Table]]("groupedExtractGroups", 1) { self =>
+      implicit cxt => extractGroupsImpl(self)
+    }
+
+  val reduceGroupsTask =
+    ParentTask[ReduceInput, Table]("groupedReduceGroups", 1) { input =>
+      implicit cxt => reduceGroupsImpl(input.self, input.program)
+    }
+
+  val countGroupsTask =
+    ParentTask[CountInput, Table]("groupedCountGroups", 1) { input =>
+      implicit cxt => countGroupsImpl(input.self, input.program)
+    }
+
+  def reduceGroups(
+      self: GroupedTable,
+      program: ra3.lang.runtime.Expr
+  )(implicit
+      tsc: ExtendedTaskSystemComponents
+  ): IO[Table] =
+    reduceGroupsTask(ReduceInput(self, program))
+
+  def countGroups(
+      self: GroupedTable,
+      program: ra3.lang.runtime.Expr
+  )(implicit
+      tsc: ExtendedTaskSystemComponents
+  ): IO[Table] =
+    countGroupsTask(CountInput(self, program))
 }

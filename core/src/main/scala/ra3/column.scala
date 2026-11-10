@@ -8,16 +8,31 @@ import ra3.ts.MergeCDFs
 import com.github.plokhotnyuk.jsoniter_scala.macros.*
 import com.github.plokhotnyuk.jsoniter_scala.core.*
 import tasks.*
+import tasks.jsonitersupport.*
 import bufferimpl.CharSequenceOrdering
 import ra3.Column.Int32Column
 
 private[ra3] object Column {
 
-  def estimateCDF(
-      tag: ColumnTag
-  )(column: tag.ColumnType, coverage: Double, numPointsPerSegment: Int)(implicit
-      tsc: ExtendedTaskSystemComponents
-  ) = {
+  private[ra3] case class EstimateCDFInput(
+      column: TaggedColumn,
+      coverage: Double,
+      numPointsPerSegment: Int
+  )
+  private[ra3] object EstimateCDFInput {
+    implicit val codec: JsonValueCodec[EstimateCDFInput] = JsonCodecMaker.make
+  }
+  // $COVERAGE-OFF$
+  implicit val codecUntypedCDF: JsonValueCodec[UntypedCDF] = JsonCodecMaker.make
+  // $COVERAGE-ON$
+
+  private def estimateCDFImpl(
+      input: EstimateCDFInput
+  )(implicit tsc: ExtendedTaskSystemComponents): IO[UntypedCDF] = {
+    val tag = input.column.tag
+    val column = input.column.column
+    val coverage = input.coverage
+    val numPointsPerSegment = input.numPointsPerSegment
     assert(coverage > 0d)
     assert(coverage <= 1d)
     val segm = tag.segments(column)
@@ -47,18 +62,38 @@ private[ra3] object Column {
           )
 
         }).flatMap { cdfs =>
-          ra3.ts.MergeCDFs.queue(tag)(
-            cdfs,
-            LogicalPath(
-              table = uniqueId + ".merged",
-              partition = None,
-              segment = 0,
-              column = 0
+          ra3.ts.MergeCDFs
+            .queue(tag)(
+              cdfs,
+              LogicalPath(
+                table = uniqueId + ".merged",
+                partition = None,
+                segment = 0,
+                column = 0
+              )
             )
-          )
+            .map(typed => UntypedCDF(typed.locationsSegment, typed.values))
         }
     }
   }
+
+  val estimateCDFTask =
+    ParentTask[EstimateCDFInput, UntypedCDF]("estimateCDF", 1) { input =>
+      implicit cxt => estimateCDFImpl(input)
+    }
+
+  def estimateCDF(
+      tag: ColumnTag
+  )(column: tag.ColumnType, coverage: Double, numPointsPerSegment: Int)(implicit
+      tsc: ExtendedTaskSystemComponents
+  ): IO[TypedCDF] =
+    estimateCDFTask(
+      EstimateCDFInput(
+        tag.makeTaggedColumn(column),
+        coverage,
+        numPointsPerSegment
+      )
+    ).map(_.toTyped(tag))
   case class Int32Column(segments: Vector[SegmentInt])
       extends Column
       with TaggedColumn {
