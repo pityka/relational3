@@ -11,6 +11,9 @@ class ParquetExternalSuite extends munit.FunSuite with WithTempTaskSystem {
   val gzipB64 =
     "UEFSMRUAFSAVQiwVBhUAFQYVBgAAH4sIAAAAAAAA/2NhYGBgYWRiYATSTEAMAEX7VJgQAAAAFQAVOhVaLBUGFQAVBhUGAAAfiwgAAAAAAAD/Y2NgYGBiZAJiViArsaAgJ5UNyEjOSC0qqgQASCAtOx0AAAAVABU8FUwsFQYVABUGFQYAAB+LCAAAAAAAAP9jYmBgYGNkAIMf9hCaxQFC8zgAAGxcomAeAAAAFQIZTDUAGA1kdWNrZGJfc2NoZW1hFQYAFQIlAhgBaSUiABUMJQIYAXMlAAAVCiUCGAFkABYGGRwZPCYAHBUCGRUAGRgBaRUEFgYWQhZkJgg8GAQCAAAAGAQBAAAAFgIoBAIAAAAYBAEAAAAAAAAmABwVDBkVABkYAXMVBBYGFlwWfCZsPBgGY2hlcnJ5GAVhcHBsZRYCKAZjaGVycnkYBWFwcGxlAAAAJgAcFQoZFQAZGAFkFQQWBhZeFm4m6AE8GAgAAAAAAAAMQBgIAAAAAAAA+D8WACgIAAAAAAAADEAYCAAAAAAAAPg/AAAAFoCMBxYGJggAKAZEdWNrREIA/wAAAFBBUjE="
 
+  val floatB64 =
+    "UEFSMRUAFSwVMCwVCBUAFQYVBgAAFlQGAAAABAECAAIBAADAPwAAEEAAAGDAFQAVLBUwLBUIFQAVBhUGAAAWVAIAAAAIAQoAAAAUAAAAHgAAACgAAAAVAhk8NQAYDWR1Y2tkYl9zY2hlbWEVBAAVCCUCGAFmABUCJQIYAWclIgAWCBkcGSwmABwVCBkVABkYAWYVAhYIFk4WUiYIPBgEAAAQQBgEAABgwBYCKAQAABBAGAQAAGDAAAAAJgAcFQIZFQAZGAFnFQIWCBZOFlImWjwYBCgAAAAYBAoAAAAWACgEKAAAABgECgAAAAAAABaAiAIWCCYIACgGRHVja0RCAKoAAABQQVIx"
+
   private def readFixture(b64: String)(implicit
       tsc: ExtendedTaskSystemComponents
   ): Table = {
@@ -39,6 +42,34 @@ class ParquetExternalSuite extends munit.FunSuite with WithTempTaskSystem {
         assert(!bt.columns(0).isMissing(0))
         assert(bt.columns(0).isMissing(2))
       }
+    }
+  }
+
+  test("FLOAT columns widen to F64 (import and scan)") {
+    withTempTaskSystem { implicit tsc =>
+      val bytes = java.util.Base64.getDecoder.decode(floatB64)
+      val tmp = java.io.File.createTempFile("ra3pqflt", ".parquet")
+      java.nio.file.Files.write(tmp.toPath, bytes)
+      val sf =
+        SharedFile(tasks.util.Uri("file://" + tmp.getAbsolutePath)).unsafeRunSync()
+
+      def check(t: Table): Unit = {
+        assertEquals(t.colNames.toList, List("f", "g"))
+        val bt = t.bufferStream.compile.toList.unsafeRunSync().head
+        val f = bt.columns(0)
+        assert(!f.isMissing(0))
+        assertEquals(f.toSeq(0).asInstanceOf[Double], 1.5)
+        assertEquals(f.toSeq(1).asInstanceOf[Double], 2.25)
+        assert(f.isMissing(2))
+        assertEquals(f.toSeq(3).asInstanceOf[Double], -3.5)
+        assertEquals(
+          bt.columns(1).toSeq.map(_.toString),
+          List("10", "20", "30", "40")
+        )
+      }
+
+      check(ra3.importParquet(sf, "flt_i", 100).unsafeRunSync())
+      check(ra3.scanParquet(sf, "flt_s").unsafeRunSync())
     }
   }
 }

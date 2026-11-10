@@ -9,9 +9,9 @@ private[ra3] object ScanSupport {
     case TYPE_INT32 => ColumnTag.I32
     case TYPE_INT64 if cm.convertedType == CONV_TIMESTAMP_MILLIS =>
       ColumnTag.Instant
-    case TYPE_INT64      => ColumnTag.I64
-    case TYPE_DOUBLE     => ColumnTag.F64
-    case TYPE_BYTE_ARRAY => ColumnTag.StringTag
+    case TYPE_INT64            => ColumnTag.I64
+    case TYPE_DOUBLE | TYPE_FLOAT => ColumnTag.F64
+    case TYPE_BYTE_ARRAY       => ColumnTag.StringTag
     case other =>
       throw new RuntimeException(s"unsupported parquet physical type $other")
   }
@@ -95,7 +95,7 @@ private[ra3] object ScanSupport {
           ),
           Some(ref)
         )
-      case TYPE_DOUBLE =>
+      case TYPE_DOUBLE | TYPE_FLOAT =>
         val (mn, mx) = requireMinMax(cm)
         SegmentDouble(
           None,

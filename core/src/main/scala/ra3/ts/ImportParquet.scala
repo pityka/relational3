@@ -41,7 +41,7 @@ private[ra3] object ImportParquet {
     case Parquet.TYPE_INT64 if rc.convertedType == Parquet.CONV_TIMESTAMP_MILLIS =>
       ColumnTag.Instant
     case Parquet.TYPE_INT64     => ColumnTag.I64
-    case Parquet.TYPE_DOUBLE    => ColumnTag.F64
+    case Parquet.TYPE_DOUBLE | Parquet.TYPE_FLOAT => ColumnTag.F64
     case Parquet.TYPE_BYTE_ARRAY => ColumnTag.StringTag
     case other =>
       throw new RuntimeException(s"unsupported parquet physical type $other")
@@ -71,7 +71,7 @@ private[ra3] object ImportParquet {
           rc.values(from + k).fold(Long.MinValue)(_.asInstanceOf[Long])
         )
         ColumnTag.I64.toSegment(BufferLong(arr), path)
-      case Parquet.TYPE_DOUBLE =>
+      case Parquet.TYPE_DOUBLE | Parquet.TYPE_FLOAT =>
         val arr = Array.tabulate(len)(k =>
           rc.values(from + k).fold(Double.NaN)(_.asInstanceOf[Double])
         )

@@ -174,6 +174,7 @@ private[ra3] final case class ReadColumn(
 private[ra3] object Parquet {
   val TYPE_INT32 = 1
   val TYPE_INT64 = 2
+  val TYPE_FLOAT = 4
   val TYPE_DOUBLE = 5
   val TYPE_BYTE_ARRAY = 6
 
@@ -424,6 +425,10 @@ private[ra3] object Parquet {
           var v = 0L; var k = 0
           while (k < 8) { v |= (r.data(r.pos) & 0xffL) << (8 * k); r.pos += 1; k += 1 }
           v
+        case TYPE_FLOAT =>
+          var bits = 0; var k = 0
+          while (k < 4) { bits |= (r.data(r.pos) & 0xff) << (8 * k); r.pos += 1; k += 1 }
+          java.lang.Float.intBitsToFloat(bits).toDouble
         case TYPE_DOUBLE =>
           var bits = 0L; var k = 0
           while (k < 8) {
@@ -537,6 +542,10 @@ private[ra3] object Parquet {
                                           nm = new String(fr.readBinary(), "UTF-8")
                                           k += 1
                                         }
+                                        if (psz > 1)
+                                          throw new RuntimeException(
+                                            s"Parquet column with nested/dotted path (depth $psz, leaf '$nm') is not supported; only flat columns are supported."
+                                          )
                                       case 4  => codec = fr.readI32()
                                       case 5  => nv = fr.readI64()
                                       case 9  => dpo = fr.readI64()
@@ -723,6 +732,10 @@ private[ra3] object Parquet {
       var v = 0L; var k = 0
       while (k < 8) { v |= (bytes(k) & 0xffL) << (8 * k); k += 1 }
       v
+    case TYPE_FLOAT =>
+      var bits = 0; var k = 0
+      while (k < 4) { bits |= (bytes(k) & 0xff) << (8 * k); k += 1 }
+      java.lang.Float.intBitsToFloat(bits).toDouble
     case TYPE_DOUBLE =>
       var b = 0L; var k = 0
       while (k < 8) { b |= (bytes(k) & 0xffL) << (8 * k); k += 1 }
