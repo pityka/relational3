@@ -75,7 +75,7 @@ private[ra3] object Unnest {
     }
   }
 
-  def assembleFlat(
+  private def assembleFlat(
       bytes: Array[Byte],
       footer: Footer,
       allLeaves: Vector[LeafInfo]
@@ -95,7 +95,7 @@ private[ra3] object Unnest {
       ReadColumn(l.path.mkString("."), l.ptype, l.convertedType, values)
     }
 
-  def assemble(
+  private def assemble(
       bytes: Array[Byte],
       footer: Footer,
       listColumn: String

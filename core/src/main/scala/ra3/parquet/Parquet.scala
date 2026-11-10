@@ -55,7 +55,7 @@ private[ra3] final case class ParquetSegmentRef(
   }
 }
 
-private[ra3] final class Compact {
+private[parquet] final class Compact {
   private val buf = new ByteArrayOutputStream()
   def bytes: Array[Byte] = buf.toByteArray
   def size: Int = buf.size
@@ -107,7 +107,7 @@ private[ra3] final class Compact {
   def stop(): Unit = writeByte(0)
 }
 
-private[ra3] final class CReader(val data: Array[Byte]) {
+private[parquet] final class CReader(val data: Array[Byte]) {
   var pos = 0
   def u8(): Int = { val b = data(pos) & 0xff; pos += 1; b }
   def readVarint(): Long = {
@@ -188,67 +188,67 @@ private[ra3] final case class ReadColumn(
 )
 
 private[ra3] object Parquet {
-  val TYPE_INT32 = 1
-  val TYPE_INT64 = 2
-  val TYPE_FLOAT = 4
-  val TYPE_DOUBLE = 5
-  val TYPE_BYTE_ARRAY = 6
+  private[ra3] val TYPE_INT32 = 1
+  private[ra3] val TYPE_INT64 = 2
+  private[ra3] val TYPE_FLOAT = 4
+  private[ra3] val TYPE_DOUBLE = 5
+  private[ra3] val TYPE_BYTE_ARRAY = 6
 
-  val CONV_UTF8 = 0
-  val CONV_TIMESTAMP_MILLIS = 9
+  private[ra3] val CONV_UTF8 = 0
+  private[ra3] val CONV_TIMESTAMP_MILLIS = 9
 
-  val REP_REQUIRED = 0
-  val REP_OPTIONAL = 1
+  private[parquet] val REP_REQUIRED = 0
+  private[parquet] val REP_OPTIONAL = 1
 
-  val ENC_PLAIN = 0
-  val ENC_RLE = 3
+  private val ENC_PLAIN = 0
+  private val ENC_RLE = 3
 
-  val CODEC_UNCOMPRESSED = 0
-  val CODEC_SNAPPY = 1
-  val CODEC_GZIP = 2
-  val CODEC_ZSTD = 6
-  val PAGE_DATA = 0
-  val PAGE_DICTIONARY = 2
-  val ENC_PLAIN_DICTIONARY = 2
-  val ENC_RLE_DICTIONARY = 8
-  val REP_REPEATED = 2
-  val MAGIC = "PAR1".getBytes("US-ASCII")
+  private[ra3] val CODEC_UNCOMPRESSED = 0
+  private[ra3] val CODEC_SNAPPY = 1
+  private val CODEC_GZIP = 2
+  private val CODEC_ZSTD = 6
+  private val PAGE_DATA = 0
+  private val PAGE_DICTIONARY = 2
+  private val ENC_PLAIN_DICTIONARY = 2
+  private val ENC_RLE_DICTIONARY = 8
+  private[parquet] val REP_REPEATED = 2
+  private val MAGIC = "PAR1".getBytes("US-ASCII")
 
-  def snappyCompress(in: Array[Byte]): Array[Byte] = {
+  private def snappyCompress(in: Array[Byte]): Array[Byte] = {
     val c = new SnappyCompressor()
     val out = new Array[Byte](c.maxCompressedLength(in.length))
     val w = c.compress(in, 0, in.length, out, 0, out.length)
     java.util.Arrays.copyOf(out, w)
   }
-  def snappyDecompress(in: Array[Byte], uncompressedLen: Int): Array[Byte] = {
+  private def snappyDecompress(in: Array[Byte], uncompressedLen: Int): Array[Byte] = {
     val out = new Array[Byte](uncompressedLen)
     new SnappyDecompressor().decompress(in, 0, in.length, out, 0, uncompressedLen)
     out
   }
 
-  def le32(v: Int): Array[Byte] =
+  private def le32(v: Int): Array[Byte] =
     ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(v).array()
 
-  def plainI32(d: Array[Int]): Array[Byte] = {
+  private[ra3] def plainI32(d: Array[Int]): Array[Byte] = {
     val bb = ByteBuffer.allocate(d.length * 4).order(ByteOrder.LITTLE_ENDIAN)
     var i = 0; while (i < d.length) { bb.putInt(d(i)); i += 1 }; bb.array()
   }
-  def plainI64(d: Array[Long]): Array[Byte] = {
+  private[ra3] def plainI64(d: Array[Long]): Array[Byte] = {
     val bb = ByteBuffer.allocate(d.length * 8).order(ByteOrder.LITTLE_ENDIAN)
     var i = 0; while (i < d.length) { bb.putLong(d(i)); i += 1 }; bb.array()
   }
-  def plainF64(d: Array[Double]): Array[Byte] = {
+  private[ra3] def plainF64(d: Array[Double]): Array[Byte] = {
     val bb = ByteBuffer.allocate(d.length * 8).order(ByteOrder.LITTLE_ENDIAN)
     var i = 0; while (i < d.length) { bb.putDouble(d(i)); i += 1 }; bb.array()
   }
-  def plainBytes(d: Array[Array[Byte]]): Array[Byte] = {
+  private[ra3] def plainBytes(d: Array[Array[Byte]]): Array[Byte] = {
     val out = new ByteArrayOutputStream()
     var i = 0
     while (i < d.length) { out.write(le32(d(i).length)); out.write(d(i)); i += 1 }
     out.toByteArray
   }
 
-  def rleBitpackLevels1(levels: Array[Int]): Array[Byte] = {
+  private def rleBitpackLevels1(levels: Array[Int]): Array[Byte] = {
     val n = levels.length
     val numGroups = (n + 7) / 8
     val header = (numGroups.toLong << 1) | 1L
@@ -292,7 +292,7 @@ private[ra3] object Parquet {
     (cb, ph.bytes.length + pageBody.length, cb.length)
   }
 
-  def writeFile(cols: Seq[Column], numRows: Int, codec: Int): Array[Byte] = {
+  private[ra3] def writeFile(cols: Seq[Column], numRows: Int, codec: Int): Array[Byte] = {
     val out = new ByteArrayOutputStream()
     out.write(MAGIC)
     var offset = MAGIC.length
@@ -483,7 +483,7 @@ private[ra3] object Parquet {
     })
   }
 
-  def readFooter(bytes: Array[Byte]): Footer = {
+  private[ra3] def readFooter(bytes: Array[Byte]): Footer = {
     val footerLen = (bytes(bytes.length - 8) & 0xff) |
       ((bytes(bytes.length - 7) & 0xff) << 8) |
       ((bytes(bytes.length - 6) & 0xff) << 16) |
@@ -632,14 +632,14 @@ private[ra3] object Parquet {
     Footer(rowGroups.toVector, rowGroupRows.toVector, schema)
   }
 
-  def decodeChunk(bytes: Array[Byte], cm: PColMeta): Vector[Option[Any]] = {
+  private[parquet] def decodeChunk(bytes: Array[Byte], cm: PColMeta): Vector[Option[Any]] = {
     val start =
       (if (cm.dictPageOffset >= 0) cm.dictPageOffset else cm.dataPageOffset).toInt
     decodeChunkAt(bytes, start, start + cm.totalCompressed.toInt, cm.codec,
       cm.ptype, cm.optional, cm.numValues)
   }
 
-  def decodeChunkAt(
+  private[parquet] def decodeChunkAt(
       bytes: Array[Byte],
       start: Int,
       endOfChunk: Int,
@@ -743,7 +743,7 @@ private[ra3] object Parquet {
     collected.toVector
   }
 
-  def readFile(bytes: Array[Byte]): Vector[ReadColumn] = {
+  private[ra3] def readFile(bytes: Array[Byte]): Vector[ReadColumn] = {
     val footer = readFooter(bytes)
     footer.requireFlat()
     footer.rowGroups.head.map { headCm =>
@@ -754,12 +754,12 @@ private[ra3] object Parquet {
     }.toVector
   }
 
-  def bitWidth(maxLevel: Int): Int = {
+  private def bitWidth(maxLevel: Int): Int = {
     if (maxLevel <= 0) 0
     else { var b = 0; var x = maxLevel; while (x > 0) { b += 1; x >>= 1 }; b }
   }
 
-  def decodeNestedChunk(
+  private[parquet] def decodeNestedChunk(
       bytes: Array[Byte],
       cm: PColMeta,
       maxRep: Int,
@@ -771,7 +771,7 @@ private[ra3] object Parquet {
       cm.ptype, cm.numValues, maxRep, maxDef)
   }
 
-  def decodeNestedChunkAt(
+  private[parquet] def decodeNestedChunkAt(
       bytes: Array[Byte],
       start: Int,
       endOfChunk: Int,
@@ -884,7 +884,7 @@ private[ra3] object Parquet {
     out.toVector
   }
 
-  def statValue(ptype: Int, bytes: Array[Byte]): Any = ptype match {
+  private[parquet] def statValue(ptype: Int, bytes: Array[Byte]): Any = ptype match {
     case TYPE_INT32 =>
       (bytes(0) & 0xff) | ((bytes(1) & 0xff) << 8) |
         ((bytes(2) & 0xff) << 16) | ((bytes(3) & 0xff) << 24)
