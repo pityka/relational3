@@ -2,6 +2,12 @@ package ra3
 
 import cats.effect.IO
 import tasks.{TaskSystemComponents, ExtendedTaskSystemComponents}
+import tasks.ParentTask
+import tasks.tsParent
+import tasks.SharedFile
+import tasks.jsonitersupport.*
+import com.github.plokhotnyuk.jsoniter_scala.macros.*
+import com.github.plokhotnyuk.jsoniter_scala.core.*
 import ra3.ts.ExportCsv
 private[ra3] trait RelationalAlgebra { self: Table =>
 
@@ -9,51 +15,10 @@ private[ra3] trait RelationalAlgebra { self: Table =>
       columnIdx: Int,
       cutoff: Segment,
       lessThan: Boolean
-  )(implicit tsc: ExtendedTaskSystemComponents): IO[Table] = {
-    val comparisonColumn = self.columns(columnIdx)
-
-    val castedCutoff = cutoff.asInstanceOf[comparisonColumn.tag.SegmentType]
-
-    ts.MakeUniqueId
-      .queue(
-        self,
-        "rfilterinequality",
-        List(comparisonColumn.tag.makeColumn(Vector(castedCutoff)))
-      )
-      .flatMap { name =>
-        IO.parTraverseN(math.min(32, self.columns.size))(
-          self.columns.zipWithIndex
-        ) { case (column, columnIdx) =>
-          IO.parTraverseN(math.min(32, comparisonColumn.segments.size))(
-            comparisonColumn.segments.zipWithIndex
-          ) { case (comparisonSegment, segmentIdx) =>
-            val inputSegment = column.segments(segmentIdx)
-            ts.FilterInequality.queue(
-              tag = column.tag,
-              comparisonTag = comparisonColumn.tag
-            )(
-              comparison = comparisonSegment: comparisonColumn.tag.SegmentType,
-              input = inputSegment,
-              cutoff = castedCutoff,
-              outputPath = LogicalPath(name, None, segmentIdx, columnIdx),
-              lessThan = lessThan
-            )
-          }.map(segments =>
-            column.tag
-              .makeTaggedColumn(column.tag.makeColumn(segments.toVector))
-          )
-
-        }.map(sx =>
-          Table(
-            sx,
-            self.colNames,
-            name,
-            self.partitions
-          )
-        )
-      }
-      .logElapsed
-  }
+  )(implicit tsc: ExtendedTaskSystemComponents): IO[Table] =
+    RelationalAlgebra.rfilterTask(
+      RelationalAlgebra.RFilterInput(self, columnIdx, cutoff, lessThan)
+    )
 
   private[ra3] def prePartition(
       columnIdx: Seq[Int],
@@ -364,40 +329,24 @@ private[ra3] trait RelationalAlgebra { self: Table =>
         ExportCsv.Gzip
       )
   )(implicit tsc: ExtendedTaskSystemComponents) = {
-    IO.parSequenceN(32)((0 until self.segmentation.size).toList map {
-      segmentIdx =>
-        val cols = self.columns.map(tc =>
-          tc.tag.makeTaggedSegment(tc.tag.segments(tc.column)(segmentIdx))
-        )
-        ts.ExportCsv.queue(
-          segments = cols,
-          columnSeparator = columnSeparator,
-          quoteChar = quoteChar,
-          recordSeparator = recordSeparator,
-          outputName = self.uniqueId,
-          outputSegmentIndex = segmentIdx,
-          compression = compression
-        )
-    }).logElapsed
+    RelationalAlgebra.exportCsvTask(
+      RelationalAlgebra.ExportCsvInput(
+        self,
+        columnSeparator,
+        quoteChar,
+        recordSeparator,
+        compression
+      )
+    )
 
   }
 
   def exportToParquet(
       snappy: Boolean
   )(implicit tsc: ExtendedTaskSystemComponents) = {
-    IO.parSequenceN(32)((0 until self.segmentation.size).toList map {
-      segmentIdx =>
-        val cols = self.columns.map(tc =>
-          tc.tag.makeTaggedSegment(tc.tag.segments(tc.column)(segmentIdx))
-        )
-        ts.ExportParquet.queue(
-          segments = cols,
-          colNames = self.colNames,
-          outputName = self.uniqueId,
-          outputSegmentIndex = segmentIdx,
-          snappy = snappy
-        )
-    }).logElapsed
+    RelationalAlgebra.exportParquetTask(
+      RelationalAlgebra.ExportParquetInput(self, snappy)
+    )
 
   }
 
@@ -473,5 +422,149 @@ private[ra3] trait RelationalAlgebra { self: Table =>
   //     other: Table,
   //     chunkSize: Int
   // )(theta: BufferedTable => BufferInt) = ???
+
+}
+
+private[ra3] object RelationalAlgebra {
+
+  private[ra3] case class RFilterInput(
+      self: Table,
+      columnIdx: Int,
+      cutoff: Segment,
+      lessThan: Boolean
+  )
+  private[ra3] object RFilterInput {
+    implicit val codec: JsonValueCodec[RFilterInput] = JsonCodecMaker.make
+  }
+
+  private[ra3] case class ExportCsvInput(
+      self: Table,
+      columnSeparator: Char,
+      quoteChar: Char,
+      recordSeparator: String,
+      compression: Option[ExportCsv.CompressionFormat]
+  )
+  private[ra3] object ExportCsvInput {
+    implicit val codec: JsonValueCodec[ExportCsvInput] = JsonCodecMaker.make
+  }
+
+  private[ra3] case class ExportParquetInput(
+      self: Table,
+      snappy: Boolean
+  )
+  private[ra3] object ExportParquetInput {
+    implicit val codec: JsonValueCodec[ExportParquetInput] = JsonCodecMaker.make
+  }
+
+  // $COVERAGE-OFF$
+  implicit val codecSeqSharedFile: JsonValueCodec[Seq[SharedFile]] =
+    JsonCodecMaker.make
+  // $COVERAGE-ON$
+
+  private[ra3] def rfilterImpl(
+      input: RFilterInput
+  )(implicit tsc: ExtendedTaskSystemComponents): IO[Table] = {
+    val self = input.self
+    val lessThan = input.lessThan
+    val comparisonColumn = self.columns(input.columnIdx)
+
+    val castedCutoff =
+      input.cutoff.asInstanceOf[comparisonColumn.tag.SegmentType]
+
+    ts.MakeUniqueId
+      .queue(
+        self,
+        "rfilterinequality",
+        List(comparisonColumn.tag.makeColumn(Vector(castedCutoff)))
+      )
+      .flatMap { name =>
+        IO.parTraverseN(math.min(32, self.columns.size))(
+          self.columns.zipWithIndex
+        ) { case (column, columnIdx) =>
+          IO.parTraverseN(math.min(32, comparisonColumn.segments.size))(
+            comparisonColumn.segments.zipWithIndex
+          ) { case (comparisonSegment, segmentIdx) =>
+            val inputSegment = column.segments(segmentIdx)
+            ts.FilterInequality.queue(
+              tag = column.tag,
+              comparisonTag = comparisonColumn.tag
+            )(
+              comparison = comparisonSegment: comparisonColumn.tag.SegmentType,
+              input = inputSegment,
+              cutoff = castedCutoff,
+              outputPath = LogicalPath(name, None, segmentIdx, columnIdx),
+              lessThan = lessThan
+            )
+          }.map(segments =>
+            column.tag
+              .makeTaggedColumn(column.tag.makeColumn(segments.toVector))
+          )
+
+        }.map(sx =>
+          Table(
+            sx,
+            self.colNames,
+            name,
+            self.partitions
+          )
+        )
+      }
+      .logElapsed
+  }
+
+  private[ra3] def exportCsvImpl(
+      input: ExportCsvInput
+  )(implicit tsc: ExtendedTaskSystemComponents): IO[Seq[SharedFile]] = {
+    val self = input.self
+    IO.parSequenceN(32)((0 until self.segmentation.size).toList map {
+      segmentIdx =>
+        val cols = self.columns.map(tc =>
+          tc.tag.makeTaggedSegment(tc.tag.segments(tc.column)(segmentIdx))
+        )
+        ts.ExportCsv.queue(
+          segments = cols,
+          columnSeparator = input.columnSeparator,
+          quoteChar = input.quoteChar,
+          recordSeparator = input.recordSeparator,
+          outputName = self.uniqueId,
+          outputSegmentIndex = segmentIdx,
+          compression = input.compression
+        )
+    }).logElapsed
+  }
+
+  private[ra3] def exportParquetImpl(
+      input: ExportParquetInput
+  )(implicit tsc: ExtendedTaskSystemComponents): IO[Seq[SharedFile]] = {
+    val self = input.self
+    IO.parSequenceN(32)((0 until self.segmentation.size).toList map {
+      segmentIdx =>
+        val cols = self.columns.map(tc =>
+          tc.tag.makeTaggedSegment(tc.tag.segments(tc.column)(segmentIdx))
+        )
+        ts.ExportParquet.queue(
+          segments = cols,
+          colNames = self.colNames,
+          outputName = self.uniqueId,
+          outputSegmentIndex = segmentIdx,
+          snappy = input.snappy
+        )
+    }).logElapsed
+  }
+
+  val rfilterTask =
+    ParentTask[RFilterInput, Table]("rfilterInEquality", 1) { input =>
+      implicit cxt => rfilterImpl(input)
+    }
+
+  val exportCsvTask =
+    ParentTask[ExportCsvInput, Seq[SharedFile]]("exportToCsv", 1) { input =>
+      implicit cxt => exportCsvImpl(input)
+    }
+
+  val exportParquetTask =
+    ParentTask[ExportParquetInput, Seq[SharedFile]]("exportToParquet", 1) {
+      input => implicit cxt => exportParquetImpl(input)
+    }
 
 }

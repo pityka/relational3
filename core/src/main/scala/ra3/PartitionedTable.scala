@@ -2,6 +2,11 @@ package ra3
 
 import cats.effect.IO
 import tasks.{TaskSystemComponents, ExtendedTaskSystemComponents}
+import tasks.ParentTask
+import tasks.tsParent
+import tasks.jsonitersupport.*
+import com.github.plokhotnyuk.jsoniter_scala.macros.*
+import com.github.plokhotnyuk.jsoniter_scala.core.*
 
 private[ra3] case class PartitionMeta(
     columns: Seq[Int],
@@ -98,13 +103,32 @@ private[ra3] object PartitionedTable {
         PartitionMeta(Nil, 1)
       )
     }
-  def partitionColumns(
+  private[ra3] case class PartitionColumnsInput(
       columnIdx: Seq[Int],
       inputColumns: Vector[TaggedColumn],
       partitionBase: Int,
       uniqueId: String,
       maxItemsToBufferAtOnce: Int
-  )(implicit tsc: ExtendedTaskSystemComponents): IO[Vector[PartitionedTable]] = {
+  )
+  private[ra3] object PartitionColumnsInput {
+    implicit val codec: JsonValueCodec[PartitionColumnsInput] =
+      JsonCodecMaker.make
+  }
+  // $COVERAGE-OFF$
+  implicit val codecVectorPartitionedTable
+      : JsonValueCodec[Vector[PartitionedTable]] = JsonCodecMaker.make
+  // $COVERAGE-ON$
+
+  private def partitionColumnsImpl(
+      input: PartitionColumnsInput
+  )(implicit
+      tsc: ExtendedTaskSystemComponents
+  ): IO[Vector[PartitionedTable]] = {
+    val columnIdx = input.columnIdx
+    val inputColumns = input.inputColumns
+    val partitionBase = input.partitionBase
+    val uniqueId = input.uniqueId
+    val maxItemsToBufferAtOnce = input.maxItemsToBufferAtOnce
     assert(columnIdx.nonEmpty)
     val partitionColumns = columnIdx.map(inputColumns.apply)
 
@@ -224,4 +248,29 @@ private[ra3] object PartitionedTable {
       }
     }.logElapsed
   }
+
+  val partitionColumnsTask =
+    ParentTask[PartitionColumnsInput, Vector[PartitionedTable]](
+      "partitionColumns",
+      1
+    ) { input => implicit cxt => partitionColumnsImpl(input) }
+
+  def partitionColumns(
+      columnIdx: Seq[Int],
+      inputColumns: Vector[TaggedColumn],
+      partitionBase: Int,
+      uniqueId: String,
+      maxItemsToBufferAtOnce: Int
+  )(implicit
+      tsc: ExtendedTaskSystemComponents
+  ): IO[Vector[PartitionedTable]] =
+    partitionColumnsTask(
+      PartitionColumnsInput(
+        columnIdx,
+        inputColumns,
+        partitionBase,
+        uniqueId,
+        maxItemsToBufferAtOnce
+      )
+    )
 }

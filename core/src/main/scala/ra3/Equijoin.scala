@@ -1,6 +1,12 @@
 package ra3
 import cats.effect.IO
 import tasks.{TaskSystemComponents, ExtendedTaskSystemComponents}
+import tasks.ParentTask
+import tasks.ParentComputationEnvironment
+import tasks.tsParent
+import tasks.jsonitersupport.*
+import com.github.plokhotnyuk.jsoniter_scala.macros.*
+import com.github.plokhotnyuk.jsoniter_scala.core.*
 import ra3.lang.ReturnValueTuple
 private[ra3] object Equijoin {
 
@@ -67,6 +73,26 @@ private[ra3] object Equijoin {
     }
   }
 
+  private[ra3] case class EquijoinTwoInput(
+      self: Table,
+      other: Table,
+      joinColumnSelf: Int,
+      joinColumnOther: Int,
+      how: String,
+      partitionBase: Int,
+      partitionLimit: Int,
+      maxItemsToBufferAtOnce: Int,
+      program: ra3.lang.runtime.Expr
+  )
+  private[ra3] object EquijoinTwoInput {
+    implicit val codec: JsonValueCodec[EquijoinTwoInput] = JsonCodecMaker.make
+  }
+
+  val equijoinTwoTask =
+    ParentTask[EquijoinTwoInput, Table]("equijoinTwo", 1) { input =>
+      implicit cxt => equijoinTwoImpl(input)
+    }
+
   def equijoinTwo(
       self: Table,
       other: Table,
@@ -77,7 +103,33 @@ private[ra3] object Equijoin {
       partitionLimit: Int,
       maxItemsToBufferAtOnce: Int,
       program: ra3.lang.runtime.Expr
-  )(implicit tsc: ExtendedTaskSystemComponents) = {
+  )(implicit tsc: ExtendedTaskSystemComponents): IO[Table] =
+    equijoinTwoTask(
+      EquijoinTwoInput(
+        self,
+        other,
+        joinColumnSelf,
+        joinColumnOther,
+        how,
+        partitionBase,
+        partitionLimit,
+        maxItemsToBufferAtOnce,
+        program
+      )
+    )
+
+  private def equijoinTwoImpl(
+      input: EquijoinTwoInput
+  )(implicit cxt: ParentComputationEnvironment): IO[Table] = {
+    val self = input.self
+    val other = input.other
+    val joinColumnSelf = input.joinColumnSelf
+    val joinColumnOther = input.joinColumnOther
+    val how = input.how
+    val partitionBase = input.partitionBase
+    val partitionLimit = input.partitionLimit
+    val maxItemsToBufferAtOnce = input.maxItemsToBufferAtOnce
+    val program = input.program
 
     assert(
       self.columns(joinColumnSelf).tag == other
@@ -235,6 +287,24 @@ private[ra3] object Equijoin {
       .logElapsed
   }
 
+  private[ra3] case class EquijoinMultipleInput(
+      self: Table,
+      joinColumnSelf: Int,
+      others: Seq[(Table, Int, String, Int)],
+      partitionBase: Int,
+      partitionLimit: Int,
+      program: ra3.lang.runtime.Expr
+  )
+  private[ra3] object EquijoinMultipleInput {
+    implicit val codec: JsonValueCodec[EquijoinMultipleInput] =
+      JsonCodecMaker.make
+  }
+
+  val equijoinMultipleTask =
+    ParentTask[EquijoinMultipleInput, Table]("equijoinMultiple", 1) { input =>
+      implicit cxt => equijoinMultipleImpl(input)
+    }
+
   def equijoinMultiple(
       self: Table,
       joinColumnSelf: Int,
@@ -242,7 +312,27 @@ private[ra3] object Equijoin {
       partitionBase: Int,
       partitionLimit: Int,
       program: ra3.lang.runtime.Expr
-  )(implicit tsc: ExtendedTaskSystemComponents) = {
+  )(implicit tsc: ExtendedTaskSystemComponents): IO[Table] =
+    equijoinMultipleTask(
+      EquijoinMultipleInput(
+        self,
+        joinColumnSelf,
+        others,
+        partitionBase,
+        partitionLimit,
+        program
+      )
+    )
+
+  private def equijoinMultipleImpl(
+      input: EquijoinMultipleInput
+  )(implicit cxt: ParentComputationEnvironment): IO[Table] = {
+    val self = input.self
+    val joinColumnSelf = input.joinColumnSelf
+    val others = input.others
+    val partitionBase = input.partitionBase
+    val partitionLimit = input.partitionLimit
+    val program = input.program
     val name = ts.MakeUniqueId.queueM(
       self +: others.map(_._1),
       s"join-$partitionBase-$joinColumnSelf-${others

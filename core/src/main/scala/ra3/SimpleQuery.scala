@@ -1,12 +1,34 @@
 package ra3
 
-import tasks.{TaskSystemComponents, ExtendedTaskSystemComponents}
+import tasks.ParentTask
+import tasks.ExtendedTaskSystemComponents
+import tasks.tsParent
+import tasks.jsonitersupport.*
+import com.github.plokhotnyuk.jsoniter_scala.macros.*
+import com.github.plokhotnyuk.jsoniter_scala.core.*
 import cats.effect.IO
 
 private[ra3] object SimpleQuery {
-  def simpleQuery(self: Table, program: ra3.lang.runtime.Expr)(implicit
+
+  private[ra3] case class WhereInput(
+      self: Table,
+      program: ra3.lang.runtime.Expr
+  )
+  private[ra3] object WhereInput {
+    implicit val codec: JsonValueCodec[WhereInput] = JsonCodecMaker.make
+  }
+
+  private[ra3] case class CountInput(
+      self: Table,
+      program: ra3.lang.runtime.Expr
+  )
+  private[ra3] object CountInput {
+    implicit val codec: JsonValueCodec[CountInput] = JsonCodecMaker.make
+  }
+
+  private def whereImpl(self: Table, program: ra3.lang.runtime.Expr)(implicit
       tsc: ExtendedTaskSystemComponents
-  ) = {
+  ): IO[Table] = {
     val nSegments = self.columns.head.segments.size
     ts.MakeUniqueId
       .queue(self, "where-" + program.hash, Nil)
@@ -57,7 +79,8 @@ private[ra3] object SimpleQuery {
       }
       .logElapsed
   }
-  def simpleQueryCount(self: Table, program: ra3.lang.runtime.Expr)(implicit
+
+  private def countImpl(self: Table, program: ra3.lang.runtime.Expr)(implicit
       tsc: ExtendedTaskSystemComponents
   ): IO[Table] = {
     val nSegments = self.columns.head.segments.size
@@ -98,4 +121,24 @@ private[ra3] object SimpleQuery {
       }
       .logElapsed
   }
+
+  val whereTask =
+    ParentTask[WhereInput, Table]("simpleQueryWhere", 1) { input =>
+      implicit cxt => whereImpl(input.self, input.program)
+    }
+
+  val countTask =
+    ParentTask[CountInput, Table]("simpleQueryCount", 1) { input =>
+      implicit cxt => countImpl(input.self, input.program)
+    }
+
+  def simpleQuery(self: Table, program: ra3.lang.runtime.Expr)(implicit
+      tsc: ExtendedTaskSystemComponents
+  ): IO[Table] =
+    whereTask(WhereInput(self, program))
+
+  def simpleQueryCount(self: Table, program: ra3.lang.runtime.Expr)(implicit
+      tsc: ExtendedTaskSystemComponents
+  ): IO[Table] =
+    countTask(CountInput(self, program))
 }
