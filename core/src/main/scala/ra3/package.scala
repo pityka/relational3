@@ -207,6 +207,7 @@ package object ra3 {
         ((last8(2) & 0xff) << 16) | ((last8(3) & 0xff) << 24)
       tail(8L + footerLen.toLong).map { region =>
         val footer = ra3.parquet.Parquet.readFooter(region)
+        footer.requireFlat()
         require(footer.rowGroups.nonEmpty, "empty parquet file")
         val headRg = footer.rowGroups.head
         val columns = headRg.map { headCm =>

@@ -115,17 +115,27 @@ private[ra3] object ImportParquet {
       maxSegmentLength: Int
   )(implicit tsc: ComputationEnvironment): IO[Table] = {
     file.bytes.flatMap { byteVector =>
-      val bytes = byteVector.toArray
-      val cols = Parquet.readFile(bytes)
-      val numRows = cols.headOption.map(_.values.length).getOrElse(0)
-      IO.parSequenceN(math.min(32, math.max(1, cols.size)))(
-        cols.zipWithIndex.toList.map { case (rc, colIdx) =>
-          buildColumn(rc, name, colIdx, maxSegmentLength, numRows)
-        }
-      ).map { taggedCols =>
-        Table(taggedCols.toVector, cols.map(_.name).toVector, name, None)
-      }
+      buildTable(
+        ra3.parquet.Unnest.assembleAuto(byteVector.toArray),
+        name,
+        maxSegmentLength
+      )
     }.logElapsed
+  }
+
+  private[ra3] def buildTable(
+      cols: Vector[ReadColumn],
+      name: String,
+      maxSegmentLength: Int
+  )(implicit tsc: ComputationEnvironment): IO[Table] = {
+    val numRows = cols.headOption.map(_.values.length).getOrElse(0)
+    IO.parSequenceN(math.min(32, math.max(1, cols.size)))(
+      cols.zipWithIndex.toList.map { case (rc, colIdx) =>
+        buildColumn(rc, name, colIdx, maxSegmentLength, numRows)
+      }
+    ).map { taggedCols =>
+      Table(taggedCols.toVector, cols.map(_.name).toVector, name, None)
+    }
   }
 
   // $COVERAGE-OFF$

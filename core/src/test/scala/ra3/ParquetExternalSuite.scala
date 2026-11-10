@@ -14,6 +14,9 @@ class ParquetExternalSuite extends munit.FunSuite with WithTempTaskSystem {
   val floatB64 =
     "UEFSMRUAFSwVMCwVCBUAFQYVBgAAFlQGAAAABAECAAIBAADAPwAAEEAAAGDAFQAVLBUwLBUIFQAVBhUGAAAWVAIAAAAIAQoAAAAUAAAAHgAAACgAAAAVAhk8NQAYDWR1Y2tkYl9zY2hlbWEVBAAVCCUCGAFmABUCJQIYAWclIgAWCBkcGSwmABwVCBkVABkYAWYVAhYIFk4WUiYIPBgEAAAQQBgEAABgwBYCKAQAABBAGAQAAGDAAAAAJgAcFQIZFQAZGAFnFQIWCBZOFlImWjwYBCgAAAAYBAoAAAAWACgEKAAAABgECgAAAAAAABaAiAIWCCYIACgGRHVja0RCAKoAAABQQVIx"
 
+  val nestedB64 =
+    "UEFSMRUAFSwVMCwVCBUAFQYVBgAAFlQCAAAACAEBAAAAAgAAAAMAAAAEAAAAFQAVaBViLBUOFQAVBhUGAAA0aAgAAAACAAIBBgAEAQYAAAAGBAIBBgQBAAAAdQEFAGEBBQUKKHgBAAAAeQEAAABxFQAVcBVyLBUOFQAVBhUGAAA4bAgAAAACAAIBBgAEAQYAAAAGBAIBBgQCAAAAaGkBBlx5bwMAAABieWUBAAAAegEAAAB3AQAAAHIVAhl8NQAYDWR1Y2tkYl9zY2hlbWEVBAAVAiUCGAJpZCUiADUCGARtc2dzFQIVBgA1BBgEbGlzdBUCADUCGAdlbGVtZW50FQQAFQwlAhgEcm9sZSUAABUMJQIYB2NvbnRlbnQlAAAWCBkcGTwmABwVAhkVABkYAmlkFQIWCBZOFlImCDwYBAQAAAAYBAEAAAAWACgEBAAAABgEAQAAAAAAACYAHBUMGRUAGUgEbXNncwRsaXN0B2VsZW1lbnQEcm9sZRUCFg4WigEWhAEmWjwYAXkYAWE4AXkYAWEAAAAmABwVDBkVABlIBG1zZ3MEbGlzdAdlbGVtZW50B2NvbnRlbnQVAhYOFpIBFpQBJt4BPBgBehgDYnllOAF6GANieWUAAAAWgJQNFggmCAAoBkR1Y2tEQgA1AQAAUEFSMQ=="
+
   private def readFixture(b64: String)(implicit
       tsc: ExtendedTaskSystemComponents
   ): Table = {
@@ -70,6 +73,33 @@ class ParquetExternalSuite extends munit.FunSuite with WithTempTaskSystem {
 
       check(ra3.importParquet(sf, "flt_i", 100).unsafeRunSync())
       check(ra3.scanParquet(sf, "flt_s").unsafeRunSync())
+    }
+  }
+
+  test("importParquet auto-unnests a list-of-structs column") {
+    withTempTaskSystem { implicit tsc =>
+      val bytes = java.util.Base64.getDecoder.decode(nestedB64)
+      val tmp = java.io.File.createTempFile("ra3pqnest", ".parquet")
+      java.nio.file.Files.write(tmp.toPath, bytes)
+      val sf =
+        SharedFile(tasks.util.Uri("file://" + tmp.getAbsolutePath)).unsafeRunSync()
+
+      val t = ra3.importParquet(sf, "un", 100).unsafeRunSync()
+      assertEquals(t.numRows, 6L)
+      assertEquals(t.colNames.toList, List("id", "role", "content"))
+      val bt = t.bufferStream.compile.toList.unsafeRunSync().head
+      assertEquals(
+        bt.columns(0).toSeq.map(_.toString),
+        List("1", "1", "2", "4", "4", "4")
+      )
+      assertEquals(
+        bt.columns(1).toSeq.map(_.toString),
+        List("u", "a", "u", "x", "y", "q")
+      )
+      assertEquals(
+        bt.columns(2).toSeq.map(_.toString),
+        List("hi", "yo", "bye", "z", "w", "r")
+      )
     }
   }
 }
