@@ -5,9 +5,9 @@ import Parquet.*
 
 private[ra3] object ScanSupport {
 
-  def tagFor(cm: PColMeta): ColumnTag = cm.ptype match {
+  def tagFor(ptype: Int, convertedType: Int): ColumnTag = ptype match {
     case TYPE_INT32 => ColumnTag.I32
-    case TYPE_INT64 if cm.convertedType == CONV_TIMESTAMP_MILLIS =>
+    case TYPE_INT64 if convertedType == CONV_TIMESTAMP_MILLIS =>
       ColumnTag.Instant
     case TYPE_INT64            => ColumnTag.I64
     case TYPE_DOUBLE | TYPE_FLOAT => ColumnTag.F64
@@ -28,7 +28,9 @@ private[ra3] object ScanSupport {
   def buildSegment(
       file: tasks.SharedFile,
       cm: PColMeta,
-      numRows: Int
+      numRows: Int,
+      maxRep: Int,
+      maxDef: Int
   ): Segment = {
     val ref = ParquetSegmentRef(
       file,
@@ -38,7 +40,9 @@ private[ra3] object ScanSupport {
       cm.dataPageOffset,
       cm.dictPageOffset,
       cm.totalCompressed,
-      cm.optional
+      cm.optional,
+      maxRep,
+      maxDef
     )
     val hasMissing = cm.nullCount != 0L
     cm.ptype match {

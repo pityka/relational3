@@ -15,7 +15,9 @@ private[ra3] final case class ParquetSegmentRef(
     dataPageOffset: Long,
     dictPageOffset: Long,
     totalCompressed: Long,
-    optional: Boolean
+    optional: Boolean,
+    maxRep: Int,
+    maxDef: Int
 ) {
   def decode(implicit tsc: TaskSystemComponents): IO[Vector[Option[Any]]] = {
     val start = if (dictPageOffset >= 0) dictPageOffset else dataPageOffset
@@ -26,15 +28,29 @@ private[ra3] final case class ParquetSegmentRef(
       .toVector
       .map { v =>
         val chunk = v.toArray
-        Parquet.decodeChunkAt(
-          chunk,
-          0,
-          chunk.length,
-          codec,
-          ptype,
-          optional,
-          numValues
-        )
+        if (maxRep == 0 && maxDef <= 1)
+          Parquet.decodeChunkAt(
+            chunk,
+            0,
+            chunk.length,
+            codec,
+            ptype,
+            optional,
+            numValues
+          )
+        else
+          Parquet
+            .decodeNestedChunkAt(
+              chunk,
+              0,
+              chunk.length,
+              codec,
+              ptype,
+              numValues,
+              maxRep,
+              maxDef
+            )
+            .map(_._3)
       }
   }
 }
@@ -751,11 +767,24 @@ private[ra3] object Parquet {
   ): Vector[(Int, Int, Option[Any])] = {
     val start =
       (if (cm.dictPageOffset >= 0) cm.dictPageOffset else cm.dataPageOffset).toInt
-    val endOfChunk = start + cm.totalCompressed.toInt
+    decodeNestedChunkAt(bytes, start, start + cm.totalCompressed.toInt, cm.codec,
+      cm.ptype, cm.numValues, maxRep, maxDef)
+  }
+
+  def decodeNestedChunkAt(
+      bytes: Array[Byte],
+      start: Int,
+      endOfChunk: Int,
+      codec: Int,
+      ptype: Int,
+      numValues: Long,
+      maxRep: Int,
+      maxDef: Int
+  ): Vector[(Int, Int, Option[Any])] = {
     val r = new CReader(bytes); r.pos = start
     var dict: Array[Any] = null
     val out = scala.collection.mutable.ArrayBuffer.empty[(Int, Int, Option[Any])]
-    var remaining = cm.numValues
+    var remaining = numValues
     val repBW = bitWidth(maxRep)
     val defBW = bitWidth(maxDef)
     while (r.pos < endOfChunk && (remaining > 0 || dict == null)) {
@@ -804,9 +833,9 @@ private[ra3] object Parquet {
       }
       val pageData = java.util.Arrays.copyOfRange(bytes, r.pos, r.pos + cps)
       r.pos += cps
-      val body = decompress(pageData, cm.codec, ups)
+      val body = decompress(pageData, codec, ups)
       if (pType == PAGE_DICTIONARY) {
-        dict = plainValues(new CReader(body), cm.ptype, dictNum)
+        dict = plainValues(new CReader(body), ptype, dictNum)
       } else if (pType == PAGE_DATA) {
         val dr = new CReader(body)
         val repLevels =
@@ -827,7 +856,7 @@ private[ra3] object Parquet {
           } else Array.fill(dpNum)(0)
         val present = defLevels.count(_ == maxDef)
         val vals: Array[Any] =
-          if (dpEnc == ENC_PLAIN) plainValues(dr, cm.ptype, present)
+          if (dpEnc == ENC_PLAIN) plainValues(dr, ptype, present)
           else if (dpEnc == ENC_PLAIN_DICTIONARY || dpEnc == ENC_RLE_DICTIONARY) {
             if (dict == null)
               throw new RuntimeException(

@@ -66,7 +66,7 @@ private[ra3] object Unnest {
     val allLeaves = leaves(buildTree(footer.schema))
     val listRoots = allLeaves.filter(_.maxRep >= 1).map(_.path.head).distinct
     listRoots.length match {
-      case 0 => Parquet.readFile(bytes)
+      case 0 => assembleFlat(bytes, footer, allLeaves)
       case 1 => assemble(bytes, footer, listRoots.head)
       case _ =>
         throw new RuntimeException(
@@ -74,6 +74,26 @@ private[ra3] object Unnest {
         )
     }
   }
+
+  def assembleFlat(
+      bytes: Array[Byte],
+      footer: Footer,
+      allLeaves: Vector[LeafInfo]
+  ): Vector[ReadColumn] =
+    allLeaves.map { l =>
+      val values = footer.rowGroups.indices.toVector.flatMap { rgIdx =>
+        val cm = footer
+          .rowGroups(rgIdx)
+          .find(_.path == l.path)
+          .getOrElse(
+            throw new RuntimeException(
+              s"column ${l.path.mkString(".")} not found in row group"
+            )
+          )
+        Parquet.decodeNestedChunk(bytes, cm, l.maxRep, l.maxDef).map(_._3)
+      }
+      ReadColumn(l.path.mkString("."), l.ptype, l.convertedType, values)
+    }
 
   def assemble(
       bytes: Array[Byte],

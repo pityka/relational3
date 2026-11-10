@@ -207,15 +207,19 @@ package object ra3 {
         ((last8(2) & 0xff) << 16) | ((last8(3) & 0xff) << 24)
       tail(8L + footerLen.toLong).map { region =>
         val footer = ra3.parquet.Parquet.readFooter(region)
-        footer.requireFlat()
         require(footer.rowGroups.nonEmpty, "empty parquet file")
-        val headRg = footer.rowGroups.head
-        val columns = headRg.map { headCm =>
-          val tag = ra3.parquet.ScanSupport.tagFor(headCm)
+        val leaves =
+          ra3.parquet.Unnest.leaves(ra3.parquet.Unnest.buildTree(footer.schema))
+        if (leaves.exists(_.maxRep >= 1))
+          throw new RuntimeException(
+            "scanParquet cannot scan a list column in place; use importParquet, which materializes and auto-unnests."
+          )
+        val columns = leaves.map { leaf =>
+          val tag = ra3.parquet.ScanSupport.tagFor(leaf.ptype, leaf.convertedType)
           val segments = footer.rowGroups.zipWithIndex.map { case (rg, rgIdx) =>
-            val cm = rg.find(_.name == headCm.name).get
+            val cm = rg.find(_.path == leaf.path).get
             ra3.parquet.ScanSupport
-              .buildSegment(file, cm, footer.rowGroupRows(rgIdx))
+              .buildSegment(file, cm, footer.rowGroupRows(rgIdx), leaf.maxRep, leaf.maxDef)
           }
           tag.makeTaggedColumn(
             tag.makeColumn(
@@ -223,7 +227,7 @@ package object ra3 {
             )
           )
         }
-        Table(columns.toVector, headRg.map(_.name).toVector, name, None)
+        Table(columns.toVector, leaves.map(_.path.mkString(".")).toVector, name, None)
       }
     }
   }

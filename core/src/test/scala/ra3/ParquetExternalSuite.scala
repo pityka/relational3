@@ -14,6 +14,9 @@ class ParquetExternalSuite extends munit.FunSuite with WithTempTaskSystem {
   val floatB64 =
     "UEFSMRUAFSwVMCwVCBUAFQYVBgAAFlQGAAAABAECAAIBAADAPwAAEEAAAGDAFQAVLBUwLBUIFQAVBhUGAAAWVAIAAAAIAQoAAAAUAAAAHgAAACgAAAAVAhk8NQAYDWR1Y2tkYl9zY2hlbWEVBAAVCCUCGAFmABUCJQIYAWclIgAWCBkcGSwmABwVCBkVABkYAWYVAhYIFk4WUiYIPBgEAAAQQBgEAABgwBYCKAQAABBAGAQAAGDAAAAAJgAcFQIZFQAZGAFnFQIWCBZOFlImWjwYBCgAAAAYBAoAAAAWACgEKAAAABgECgAAAAAAABaAiAIWCCYIACgGRHVja0RCAKoAAABQQVIx"
 
+  val structB64 =
+    "UEFSMRUAFSQVKCwVBhUAFQYVBgAAEkQCAAAABgEBAAAAAgAAAAMAAAAVABUwFTQsFQYVABUGFQYAABhcBAAAAAQCAgEFAAAAYWxpY2UDAAAAYm9iFQAVIBUkLBUGFQAVBhUGAAAQPAQAAAAEAgIBHgAAABkAAAAVAhlcNQAYDWR1Y2tkYl9zY2hlbWEVBAAVAiUCGAJpZCUiADUCGAN1c3IVBAAVDCUCGARuYW1lJQAAFQIlAhgDYWdlJSIAFgYZHBk8JgAcFQIZFQAZGAJpZBUCFgYWRhZKJgg8GAQDAAAAGAQBAAAAFgAoBAMAAAAYBAEAAAAAAAAmABwVDBkVABkoA3VzcgRuYW1lFQIWBhZSFlYmUjwYA2JvYhgFYWxpY2UWAigDYm9iGAVhbGljZQAAACYAHBUCGRUAGSgDdXNyA2FnZRUCFgYWQhZGJqgBPBgEHgAAABgEGQAAABYCKAQeAAAAGAQZAAAAAAAAFoCQBhYGJggAKAZEdWNrREIACQEAAFBBUjE="
+
   val nestedB64 =
     "UEFSMRUAFSwVMCwVCBUAFQYVBgAAFlQCAAAACAEBAAAAAgAAAAMAAAAEAAAAFQAVaBViLBUOFQAVBhUGAAA0aAgAAAACAAIBBgAEAQYAAAAGBAIBBgQBAAAAdQEFAGEBBQUKKHgBAAAAeQEAAABxFQAVcBVyLBUOFQAVBhUGAAA4bAgAAAACAAIBBgAEAQYAAAAGBAIBBgQCAAAAaGkBBlx5bwMAAABieWUBAAAAegEAAAB3AQAAAHIVAhl8NQAYDWR1Y2tkYl9zY2hlbWEVBAAVAiUCGAJpZCUiADUCGARtc2dzFQIVBgA1BBgEbGlzdBUCADUCGAdlbGVtZW50FQQAFQwlAhgEcm9sZSUAABUMJQIYB2NvbnRlbnQlAAAWCBkcGTwmABwVAhkVABkYAmlkFQIWCBZOFlImCDwYBAQAAAAYBAEAAAAWACgEBAAAABgEAQAAAAAAACYAHBUMGRUAGUgEbXNncwRsaXN0B2VsZW1lbnQEcm9sZRUCFg4WigEWhAEmWjwYAXkYAWE4AXkYAWEAAAAmABwVDBkVABlIBG1zZ3MEbGlzdAdlbGVtZW50B2NvbnRlbnQVAhYOFpIBFpQBJt4BPBgBehgDYnllOAF6GANieWUAAAAWgJQNFggmCAAoBkR1Y2tEQgA1AQAAUEFSMQ=="
 
@@ -73,6 +76,33 @@ class ParquetExternalSuite extends munit.FunSuite with WithTempTaskSystem {
 
       check(ra3.importParquet(sf, "flt_i", 100).unsafeRunSync())
       check(ra3.scanParquet(sf, "flt_s").unsafeRunSync())
+    }
+  }
+
+  test("importParquet flattens a struct column into dotted columns") {
+    withTempTaskSystem { implicit tsc =>
+      val bytes = java.util.Base64.getDecoder.decode(structB64)
+      val tmp = java.io.File.createTempFile("ra3pqstruct", ".parquet")
+      java.nio.file.Files.write(tmp.toPath, bytes)
+      val sf =
+        SharedFile(tasks.util.Uri("file://" + tmp.getAbsolutePath)).unsafeRunSync()
+
+      def check(t: Table): Unit = {
+        assertEquals(t.numRows, 3L)
+        assertEquals(t.colNames.toList, List("id", "usr.name", "usr.age"))
+        val bt = t.bufferStream.compile.toList.unsafeRunSync().head
+        assertEquals(bt.columns(0).toSeq.map(_.toString), List("1", "2", "3"))
+        assertEquals(
+          bt.columns(1).toSeq.map(_.toString),
+          List("alice", "bob", BufferString.missing.toString)
+        )
+        assert(!bt.columns(2).isMissing(0))
+        assertEquals(bt.columns(2).toSeq(0).asInstanceOf[Int], 30)
+        assert(bt.columns(2).isMissing(2))
+      }
+
+      check(ra3.importParquet(sf, "st_i", 100).unsafeRunSync())
+      check(ra3.scanParquet(sf, "st_s").unsafeRunSync())
     }
   }
 
