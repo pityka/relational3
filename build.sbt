@@ -19,6 +19,30 @@ lazy val scalaVersion213 = "2.13.14"
 lazy val scalaVersion3 = "3.9.0"
 lazy val scalaVersionInBuild = scalaVersion3
 
+ThisBuild / credentials ++= {
+  for {
+    actor <- sys.env.get("GITHUB_ACTOR")
+    token <- sys.env.get("GITHUB_TOKEN")
+  } yield Credentials(
+    "GitHub Package Registry",
+    "maven.pkg.github.com",
+    actor,
+    token
+  )
+}.toSeq
+
+ThisBuild / credentials ++= {
+  for {
+    token <- sys.env.get("GITLAB_DEPLOY_TOKEN")
+    user <- sys.env.get("GITLAB_DEPLOY_TOKEN_USER")
+  } yield Credentials(
+    "GitLab Packages Registry",
+    "gitlab.com",
+    user,
+    token
+  )
+}.toSeq
+
 ThisBuild / versionScheme := Some("early-semver")
 
 ThisBuild / versionPolicyIntention := Compatibility.None
