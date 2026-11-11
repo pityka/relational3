@@ -463,6 +463,16 @@ package object ra3 {
       Table(cols, all.head.colNames, name, None)
     }
   }
+  def partitionByColumn(table: Table, columnName: String, sort: Boolean)(
+      implicit tsc: ExtendedTaskSystemComponents
+  ): IO[List[Table]] =
+    table.partitionByColumn(columnName, sort)
+
+  def partitionByColumn(table: Table, columnIndex: Int, sort: Boolean)(implicit
+      tsc: ExtendedTaskSystemComponents
+  ): IO[List[Table]] =
+    table.partitionByColumn(columnIndex, sort)
+
   def render[T](q: TableExpr[T]) =
     ">>\n" + Render.render(q, 0, Vector.empty) + "\n<<"
 }

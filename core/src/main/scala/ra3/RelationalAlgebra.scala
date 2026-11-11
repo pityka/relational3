@@ -232,6 +232,107 @@ private[ra3] trait RelationalAlgebra { self: Table =>
 
   }
 
+  def partitionByColumn(
+      columnName: String,
+      sort: Boolean
+  )(implicit tsc: ExtendedTaskSystemComponents): IO[List[Table]] =
+    partitionByColumnWithKey(columnName, sort).map(_.map(_._2))
+
+  def partitionByColumn(
+      columnIndex: Int,
+      sort: Boolean
+  )(implicit tsc: ExtendedTaskSystemComponents): IO[List[Table]] =
+    partitionByColumnWithKey(columnIndex, sort).map(_.map(_._2))
+
+  def partitionByColumn(
+      columnIndex: Int,
+      sort: Boolean,
+      partitionBase: Int,
+      partitionLimit: Int,
+      maxItemsToBufferAtOnce: Int
+  )(implicit tsc: ExtendedTaskSystemComponents): IO[List[Table]] =
+    partitionByColumnWithKey(
+      columnIndex,
+      sort,
+      partitionBase,
+      partitionLimit,
+      maxItemsToBufferAtOnce
+    ).map(_.map(_._2))
+
+  def partitionByColumnWithKey(
+      columnName: String,
+      sort: Boolean
+  )(implicit tsc: ExtendedTaskSystemComponents): IO[List[(String, Table)]] =
+    IO(self.colNames.indexOf(columnName)).flatMap { idx =>
+      if (idx < 0)
+        IO.raiseError(
+          new NoSuchElementException(s"column $columnName not found")
+        )
+      else partitionByColumnWithKey(idx, sort)
+    }
+
+  def partitionByColumnWithKey(
+      columnIndex: Int,
+      sort: Boolean
+  )(implicit tsc: ExtendedTaskSystemComponents): IO[List[(String, Table)]] =
+    partitionByColumnWithKey(
+      columnIndex,
+      sort,
+      128,
+      10_000_000,
+      1_000_000
+    )
+
+  def partitionByColumnWithKey(
+      columnIndex: Int,
+      sort: Boolean,
+      partitionBase: Int,
+      partitionLimit: Int,
+      maxItemsToBufferAtOnce: Int
+  )(implicit
+      tsc: ExtendedTaskSystemComponents
+  ): IO[List[(String, Table)]] =
+    if (columnIndex < 0 || columnIndex >= self.numCols)
+      IO.raiseError(
+        new IllegalArgumentException(
+          s"column index $columnIndex out of range [0, ${self.numCols})"
+        )
+      )
+    else if (self.numRows == 0L) IO.pure(Nil)
+    else {
+      val keyTag = self.columns(columnIndex).tag
+      val keyOrdering: Ordering[keyTag.Elem] = keyTag.ordering
+      def groupKey(g: Table): Option[keyTag.Elem] = {
+        val col = g.columns(columnIndex)
+        val segments = col.tag.segments(col.column)
+        segments.headOption
+          .flatMap(col.tag.nonMissingMinMax)
+          .map(_._1.asInstanceOf[keyTag.Elem])
+      }
+      self
+        .groupBy(
+          cols = Seq(columnIndex),
+          partitionBase = partitionBase,
+          partitionLimit = partitionLimit,
+          maxItemsToBufferAtOnce = maxItemsToBufferAtOnce
+        )
+        .flatMap(_.extractGroups)
+        .map { groups =>
+          val keyed = groups.toList
+            .filter(_.numRows > 0L)
+            .map(g => (groupKey(g), g))
+          val ordered =
+            if (!sort) keyed
+            else {
+              val (missing, present) = keyed.partition(_._1.isEmpty)
+              missing ++ present.sortBy(_._1.get)(using keyOrdering)
+            }
+          ordered.map { case (key, g) =>
+            (key.map(_.toString).getOrElse(MissingString), g)
+          }
+        }
+    }
+
   /** This is almost noop, concat the list of segments
     *
     * @param others
