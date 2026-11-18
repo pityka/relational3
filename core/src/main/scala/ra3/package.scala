@@ -209,7 +209,7 @@ package object ra3 {
         val footer = _root_.parquet.Parquet.readFooter(region)
         require(footer.rowGroups.nonEmpty, "empty parquet file")
         val leaves =
-          _root_.parquet.Parquet.leaves(_root_.parquet.Unnest.buildTree(footer.schema))
+          _root_.parquet.Parquet.leaves(_root_.parquet.Parquet.buildTree(footer.schema))
         if (leaves.exists(_.maxRep >= 1))
           throw new RuntimeException(
             "scanParquet cannot scan a list column in place; use importParquet, which materializes and auto-unnests."
