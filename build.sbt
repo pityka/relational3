@@ -21,12 +21,11 @@ lazy val scalaVersionInBuild = scalaVersion3
 
 ThisBuild / credentials ++= {
   for {
-    actor <- sys.env.get("GITHUB_ACTOR")
     token <- sys.env.get("GITHUB_TOKEN")
   } yield Credentials(
     "GitHub Package Registry",
     "maven.pkg.github.com",
-    actor,
+    sys.env.getOrElse("GITHUB_ACTOR", "token"),
     token
   )
 }.toSeq
@@ -42,6 +41,8 @@ ThisBuild / credentials ++= {
     token
   )
 }.toSeq
+
+ThisBuild / resolvers += "GitHub pityka parquet" at "https://maven.pkg.github.com/pityka/parquet"
 
 ThisBuild / versionScheme := Some("early-semver")
 
@@ -104,10 +105,10 @@ lazy val core = project
     name := "ra3-core",
     libraryDependencies ++= List(
       "io.airlift" % "aircompressor" % "0.25",
-      "io.github.pityka" %% "parquet-core" % "0.3.0",
+      "io.github.pityka" %% "parquet-core" % "0.4.1",
       "org.scalameta" %% "munit" % "1.3.6" % Test,
       "io.github.pityka" %% "saddle-core" % "4.0.0-M11",
-      "io.github.pityka" %% "tasks-core" % "4.0.0-M101",
+      "io.github.pityka" %% "tasks-core" % "4.0.0",
       "com.google.guava" % "guava" % "33.0.0-jre", // scala-steward:off
       "de.lhns" %% "fs2-compress-gzip" % "1.0.0",
       "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % "2.30.13" % "compile-internal"
