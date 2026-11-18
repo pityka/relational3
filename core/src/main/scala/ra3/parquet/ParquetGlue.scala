@@ -1,7 +1,53 @@
 package ra3.parquet
 
 import ra3.*
-import Parquet.*
+import _root_.parquet.{PColMeta, ReadColumn}
+import _root_.parquet.ParquetReader.*
+import _root_.parquet.Parquet.statValue
+import cats.effect.IO
+import tasks.SharedFile
+import tasks.TaskSystemComponents
+
+private[ra3] final case class ParquetSegmentRef(
+    file: SharedFile,
+    ptype: Int,
+    codec: Int,
+    numValues: Long,
+    dataPageOffset: Long,
+    dictPageOffset: Long,
+    totalCompressed: Long,
+    optional: Boolean,
+    maxRep: Int,
+    maxDef: Int
+) {
+  def decode(implicit tsc: TaskSystemComponents): IO[Vector[Option[Any]]] = {
+    val start = if (dictPageOffset >= 0) dictPageOffset else dataPageOffset
+    file
+      .stream(start)
+      .take(totalCompressed)
+      .compile
+      .toVector
+      .map { v =>
+        val chunk = v.toArray
+        val cm = PColMeta("", ptype, -1, codec, numValues, 0L, -1L,
+          chunk.length.toLong, optional, -1L, None, None, Vector.empty)
+        _root_.parquet.Parquet.decodeColumnChunk(chunk, cm, maxRep, maxDef) match {
+          case c: ReadColumn.Ints =>
+            Vector.tabulate[Option[Any]](c.length)(i =>
+              if (c.nulls(i)) None else Some(c.values(i)))
+          case c: ReadColumn.Longs =>
+            Vector.tabulate[Option[Any]](c.length)(i =>
+              if (c.nulls(i)) None else Some(c.values(i)))
+          case c: ReadColumn.Doubles =>
+            Vector.tabulate[Option[Any]](c.length)(i =>
+              if (c.nulls(i)) None else Some(c.values(i)))
+          case c: ReadColumn.Strings =>
+            Vector.tabulate[Option[Any]](c.length)(i =>
+              if (c.nulls(i)) None else Some(c.values(i)))
+        }
+      }
+  }
+}
 
 private[ra3] object ScanSupport {
 
@@ -9,9 +55,9 @@ private[ra3] object ScanSupport {
     case TYPE_INT32 => ColumnTag.I32
     case TYPE_INT64 if convertedType == CONV_TIMESTAMP_MILLIS =>
       ColumnTag.Instant
-    case TYPE_INT64            => ColumnTag.I64
+    case TYPE_INT64               => ColumnTag.I64
     case TYPE_DOUBLE | TYPE_FLOAT => ColumnTag.F64
-    case TYPE_BYTE_ARRAY       => ColumnTag.StringTag
+    case TYPE_BYTE_ARRAY          => ColumnTag.StringTag
     case other =>
       throw new RuntimeException(s"unsupported parquet physical type $other")
   }
@@ -26,7 +72,7 @@ private[ra3] object ScanSupport {
     }
 
   def buildSegment(
-      file: tasks.SharedFile,
+      file: SharedFile,
       cm: PColMeta,
       numRows: Int,
       maxRep: Int,

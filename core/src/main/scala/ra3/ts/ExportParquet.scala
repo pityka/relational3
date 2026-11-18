@@ -1,7 +1,7 @@
 package ra3.ts
 
 import ra3.*
-import ra3.parquet.{Parquet, Column}
+import _root_.parquet.{Parquet, ParquetReader, Column}
 import tasks.*
 import tasks.jsonitersupport.*
 import com.github.plokhotnyuk.jsoniter_scala.macros.*
@@ -54,7 +54,7 @@ private[ra3] object ExportParquet {
         val present =
           (0 until n).filterNot(b.isMissing).map(i => b.values(i)).toArray
         val mm = b.nonMissingMinMax
-        Column(name, Parquet.TYPE_INT32, None, opt, n, present.length,
+        Column(name, ParquetReader.TYPE_INT32, None, opt, n, present.length,
           if (opt) defLevels else emptyLevels, Parquet.plainI32(present),
           mm.map(x => Parquet.plainI32(Array(x._1))),
           mm.map(x => Parquet.plainI32(Array(x._2))))
@@ -62,7 +62,7 @@ private[ra3] object ExportParquet {
         val present =
           (0 until n).filterNot(b.isMissing).map(i => b.values(i)).toArray
         val mm = b.nonMissingMinMax
-        Column(name, Parquet.TYPE_INT64, None, opt, n, present.length,
+        Column(name, ParquetReader.TYPE_INT64, None, opt, n, present.length,
           if (opt) defLevels else emptyLevels, Parquet.plainI64(present),
           mm.map(x => Parquet.plainI64(Array(x._1))),
           mm.map(x => Parquet.plainI64(Array(x._2))))
@@ -70,7 +70,7 @@ private[ra3] object ExportParquet {
         val present =
           (0 until n).filterNot(b.isMissing).map(i => b.values(i)).toArray
         val mm = b.nonMissingMinMax
-        Column(name, Parquet.TYPE_INT64, Some(Parquet.CONV_TIMESTAMP_MILLIS),
+        Column(name, ParquetReader.TYPE_INT64, Some(ParquetReader.CONV_TIMESTAMP_MILLIS),
           opt, n, present.length,
           if (opt) defLevels else emptyLevels, Parquet.plainI64(present),
           mm.map(x => Parquet.plainI64(Array(x._1))),
@@ -79,7 +79,7 @@ private[ra3] object ExportParquet {
         val present =
           (0 until n).filterNot(b.isMissing).map(i => b.values(i)).toArray
         val mm = b.nonMissingMinMax
-        Column(name, Parquet.TYPE_DOUBLE, None, opt, n, present.length,
+        Column(name, ParquetReader.TYPE_DOUBLE, None, opt, n, present.length,
           if (opt) defLevels else emptyLevels, Parquet.plainF64(present),
           mm.map(x => Parquet.plainF64(Array(x._1))),
           mm.map(x => Parquet.plainF64(Array(x._2))))
@@ -89,7 +89,7 @@ private[ra3] object ExportParquet {
           .map(i => b.elementAsCharSequence(i).toString.getBytes("UTF-8"))
           .toArray
         val mm = b.nonMissingMinMax
-        Column(name, Parquet.TYPE_BYTE_ARRAY, Some(Parquet.CONV_UTF8),
+        Column(name, ParquetReader.TYPE_BYTE_ARRAY, Some(ParquetReader.CONV_UTF8),
           opt, n, present.length,
           if (opt) defLevels else emptyLevels, Parquet.plainBytes(present),
           mm.map(x => x._1.toString.getBytes("UTF-8")),
@@ -117,7 +117,7 @@ private[ra3] object ExportParquet {
           val bytes = Parquet.writeFile(
             cols,
             numRows,
-            if (snappy) Parquet.CODEC_SNAPPY else Parquet.CODEC_UNCOMPRESSED
+            if (snappy) ParquetReader.CODEC_SNAPPY else ParquetReader.CODEC_UNCOMPRESSED
           )
           val stream = fs2.Stream.chunk(fs2.Chunk.array(bytes))
           SharedFile.scoped(

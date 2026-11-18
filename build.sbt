@@ -104,6 +104,7 @@ lazy val core = project
     name := "ra3-core",
     libraryDependencies ++= List(
       "io.airlift" % "aircompressor" % "0.25",
+      "io.github.pityka" %% "parquet-core" % "0.3.0",
       "org.scalameta" %% "munit" % "1.3.6" % Test,
       "io.github.pityka" %% "saddle-core" % "4.0.0-M11",
       "io.github.pityka" %% "tasks-core" % "4.0.0-M101",

@@ -206,10 +206,10 @@ package object ra3 {
       val footerLen = (last8(0) & 0xff) | ((last8(1) & 0xff) << 8) |
         ((last8(2) & 0xff) << 16) | ((last8(3) & 0xff) << 24)
       tail(8L + footerLen.toLong).map { region =>
-        val footer = ra3.parquet.Parquet.readFooter(region)
+        val footer = _root_.parquet.Parquet.readFooter(region)
         require(footer.rowGroups.nonEmpty, "empty parquet file")
         val leaves =
-          ra3.parquet.Unnest.leaves(ra3.parquet.Unnest.buildTree(footer.schema))
+          _root_.parquet.Parquet.leaves(_root_.parquet.Unnest.buildTree(footer.schema))
         if (leaves.exists(_.maxRep >= 1))
           throw new RuntimeException(
             "scanParquet cannot scan a list column in place; use importParquet, which materializes and auto-unnests."
